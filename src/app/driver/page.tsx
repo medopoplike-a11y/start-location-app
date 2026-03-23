@@ -192,7 +192,7 @@ export default function DriverApp() {
       (error) => {
         console.error("Error getting driver location:", error);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);

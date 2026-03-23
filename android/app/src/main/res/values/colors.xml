@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- الألوان الرئيسية المتوافقة مع Vercel و Supabase -->
+    <color name="colorPrimary">#000000</color> <!-- اللون الأسود الرئيسي (Vercel Style) -->
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#3E90F0</color> <!-- لون أزرق جذاب (Supabase Style) -->
+
+    <!-- ألوان شريط الحالة والخلفيات -->
+    <color name="statusBarColor">#000000</color>
+    <color name="splashBackgroundColor">#FFFFFF</color>
+</resources>
