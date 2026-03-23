@@ -1,0 +1,18 @@
+{
+  "app\\admin\\page.tsx -> @/components/LiveMap": {
+    "id": 6807,
+    "files": [
+      "static/css/857aa62baa17c894.css",
+      "static/chunks/d0deef33.afff9b3bf7059c8b.js",
+      "static/chunks/807.97082ee3cf7434de.js"
+    ]
+  },
+  "app\\vendor\\page.tsx -> @/components/LiveMap": {
+    "id": 6807,
+    "files": [
+      "static/css/857aa62baa17c894.css",
+      "static/chunks/d0deef33.afff9b3bf7059c8b.js",
+      "static/chunks/807.97082ee3cf7434de.js"
+    ]
+  }
+}
