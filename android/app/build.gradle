@@ -47,3 +47,4 @@ dependencies {
 apply from: 'capacitor.build.gradle'
 apply plugin: 'com.google.firebase.crashlytics'
 apply plugin: 'com.google.gms.google-services'
+
