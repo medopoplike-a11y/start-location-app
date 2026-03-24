@@ -91,6 +91,15 @@ export default function VendorApp() {
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [showLiveMap, setShowLiveMap] = useState(false);
+  const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
+
+  const addActivity = (text: string) => {
+    setActivityLog(prev => [{
+      id: Math.random().toString(36).substr(2, 9),
+      text,
+      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+    }, ...prev].slice(0, 3));
+  };
   
   const [formData, setFormData] = useState({
     customer: "",
@@ -529,8 +538,33 @@ export default function VendorApp() {
 
   const renderStoreView = () => (
     <>
-      {/* Wallet & Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Market Pulse & Activities */}
+      <div className="space-y-4">
+        {activityLog.length > 0 && (
+          <div className="bg-gray-900/5 backdrop-blur-sm border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 overflow-hidden relative">
+            <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-orange animate-pulse" />
+            <AnimatePresence mode="popLayout">
+              {activityLog.map((log) => (
+                <motion.div 
+                  key={log.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex justify-between items-center px-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-brand-orange" />
+                    <span className="text-[10px] font-bold text-gray-600">{log.text}</span>
+                  </div>
+                  <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Wallet & Stats */}
+        <div className="grid grid-cols-2 gap-4">
         <section 
           onClick={() => setActiveView("wallet")}
           className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm cursor-pointer active:scale-95 transition-all"

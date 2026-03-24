@@ -102,6 +102,15 @@ export default function DriverApp() {
   const [systemDebt, setSystemDebt] = useState(0);
   const [backgroundActive, setBackgroundActive] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
+
+  const addActivity = (text: string) => {
+    setActivityLog(prev => [{
+      id: Math.random().toString(36).substr(2, 9),
+      text,
+      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+    }, ...prev].slice(0, 3));
+  };
 
   // Profile Editing State
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -645,7 +654,12 @@ export default function DriverApp() {
     }
     const newStatus = !isActive;
     setIsActive(newStatus);
-    if (newStatus) playNotification();
+    if (newStatus) {
+      playNotification();
+      addActivity("بدء المناوبة - أنت متصل الآن");
+    } else {
+      addActivity("إنهاء المناوبة - أنت غير متصل");
+    }
   };
 
   const acceptOrder = async (orderId: string) => {
@@ -669,6 +683,7 @@ export default function DriverApp() {
     if (!error && data) {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
       playNotification();
+      addActivity(`تم قبول الطلب #${orderId.slice(0, 8)}`);
     }
   };
 
@@ -691,6 +706,7 @@ export default function DriverApp() {
     if (!error && data) {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
       playNotification();
+      addActivity(`استلام الطلب #${orderId.slice(0, 8)}`);
     }
   };
 
@@ -702,6 +718,7 @@ export default function DriverApp() {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
       if (driverId) fetchStats(driverId);
       playNotification();
+      addActivity(`تم تسليم الطلب #${orderId.slice(0, 8)}`);
     } else if (error) {
       alert("حدث خطأ أثناء تحديث حالة الطلب.");
     }
@@ -862,9 +879,18 @@ export default function DriverApp() {
           <Menu className="w-6 h-6 text-gray-600" />
         </button>
         <div>
-          <h1 className="text-lg font-bold text-gray-900 leading-tight">Start Location</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">Start Location</h1>
+            {isActive && (
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-2 h-2 bg-green-500 rounded-full"
+              />
+            )}
+          </div>
           <div className="flex items-center gap-1">
-            <p className="text-[10px] text-gray-400">لوحة تحكم الكابتن</p>
+            <p className="text-[10px] text-gray-400">كابتن: {driverName}</p>
             {isActive && locationAccuracy && (
               <span className={`w-1.5 h-1.5 rounded-full ${locationAccuracy < 20 ? 'bg-green-500' : locationAccuracy < 100 ? 'bg-yellow-500' : 'bg-red-500'}`} title={`دقة الموقع: ${Math.round(locationAccuracy)} متر`} />
             )}
@@ -1195,6 +1221,30 @@ export default function DriverApp() {
       </AnimatePresence>
 
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
+        {/* شريط النشاط اللحظي (Pulse Activity) */}
+        {isActive && activityLog.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 overflow-hidden relative shadow-sm">
+            <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-red animate-pulse" />
+            <AnimatePresence mode="popLayout">
+              {activityLog.map((log) => (
+                <motion.div 
+                  key={log.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex justify-between items-center px-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-brand-red" />
+                    <span className="text-[10px] font-bold text-gray-600">{log.text}</span>
+                  </div>
+                  <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-10 h-10 border-4 border-brand-red border-t-transparent rounded-full animate-spin"></div>

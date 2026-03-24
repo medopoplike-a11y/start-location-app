@@ -102,6 +102,16 @@ export default function AdminPanel() {
   const [assignSearch, setAssignSearch] = useState("");
 
   const [totalSystemDebt, setTotalSystemDebt] = useState(0); 
+  const [lastSyncTime, setLastSyncTime] = useState(new Date());
+  const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
+
+  const addActivity = (text: string) => {
+    setActivityLog(prev => [{
+      id: Math.random().toString(36).substr(2, 9),
+      text,
+      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+    }, ...prev].slice(0, 5));
+  };
 
   const [appConfig, setAppConfig] = useState({
     latest_version: "0.2.0",
@@ -188,6 +198,7 @@ export default function AdminPanel() {
   }, [router]);
 
   const fetchData = async () => {
+    setLastSyncTime(new Date());
     try {
       await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
     } catch (err) {
@@ -218,6 +229,9 @@ export default function AdminPanel() {
           created_at: o.created_at
         }));
         setLiveOrders(live);
+        if (data.length > allOrders.length) {
+          addActivity(`طلب جديد من ${data[0].vendor_full_name || "محل"}`);
+        }
         setActivities(data.slice(0, 5).map((o: any) => ({
           id: o.id,
           type: 'order',
@@ -564,7 +578,21 @@ export default function AdminPanel() {
             >
               {sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <div className="relative group hidden md:block">
+            
+            {/* System Health Pulse */}
+            <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e] animate-pulse" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">System Live</span>
+              </div>
+              <div className="w-px h-3 bg-gray-200" />
+              <div className="flex items-center gap-2">
+                <Activity className="w-3 h-3 text-blue-500" />
+                <span className="text-[10px] font-bold text-gray-500">آخر مزامنة: {lastSyncTime.toLocaleTimeString('ar-EG')}</span>
+              </div>
+            </div>
+
+            <div className="relative group hidden xl:block">
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
               <input 
                 type="text" 
@@ -596,6 +624,34 @@ export default function AdminPanel() {
           
           {activeView === "dashboard" && (
             <>
+              {/* Pulse Activity Log */}
+              {activityLog.length > 0 && (
+                <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[32px] p-4 flex flex-col gap-2 overflow-hidden relative shadow-sm">
+                  <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-blue-600 animate-pulse" />
+                  <div className="flex items-center gap-2 mb-1 px-2">
+                    <Activity className="w-3 h-3 text-blue-600" />
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Live System Pulse</span>
+                  </div>
+                  <AnimatePresence mode="popLayout">
+                    {activityLog.map((log) => (
+                      <motion.div 
+                        key={log.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="flex justify-between items-center px-4 py-2 bg-gray-50/50 rounded-xl"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-600 shadow-[0_0_5px_#2563eb]" />
+                          <span className="text-xs font-bold text-gray-700">{log.text}</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-400">{log.time}</span>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, idx) => (
