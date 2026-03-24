@@ -25,10 +25,8 @@ import {
   User, 
   Mail,
   Lock,
-  Briefcase,
   Wallet,
-  RefreshCw,
-  Trash2
+  RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -97,14 +95,13 @@ export default function AdminPanel() {
   const [settlements, setSettlements] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<any[]>([]);
-  const [debugInfo, setDebugInfo] = useState<{ profilesCount: number, error: string | null }>({ profilesCount: 0, error: null });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showAssignDriver, setShowAssignDriver] = useState(false);
   const [assigningOrder, setAssigningOrder] = useState<any>(null);
   const [assignSearch, setAssignSearch] = useState("");
 
-  const [totalSystemDebt, setTotalSystemDebt] = useState(0); // إجمالي العمولات المستحقة للشركة
+  const [totalSystemDebt, setTotalSystemDebt] = useState(0); 
 
   const [appConfig, setAppConfig] = useState({
     latest_version: "0.2.0",
@@ -116,54 +113,30 @@ export default function AdminPanel() {
   });
 
   const fetchAppConfig = async () => {
-    const { data, error } = await supabase
-      .from('app_config')
-      .select('*')
-      .single();
+    const { data } = await supabase.from('app_config').select('*').single();
     if (data) setAppConfig(data);
   };
 
   const handleUpdateAppConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
-    const { error } = await supabase
-      .from('app_config')
-      .update(appConfig)
-      .eq('id', 1);
-
-    if (error) {
-      alert("حدث خطأ أثناء تحديث إعدادات التطبيق.");
-    } else {
-      alert("تم تحديث إعدادات التطبيق بنجاح!");
-    }
+    const { error } = await supabase.from('app_config').update(appConfig).eq('id', 1);
+    if (error) alert("حدث خطأ أثناء تحديث إعدادات التطبيق.");
+    else alert("تم تحديث إعدادات التطبيق بنجاح!");
     setActionLoading(false);
   };
 
   const fetchSettlements = async () => {
-    const { data, error } = await supabase
-      .from('settlements')
-      .select('*, profiles!driver_id(full_name)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
+    const { data } = await supabase.from('settlements').select('*, profiles!driver_id(full_name)').eq('status', 'pending').order('created_at', { ascending: true });
     if (data) setSettlements(data);
   };
 
   const handleSettlementAction = async (settlementId: string, newStatus: 'approved' | 'rejected') => {
-    const { error } = await supabase
-      .from('settlements')
-      .update({ status: newStatus })
-      .eq('id', settlementId);
-
-    if (error) {
-      alert("حدث خطأ أثناء تحديث حالة التسوية.");
-    } else {
-      alert(`تم ${newStatus === 'approved' ? 'الموافقة على' : 'رفض'} طلب التسوية بنجاح.`);
-      // تحديث محلي فوري
-      setSettlements(prev => prev.filter(s => s.id !== settlementId));
-    }
+    const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
+    if (error) alert("حدث خطأ أثناء تحديث حالة التسوية.");
+    else { alert(`تم ${newStatus === 'approved' ? 'الموافقة على' : 'رفض'} طلب التسوية بنجاح.`); setSettlements(prev => prev.filter(s => s.id !== settlementId)); }
   };
 
-  // تحديث الإحصائيات الشاملة تلقائياً
   useEffect(() => {
     if (allOrders.length > 0) {
       const profits = allOrders.reduce((acc, order) => {
@@ -176,9 +149,7 @@ export default function AdminPanel() {
       }, 0);
 
       const fund = allOrders.reduce((acc, order) => {
-        if (order.status === "delivered") {
-          return acc + (order.financials.insurance_fee ?? (systemSettings.safeRideFee + VENDOR_INSURANCE_FEE));
-        }
+        if (order.status === "delivered") return acc + (order.financials.insurance_fee ?? (systemSettings.safeRideFee + VENDOR_INSURANCE_FEE));
         return acc;
       }, 0);
 
@@ -187,80 +158,39 @@ export default function AdminPanel() {
     }
   }, [allOrders, systemSettings]);
 
-  // التحقق من الهوية وجلب البيانات
   useEffect(() => {
-    let isMounted = true;
+    let ordersSub: any;
+    let profilesSub: any;
+    let walletsSub: any;
 
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        if (isMounted) router.replace("/login");
-        return;
-      }
-
+      if (!session?.user) { router.replace("/login"); return; }
       const profile = await getUserProfile(session.user.id);
-      
-      // التحقق من الدور سواء من قاعدة البيانات أو من Metadata أو بالإيميل
-      let userRole = profile?.role || session.user.user_metadata?.role;
-      if (session.user.email === 'medopoplike@gmail.com' || session.user.email?.includes('admin')) {
-        userRole = 'admin';
-      }
-      
-      if (!userRole || userRole.toLowerCase() !== 'admin') {
-        console.error("Access denied: Not an admin", { profile, metadata: session.user.user_metadata });
-        if (isMounted) router.replace("/login");
-        return;
-      }
+      let role = profile?.role || session.user.user_metadata?.role;
+      if (session.user.email?.includes('admin') || session.user.email === 'medopoplike@gmail.com') role = 'admin';
+      if (!role || role.toLowerCase() !== 'admin') { router.replace("/login"); return; }
 
-      if (isMounted) {
-        fetchData();
-        setLoading(false);
-      }
+      fetchData();
+      setLoading(false);
 
-      // الاشتراك في التغييرات اللحظية لضمان تحديث البيانات فوراً مع معالجة محسنة
-      const ordersSub = subscribeToOrders((payload) => {
-        console.log("Real-time order change received in Admin:", payload);
-        // تحديث الطلبات والتسويات فوراً
-        fetchOrders();
-        fetchSettlements();
-      });
-
-      const profilesSub = subscribeToProfiles((payload) => {
-        console.log("Real-time profile change received in Admin:", payload);
-        // تحديث البروفايلات والمواقع فوراً
-        fetchProfiles();
-      });
-
-      // إضافة اشتراك للمحافظ أيضاً لضمان دقة الأرصدة
-      const walletsSub = supabase
-        .channel('admin_wallets_all')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, (payload) => {
-          console.log("Real-time wallet change received in Admin:", payload);
-          fetchProfiles(); // المحافظ مرتبطة بالبروفايلات في العرض
-        })
-        .subscribe();
-
-      return () => {
-        if (ordersSub) supabase.removeChannel(ordersSub);
-        if (profilesSub) supabase.removeChannel(profilesSub);
-        if (walletsSub) supabase.removeChannel(walletsSub);
-      };
+      ordersSub = subscribeToOrders(() => { fetchOrders(); fetchSettlements(); });
+      profilesSub = subscribeToProfiles(() => fetchProfiles());
+      walletsSub = supabase.channel('admin_wallets_all').on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => fetchProfiles()).subscribe();
     };
 
     init();
-    return () => { isMounted = false; };
+    return () => {
+      if (ordersSub) supabase.removeChannel(ordersSub);
+      if (profilesSub) supabase.removeChannel(profilesSub);
+      if (walletsSub) supabase.removeChannel(walletsSub);
+    };
   }, [router]);
 
   const fetchData = async () => {
-    setDebugInfo(prev => ({ ...prev, error: null })); // تصفير الأخطاء قبل البدء
     try {
-      // جلب البيانات بالتوالي لتجنب خطأ "Auth Lock Stolen"
-      await fetchProfiles();     // هذا سيجلب البروفايلات والمحافظ معاً
-      await fetchOrders();       // جلب الطلبات
-      await fetchSettlements();  // جلب التسويات
-      await fetchAppConfig();    // جلب إعدادات التطبيق
-    } catch (err: any) {
+      await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
+    } catch (err) {
       console.error("Admin: Global fetch error:", err);
     }
   };
@@ -270,10 +200,7 @@ export default function AdminPanel() {
       const { data, error } = await supabase.rpc('get_all_orders_admin');
       if (error) throw error;
       if (data) {
-        // تخزين كافة الطلبات للتقارير
         setAllOrders(data);
-
-        // تصفية الطلبات الحية فقط (ليست مكتملة وليست ملغية)
         const live = data.filter((o: any) => o.status !== 'delivered' && o.status !== 'cancelled').map((o: any) => ({
           id: o.id.slice(0, 8),
           id_full: o.id,
@@ -291,169 +218,95 @@ export default function AdminPanel() {
           created_at: o.created_at
         }));
         setLiveOrders(live);
-
-        // تحديث الأنشطة الحية بناءً على الطلبات الجديدة
-        const newActivities = data.slice(0, 5).map((o: any) => ({
+        setActivities(data.slice(0, 5).map((o: any) => ({
           id: o.id,
           type: 'order',
           text: `طلب جديد من ${o.vendor_full_name || "محل"} بقيمة ${o.financials?.order_value} ج.م`,
           time: new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-        }));
-        setActivities(newActivities);
+        })));
       }
-    } catch (err: any) {
-      console.error("Admin: Error fetching orders RPC:", err);
+    } catch (err) {
+      console.error("Admin: Error fetching orders:", err);
     }
   };
 
   const handleManualAssign = async (orderId: string, driverId: string) => {
     setActionLoading(true);
-    const { error } = await supabase
-      .from('orders')
-      .update({ 
-        driver_id: driverId,
-        status: 'assigned'
-      })
-      .eq('id', orderId);
-
-    if (error) {
-      alert("حدث خطأ أثناء تعيين المندوب: " + error.message);
-    } else {
-      alert("تم تعيين المندوب بنجاح.");
-      setShowAssignDriver(false);
-      fetchOrders();
-    }
+    const { error } = await supabase.from('orders').update({ driver_id: driverId, status: 'assigned' }).eq('id', orderId);
+    if (error) alert("حدث خطأ أثناء تعيين المندوب: " + error.message);
+    else { alert("تم تعيين المندوب بنجاح."); setShowAssignDriver(false); fetchOrders(); }
     setActionLoading(false);
   };
 
   const fetchProfiles = async () => {
     try {
-      // استخدام RPC لتجاوز RLS للأدمن وضمان جلب كافة البيانات
-      const { data: profiles, error: profilesError } = await supabase.rpc('get_all_profiles_admin');
-      
-      if (profilesError) {
-        setDebugInfo({ profilesCount: 0, error: profilesError.message });
-        // إذا فشل الـ RPC، نحاول الجلب المباشر كحل احتياطي
-        const { data: directProfiles, error: directError } = await supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (directError) throw directError;
-        if (directProfiles) processProfiles(directProfiles);
-      } else if (profiles) {
-        processProfiles(profiles);
-      }
-    } catch (err: any) {
-      console.error("Admin: Error fetching profiles:", err);
-      if (!debugInfo.error) setDebugInfo(prev => ({ ...prev, error: err.message }));
-    }
-  };
-
-  const processProfiles = (profiles: any[]) => {
-    // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف وتنسيق البيانات
-    const online = profiles
-      .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online)
-      .map(p => {
-        // معالجة الموقع سواء كان كائناً أو سلسلة نصية
-        let loc = p.location;
-        if (typeof loc === 'string') {
-          try { loc = JSON.parse(loc); } catch (e) { loc = null; }
-        }
-        
-        // إذا لم يتوفر الموقع، نرجعه ببيانات محدودة
-        if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') {
+      const { data: profiles, error } = await supabase.rpc('get_all_profiles_admin');
+      if (error) throw error;
+      if (profiles) {
+        const online = profiles.filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online).map(p => {
+          let loc = p.location;
+          if (typeof loc === 'string') try { loc = JSON.parse(loc); } catch { loc = null; }
           return {
             id: p.id,
             name: p.full_name,
-            lat: null,
-            lng: null,
-            lastSeen: new Date(p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            lat: loc?.lat || null,
+            lng: loc?.lng || null,
+            lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
           };
-        }
+        });
+        setOnlineDrivers(online);
+        
+        setAllUsers(profiles.map((u: any) => ({
+          id: u.id,
+          email: u.email,
+          full_name: u.full_name || "غير مسجل",
+          phone: u.phone || "غير مسجل",
+          area: u.area || "غير محدد",
+          vehicle_type: u.vehicle_type || "غير محدد",
+          national_id: u.national_id || "غير مسجل",
+          role: (u.role || 'driver').toLowerCase(),
+          created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
+        })));
 
-        return {
-          id: p.id,
-          name: p.full_name,
-          lat: loc.lat,
-          lng: loc.lng,
-          lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-        };
-      });
-    setOnlineDrivers(online as any[]);
-    setDebugInfo({ profilesCount: profiles.length, error: null });
-    
-    // 1. تحديث قائمة "حسابات المستخدمين"
-    setAllUsers(profiles.map((u: any) => ({
-      id: u.id,
-      email: u.email,
-      full_name: u.full_name || "غير مسجل",
-      phone: u.phone || "غير مسجل",
-      area: u.area || "غير محدد",
-      vehicle_type: u.vehicle_type || "غير محدد",
-      national_id: u.national_id || "غير مسجل",
-      role: (u.role || 'driver').toLowerCase(),
-      created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
-    })));
-
-    // 2. تحديث قائمة "المناديب" و "المحلات"
-    const drvs = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver').map((p: any) => ({
-      id: p.id.slice(0, 8),
-      id_full: p.id,
-      name: p.full_name || "بدون اسم",
-      status: p.is_locked ? "محظور" : "نشط",
-      isShiftLocked: p.is_locked,
-      earnings: 0,
-      debt: 0,
-      totalOrders: 0
-    }));
-    
-    const vnds = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'vendor').map((p: any) => ({
-      id: p.id.slice(0, 8),
-      id_full: p.id,
-      name: p.full_name || "بدون اسم",
-      type: "محل",
-      orders: 0,
-      balance: 0,
-      status: "نشط",
-      location: p.location
-    }));
-
-    setDrivers(drvs);
-    setVendors(vnds);
-
-    // جلب المحافظ (بشكل مباشر)
-    supabase
-      .from('wallets')
-      .select('*')
-      .then(({ data: wallets, error: walletError }) => {
-        if (!walletError && wallets) {
-          // حساب إجمالي مديونية الشركة من كافة المحافظ
-          const totalDebt = wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0);
-          setTotalSystemDebt(totalDebt);
-
-          setDrivers(prev => prev.map((d: any) => {
-            const w = wallets.find((wal: any) => wal.user_id === d.id_full);
-            return w ? { ...d, earnings: w.balance, debt: (w.debt || 0) + (w.system_balance || 0) } : d;
+        const { data: wallets } = await supabase.from('wallets').select('*');
+        if (wallets) {
+          setTotalSystemDebt(wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
+          setDrivers(profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver').map((p: any) => {
+            const w = wallets.find((wal: any) => wal.user_id === p.id);
+            return {
+              id: p.id.slice(0, 8),
+              id_full: p.id,
+              name: p.full_name || "بدون اسم",
+              status: p.is_locked ? "محظور" : "نشط",
+              isShiftLocked: p.is_locked,
+              earnings: w?.balance || 0,
+              debt: (w?.debt || 0) + (w?.system_balance || 0),
+              totalOrders: 0
+            };
           }));
-          setVendors(prev => prev.map((v: any) => {
-            const w = wallets.find((wal: any) => wal.user_id === v.id_full);
-            return w ? { ...v, balance: (w.debt || 0) + (w.system_balance || 0) } : v;
+          setVendors(profiles.filter((p: any) => (p.role || '').toLowerCase() === 'vendor').map((p: any) => {
+            const w = wallets.find((wal: any) => wal.user_id === p.id);
+            return {
+              id: p.id.slice(0, 8),
+              id_full: p.id,
+              name: p.full_name || "بدون اسم",
+              type: "محل",
+              orders: 0,
+              balance: (w?.debt || 0) + (w?.system_balance || 0),
+              status: "نشط",
+              location: p.location
+            };
           }));
         }
-      });
+      }
+    } catch (err) {
+      console.error("Admin: Error fetching profiles:", err);
+    }
   };
 
-  // حذف الدالة المكررة fetchAllUsers لأننا دمجناها داخل fetchProfiles
-
   const translateStatus = (status: string) => {
-    switch (status) {
-      case 'pending': return "جاري البحث";
-      case 'assigned': return "تم التعيين";
-      case 'in_transit': return "في الطريق";
-      case 'delivered': return "تم التوصيل";
-      default: return status;
-    }
+    const statuses: any = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    return statuses[status] || status;
   };
 
   const handleAddDriver = async (e: React.FormEvent) => {
@@ -570,11 +423,10 @@ export default function AdminPanel() {
   };
 
   const stats = [
-    { title: "إجمالي الطلبات", value: allOrders.length.toString(), icon: <Truck className="text-blue-500" />, trend: "+12%" },
-    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length.toString(), icon: <Users className="text-green-500" />, trend: "+5%" },
-    { title: "صندوق التأمين", value: `${insuranceFund.toLocaleString()} ج.م`, icon: <ShieldCheck className="text-brand-red" />, trend: "+2%" },
-    { title: "عمولات مستحقة", value: `${totalSystemDebt.toLocaleString()} ج.م`, icon: <Wallet className="text-purple-500" />, trend: "المديونية الحالية" },
-    { title: "صافي الأرباح المحصلة", value: `${totalProfits.toLocaleString()} ج.م`, icon: <DollarSign className="text-yellow-500" />, trend: "+18%" }
+    { title: "إجمالي الطلبات", value: allOrders.length.toString(), icon: <Truck className="text-blue-500 w-6 h-6" />, trend: "+12%" },
+    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length.toString(), icon: <Users className="text-green-500 w-6 h-6" />, trend: "+5%" },
+    { title: "صندوق التأمين", value: `${insuranceFund.toLocaleString()} ج.م`, icon: <ShieldCheck className="text-brand-red w-6 h-6" />, trend: "+2%" },
+    { title: "عمولات مستحقة", value: `${totalSystemDebt.toLocaleString()} ج.م`, icon: <Wallet className="text-purple-500 w-6 h-6" />, trend: "المديونية الحالية" },
   ];
 
   const handleSignOut = async () => {
@@ -819,16 +671,24 @@ export default function AdminPanel() {
 
                 <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl shadow-gray-900/10 flex flex-col justify-between relative overflow-hidden">
                   <div className="relative z-10">
-                    <h3 className="font-bold mb-2">إجمالي صندوق التأمين</h3>
-                    <p className="text-4xl font-black">{(liveOrders.length * (SAFE_RIDE_FEE + VENDOR_INSURANCE_FEE)).toLocaleString()} <span className="text-lg font-bold">ج.م</span></p>
+                    <h3 className="font-bold mb-2">صافي الأرباح المحصلة</h3>
+                    <p className="text-4xl font-black">{totalProfits.toLocaleString()} <span className="text-lg font-bold">ج.م</span></p>
                     <p className="text-xs text-white/50 mt-4 leading-relaxed">
-                      يتم تجميع {SAFE_RIDE_FEE + VENDOR_INSURANCE_FEE} جنيه من كل رحلة ({SAFE_RIDE_FEE} من السائق + {VENDOR_INSURANCE_FEE} من المحل) لضمان حماية الطيارين.
+                      إجمالي العمولات المحصلة من الرحلات المكتملة بعد خصم مستحقات الطيارين.
                     </p>
                   </div>
-                  <button className="relative z-10 w-full bg-white/10 hover:bg-white/20 border border-white/10 py-4 rounded-2xl font-bold mt-8 transition-colors">
-                    سجل التعويضات
-                  </button>
-                  <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-brand-red/20 blur-[80px] rounded-full" />
+                  <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/20 blur-[80px] rounded-full" />
+                </div>
+
+                <div className="bg-brand-red text-white p-8 rounded-[40px] shadow-xl shadow-brand-red/10 flex flex-col justify-between relative overflow-hidden">
+                  <div className="relative z-10">
+                    <h3 className="font-bold mb-2">إجمالي صندوق التأمين</h3>
+                    <p className="text-4xl font-black">{insuranceFund.toLocaleString()} <span className="text-lg font-bold">ج.م</span></p>
+                    <p className="text-xs text-white/50 mt-4 leading-relaxed">
+                      يتم تجميع {SAFE_RIDE_FEE + VENDOR_INSURANCE_FEE} جنيه من كل رحلة لضمان حماية الطيارين.
+                    </p>
+                  </div>
+                  <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/20 blur-[80px] rounded-full" />
                 </div>
               </div>
             </>

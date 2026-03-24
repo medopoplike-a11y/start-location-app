@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Zap, Fingerprint } from "lucide-react";
+import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Zap, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
 import { signIn, getUserProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -43,9 +43,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [systemStatus, setSystemStatus] = useState({ gps: "detecting", net: "online", battery: "100%" });
   const router = useRouter();
 
   useEffect(() => {
+    // Check sensors on load
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(() => setSystemStatus(prev => ({...prev, gps: "active"})), () => setSystemStatus(prev => ({...prev, gps: "restricted"})));
+    }
+    setSystemStatus(prev => ({...prev, net: navigator.onLine ? "active" : "offline"}));
+    
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -96,259 +103,247 @@ export default function LoginPage() {
 
   const roleConfigs = {
     driver: { 
-      title: "طيار", 
-      icon: <Truck size={20} />, 
-      color: "#FF0000", 
-      shadow: "shadow-red-500/30",
-      accent: "bg-red-500/20",
-      glow: "from-red-500/10 to-transparent"
+      title: "نظام الطيار", 
+      label: "DRIVER OS",
+      icon: <Truck size={24} />, 
+      color: "#FF3B30", 
+      shadow: "shadow-red-500/20",
+      accent: "bg-red-500",
+      glow: "from-red-600/20 to-transparent"
     },
     vendor: { 
-      title: "محل", 
-      icon: <Store size={20} />, 
-      color: "#FF8C00", 
-      shadow: "shadow-orange-500/30",
-      accent: "bg-orange-500/20",
-      glow: "from-orange-500/10 to-transparent"
+      title: "نظام المحل", 
+      label: "VENDOR OS",
+      icon: <Store size={24} />, 
+      color: "#FF9500", 
+      shadow: "shadow-orange-500/20",
+      accent: "bg-orange-500",
+      glow: "from-orange-600/20 to-transparent"
     },
     admin: { 
-      title: "إدارة", 
-      icon: <Settings size={20} />, 
-      color: "#4B5563", 
-      shadow: "shadow-gray-500/30",
-      accent: "bg-gray-500/20",
-      glow: "from-gray-500/10 to-transparent"
+      title: "لوحة التحكم", 
+      label: "CORE ADMIN",
+      icon: <Settings size={24} />, 
+      color: "#007AFF", 
+      shadow: "shadow-blue-500/20",
+      accent: "bg-blue-500",
+      glow: "from-blue-600/20 to-transparent"
     }
   };
 
   return (
-    <main className="min-h-screen bg-[#000814] flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden" dir="rtl">
-      {/* Dynamic Futuristic Background */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        {/* Animated Digital Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px]" />
+    <main className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-white/20" dir="rtl">
+      {/* Background Architecture */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        {/* Subtle Vector Grid */}
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
         
-        {/* Data Nodes Background */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <DataNode key={i} index={i} />
-          ))}
-        </div>
+        {/* Ambient Moving Orbs */}
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+          transition={{ duration: 10, repeat: Infinity }}
+          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[120px]" 
+        />
+        <motion.div 
+          animate={{ scale: [1.2, 1, 1.2], opacity: [0.1, 0.15, 0.1] }}
+          transition={{ duration: 15, repeat: Infinity }}
+          className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[120px]" 
+        />
 
-        {/* Role-Based Dynamic Glows */}
+        {/* Dynamic Glow for Active Role */}
         <AnimatePresence mode="wait">
           <motion.div 
             key={role}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.2 }}
-            transition={{ duration: 1.5 }}
-            className={`absolute inset-0 bg-[radial-gradient(circle_1000px_at_50%_50%,${roleConfigs[role].color}15,transparent)]`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 transition-colors duration-1000"
+            style={{ 
+              background: `radial-gradient(circle at 50% 50%, ${roleConfigs[role].color}10 0%, transparent 60%)` 
+            }}
           />
         </AnimatePresence>
-        
-        {/* Constant Center Glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_600px_at_50%_50%,#0047FF05,transparent)]" />
       </div>
 
-      {/* Brand Header with Enhanced Glow */}
+      {/* Brand & System Status */}
       <motion.div 
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 flex flex-col items-center mb-10"
+        className="relative z-10 flex flex-col items-center mb-12"
       >
-        <div className="relative">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 4, repeat: Infinity }}
-            className="absolute inset-0 blur-3xl rounded-full"
-            style={{ backgroundColor: roleConfigs[role].color }}
-          />
-          <StartLogo className="w-24 h-24 mb-4 relative z-10 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" />
+        <div className="flex items-center gap-4 mb-4">
+          <div className="h-px w-12 bg-gradient-to-l from-white/20 to-transparent" />
+          <div className="flex flex-col items-center gap-2">
+             <StartLogo className="w-20 h-20 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
+             <div className="flex gap-1.5 mt-2">
+               {["GPS", "NET", "SYNC"].map(s => (
+                 <div key={s} className="px-2 py-0.5 rounded-full border border-white/5 bg-white/5 flex items-center gap-1">
+                   <div className={`w-1 h-1 rounded-full ${s === 'GPS' && systemStatus.gps === 'active' ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-white/20'}`} />
+                   <span className="text-[7px] font-black text-white/30 uppercase tracking-widest">{s}</span>
+                 </div>
+               ))}
+             </div>
+          </div>
+          <div className="h-px w-12 bg-gradient-to-r from-white/20 to-transparent" />
         </div>
-        <h1 className="text-4xl font-black text-white tracking-tighter mt-2 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50">
-          Start Location
+        <h1 className="text-4xl font-black text-white tracking-[-0.05em] text-center">
+          START <span className="text-white/40 font-light">LOCATION</span>
         </h1>
-        <div className="flex items-center gap-2 mt-2 opacity-30">
-          <div className="w-8 h-px bg-white/50" />
-          <p className="text-[9px] font-black tracking-[0.4em] uppercase text-white whitespace-nowrap">Secure OS Interface</p>
-          <div className="w-8 h-px bg-white/50" />
-        </div>
       </motion.div>
 
-      {/* Main Glassmorphic Terminal Card */}
+      {/* High-Performance Interface Card */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.98, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-[440px] bg-white/5 backdrop-blur-3xl rounded-[40px] shadow-[0_50px_100px_rgba(0,0,0,0.7)] border border-white/10 overflow-hidden relative z-10"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-[460px] relative z-10"
       >
-        {/* Terminal Header Decoration */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        
-        {/* Scanning Line Animation */}
-        <motion.div 
-          animate={{ top: ["-10%", "110%"] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          className="absolute left-0 right-0 h-24 bg-gradient-to-b from-transparent via-white/[0.03] to-transparent pointer-events-none z-0"
-        />
-
-        {/* Role Selector with Advanced Interaction */}
-        <div className="p-4 bg-black/30 flex gap-2 border-b border-white/5 relative z-10">
-          {(["driver", "vendor", "admin"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => { setRole(r); setError(""); }}
-              className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-[24px] transition-all relative group overflow-hidden ${
-                role === r ? "text-white" : "text-white/30 hover:bg-white/5 hover:text-white/50"
-              }`}
-            >
-              {role === r && (
-                <>
+        <div className="bg-[#0f172a]/60 backdrop-blur-2xl rounded-[48px] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] overflow-hidden">
+          
+          {/* Header Role Selector */}
+          <div className="p-3 bg-black/40 flex gap-2 border-b border-white/5">
+            {(["driver", "vendor", "admin"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => { setRole(r); setError(""); }}
+                className={`flex-1 group relative flex flex-col items-center py-4 px-2 rounded-[32px] transition-all duration-500 ${
+                  role === r ? "bg-white/5" : "hover:bg-white/[0.02]"
+                }`}
+              >
+                {role === r && (
                   <motion.div 
-                    layoutId="activeRoleGlow"
-                    className={`absolute inset-0 opacity-20 bg-gradient-to-b ${roleConfigs[r].glow}`}
+                    layoutId="roleSelector"
+                    className="absolute inset-0 border border-white/10 rounded-[32px] bg-gradient-to-b from-white/5 to-transparent shadow-inner"
                   />
-                  <motion.div 
-                    layoutId="activeRoleBorder"
-                    className="absolute inset-0 border border-white/10 rounded-[24px]"
-                  />
-                </>
-              )}
-              <div className={`transition-all duration-300 ${role === r ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : ""}`}>
-                {roleConfigs[r].icon}
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest relative z-10">{roleConfigs[r].title}</span>
-              
-              {role === r && (
-                <motion.div 
-                  layoutId="activeIndicator"
-                  className="absolute bottom-0 w-8 h-0.5 rounded-full"
-                  style={{ backgroundColor: roleConfigs[r].color }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Form Body with High-Tech Inputs */}
-        <div className="p-8 md:p-10 relative z-10">
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2 group">
-              <div className="flex justify-between items-center px-2">
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">User Identity</label>
-                <motion.div 
-                  animate={{ opacity: focusedField === "email" ? 1 : 0 }}
-                  className="text-[9px] font-bold text-blue-400 uppercase flex items-center gap-1"
-                >
-                  <Zap size={8} className="fill-current" /> Awaiting Input
-                </motion.div>
-              </div>
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onFocus={() => setFocusedField("email")}
-                  onBlur={() => setFocusedField(null)}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@start-location.com"
-                  className={`w-full bg-black/40 p-5 rounded-[24px] outline-none border-2 transition-all text-sm font-bold text-white placeholder:text-white/10 ${
-                    focusedField === "email" ? "border-white/20 bg-black/60 shadow-[0_0_20px_rgba(255,255,255,0.05)]" : "border-transparent"
-                  }`}
-                />
-                <Mail className={`absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${focusedField === "email" ? "text-white" : "text-white/10"}`} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-2">
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Access Code</label>
-                <motion.div 
-                  animate={{ opacity: focusedField === "password" ? 1 : 0 }}
-                  className="text-[9px] font-bold text-blue-400 uppercase flex items-center gap-1"
-                >
-                  <Fingerprint size={8} /> Biometric Bypass
-                </motion.div>
-              </div>
-              <div className="relative">
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onFocus={() => setFocusedField("password")}
-                  onBlur={() => setFocusedField(null)}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full bg-black/40 p-5 rounded-[24px] outline-none border-2 transition-all text-sm font-bold text-white placeholder:text-white/10 ${
-                    focusedField === "password" ? "border-white/20 bg-black/60 shadow-[0_0_20px_rgba(255,255,255,0.05)]" : "border-transparent"
-                  }`}
-                />
-                <Lock className={`absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${focusedField === "password" ? "text-white" : "text-white/10"}`} />
-              </div>
-            </div>
-
-            <AnimatePresence>
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-red-500/10 text-red-400 p-4 rounded-[20px] text-[10px] font-bold border border-red-500/20 flex items-center gap-3 backdrop-blur-md"
-                >
-                  <div className="w-1 h-1 bg-red-500 rounded-full animate-ping" />
-                  {error}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full text-white py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-3 mt-4 group relative overflow-hidden"
-            >
-              <div className="absolute inset-0 transition-colors duration-500" style={{ backgroundColor: roleConfigs[role].color }} />
-              <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.2),transparent)]" />
-              
-              <span className="relative z-10 flex items-center gap-2">
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Execute Access Protocol</span>
-                    <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-                  </>
                 )}
-              </span>
-            </button>
-          </form>
-        </div>
-
-        {/* Card Footer Decoration */}
-        <div className="p-4 bg-white/[0.02] border-t border-white/5 flex justify-center">
-          <div className="flex gap-1">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-1 h-1 rounded-full bg-white/10" />
+                <div className={`mb-2 transition-all duration-500 ${role === r ? "scale-110" : "opacity-20 grayscale group-hover:opacity-40"}`} style={{ color: role === r ? roleConfigs[r].color : 'white' }}>
+                  {roleConfigs[r].icon}
+                </div>
+                <span className={`text-[9px] font-black tracking-[0.2em] transition-colors duration-500 ${role === r ? "text-white" : "text-white/20"}`}>
+                  {roleConfigs[r].label}
+                </span>
+                {role === r && (
+                  <motion.div 
+                    layoutId="activeBar"
+                    className="absolute -bottom-1 w-6 h-1 rounded-full"
+                    style={{ backgroundColor: roleConfigs[r].color }}
+                  />
+                )}
+              </button>
             ))}
           </div>
+
+          {/* Form Section */}
+          <div className="p-10">
+            <form onSubmit={handleLogin} className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] px-2 block">Identity Code</label>
+                <div className={`group relative flex items-center bg-black/40 rounded-[28px] border-2 transition-all duration-500 ${focusedField === 'email' ? 'border-white/20 ring-4 ring-white/5' : 'border-transparent'}`}>
+                  <div className="p-5 pl-2 text-white/20">
+                    <Mail size={18} />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onFocus={() => setFocusedField("email")}
+                    onBlur={() => setFocusedField(null)}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="user@start-location.com"
+                    className="w-full bg-transparent p-5 pr-2 outline-none text-sm font-bold text-white placeholder:text-white/10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] px-2 block">Security Token</label>
+                <div className={`group relative flex items-center bg-black/40 rounded-[28px] border-2 transition-all duration-500 ${focusedField === 'password' ? 'border-white/20 ring-4 ring-white/5' : 'border-transparent'}`}>
+                  <div className="p-5 pl-2 text-white/20">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onFocus={() => setFocusedField("password")}
+                    onBlur={() => setFocusedField(null)}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-transparent p-5 pr-2 outline-none text-sm font-bold text-white placeholder:text-white/10"
+                  />
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-500/10 border border-red-500/20 p-5 rounded-[28px] flex items-center gap-4"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-xs font-bold text-red-400">{error}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full relative group h-[72px] flex items-center justify-center gap-3 overflow-hidden rounded-[28px] transition-all active:scale-95 disabled:opacity-50"
+              >
+                <div className="absolute inset-0 transition-colors duration-700" style={{ backgroundColor: roleConfigs[role].color }} />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-white transition-opacity duration-500" />
+                
+                <span className="relative z-10 text-xs font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                  {loading ? (
+                    <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Initiate Access</span>
+                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
+                </span>
+                
+                {/* Visual Feedback Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Decorative Floating Elements */}
+        <div className="absolute -top-6 -right-6 w-12 h-12 bg-white/5 rounded-2xl backdrop-blur-md border border-white/10 flex items-center justify-center rotate-12">
+          <Fingerprint size={20} className="text-white/20" />
+        </div>
+        <div className="absolute -bottom-6 -left-6 w-12 h-12 bg-white/5 rounded-2xl backdrop-blur-md border border-white/10 flex items-center justify-center -rotate-12">
+          <Activity size={20} className="text-white/20" />
         </div>
       </motion.div>
 
-      {/* Futuristic Status Footer */}
+      {/* Footer System Diagnostics */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="mt-10 flex items-center gap-4 px-6 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-md"
+        className="mt-16 flex flex-col items-center gap-4"
       >
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={12} className="text-blue-400" />
-          <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em]">Encrypted Node</span>
+        <div className="flex items-center gap-6 px-8 py-3 bg-white/[0.02] border border-white/5 rounded-full backdrop-blur-lg">
+          <div className="flex items-center gap-2">
+            <Wifi size={12} className="text-green-500" />
+            <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase">Cloud Node Active</span>
+          </div>
+          <div className="w-px h-3 bg-white/10" />
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={12} className="text-blue-500" />
+            <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase">E2EE Secured</span>
+          </div>
+          <div className="w-px h-3 bg-white/10" />
+          <div className="flex items-center gap-2">
+            <Pin size={12} className="text-red-500" />
+            <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase">Precision GPS: High</span>
+          </div>
         </div>
-        <div className="w-px h-3 bg-white/10" />
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,197,94,0.5)]" />
-          <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em]">Live Status: Active</span>
-        </div>
+        <p className="text-[8px] font-bold text-white/10 tracking-[0.5em] uppercase">Start Location Services v0.2.0 • 2026</p>
       </motion.div>
 
       {/* Interactive Floating Marker Decoration */}

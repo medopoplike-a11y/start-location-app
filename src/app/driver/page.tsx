@@ -46,10 +46,13 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
 });
 
 import { SAFE_RIDE_FEE, calculateOrderFinancials } from "@/lib/pricing";
-import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
+import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { updateOrder, subscribeToOrders, driverConfirmPayment, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
+
+const ACCEPTANCE_RADIUS_KM = 5;
+const DEBT_LIMIT = 1000;
 
 interface Order {
   id: string;
@@ -84,6 +87,32 @@ export default function DriverApp() {
   const [driverName, setDriverName] = useState("كابتن");
   const [isActive, setIsActive] = useState(false);
   const [autoAccept, setAutoAccept] = useState(false);
+  const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "history">("orders");
+  const [newOrderNotify, setNewOrderNotify] = useState<Order | null>(null);
+  const [showLockAlert, setShowLockAlert] = useState(false);
+  const [showFinancialGuide, setShowFinancialGuide] = useState(false);
+  const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
+  const [vendorDebt, setVendorDebt] = useState(0);
+  const [systemDebt, setSystemDebt] = useState(0);
+  const [backgroundActive, setBackgroundActive] = useState(false);
+  const [wakeLockActive, setWakeLockActive] = useState(false);
+
+  // Profile Editing State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({
+    full_name: "",
+    phone: "",
+    area: "",
+    vehicle_type: "موتوسيكل",
+    national_id: ""
+  });
 
   // استعادة الحالة من localStorage عند التحميل
   useEffect(() => {
@@ -93,16 +122,80 @@ export default function DriverApp() {
     if (savedAutoAccept !== null) setAutoAccept(savedAutoAccept === "true");
   }, []);
 
-  // منع الشاشة من الإغلاق (Screen Wake Lock) والحفاظ على الاتصال
+  // الحفاظ على حالة القبول التلقائي واستقرار الاتصال اللحظي
+  useEffect(() => {
+    if (!driverId || !isActive) return;
+
+    // اشتراك قوي (Robust Subscription) للطلبات الجديدة فقط
+    const channel = supabase
+      .channel(`driver_auto_accept_${driverId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        async (payload) => {
+          const newOrder = payload.new as DBOrder;
+          
+          if (autoAcceptRef.current && isActiveRef.current && newOrder.status === 'pending') {
+            const activeCount = ordersRef.current.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
+            
+            if (activeCount < 3) {
+              const { data: vendorProfile } = await supabase
+                .from('profiles')
+                .select('location')
+                .eq('id', newOrder.vendor_id)
+                .single();
+
+              if (vendorProfile?.location) {
+                const distance = calculateDistance(
+                  locationRef.current?.lat || 0,
+                  locationRef.current?.lng || 0,
+                  vendorProfile.location.lat,
+                  vendorProfile.location.lng
+                );
+                
+                if (distance <= ACCEPTANCE_RADIUS_KM) {
+                  console.log("Auto-accepting order:", newOrder.id);
+                  acceptOrder(newOrder.id);
+                }
+              }
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn("Realtime channel issue, reconnecting...");
+          setTimeout(() => channel.subscribe(), 5000);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isActive, driverId]);
+
+  // مراجع للقيم اللحظية لاستخدامها في الاشتراكات دون إعادة تفعيلها
+  const isActiveRef = React.useRef(isActive);
+  const autoAcceptRef = React.useRef(autoAccept);
+  const locationRef = React.useRef(driverLocation);
+  const ordersRef = React.useRef(orders);
+
+  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
+  useEffect(() => { autoAcceptRef.current = autoAccept; }, [autoAccept]);
+  useEffect(() => { locationRef.current = driverLocation; }, [driverLocation]);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
+
+  // منع الشاشة من الإغلاق والحفاظ على الاتصال
   useEffect(() => {
     let wakeLock: any = null;
-
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && isActive) {
-        try {
+        try { 
           wakeLock = await (navigator as any).wakeLock.request('screen');
+          setWakeLockActive(true);
         } catch (err) {
-          console.error("Wake Lock error:", err);
+          console.error("Wake Lock failed:", err);
+          setWakeLockActive(false);
         }
       }
     };
@@ -110,19 +203,20 @@ export default function DriverApp() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isActive) {
         requestWakeLock();
-        // إعادة جلب البيانات عند العودة للتطبيق
-        if (driverId) {
-          fetchOrders(driverId);
-          fetchStats(driverId);
-        }
+        setBackgroundActive(false);
+        if (driverId) { fetchOrders(driverId); fetchStats(driverId); }
+      } else if (document.visibilityState === 'hidden' && isActive) {
+        setBackgroundActive(true);
       }
     };
 
     if (isActive) {
       requestWakeLock();
       document.addEventListener('visibilitychange', handleVisibilityChange);
+    } else {
+      setWakeLockActive(false);
+      setBackgroundActive(false);
     }
-
     return () => {
       if (wakeLock) wakeLock.release();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -135,23 +229,15 @@ export default function DriverApp() {
       localStorage.setItem("driver_is_active", isActive.toString());
       localStorage.setItem("driver_auto_accept", autoAccept.toString());
       
-      // تحديث حالة الاتصال فوراً وبشكل مستقل عن الموقع
       const updateStatus = async () => {
-        const { error } = await supabase.from('profiles').update({ 
+        await supabase.from('profiles').update({ 
           is_online: isActive,
           updated_at: new Date().toISOString()
         }).eq('id', driverId);
-        
-        if (error) {
-          console.error("Error updating status:", error);
-        } else {
-          console.log("Online status updated to:", isActive);
-        }
       };
 
       updateStatus();
 
-      // محاولة جلب موقع أولي إذا أصبح متصلاً
       if (isActive && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((position) => {
           const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -163,48 +249,15 @@ export default function DriverApp() {
         }, null, { enableHighAccuracy: true, timeout: 5000 });
       }
 
-      // إذا أصبح متصلاً مع تفعيل القبول التلقائي، نقوم بفحص الطلبات المعلقة حالياً
       if (isActive && autoAccept) {
         const pendingOrders = orders.filter(o => o.status === 'pending');
         if (pendingOrders.length > 0) {
-          // قبول أقرب طلب معلق
           const nearest = [...pendingOrders].sort((a, b) => a.distanceValue - b.distanceValue)[0];
-          if (isOrderInRange(nearest.coords)) {
-            acceptOrder(nearest.id);
-          }
+          if (isOrderInRange(nearest.coords)) acceptOrder(nearest.id);
         }
       }
     }
   }, [isActive, autoAccept, driverId]);
-  const [todayDeliveryFees, setTodayDeliveryFees] = useState(0); // إجمالي سعر خدمة التوصيل لليوم
-  const [vendorDebt, setVendorDebt] = useState(0);
-  const [systemDebt, setSystemDebt] = useState(0);
-  // const [showMap, setShowMap] = useState<string | null>(null); // تم إلغاء نظام التوجيه
-  const [activeTab, setActiveTab] = useState<"current" | "history">("current");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [showLockAlert, setShowLockAlert] = useState(false);
-  const [showFinancialGuide, setShowFinancialGuide] = useState(false);
-  const [showDrawer, setShowDrawer] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<"wallet" | "stats" | "none">("none");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newOrderNotify, setNewOrderNotify] = useState<Order | null>(null);
-  const DEBT_LIMIT = 1000;
-
-  const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const ACCEPTANCE_RADIUS_KM = 5; // 5 km radius
-
-  // مراجع للقيم اللحظية لاستخدامها في الاشتراكات دون إعادة تفعيلها
-  const isActiveRef = React.useRef(isActive);
-  const autoAcceptRef = React.useRef(autoAccept);
-  const locationRef = React.useRef(driverLocation);
-
-  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
-  useEffect(() => { autoAcceptRef.current = autoAccept; }, [autoAccept]);
-  useEffect(() => { locationRef.current = driverLocation; }, [driverLocation]);
 
   // تتبع موقع الطيار وتحديثه في قاعدة البيانات بدقة عالية
   useEffect(() => {
@@ -275,6 +328,13 @@ export default function DriverApp() {
 
       setDriverId(user.id);
       setDriverName(profile.full_name || "كابتن");
+      setProfileData({
+        full_name: profile.full_name || "",
+        phone: profile.phone || "",
+        area: profile.area || "",
+        vehicle_type: profile.vehicle_type || "موتوسيكل",
+        national_id: profile.national_id || ""
+      });
       
       // جلب الطلبات المتاحة أو المسندة لهذا الطيار
       fetchOrders(user.id);
@@ -405,6 +465,20 @@ export default function DriverApp() {
     }
   };
 
+  const handleUpdateProfile = async () => {
+    if (!driverId) return;
+    setSavingProfile(true);
+    const { error } = await updateUserProfile(driverId, profileData);
+    if (error) {
+      alert("حدث خطأ أثناء تحديث الملف الشخصي.");
+    } else {
+      setDriverName(profileData.full_name);
+      alert("تم تحديث الملف الشخصي بنجاح.");
+      setShowProfileModal(false);
+    }
+    setSavingProfile(false);
+  };
+
   const fetchOrders = async (currentDriverId: string) => {
     try {
       const { data, error } = await supabase
@@ -496,9 +570,34 @@ export default function DriverApp() {
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // New Profile State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({
+    full_name: "",
+    phone: "",
+    area: "",
+    vehicle_type: "موتوسيكل",
+    national_id: ""
+  });
+
   const handleOpenSettlement = () => {
     setSettlementAmount(systemDebt.toString());
     setShowSettlementModal(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!driverId) return;
+    setSavingProfile(true);
+    const { error } = await updateUserProfile(driverId, profileData);
+    if (error) {
+      alert("حدث خطأ أثناء تحديث الملف الشخصي.");
+    } else {
+      setDriverName(profileData.full_name);
+      alert("تم تحديث الملف الشخصي بنجاح.");
+      setShowProfileModal(false);
+    }
+    setSavingProfile(false);
   };
 
   const handleRequestSettlement = async () => {
@@ -551,6 +650,17 @@ export default function DriverApp() {
 
   const acceptOrder = async (orderId: string) => {
     if (!driverId) return;
+
+    // التحقق من عدد الطلبات النشطة (الحد الأقصى 3)
+    const activeOrdersCount = orders.filter(o => 
+      o.status !== 'delivered' && o.status !== 'cancelled'
+    ).length;
+
+    if (activeOrdersCount >= 3) {
+      alert("عذراً، لا يمكنك قبول أكثر من 3 طلبات نشطة في نفس الوقت.");
+      return;
+    }
+
     const { data, error } = await updateOrder(orderId, { 
       driver_id: driverId, 
       status: 'assigned' 
@@ -691,6 +801,11 @@ export default function DriverApp() {
                 </div>
               </div>
 
+              <button onClick={() => { setShowDrawer(false); setShowProfileModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors">
+                <Settings className="w-5 h-5 text-gray-400" />
+                <span className="text-sm font-bold text-gray-700">تعديل الملف الشخصي</span>
+              </button>
+
               <button onClick={() => { setShowDrawer(false); setShowPasswordModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors">
                 <ShieldCheck className="w-5 h-5 text-gray-400" />
                 <span className="text-sm font-bold text-gray-700">تغيير كلمة السر</span>
@@ -705,6 +820,15 @@ export default function DriverApp() {
                 <TrendingDown className="w-5 h-5 text-gray-400" />
                 <span className="text-sm font-bold text-gray-700">طلب تسوية</span>
               </button>
+
+              <div className="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <p className="text-[10px] font-black text-blue-900 mb-1 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> نصيحة للأداء المستقر
+                </p>
+                <p className="text-[9px] text-blue-700 leading-relaxed font-bold">
+                  لضمان استقبال الطلبات في الخلفية بدقة، يرجى استبعاد التطبيق من "تحسين البطارية" في إعدادات الهاتف.
+                </p>
+              </div>
             </div>
 
             <div className="p-4 border-t border-gray-100">
@@ -749,6 +873,19 @@ export default function DriverApp() {
       </div>
       
       <div className="flex items-center gap-2">
+        {/* مؤشرات الحالة المتقدمة */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+          <div className="flex items-center gap-1">
+            <div className={`w-1.5 h-1.5 rounded-full ${wakeLockActive ? 'bg-orange-500 shadow-[0_0_5px_#f97316]' : 'bg-gray-300'}`} />
+            <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">SCREEN ON</span>
+          </div>
+          <div className="w-px h-2 bg-gray-200" />
+          <div className="flex items-center gap-1">
+            <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-gray-300'}`} />
+            <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">CORE SYNC</span>
+          </div>
+        </div>
+
         {/* زر التحديث اليدوي */}
         <button 
           onClick={handleManualRefresh}
@@ -1111,6 +1248,78 @@ export default function DriverApp() {
         )}
       </AnimatePresence>
 
+      {/* Profile Modal */}
+      <AnimatePresence>
+        {showProfileModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <button onClick={() => setShowProfileModal(false)} className="absolute top-6 left-6 text-gray-400 hover:text-gray-900 transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+              <h2 className="text-xl font-black mb-6">تعديل الملف الشخصي</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 block mb-2">الاسم بالكامل</label>
+                  <input 
+                    type="text" 
+                    value={profileData.full_name} 
+                    onChange={(e) => setProfileData({...profileData, full_name: e.target.value})} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 block mb-2">رقم الهاتف</label>
+                  <input 
+                    type="tel" 
+                    value={profileData.phone} 
+                    onChange={(e) => setProfileData({...profileData, phone: e.target.value})} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 block mb-2">منطقة العمل</label>
+                  <input 
+                    type="text" 
+                    value={profileData.area} 
+                    onChange={(e) => setProfileData({...profileData, area: e.target.value})} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 block mb-2">نوع المركبة</label>
+                  <select 
+                    value={profileData.vehicle_type} 
+                    onChange={(e) => setProfileData({...profileData, vehicle_type: e.target.value})} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold appearance-none"
+                  >
+                    <option>موتوسيكل</option>
+                    <option>عجلة</option>
+                    <option>سيارة</option>
+                    <option>سكوتر</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 block mb-2">الرقم القومي</label>
+                  <input 
+                    type="text" 
+                    value={profileData.national_id} 
+                    onChange={(e) => setProfileData({...profileData, national_id: e.target.value})} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" 
+                  />
+                </div>
+                <button 
+                  onClick={handleUpdateProfile} 
+                  disabled={savingProfile}
+                  className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold disabled:opacity-50 shadow-lg shadow-red-100"
+                >
+                  {savingProfile ? "جاري الحفظ..." : "حفظ التغييرات"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Change Password Modal */}
       <AnimatePresence>
         {showPasswordModal && (
@@ -1141,7 +1350,7 @@ export default function DriverApp() {
                 <button 
                   onClick={handleChangePassword} 
                   disabled={changingPassword}
-                  className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold disabled:opacity-50"
+                  className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold disabled:opacity-50 shadow-lg shadow-gray-200"
                 >
                   {changingPassword ? "جاري التغيير..." : "حفظ التغييرات"}
                 </button>

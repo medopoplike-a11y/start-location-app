@@ -21,7 +21,6 @@ import {
   History,
   Wallet,
   ArrowUpRight,
-  ArrowDownLeft,
   Settings,
   Phone,
   MessageCircle,
@@ -34,7 +33,7 @@ import { useRouter } from "next/navigation";
 import LocationMarker from "@/components/LocationMarker";
 
 import { VENDOR_INSURANCE_FEE, calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
-import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
+import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, subscribeToProfiles, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
@@ -104,273 +103,149 @@ export default function VendorApp() {
     customerCoords: null as { lat: number, lng: number } | null
   });
 
-  const handlePickCustomerLocation = () => {
-    if (!navigator.geolocation) {
-      alert("متصفحك لا يدعم تحديد الموقع.");
-      return;
-    }
+  const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "" });
 
-    navigator.geolocation.getCurrentPosition((position) => {
-      const coords = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-      };
-      setFormData(prev => ({ ...prev, customerCoords: coords }));
-      
-      // إذا توفر موقع المحل، نقوم بتحديث سعر التوصيل تلقائياً
-      if (vendorLocation) {
-        const dist = calculateDistance(vendorLocation.lat, vendorLocation.lng, coords.lat, coords.lng);
-        const fee = Math.ceil(calculateDeliveryFee(dist));
-        setFormData(prev => ({ ...prev, deliveryFee: fee.toString() }));
-      }
-      
-      alert("تم تحديد موقع العميل بنجاح!");
-    }, (error) => {
-      alert("فشل تحديد الموقع. تأكد من تفعيل الـ GPS.");
+  // --- Logic Helpers ---
+
+  const handleUpdateProfile = async () => {
+    if (!vendorId) return;
+    setSavingSettings(true);
+    const { error } = await updateUserProfile(vendorId, {
+      full_name: settingsData.name,
+      phone: settingsData.phone,
+      area: settingsData.area
     });
+    
+    if (error) {
+      alert("حدث خطأ أثناء تحديث الملف الشخصي.");
+    } else {
+      setVendorName(settingsData.name);
+      setVendorPhone(settingsData.phone);
+      alert("تم تحديث الملف الشخصي بنجاح!");
+      setActiveView("store");
+    }
+    setSavingSettings(false);
   };
 
-  // حفظ واسترجاع بيانات النموذج لمنع فقدان البيانات عند الريلود (خاصة عند استخدام الكاميرا)
+  const handlePickCustomerLocation = () => {
+    if (!navigator.geolocation) return alert("متصفحك لا يدعم تحديد الموقع.");
+    navigator.geolocation.getCurrentPosition((position) => {
+      const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+      setFormData(prev => {
+        let fee = prev.deliveryFee;
+        if (vendorLocation) {
+          const dist = calculateDistance(vendorLocation.lat, vendorLocation.lng, coords.lat, coords.lng);
+          fee = Math.ceil(calculateDeliveryFee(dist)).toString();
+        }
+        return { ...prev, customerCoords: coords, deliveryFee: fee };
+      });
+      alert("تم تحديد موقع العميل بنجاح!");
+    }, () => alert("فشل تحديد الموقع. تأكد من تفعيل الـ GPS."));
+  };
+
+  // المزامنة مع LocalStorage
   useEffect(() => {
     const savedData = localStorage.getItem("pending_order_form");
     const savedInvoice = localStorage.getItem("pending_order_invoice");
-    if (savedData) {
-      setFormData(JSON.parse(savedData));
-      setShowOrderForm(true); // إعادة فتح النموذج إذا كان هناك بيانات محفوظة
-    }
-    if (savedInvoice) {
-      setInvoiceUrl(savedInvoice);
-    }
+    if (savedData) { setFormData(JSON.parse(savedData)); setShowOrderForm(true); }
+    if (savedInvoice) setInvoiceUrl(savedInvoice);
   }, []);
 
   useEffect(() => {
     if (showOrderForm && !editingOrder) {
       localStorage.setItem("pending_order_form", JSON.stringify(formData));
+      if (invoiceUrl) localStorage.setItem("pending_order_invoice", invoiceUrl);
     } else {
       localStorage.removeItem("pending_order_form");
-    }
-  }, [formData, showOrderForm, editingOrder]);
-
-  useEffect(() => {
-    if (invoiceUrl && !editingOrder) {
-      localStorage.setItem("pending_order_invoice", invoiceUrl);
-    } else {
       localStorage.removeItem("pending_order_invoice");
     }
-  }, [invoiceUrl, editingOrder]);
-
-  const [settingsData, setSettingsData] = useState({
-    name: "",
-    phone: ""
-  });
+  }, [formData, showOrderForm, editingOrder, invoiceUrl]);
 
   // تحديث الرصيد (المديونية المستحقة من الطيارين) تلقائياً
   useEffect(() => {
-    if (orders.length >= 0) {
-      // المديونية هي مجموع مبالغ الطلبات التي تم توصيلها ولم يتم تحصيلها بعد
-      const pendingCollection = orders.reduce((acc, order) => {
-        if (order.status === "تم التوصيل" && !order.vendorCollectedAt) {
-          const val = Number(order.amount.replace(" ج.م", "").replace(",", ""));
-          return acc + val;
-        }
-        return acc;
-      }, 0);
-
-      setBalance(pendingCollection);
-    }
+    const pendingCollection = orders.reduce((acc, order) => {
+      if (order.status === "تم التوصيل" && !order.vendorCollectedAt) {
+        const val = Number(order.amount.replace(/[^0-9.-]+/g, ""));
+        return acc + val;
+      }
+      return acc;
+    }, 0);
+    setBalance(pendingCollection);
   }, [orders]);
 
   // التحقق من الهوية وجلب البيانات
   useEffect(() => {
-    let subscription: any;
+    let ordersSub: any;
+    let profilesSub: any;
 
     const init = async () => {
       const user = await getCurrentUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      const profile = await getUserProfile(user.id);
-      if (!profile || profile.role !== 'vendor') {
+      if (!user || (await getUserProfile(user.id))?.role !== 'vendor') {
         router.push("/login");
         return;
       }
 
       setVendorId(user.id);
-      setVendorName(profile.full_name || "محل");
-      setVendorPhone(profile.phone || "");
-      setVendorLocation((profile as any).location);
-      setSettingsData({
-        name: profile.full_name || "",
-        phone: profile.phone || ""
-      });
+      const profile = await getUserProfile(user.id);
+      if (profile) {
+        setVendorName(profile.full_name || "محل");
+        setVendorPhone(profile.phone || "");
+        setVendorLocation((profile as any).location);
+        setSettingsData({ 
+          name: profile.full_name || "", 
+          phone: profile.phone || "",
+          area: (profile as any).area || ""
+        });
+      }
       
-      // جلب الطلبات
       const dbOrders = await getVendorOrders(user.id);
       setOrders(dbOrders.map(mapDBOrderToUI));
       
-      // جلب الطيارين المتصلين حالياً (مع معالجة الخطأ والتنسيق)
-      const { data: driversData, error: driversError } = await supabase
-        .from('profiles')
-        .select('id, full_name, location, is_online, updated_at, last_location_update, role')
-        .eq('is_online', true);
-      
-      if (driversError) {
-        console.error("Vendor: Error fetching drivers:", driversError);
-      }
-
-      if (driversData) {
-        const processed = driversData
-          .filter(d => (d.role || '').toLowerCase() === 'driver') // أزلنا شرط وجود الموقع لإظهاره في القائمة
-          .map(d => {
-            let loc = d.location;
-            if (typeof loc === 'string') {
-              try { loc = JSON.parse(loc); } catch (e) { loc = null; }
-            }
-            
-            // إذا لم يتوفر الموقع، نرجعه ببيانات محدودة للقائمة فقط
-            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') {
-              return {
-                id: d.id,
-                name: d.full_name,
-                lat: null,
-                lng: null,
-                lastSeen: formatTime(d.updated_at)
-              };
-            }
-
-            return {
-              id: d.id,
-              name: d.full_name,
-              lat: loc.lat,
-              lng: loc.lng,
-              lastSeen: formatTime(d.last_location_update || d.updated_at)
-            };
-          });
-        setOnlineDrivers(processed as any[]);
-      }
-
-      // جلب محفظة المحل
-      const { data: walletData } = await supabase
-        .from('wallets')
-        .select('system_balance')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (walletData) {
-        setCompanyCommission(walletData.system_balance);
-      }
+      const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', user.id).single();
+      if (walletData) setCompanyCommission(walletData.system_balance);
 
       setLoading(false);
 
-      // الاشتراك في التغييرات اللحظية للطلبات مع معالجة محسنة
-      subscription = subscribeToOrders((payload) => {
-        console.log("Real-time order change received in Vendor:", payload);
+      ordersSub = subscribeToOrders((payload) => {
         const { eventType, new: newRecord, old: oldRecord } = payload;
-
-        // تحديث الرصيد والبيانات الأخرى
-        const user = { id: vendorId || '' }; // Use closure variable
         if (eventType === 'UPDATE' && newRecord.status === 'delivered') {
-          // جلب محفظة المحل لتحديث العمولات
-          supabase
-            .from('wallets')
-            .select('system_balance')
-            .eq('user_id', user.id)
-            .single()
-            .then(({ data: walletData }) => {
-              if (walletData) setCompanyCommission(walletData.system_balance);
-            });
+          supabase.from('wallets').select('system_balance').eq('user_id', user.id).single().then(({ data }) => {
+            if (data) setCompanyCommission(data.system_balance);
+          });
         }
 
-        setOrders(prevOrders => {
-          let updatedOrders = [...prevOrders];
-
-          if (eventType === 'INSERT') {
-            if (newRecord.vendor_id === user.id) {
-              const newUIOrder = mapDBOrderToUI(newRecord);
-              if (!updatedOrders.find(o => o.id === newUIOrder.id)) {
-                updatedOrders = [newUIOrder, ...updatedOrders];
-              }
-            }
-          } else if (eventType === 'UPDATE') {
-            // تحديث الطلب إذا كان موجوداً، أو إضافته إذا أصبح يخص هذا المحل
-            if (newRecord.vendor_id === user.id) {
-              const index = updatedOrders.findIndex(o => o.id === newRecord.id);
-              if (index > -1) {
-                updatedOrders[index] = mapDBOrderToUI(newRecord);
-              } else {
-                updatedOrders = [mapDBOrderToUI(newRecord), ...updatedOrders];
-              }
-            } else {
-              // إزالة الطلب إذا لم يعد يخص هذا المحل (نادر الحدوث)
-              updatedOrders = updatedOrders.filter(o => o.id !== newRecord.id);
-            }
-          } else if (eventType === 'DELETE') {
-            updatedOrders = updatedOrders.filter(o => o.id !== oldRecord.id);
-          }
-
-          return updatedOrders;
+        setOrders(prev => {
+          if (eventType === 'INSERT' && newRecord.vendor_id === user.id) return [mapDBOrderToUI(newRecord), ...prev];
+          if (eventType === 'UPDATE' && newRecord.vendor_id === user.id) return prev.map(o => o.id === newRecord.id ? mapDBOrderToUI(newRecord) : o);
+          if (eventType === 'DELETE') return prev.filter(o => o.id !== oldRecord.id);
+          return prev;
         });
       });
 
-      // الاشتراك في تحديثات مواقع الطيارين مع معالجة محسنة
-      const profilesSubscription = subscribeToProfiles((payload) => {
-        const { eventType, new: newProfile } = payload;
+      profilesSub = subscribeToProfiles((payload) => {
+        const { new: newProfile } = payload;
         if (newProfile && (newProfile.role || '').toLowerCase() === 'driver') {
           setOnlineDrivers(prev => {
-            if (!newProfile.is_online) {
-              return prev.filter(d => d.id !== newProfile.id);
-            }
-            // معالجة الموقع
+            if (!newProfile.is_online) return prev.filter(d => d.id !== newProfile.id);
             let loc = newProfile.location;
-            if (typeof loc === 'string') {
-              try { loc = JSON.parse(loc); } catch (e) { loc = null; }
-            }
-            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return prev;
+            if (typeof loc === 'string') try { loc = JSON.parse(loc); } catch { loc = null; }
+            if (!loc || typeof loc.lat !== 'number') return prev;
 
-            const updatedDriver = {
-              id: newProfile.id,
-              name: newProfile.full_name,
-              lat: loc.lat,
-              lng: loc.lng,
-              lastSeen: formatTime(newProfile.last_location_update || newProfile.updated_at)
-            };
-            
-            const index = prev.findIndex(d => d.id === newProfile.id);
-            if (index > -1) {
-              const newDrivers = [...prev];
-              newDrivers[index] = updatedDriver;
-              return newDrivers;
-            }
-            return [...prev, updatedDriver];
+            const updated = { id: newProfile.id, name: newProfile.full_name, lat: loc.lat, lng: loc.lng, lastSeen: formatTime(newProfile.last_location_update || newProfile.updated_at) };
+            const idx = prev.findIndex(d => d.id === newProfile.id);
+            if (idx > -1) { const next = [...prev]; next[idx] = updated; return next; }
+            return [...prev, updated];
           });
         }
       });
-        
-      return () => {
-        if (subscription) supabase.removeChannel(subscription);
-        if (profilesSubscription) supabase.removeChannel(profilesSubscription);
-      };
     };
 
     init();
+    return () => {
+      if (ordersSub) supabase.removeChannel(ordersSub);
+      if (profilesSub) supabase.removeChannel(profilesSub);
+    };
   }, [router]);
-
-  const calculateBalance = (dbOrders: DBOrder[]) => {
-    const totalCollected = dbOrders.reduce((acc, order) => {
-      // المبالغ التي تم تحصيلها من العملاء (مديونية الطيارين للمحل)
-      if (order.status === 'delivered') {
-        return acc + order.financials.order_value;
-      }
-      return acc;
-    }, 0);
-
-    // خصم رسوم التأمين (1 ج.م عن كل طلب تم إنشاؤه)
-    const totalInsurance = dbOrders.length * VENDOR_INSURANCE_FEE;
-    
-    setBalance(totalCollected - totalInsurance);
-  };
 
   // تحويل بيانات قاعدة البيانات إلى بيانات الواجهة
   const mapDBOrderToUI = (db: any): Order => ({
@@ -394,21 +269,8 @@ export default function VendorApp() {
   });
 
   const translateStatus = (status: string) => {
-    switch (status) {
-      case 'pending': return "جاري البحث عن طيار";
-      case 'assigned': return "تم تعيين طيار";
-      case 'in_transit': return "في الطريق";
-      case 'delivered': return "تم التوصيل";
-      case 'cancelled': return "ملغي";
-      default: return status;
-    }
-  };
-
-  const formatTime = (dateStr: string) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return "";
-    return date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    const statuses: any = { pending: "جاري البحث عن طيار", assigned: "تم تعيين طيار", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    return statuses[status] || status;
   };
 
   const handleOpenForm = (order: Order | null = null) => {
@@ -419,8 +281,8 @@ export default function VendorApp() {
         customer: order.customer,
         phone: order.phone || "",
         address: order.address,
-        orderValue: order.amount.replace(" ج.م", "").replace(",", ""),
-        deliveryFee: order.deliveryFee.replace(" ج.م", ""),
+        orderValue: order.amount.replace(/[^0-9.-]+/g, ""),
+        deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, ""),
         notes: order.notes || "",
         prepTime: order.prepTime || "15",
         customerCoords: null
@@ -428,304 +290,123 @@ export default function VendorApp() {
     } else {
       setEditingOrder(null);
       setInvoiceUrl(null);
-      setFormData({
-        customer: "",
-        phone: "",
-        address: "",
-        orderValue: "",
-        deliveryFee: "30",
-        notes: "",
-        prepTime: "15",
-        customerCoords: null
-      });
+      setFormData({ customer: "", phone: "", address: "", orderValue: "", deliveryFee: "30", notes: "", prepTime: "15", customerCoords: null });
     }
     setShowOrderForm(true);
   };
 
   const handleCollectDebt = async (orderId: string) => {
     const { data, error } = await vendorCollectDebt(orderId);
-    if (error) {
-      alert("حدث خطأ أثناء تحديث حالة التحصيل.");
-    } else if (data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
-    }
+    if (error) return alert("حدث خطأ أثناء تحديث حالة التحصيل.");
+    if (data) setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
   };
 
   const handleInvoiceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !vendorId) return;
-
     setUploadingInvoice(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${vendorId}/${Date.now()}.${fileExt}`;
-      
-      // رفع الملف إلى سوبابيز
-      const { data, error } = await supabase.storage
-        .from('invoices')
-        .upload(fileName, file);
-
+      const fileName = `${vendorId}/${Date.now()}.${file.name.split('.').pop()}`;
+      const { error } = await supabase.storage.from('invoices').upload(fileName, file);
       if (error) throw error;
-
-      // الحصول على الرابط العام
-      const { data: { publicUrl } } = supabase.storage
-        .from('invoices')
-        .getPublicUrl(fileName);
-
+      const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
       setInvoiceUrl(publicUrl);
     } catch (error: any) {
-      console.error("Upload error:", error);
-      alert("فشل رفع الفاتورة. تأكد من إعدادات Storage في سوبابيز.");
+      alert("فشل رفع الفاتورة. تأكد من إعدادات Storage.");
     } finally {
       setUploadingInvoice(false);
     }
   };
 
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
   const handleSaveOrder = async () => {
     if (!vendorId) return;
-
-    // الحصول على إحداثيات العميل إذا تم تحديدها، وإلا استخدام قيمة افتراضية للمسافة
     let distance = 2.5; 
-    
-    // محاولة حساب المسافة الحقيقية إذا توفرت إحداثيات المحل والعميل
-    if (vendorLocation && vendorLocation.lat && vendorLocation.lng && formData.customerCoords) {
-      distance = calculateDistance(
-        vendorLocation.lat,
-        vendorLocation.lng,
-        formData.customerCoords.lat,
-        formData.customerCoords.lng
-      );
-      // تقريب المسافة لرقم عشري واحد
-      distance = Math.round(distance * 10) / 10;
+    if (vendorLocation?.lat && formData.customerCoords) {
+      distance = Math.round(calculateDistance(vendorLocation.lat, vendorLocation.lng, formData.customerCoords.lat, formData.customerCoords.lng) * 10) / 10;
     }
 
-    const calculatedFinancials = calculateOrderFinancials(distance);
-
+    const calculated = calculateOrderFinancials(distance);
     const orderData = {
       vendor_id: vendorId,
       driver_id: null,
       status: 'pending' as const,
-      distance: distance,
-      customer_details: {
-        name: formData.customer,
-        phone: formData.phone,
-        address: formData.address,
-        notes: formData.notes,
-        coords: formData.customerCoords // حفظ إحداثيات العميل
-      },
-      financials: {
-        order_value: Number(formData.orderValue),
-        delivery_fee: Number(formData.deliveryFee),
-        prep_time: formData.prepTime,
-        system_commission: calculatedFinancials.systemCommission,
-        driver_earnings: calculatedFinancials.driverEarnings,
-        insurance_fee: calculatedFinancials.insuranceFundTotal
-      },
+      distance,
+      customer_details: { name: formData.customer, phone: formData.phone, address: formData.address, notes: formData.notes, coords: formData.customerCoords },
+      financials: { order_value: Number(formData.orderValue), delivery_fee: Number(formData.deliveryFee), prep_time: formData.prepTime, system_commission: calculated.systemCommission, driver_earnings: calculated.driverEarnings, insurance_fee: calculated.insuranceFundTotal },
       invoice_url: invoiceUrl || undefined
     };
 
-    if (editingOrder) {
-      const { data, error } = await updateOrder(editingOrder.id, orderData);
-      if (error) {
-        console.error("Update error detail:", error);
-        alert(`خطأ في التحديث: ${error.message}`);
-      } else if (data) {
-        const updatedUIOrder = mapDBOrderToUI(data as DBOrder);
-        setOrders(prev => prev.map(o => o.id === updatedUIOrder.id ? updatedUIOrder : o));
-      }
-    } else {
-      const { data, error } = await createOrder(orderData);
-      if (error) {
-        console.error("Creation error detail:", error);
-        alert(`خطأ في إنشاء الطلب: ${error.message}`);
-      } else if (data) {
-        const newUIOrder = mapDBOrderToUI(data as DBOrder);
-        setOrders(prev => [newUIOrder, ...prev]);
-      }
+    const action = editingOrder ? updateOrder(editingOrder.id, orderData) : createOrder(orderData);
+    const { data, error } = await action;
+    if (error) return alert(`خطأ: ${error.message}`);
+    if (data) {
+      const ui = mapDBOrderToUI(data as DBOrder);
+      setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
+      setShowOrderForm(false);
     }
-    setShowOrderForm(false);
-    localStorage.removeItem("pending_order_form");
-    localStorage.removeItem("pending_order_invoice");
   };
 
   const handleClearCanceled = async () => {
-    if (!vendorId) return;
-    if (!confirm("هل أنت متأكد من حذف كافة سجلات الطلبات الملغية نهائياً؟")) return;
-
+    if (!vendorId || !confirm("حذف كافة السجلات الملغية نهائياً؟")) return;
     const { error } = await deleteCanceledOrders(vendorId);
-    if (error) {
-      alert("حدث خطأ أثناء تنظيف السجلات.");
-    } else {
-      setOrders(prev => prev.filter(o => o.status !== "ملغي"));
-      alert("تم تنظيف السجلات الملغية بنجاح.");
-    }
+    if (error) return alert("حدث خطأ.");
+    setOrders(prev => prev.filter(o => o.status !== "ملغي"));
   };
 
   const handleCancelOrder = async (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-
-    if (order.status === "في الطريق" || order.status === "تم التوصيل") {
-      alert("لا يمكن إلغاء الطلب بعد استلامه من قبل الطيار.");
-      return;
-    }
-
-    if (!confirm("هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟")) return;
-    
+    if (!order || order.isPickedUp) return alert("لا يمكن إلغاء الطلب بعد استلامه.");
+    if (!confirm("إلغاء هذا الطلب؟")) return;
     const { data, error } = await cancelOrder(orderId);
-    if (error) {
-      alert("حدث خطأ أثناء إلغاء الطلب.");
-    } else if (data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
-    }
+    if (error) return alert("حدث خطأ.");
+    if (data) setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
   };
 
   const handleUpdateLocation = async () => {
     if (!vendorId) return;
     setSavingLocation(true);
-    
-    if (!navigator.geolocation) {
-      alert("متصفحك لا يدعم تحديد الموقع.");
-      setSavingLocation(false);
-      return;
-    }
-
-    // Attempt to get location with high accuracy, fall back to normal if it fails
-    const getLocation = (options: PositionOptions) => {
-      return new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, options);
-      });
-    };
-
+    const getLocation = (opt: PositionOptions) => new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, opt));
     try {
-      // First try with high accuracy and a reasonable timeout
-      let position;
-      try {
-        position = await getLocation({
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 0
-        });
-      } catch (err) {
-        console.warn("High accuracy failed, falling back to low accuracy:", err);
-        position = await getLocation({
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      }
-
-      const location = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          location,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', vendorId);
-
-      if (error) {
-        throw error;
-      } else {
-        setVendorLocation(location);
-        alert("تم حفظ موقع المحل بنجاح!");
-      }
-    } catch (error: any) {
-      console.error("Location error:", error);
-      let msg = "فشل تحديد الموقع.";
-      if (error.code === 1) msg = "تم رفض صلاحية تحديد الموقع من قبلك.";
-      else if (error.code === 2) msg = "الموقع غير متوفر حالياً.";
-      else if (error.code === 3) msg = "انتهت مهلة تحديد الموقع.";
-      
-      alert(msg + " تأكد من تفعيل الـ GPS وإعطاء الصلاحية للمتصفح.");
-    } finally {
-      setSavingLocation(false);
-    }
+      let pos;
+      try { pos = await getLocation({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }); }
+      catch { pos = await getLocation({ enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }); }
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const { error } = await supabase.from('profiles').update({ location: loc, updated_at: new Date().toISOString() }).eq('id', vendorId);
+      if (error) throw error;
+      setVendorLocation(loc);
+      alert("تم حفظ الموقع!");
+    } catch (err: any) {
+      alert("فشل تحديد الموقع. تأكد من تفعيل GPS.");
+    } finally { setSavingLocation(false); }
   };
 
   const handleSaveSettings = async () => {
     if (!vendorId) return;
     setSavingSettings(true);
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ 
-        full_name: settingsData.name,
-        phone: settingsData.phone
-      })
-      .eq('id', vendorId);
-
-    if (error) {
-      alert("حدث خطأ أثناء حفظ الإعدادات.");
-    } else {
-      setVendorName(settingsData.name);
-      setVendorPhone(settingsData.phone);
-      alert("تم تحديث بيانات المحل بنجاح!");
-      setActiveView("store");
-    }
+    const { error } = await supabase.from('profiles').update({ full_name: settingsData.name, phone: settingsData.phone }).eq('id', vendorId);
+    if (error) alert("خطأ في الحفظ.");
+    else { setVendorName(settingsData.name); setVendorPhone(settingsData.phone); alert("تم التحديث!"); setActiveView("store"); }
     setSavingSettings(false);
   };
 
   const handleChangePassword = async () => {
-    if (newPassword !== confirmPassword) {
-      setPasswordError("كلمات السر غير متطابقة");
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordError("كلمة السر يجب أن تكون 6 أحرف على الأقل");
-      return;
-    }
-
+    if (newPassword !== confirmPassword) return setPasswordError("غير متطابقة");
+    if (newPassword.length < 6) return setPasswordError("6 أحرف على الأقل");
     setChangingPassword(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setChangingPassword(false);
-
-    if (error) {
-      setPasswordError(error.message);
-    } else {
-      setShowPasswordModal(false);
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordError("");
-      alert("تم تغيير كلمة السر بنجاح");
-    }
+    if (error) setPasswordError(error.message);
+    else { setShowPasswordModal(false); setNewPassword(""); setConfirmPassword(""); setPasswordError(""); alert("تم التغيير!"); }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/login");
-  };
+  const handleSignOut = async () => { await signOut(); router.push("/login"); };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customer.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         order.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (!matchesSearch) return false;
-
-    if (activeTab === "active") {
-      return order.status !== "تم التوصيل" && order.status !== "ملغي";
-    } else if (activeTab === "مكتمل") {
-      return order.status === "تم التوصيل";
-    } else if (activeTab === "ملغي") {
-      return order.status === "ملغي";
-    }
-    return true;
+  const filteredOrders = orders.filter(o => {
+    const search = searchQuery.toLowerCase();
+    const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
+    if (!match) return false;
+    if (activeTab === "active") return o.status !== "تم التوصيل" && o.status !== "ملغي";
+    return activeTab === "مكتمل" ? o.status === "تم التوصيل" : o.status === "ملغي";
   });
 
   // --- مكونات واجهة المستخدم الصغيرة ---
@@ -1173,6 +854,17 @@ export default function VendorApp() {
           />
         </div>
 
+        <div>
+          <label className="text-xs font-bold text-gray-400 block mb-2">المنطقة</label>
+          <input 
+            type="text" 
+            value={settingsData.area}
+            onChange={(e) => setSettingsData({...settingsData, area: e.target.value})}
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800"
+            placeholder="منطقة المحل (مثلاً: المعادي)"
+          />
+        </div>
+
         <div className="pt-4 border-t border-gray-50">
           <p className="text-xs font-bold text-gray-400 mb-4">موقع المحل على الخريطة</p>
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
@@ -1200,7 +892,7 @@ export default function VendorApp() {
         </div>
 
         <button 
-          onClick={handleSaveSettings}
+          onClick={handleUpdateProfile}
           disabled={savingSettings}
           className="w-full bg-brand-orange text-white py-5 rounded-2xl font-bold shadow-lg shadow-orange-100 disabled:opacity-50 active:scale-95 transition-all mt-4"
         >

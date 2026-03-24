@@ -194,6 +194,70 @@ export const signOut = async () => {
 };
 
 /**
+ * دالة للأدمن لتحديث بيانات أي مستخدم (طيار أو محل)
+ */
+export const adminUpdateUser = async (userId: string, updates: Partial<UserProfile>, password?: string) => {
+  try {
+    // 1. تحديث البيانات في جدول profiles (كأدمن)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId);
+
+    if (profileError) throw profileError;
+
+    // 2. تحديث كلمة المرور إذا طلبت (هذا يتطلب Service Role أو أن يكون المستخدم هو نفسه، 
+    // ولكن للأدمن في هذا النظام سنعتمد على تحديث البروفايل حالياً)
+    // ملاحظة: تحديث كلمة المرور لمستخدم آخر يتطلب Supabase Admin API (Service Role)
+    // سنكتفي حالياً بتحديث البيانات الأساسية.
+
+    return { error: null };
+  } catch (err: any) {
+    console.error('Error in adminUpdateUser:', err);
+    return { error: err };
+  }
+};
+
+/**
+ * دالة لتحديث الملف الشخصي للمستخدم الحالي
+ */
+export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
+  try {
+    // 1. تحديث البيانات في جدول profiles
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // 2. تحديث Metadata في Auth إذا كان متاحاً
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.id === userId) {
+      const authUpdates: any = {};
+      if (updates.full_name) authUpdates.full_name = updates.full_name;
+      if (updates.phone) authUpdates.phone = updates.phone;
+      if (updates.area) authUpdates.area = updates.area;
+      if (updates.vehicle_type) authUpdates.vehicle_type = updates.vehicle_type;
+      if (updates.national_id) authUpdates.national_id = updates.national_id;
+
+      if (Object.keys(authUpdates).length > 0) {
+        await supabase.auth.updateUser({
+          data: authUpdates
+        });
+      }
+    }
+
+    return { data, error: null };
+  } catch (err: any) {
+    console.error('Error updating user profile:', err);
+    return { error: err };
+  }
+};
+
+/**
  * دالة للحصول على الجلسة الحالية
  */
 export const getCurrentUser = async () => {
