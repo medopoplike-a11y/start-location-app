@@ -219,13 +219,22 @@ export default function VendorApp() {
       if (driversData) {
         setOnlineDrivers(driversData
           .filter(d => (d.role || '').toLowerCase() === 'driver' && d.location)
-          .map(d => ({
-            id: d.id,
-            name: d.full_name,
-            lat: d.location.lat,
-            lng: d.location.lng,
-            lastSeen: formatTime(d.last_location_update || d.updated_at)
-          })));
+          .map(d => {
+            let loc = d.location;
+            if (typeof loc === 'string') {
+              try { loc = JSON.parse(loc); } catch (e) { loc = null; }
+            }
+            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
+
+            return {
+              id: d.id,
+              name: d.full_name,
+              lat: loc.lat,
+              lng: loc.lng,
+              lastSeen: formatTime(d.last_location_update || d.updated_at)
+            };
+          })
+          .filter(d => d !== null));
       }
 
       // جلب محفظة المحل
@@ -299,14 +308,20 @@ export default function VendorApp() {
             if (!newProfile.is_online) {
               return prev.filter(d => d.id !== newProfile.id);
             }
+            // معالجة الموقع
+            let loc = newProfile.location;
+            if (typeof loc === 'string') {
+              try { loc = JSON.parse(loc); } catch (e) { loc = null; }
+            }
+            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return prev;
+
             const updatedDriver = {
               id: newProfile.id,
               name: newProfile.full_name,
-              lat: newProfile.location?.lat,
-              lng: newProfile.location?.lng,
+              lat: loc.lat,
+              lng: loc.lng,
               lastSeen: formatTime(newProfile.last_location_update || newProfile.updated_at)
             };
-            if (!updatedDriver.lat || !updatedDriver.lng) return prev;
             
             const index = prev.findIndex(d => d.id === newProfile.id);
             if (index > -1) {

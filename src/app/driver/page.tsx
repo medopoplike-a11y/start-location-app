@@ -135,14 +135,30 @@ export default function DriverApp() {
       localStorage.setItem("driver_is_active", isActive.toString());
       localStorage.setItem("driver_auto_accept", autoAccept.toString());
       
-      // تحديث حالة الاتصال فوراً
+      // تحديث حالة الاتصال فوراً وجلب الموقع الأولي
       const updateOnlineStatus = async () => {
-        const { error } = await supabase.from('profiles').update({ 
+        const updates: any = { 
           is_online: isActive,
           updated_at: new Date().toISOString()
-        }).eq('id', driverId);
-        
-        if (error) console.error("Error updating online status:", error);
+        };
+
+        // إذا أصبح متصلاً، نحاول جلب الموقع فوراً قبل الـ Watch
+        if (isActive && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(async (position) => {
+            const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+            setDriverLocation(loc);
+            await supabase.from('profiles').update({ 
+              ...updates,
+              location: loc,
+              last_location_update: new Date().toISOString()
+            }).eq('id', driverId);
+          }, async () => {
+            // في حالة الفشل، نحدث الحالة فقط
+            await supabase.from('profiles').update(updates).eq('id', driverId);
+          }, { enableHighAccuracy: true, timeout: 5000 });
+        } else {
+          await supabase.from('profiles').update(updates).eq('id', driverId);
+        }
       };
 
       updateOnlineStatus();
@@ -222,6 +238,11 @@ export default function DriverApp() {
       },
       (error) => {
         console.error("Error getting driver location:", error);
+        // تنبيه الطيار إذا فشل تحديد الموقع
+        if (error.code === 1) { // Permission denied
+          alert("صلاحية الوصول للموقع مرفوضة. يرجى تفعيل الـ GPS وإعطاء الصلاحية للمتصفح.");
+          setIsActive(false);
+        }
       },
       options
     );

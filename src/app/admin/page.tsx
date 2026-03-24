@@ -339,17 +339,28 @@ export default function AdminPanel() {
       }
       
       if (profiles) {
-        // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف
+        // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف وتنسيق البيانات
         const online = profiles
           .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online && p.location)
-          .map(p => ({
-            id: p.id,
-            name: p.full_name,
-            lat: p.location.lat,
-            lng: p.location.lng,
-            lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-          }));
-        setOnlineDrivers(online);
+          .map(p => {
+            // معالجة الموقع سواء كان كائناً أو سلسلة نصية
+            let loc = p.location;
+            if (typeof loc === 'string') {
+              try { loc = JSON.parse(loc); } catch (e) { loc = null; }
+            }
+            
+            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
+
+            return {
+              id: p.id,
+              name: p.full_name,
+              lat: loc.lat,
+              lng: loc.lng,
+              lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            };
+          })
+          .filter(p => p !== null);
+        setOnlineDrivers(online as any[]);
         setDebugInfo({ profilesCount: profiles.length, error: null });
         
         // 1. تحديث قائمة "حسابات المستخدمين"
