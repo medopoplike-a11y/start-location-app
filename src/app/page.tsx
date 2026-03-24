@@ -7,63 +7,36 @@ import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile } from "@/lib/auth";
 import { StartLogo } from "@/components/StartLogo";
 import { Download, AlertCircle, RefreshCw } from "lucide-react";
+import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater } from 'capacitor-updater';
 
-const CURRENT_VERSION = "0.1.0"; // إصدار التطبيق الحالي
+const CURRENT_VERSION = "0.2.0"; // توحيد الإصدار مع المكون الأساسي
 
-interface AppConfig {
-  latest_version: string;
-  min_version: string;
-  download_url: string;
-  force_update: boolean;
-  update_message: string;
-}
+// ... (interface remains same)
 
 export default function SplashPage() {
   const router = useRouter();
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const checkAppVersionAndRedirect = async () => {
+    const checkAppAndRedirect = async () => {
       try {
-        // 1. التحقق من إصدار التطبيق من سوبابيز
-        const { data: config, error: configError } = await supabase
-          .from('app_config')
-          .select('*')
-          .single();
-
-        if (!configError && config) {
-          setAppConfig(config);
-          
-          // مقارنة الإصدارات (بسيطة: إذا كان الإصدار الحالي أصغر من الإصدار الأدنى المطلوب)
-          const isUpdateRequired = config.force_update && compareVersions(CURRENT_VERSION, config.min_version) < 0;
-          const isUpdateAvailable = compareVersions(CURRENT_VERSION, config.latest_version) < 0;
-
-          if (isUpdateRequired) {
-            setShowUpdateModal(true);
-            setIsChecking(false);
-            return; // توقف هنا ولا تتابع
-          }
-
-          // 2. إذا لم يكن هناك تحديث إجباري، تحقق من التحديثات الحية (OTA)
-          if (config.bundle_url) {
-            try {
-              const version = await CapacitorUpdater.download({
+        // 1. التحقق من التحديثات اللحظية (OTA) فقط إذا كان تطبيقاً أصلياً
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const { data: config } = await supabase.from('app_config').select('bundle_url, latest_version').single();
+            if (config?.bundle_url) {
+              await CapacitorUpdater.download({
                 url: config.bundle_url,
                 version: config.latest_version
               });
-              // إذا نجح التحميل، سيتم التطبيق تلقائياً عند إعادة التشغيل التالية
-              console.log('Live update downloaded:', version);
-            } catch (e) {
-              console.error('Live update failed:', e);
             }
+          } catch (e) {
+            console.warn('Live update check skipped or failed:', e);
           }
-
         }
 
-        // 3. استكمل عملية تسجيل الدخول
+        // 2. استكمال عملية التوجيه
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profile = await getUserProfile(session.user.id);
@@ -80,17 +53,14 @@ export default function SplashPage() {
           router.replace("/login");
         }
       } catch (err) {
-        console.error("Splash check error:", err);
+        console.error("Splash error:", err);
         router.replace("/login");
       } finally {
         setIsChecking(false);
       }
     };
 
-    const timer = setTimeout(() => {
-      checkAppVersionAndRedirect();
-    }, 2500);
-
+    const timer = setTimeout(checkAppAndRedirect, 2000);
     return () => clearTimeout(timer);
   }, [router]);
 

@@ -12,6 +12,9 @@ export default function AppUpdater() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
+    // التحقق فقط إذا كنا في بيئة المتصفح
+    if (typeof window === "undefined") return;
+
     const checkUpdate = async () => {
       try {
         const { data, error } = await supabase
@@ -20,8 +23,21 @@ export default function AppUpdater() {
           .single();
 
         if (!error && data) {
-          // قارن الإصدار الحالي مع الإصدار المطلوب في قاعدة البيانات
-          if (data.min_version > CURRENT_VERSION || (data.latest_version > CURRENT_VERSION && data.force_update)) {
+          const latest = data.latest_version;
+          const min = data.min_version;
+          
+          // دالة مقارنة بسيطة
+          const isOutdated = (v: string) => {
+            const currentParts = CURRENT_VERSION.split('.').map(Number);
+            const targetParts = v.split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (targetParts[i] > currentParts[i]) return true;
+              if (targetParts[i] < currentParts[i]) return false;
+            }
+            return false;
+          };
+
+          if (isOutdated(min) || (isOutdated(latest) && data.force_update)) {
             setUpdateInfo(data);
             setShowModal(true);
           }
