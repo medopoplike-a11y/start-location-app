@@ -94,10 +94,10 @@ export default function LiveMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {/* عرض الطيارين */}
-        {drivers.map((driver) => (
+        {drivers.filter(d => d.lat && d.lng).map((driver) => (
           <Marker 
             key={`driver-${driver.id}`} 
-            position={[driver.lat, driver.lng]} 
+            position={[driver.lat!, driver.lng!]} 
             icon={icons.driverIcon!}
           >
             <Popup className="custom-popup">

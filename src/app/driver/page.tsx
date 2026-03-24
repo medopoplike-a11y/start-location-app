@@ -135,33 +135,33 @@ export default function DriverApp() {
       localStorage.setItem("driver_is_active", isActive.toString());
       localStorage.setItem("driver_auto_accept", autoAccept.toString());
       
-      // تحديث حالة الاتصال فوراً وجلب الموقع الأولي
-      const updateOnlineStatus = async () => {
-        const updates: any = { 
+      // تحديث حالة الاتصال فوراً وبشكل مستقل عن الموقع
+      const updateStatus = async () => {
+        const { error } = await supabase.from('profiles').update({ 
           is_online: isActive,
           updated_at: new Date().toISOString()
-        };
-
-        // إذا أصبح متصلاً، نحاول جلب الموقع فوراً قبل الـ Watch
-        if (isActive && navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(async (position) => {
-            const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
-            setDriverLocation(loc);
-            await supabase.from('profiles').update({ 
-              ...updates,
-              location: loc,
-              last_location_update: new Date().toISOString()
-            }).eq('id', driverId);
-          }, async () => {
-            // في حالة الفشل، نحدث الحالة فقط
-            await supabase.from('profiles').update(updates).eq('id', driverId);
-          }, { enableHighAccuracy: true, timeout: 5000 });
+        }).eq('id', driverId);
+        
+        if (error) {
+          console.error("Error updating status:", error);
         } else {
-          await supabase.from('profiles').update(updates).eq('id', driverId);
+          console.log("Online status updated to:", isActive);
         }
       };
 
-      updateOnlineStatus();
+      updateStatus();
+
+      // محاولة جلب موقع أولي إذا أصبح متصلاً
+      if (isActive && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+          setDriverLocation(loc);
+          supabase.from('profiles').update({ 
+            location: loc,
+            last_location_update: new Date().toISOString()
+          }).eq('id', driverId).then();
+        }, null, { enableHighAccuracy: true, timeout: 5000 });
+      }
 
       // إذا أصبح متصلاً مع تفعيل القبول التلقائي، نقوم بفحص الطلبات المعلقة حالياً
       if (isActive && autoAccept) {
@@ -477,7 +477,8 @@ export default function DriverApp() {
   };
 
   const isOrderInRange = (orderCoords: {lat: number, lng: number}) => {
-    if (!driverLocation) return false;
+    // إذا لم يتوفر موقع الطيار بعد، نسمح بالقبول التلقائي (أو نرفضه حسب الرغبة، هنا سنسمح به لضمان عمل النظام)
+    if (!driverLocation) return true; 
     const distance = calculateDistance(
       driverLocation.lat, 
       driverLocation.lng, 

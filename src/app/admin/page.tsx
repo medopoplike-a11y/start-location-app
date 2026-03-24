@@ -353,7 +353,7 @@ export default function AdminPanel() {
   const processProfiles = (profiles: any[]) => {
     // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف وتنسيق البيانات
     const online = profiles
-      .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online && p.location)
+      .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online)
       .map(p => {
         // معالجة الموقع سواء كان كائناً أو سلسلة نصية
         let loc = p.location;
@@ -361,7 +361,16 @@ export default function AdminPanel() {
           try { loc = JSON.parse(loc); } catch (e) { loc = null; }
         }
         
-        if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
+        // إذا لم يتوفر الموقع، نرجعه ببيانات محدودة
+        if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') {
+          return {
+            id: p.id,
+            name: p.full_name,
+            lat: null,
+            lng: null,
+            lastSeen: new Date(p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+          };
+        }
 
         return {
           id: p.id,
@@ -370,8 +379,7 @@ export default function AdminPanel() {
           lng: loc.lng,
           lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
         };
-      })
-      .filter(p => p !== null);
+      });
     setOnlineDrivers(online as any[]);
     setDebugInfo({ profilesCount: profiles.length, error: null });
     

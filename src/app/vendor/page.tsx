@@ -222,13 +222,23 @@ export default function VendorApp() {
 
       if (driversData) {
         const processed = driversData
-          .filter(d => (d.role || '').toLowerCase() === 'driver' && d.location)
+          .filter(d => (d.role || '').toLowerCase() === 'driver') // أزلنا شرط وجود الموقع لإظهاره في القائمة
           .map(d => {
             let loc = d.location;
             if (typeof loc === 'string') {
               try { loc = JSON.parse(loc); } catch (e) { loc = null; }
             }
-            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
+            
+            // إذا لم يتوفر الموقع، نرجعه ببيانات محدودة للقائمة فقط
+            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') {
+              return {
+                id: d.id,
+                name: d.full_name,
+                lat: null,
+                lng: null,
+                lastSeen: formatTime(d.updated_at)
+              };
+            }
 
             return {
               id: d.id,
@@ -237,8 +247,7 @@ export default function VendorApp() {
               lng: loc.lng,
               lastSeen: formatTime(d.last_location_update || d.updated_at)
             };
-          })
-          .filter(d => d !== null);
+          });
         setOnlineDrivers(processed as any[]);
       }
 
