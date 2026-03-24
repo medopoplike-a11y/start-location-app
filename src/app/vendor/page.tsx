@@ -210,21 +210,22 @@ export default function VendorApp() {
       const dbOrders = await getVendorOrders(user.id);
       setOrders(dbOrders.map(mapDBOrderToUI));
       
-      // جلب الطيارين المتصلين حالياً
+      // جلب الطيارين المتصلين حالياً (بحث غير حساس لحالة الأحرف)
       const { data: driversData } = await supabase
         .from('profiles')
-        .select('id, full_name, location, is_online, updated_at')
-        .eq('role', 'driver')
+        .select('id, full_name, location, is_online, updated_at, last_location_update, role')
         .eq('is_online', true);
       
       if (driversData) {
-        setOnlineDrivers(driversData.map(d => ({
-          id: d.id,
-          name: d.full_name,
-          lat: d.location?.lat,
-          lng: d.location?.lng,
-          lastSeen: formatTime(d.updated_at)
-        })).filter(d => d.lat && d.lng));
+        setOnlineDrivers(driversData
+          .filter(d => (d.role || '').toLowerCase() === 'driver' && d.location)
+          .map(d => ({
+            id: d.id,
+            name: d.full_name,
+            lat: d.location.lat,
+            lng: d.location.lng,
+            lastSeen: formatTime(d.last_location_update || d.updated_at)
+          })));
       }
 
       // جلب محفظة المحل
@@ -293,7 +294,7 @@ export default function VendorApp() {
       // الاشتراك في تحديثات مواقع الطيارين مع معالجة محسنة
       const profilesSubscription = subscribeToProfiles((payload) => {
         const { eventType, new: newProfile } = payload;
-        if (newProfile && newProfile.role === 'driver') {
+        if (newProfile && (newProfile.role || '').toLowerCase() === 'driver') {
           setOnlineDrivers(prev => {
             if (!newProfile.is_online) {
               return prev.filter(d => d.id !== newProfile.id);
@@ -303,7 +304,7 @@ export default function VendorApp() {
               name: newProfile.full_name,
               lat: newProfile.location?.lat,
               lng: newProfile.location?.lng,
-              lastSeen: formatTime(newProfile.updated_at)
+              lastSeen: formatTime(newProfile.last_location_update || newProfile.updated_at)
             };
             if (!updatedDriver.lat || !updatedDriver.lng) return prev;
             
@@ -572,7 +573,31 @@ export default function VendorApp() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
+    // Attempt to get location with high accuracy, fall back to normal if it fails
+    const getLocation = (options: PositionOptions) => {
+      return new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    };
+
+    try {
+      // First try with high accuracy and a reasonable timeout
+      let position;
+      try {
+        position = await getLocation({
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 0
+        });
+      } catch (err) {
+        console.warn("High accuracy failed, falling back to low accuracy:", err);
+        position = await getLocation({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      }
+
       const location = {
         lat: position.coords.latitude,
         lng: position.coords.longitude
@@ -580,25 +605,29 @@ export default function VendorApp() {
 
       const { error } = await supabase
         .from('profiles')
-        .update({ location })
+        .update({ 
+          location,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', vendorId);
 
       if (error) {
-        alert("حدث خطأ أثناء حفظ الموقع.");
+        throw error;
       } else {
         setVendorLocation(location);
-        alert("تم حفظ موقع المحل بنجاح بدقة عالية!");
+        alert("تم حفظ موقع المحل بنجاح!");
       }
-      setSavingLocation(false);
-    }, (error) => {
+    } catch (error: any) {
       console.error("Location error:", error);
-      alert("فشل تحديد الموقع. تأكد من تفعيل الـ GPS وإعطاء الصلاحية للمتصفح.");
+      let msg = "فشل تحديد الموقع.";
+      if (error.code === 1) msg = "تم رفض صلاحية تحديد الموقع من قبلك.";
+      else if (error.code === 2) msg = "الموقع غير متوفر حالياً.";
+      else if (error.code === 3) msg = "انتهت مهلة تحديد الموقع.";
+      
+      alert(msg + " تأكد من تفعيل الـ GPS وإعطاء الصلاحية للمتصفح.");
+    } finally {
       setSavingLocation(false);
-    }, {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    });
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -832,6 +861,13 @@ export default function VendorApp() {
           >
             <LiveMap 
               drivers={onlineDrivers} 
+              vendors={vendorLocation ? [{
+                id: vendorId || 'me',
+                name: vendorName,
+                lat: vendorLocation.lat,
+                lng: vendorLocation.lng,
+                details: 'موقعي الحالي'
+              }] : []}
               center={vendorLocation ? [vendorLocation.lat, vendorLocation.lng] : undefined}
             />
             <p className="text-[10px] text-gray-400 mt-2 mr-2">يتم تحديث مواقع الطيارين تلقائياً وبشكل حي.</p>

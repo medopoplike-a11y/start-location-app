@@ -339,15 +339,15 @@ export default function AdminPanel() {
       }
       
       if (profiles) {
-        // تحديث الطيارين المتصلين للخريطة
+        // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف
         const online = profiles
-          .filter(p => p.role === 'driver' && p.is_online && p.location)
+          .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online && p.location)
           .map(p => ({
             id: p.id,
             name: p.full_name,
             lat: p.location.lat,
             lng: p.location.lng,
-            lastSeen: new Date(p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
           }));
         setOnlineDrivers(online);
         setDebugInfo({ profilesCount: profiles.length, error: null });
@@ -384,7 +384,8 @@ export default function AdminPanel() {
           type: "محل",
           orders: 0,
           balance: 0,
-          status: "نشط"
+          status: "نشط",
+          location: p.location
         }));
 
         setDrivers(drvs);
@@ -747,7 +748,18 @@ export default function AdminPanel() {
                       </div>
                     </div>
                     <div className="flex-1 relative overflow-hidden">
-                      <LiveMap drivers={onlineDrivers} className="h-full w-full" zoom={12} />
+                      <LiveMap 
+                        drivers={onlineDrivers} 
+                        vendors={vendors.filter(v => v.location).map(v => ({
+                          id: v.id_full,
+                          name: v.name,
+                          lat: v.location.lat,
+                          lng: v.location.lng,
+                          details: `${liveOrders.filter(o => o.vendor_id === v.id_full || o.vendor === v.name).length} طلبات نشطة`
+                        }))}
+                        className="h-full w-full" 
+                        zoom={12} 
+                      />
                     </div>
                   </div>
                 </div>

@@ -135,11 +135,17 @@ export default function DriverApp() {
       localStorage.setItem("driver_is_active", isActive.toString());
       localStorage.setItem("driver_auto_accept", autoAccept.toString());
       
-      supabase.from('profiles').update({ 
-        is_online: isActive,
-      }).eq('id', driverId).then(({ error }) => {
+      // تحديث حالة الاتصال فوراً
+      const updateOnlineStatus = async () => {
+        const { error } = await supabase.from('profiles').update({ 
+          is_online: isActive,
+          updated_at: new Date().toISOString()
+        }).eq('id', driverId);
+        
         if (error) console.error("Error updating online status:", error);
-      });
+      };
+
+      updateOnlineStatus();
 
       // إذا أصبح متصلاً مع تفعيل القبول التلقائي، نقوم بفحص الطلبات المعلقة حالياً
       if (isActive && autoAccept) {
@@ -203,12 +209,14 @@ export default function DriverApp() {
         setDriverLocation(newLocation);
         setLocationAccuracy(position.coords.accuracy);
         
-        // تحديث الموقع في قاعدة البيانات فوراً لضمان دقة الخريطة للأدمن
+        // تحديث الموقع وحالة الاتصال لضمان الظهور على الخريطة
         await supabase
           .from('profiles')
           .update({ 
             location: newLocation,
-            last_location_update: new Date().toISOString()
+            is_online: true, // التأكيد على حالة الاتصال عند تحديث الموقع
+            last_location_update: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('id', driverId);
       },
