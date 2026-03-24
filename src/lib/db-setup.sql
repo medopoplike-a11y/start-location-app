@@ -331,19 +331,18 @@ BEGIN
 
     -- 1. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
-        -- تحديث محفظة الطيار: زيادة الأرباح، زيادة مديونية المحل (قيمة الطلب + التأمين)، زيادة مديونية الشركة (العمولة)
+        -- تحديث محفظة الطيار: زيادة الأرباح، زيادة مديونية المحل (قيمة الطلب)، زيادة مديونية الشركة (العمولة + نصيب التأمين)
         UPDATE public.wallets 
         SET 
             balance = balance + drv_earnings,
-            debt = debt + order_val + (ins_fee / 2), -- نصيب الطيار من التأمين
-            system_balance = system_balance + sys_comm
+            debt = debt + order_val, -- مديونية للمحل (قيمة الطلب فقط)
+            system_balance = system_balance + sys_comm + (ins_fee / 2)
         WHERE user_id = new.driver_id;
 
-        -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة 20% + التأمين)
+        -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة 20% + نصيب المحل من التأمين)
         UPDATE public.wallets
         SET
-            system_balance = system_balance + vnd_comm,
-            debt = debt + (ins_fee / 2) -- نصيب المحل من التأمين
+            system_balance = system_balance + vnd_comm + (ins_fee / 2)
         WHERE user_id = new.vendor_id;
     END IF;
 

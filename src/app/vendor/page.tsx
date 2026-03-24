@@ -49,13 +49,13 @@ interface Order {
   customer: string;
   phone: string;
   address: string;
-  status: string;
+  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'cancelled';
   driver: string | null;
   driverPhone?: string;
   amount: string;
   deliveryFee: string;
   time: string;
-  createdAt: string; // الحفاظ على التاريخ الأصلي للمقارنة
+  createdAt: string; 
   isPickedUp: boolean;
   notes: string;
   prepTime: string;
@@ -262,7 +262,7 @@ export default function VendorApp() {
     customer: db.customer_details?.name || "عميل",
     phone: db.customer_details?.phone || "",
     address: db.customer_details?.address || "عنوان غير محدد",
-    status: translateStatus(db.status),
+    status: db.status,
     driver: db.profiles?.full_name || (db.driver_id ? "كابتن (جاري الجلب...)" : null),
     driverPhone: db.profiles?.phone || "",
     amount: `${db.financials?.order_value || 0} ج.م`,
@@ -341,7 +341,15 @@ export default function VendorApp() {
       status: 'pending' as const,
       distance,
       customer_details: { name: formData.customer, phone: formData.phone, address: formData.address, notes: formData.notes, coords: formData.customerCoords },
-      financials: { order_value: Number(formData.orderValue), delivery_fee: Number(formData.deliveryFee), prep_time: formData.prepTime, system_commission: calculated.systemCommission, driver_earnings: calculated.driverEarnings, insurance_fee: calculated.insuranceFundTotal },
+      financials: { 
+        order_value: Number(formData.orderValue), 
+        delivery_fee: Number(formData.deliveryFee), 
+        prep_time: formData.prepTime, 
+        system_commission: calculated.systemCommission, 
+        vendor_commission: calculated.vendorCommission,
+        driver_earnings: calculated.driverEarnings, 
+        insurance_fee: calculated.insuranceFundTotal 
+      },
       invoice_url: invoiceUrl || undefined
     };
 
@@ -414,8 +422,8 @@ export default function VendorApp() {
     const search = searchQuery.toLowerCase();
     const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
     if (!match) return false;
-    if (activeTab === "active") return o.status !== "تم التوصيل" && o.status !== "ملغي";
-    return activeTab === "مكتمل" ? o.status === "تم التوصيل" : o.status === "ملغي";
+    if (activeTab === "active") return o.status !== "delivered" && o.status !== "cancelled";
+    return activeTab === "مكتمل" ? o.status === "delivered" : o.status === "cancelled";
   });
 
   // --- مكونات واجهة المستخدم الصغيرة ---
@@ -702,11 +710,11 @@ export default function VendorApp() {
                     </div>
                   </div>
                   <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${
-                    order.status === "تم التوصيل" ? "bg-green-50 text-green-600" :
-                    order.status === "ملغي" ? "bg-red-50 text-red-600" :
+                    order.status === "delivered" ? "bg-green-50 text-green-600" :
+                    order.status === "cancelled" ? "bg-red-50 text-red-600" :
                     order.driver ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"
                   }`}>
-                    {order.status}
+                    {translateStatus(order.status)}
                   </span>
                 </div>
 

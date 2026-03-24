@@ -62,7 +62,7 @@ interface Order {
   distanceValue: number;
   distance: string;
   fee: string;
-  status: string;
+  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'cancelled';
   coords: { lat: number; lng: number };
   prepTime: string;
   isPickedUp: boolean;
@@ -529,13 +529,14 @@ export default function DriverApp() {
   };
 
   const translateStatus = (status: string) => {
-    switch (status) {
-      case 'pending': return "بانتظار الاستلام";
-      case 'assigned': return "تم التعيين";
-      case 'in_transit': return "في الطريق";
-      case 'delivered': return "تم التوصيل";
-      default: return status;
-    }
+    const statuses: any = { 
+      pending: "بانتظار الاستلام", 
+      assigned: "تم التعيين", 
+      in_transit: "في الطريق", 
+      delivered: "تم التوصيل", 
+      cancelled: "ملغي" 
+    };
+    return statuses[status] || status;
   };
 
   const handleConfirmPayment = async (orderId: string) => {
