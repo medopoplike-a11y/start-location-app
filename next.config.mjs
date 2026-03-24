@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export', // تم التعليق عليه لضمان نجاح الرفع على Vercel، يمكنك تفعيله محلياً للموبايل
+  output: 'export', // تفعيل التصدير الثابت ضروري لعمل التطبيق على الهاتف (Capacitor)
   images: {
     unoptimized: true,
   },

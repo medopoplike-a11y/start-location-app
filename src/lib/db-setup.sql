@@ -371,6 +371,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 10. جدول إعدادات التطبيق والتحديثات التلقائية
+CREATE TABLE IF NOT EXISTS app_config (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1), -- قيد لضمان وجود صف واحد فقط
+  latest_version TEXT NOT NULL DEFAULT '0.1.0',
+  min_version TEXT NOT NULL DEFAULT '0.1.0',
+  download_url TEXT,
+  force_update BOOLEAN DEFAULT FALSE,
+  update_message TEXT DEFAULT 'يتوفر إصدار جديد من التطبيق، يرجى التحديث للمتابعة.',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة
+INSERT INTO app_config (id, latest_version, min_version, force_update)
+VALUES (1, '0.1.0', '0.1.0', FALSE)
+ON CONFLICT (id) DO NOTHING;
+
+-- تفعيل RLS لجدول app_config
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+
+-- السماح للجميع بقراءة الإعدادات
+CREATE POLICY "Anyone can view app config" ON app_config FOR SELECT USING (true);
+
+-- السماح للأدمن فقط بتحديث الإعدادات
+CREATE POLICY "Admins can update app config" ON app_config FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
 -- دالة لتصفير كافة بيانات النظام (الطلبات والتسويات والمحافظ)
 CREATE OR REPLACE FUNCTION reset_all_system_data_admin()
 RETURNS BOOLEAN AS $$

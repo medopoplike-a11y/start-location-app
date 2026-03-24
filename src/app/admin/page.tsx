@@ -103,6 +103,38 @@ export default function AdminPanel() {
   const [assigningOrder, setAssigningOrder] = useState<any>(null);
   const [assignSearch, setAssignSearch] = useState("");
 
+  const [appConfig, setAppConfig] = useState({
+    latest_version: "0.2.0",
+    min_version: "0.2.0",
+    download_url: "/start-location-v0.2.0.apk",
+    force_update: true,
+    update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة."
+  });
+
+  const fetchAppConfig = async () => {
+    const { data, error } = await supabase
+      .from('app_config')
+      .select('*')
+      .single();
+    if (data) setAppConfig(data);
+  };
+
+  const handleUpdateAppConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    const { error } = await supabase
+      .from('app_config')
+      .update(appConfig)
+      .eq('id', 1);
+
+    if (error) {
+      alert("حدث خطأ أثناء تحديث إعدادات التطبيق.");
+    } else {
+      alert("تم تحديث إعدادات التطبيق بنجاح!");
+    }
+    setActionLoading(false);
+  };
+
   const fetchSettlements = async () => {
     const { data, error } = await supabase
       .from('settlements')
@@ -224,6 +256,7 @@ export default function AdminPanel() {
       await fetchProfiles();     // هذا سيجلب البروفايلات والمحافظ معاً
       await fetchOrders();       // جلب الطلبات
       await fetchSettlements();  // جلب التسويات
+      await fetchAppConfig();    // جلب إعدادات التطبيق
     } catch (err: any) {
       console.error("Admin: Global fetch error:", err);
     }
@@ -571,6 +604,7 @@ export default function AdminPanel() {
               { id: "settings", label: "مركز التحكم", icon: <Settings className="w-5 h-5" /> },
               { id: "reports", label: "التقارير", icon: <TrendingUp className="w-5 h-5" /> },
               { id: "settlements", label: "طلبات التسوية", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
+              { id: "app_config", label: "تحديث التطبيق", icon: <RefreshCw className="w-5 h-5" /> },
             ].map((item) => (
               <button 
                 key={item.id}
@@ -1197,6 +1231,90 @@ export default function AdminPanel() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeView === "app_config" && (
+            <div className="max-w-4xl space-y-8">
+              <h2 className="text-2xl font-bold text-gray-900">إدارة تحديثات التطبيق</h2>
+              <form onSubmit={handleUpdateAppConfig} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <RefreshCw className="text-blue-500 w-6 h-6" />
+                    <h3 className="font-bold text-gray-800">إعدادات الإصدار</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 block mb-2">أحدث إصدار (X.Y.Z)</label>
+                        <input 
+                          type="text" 
+                          value={appConfig.latest_version} 
+                          onChange={(e) => setAppConfig({...appConfig, latest_version: e.target.value})}
+                          className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 block mb-2">أدنى إصدار مطلوب</label>
+                        <input 
+                          type="text" 
+                          value={appConfig.min_version} 
+                          onChange={(e) => setAppConfig({...appConfig, min_version: e.target.value})}
+                          className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500" 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 block mb-2">رابط تحميل الـ APK</label>
+                      <input 
+                        type="url" 
+                        value={appConfig.download_url} 
+                        onChange={(e) => setAppConfig({...appConfig, download_url: e.target.value})}
+                        placeholder="https://your-app.vercel.app/app.apk"
+                        className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500 text-left" 
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                      <div>
+                        <p className="text-sm font-bold text-gray-800">تحديث إجباري</p>
+                        <p className="text-[10px] text-gray-400">منع المستخدمين من الدخول دون تحديث</p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={appConfig.force_update} 
+                        onChange={(e) => setAppConfig({...appConfig, force_update: e.target.checked})}
+                        className="w-6 h-6 accent-blue-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <AlertCircle className="text-blue-500 w-6 h-6" />
+                    <h3 className="font-bold text-gray-800">رسالة التحديث</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 block mb-2">الرسالة التي تظهر للمستخدم</label>
+                      <textarea 
+                        rows={4}
+                        value={appConfig.update_message} 
+                        onChange={(e) => setAppConfig({...appConfig, update_message: e.target.value})}
+                        className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500 resize-none" 
+                      />
+                    </div>
+                    <button 
+                      type="submit"
+                      disabled={actionLoading}
+                      className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold mt-4 active:scale-95 transition-transform shadow-lg shadow-blue-600/20"
+                    >
+                      {actionLoading ? "جاري الحفظ..." : "حفظ إعدادات التحديث"}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           )}
 
