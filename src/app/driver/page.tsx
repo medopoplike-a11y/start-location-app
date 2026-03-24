@@ -36,9 +36,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from 'next/dynamic';
 
 import LocationMarker from "@/components/LocationMarker";
-import LiveMap from "@/components/LiveMap";
+
+const LiveMap = dynamic(() => import('@/components/LiveMap'), { 
+  ssr: false,
+  loading: () => <div className="h-40 w-full bg-gray-100 animate-pulse rounded-[32px] flex items-center justify-center text-gray-400 font-bold">جاري تحميل الخريطة...</div>
+});
+
 import { SAFE_RIDE_FEE, calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { updateOrder, subscribeToOrders, driverConfirmPayment, type Order as DBOrder } from "@/lib/orders";
