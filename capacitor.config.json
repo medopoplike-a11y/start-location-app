@@ -2,6 +2,11 @@
   "appId": "com.sarte.location",
   "appName": "Sarte Location",
   "webDir": "out",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false
+    }
+  },
   "server": {
     "androidScheme": "https"
   },

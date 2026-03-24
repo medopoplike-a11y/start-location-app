@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile } from "@/lib/auth";
 import { StartLogo } from "@/components/StartLogo";
 import { Download, AlertCircle, RefreshCw } from "lucide-react";
+import { CapacitorUpdater } from 'capacitor-updater';
 
 const CURRENT_VERSION = "0.1.0"; // إصدار التطبيق الحالي
 
@@ -40,14 +41,29 @@ export default function SplashPage() {
           const isUpdateRequired = config.force_update && compareVersions(CURRENT_VERSION, config.min_version) < 0;
           const isUpdateAvailable = compareVersions(CURRENT_VERSION, config.latest_version) < 0;
 
-          if (isUpdateRequired || (isUpdateAvailable && config.force_update)) {
+          if (isUpdateRequired) {
             setShowUpdateModal(true);
             setIsChecking(false);
-            return; // توقف هنا ولا تRedirect
+            return; // توقف هنا ولا تتابع
           }
+
+          // 2. إذا لم يكن هناك تحديث إجباري، تحقق من التحديثات الحية (OTA)
+          if (config.bundle_url) {
+            try {
+              const version = await CapacitorUpdater.download({
+                url: config.bundle_url,
+                version: config.latest_version
+              });
+              // إذا نجح التحميل، سيتم التطبيق تلقائياً عند إعادة التشغيل التالية
+              console.log('Live update downloaded:', version);
+            } catch (e) {
+              console.error('Live update failed:', e);
+            }
+          }
+
         }
 
-        // 2. إذا لم يكن هناك تحديث إجباري، استكمل عملية تسجيل الدخول
+        // 3. استكمل عملية تسجيل الدخول
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profile = await getUserProfile(session.user.id);

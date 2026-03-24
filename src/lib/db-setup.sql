@@ -377,6 +377,7 @@ CREATE TABLE IF NOT EXISTS app_config (
   latest_version TEXT NOT NULL DEFAULT '0.1.0',
   min_version TEXT NOT NULL DEFAULT '0.1.0',
   download_url TEXT,
+  bundle_url TEXT, -- رابط ملف التحديث الحي
   force_update BOOLEAN DEFAULT FALSE,
   update_message TEXT DEFAULT 'يتوفر إصدار جديد من التطبيق، يرجى التحديث للمتابعة.',
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL

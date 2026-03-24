@@ -5,6 +5,7 @@ import android.view.View;
 import android.os.Build;
 import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.community.database.sqlite.CapacitorSQLite;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -18,5 +19,8 @@ public class MainActivity extends BridgeActivity {
                 getBridge().getWebView().setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
             }
         }
+
+        // تهيئة الـ SQLite الخاص بالتحديثات
+        registerPlugin(CapacitorSQLite.class);
     }
 }

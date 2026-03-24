@@ -107,6 +107,7 @@ export default function AdminPanel() {
     latest_version: "0.2.0",
     min_version: "0.2.0",
     download_url: "/start-location-v0.2.0.apk",
+    bundle_url: "",
     force_update: true,
     update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة."
   });
@@ -1271,6 +1272,17 @@ export default function AdminPanel() {
                         value={appConfig.download_url} 
                         onChange={(e) => setAppConfig({...appConfig, download_url: e.target.value})}
                         placeholder="https://your-app.vercel.app/app.apk"
+                        className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500 text-left" 
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 block mb-2">رابط حزمة التحديث (www.zip)</label>
+                      <input 
+                        type="url" 
+                        value={appConfig.bundle_url} 
+                        onChange={(e) => setAppConfig({...appConfig, bundle_url: e.target.value})}
+                        placeholder="https://your-app.vercel.app/www.zip"
                         className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500 text-left" 
                         dir="ltr"
                       />
