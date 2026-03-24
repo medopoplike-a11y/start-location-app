@@ -1,16 +1,25 @@
 {
   "appId": "com.sarte.location",
-  "appName": "Sarte Location",
+  "appName": "Start Location",
   "webDir": "out",
   "plugins": {
     "CapacitorUpdater": {
-      "autoUpdate": false
+      "autoUpdate": true,
+      "stats": true,
+      "resetWhenUpdate": true
     }
   },
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "*.supabase.co",
+      "*.vercel.app"
+    ]
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
   }
 }

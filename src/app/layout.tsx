@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
+import AppUpdater from "@/components/AppUpdater";
 
 const cairo = Cairo({ 
   subsets: ["arabic", "latin"],
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body className={cairo.className}>
+        <AppUpdater />
         {children}
         <script
           dangerouslySetInnerHTML={{
