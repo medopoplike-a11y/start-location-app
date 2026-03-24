@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">traestartzlum.vercel.app</domain>
         <domain includeSubdomains="true">trae-start-zlum.vercel.app</domain>
         <domain includeSubdomains="true">supabase.co</domain>
+        <domain includeSubdomains="true">*.supabase.co</domain>
         <domain includeSubdomains="true">localhost</domain>
     </domain-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>
