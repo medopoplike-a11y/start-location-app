@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   vehicle_type TEXT,
   national_id TEXT,
   location JSONB,
+  is_online BOOLEAN DEFAULT FALSE,
+  last_location_update TIMESTAMP WITH TIME ZONE,
   push_token TEXT,
   is_locked BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
@@ -18,6 +20,14 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- التأكد من وجود أعمدة إضافية في حال كان الجدول موجوداً مسبقاً
 DO $$ 
 BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='is_online') THEN
+    ALTER TABLE profiles ADD COLUMN is_online BOOLEAN DEFAULT FALSE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='last_location_update') THEN
+    ALTER TABLE profiles ADD COLUMN last_location_update TIMESTAMP WITH TIME ZONE;
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='is_locked') THEN
     ALTER TABLE profiles ADD COLUMN is_locked BOOLEAN DEFAULT FALSE;
   END IF;
@@ -26,6 +36,9 @@ BEGIN
     ALTER TABLE profiles ADD COLUMN push_token TEXT;
   END IF;
 END $$;
+
+-- تفعيل خاصية التحديث اللحظي للجدول
+ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
 
 -- 2. تفعيل الحماية على مستوى الصفوف (Row Level Security)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -36,6 +49,11 @@ BEGIN
   -- السماح للمستخدمين بقراءة ملفاتهم الشخصية فقط
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own profiles') THEN
     CREATE POLICY "Users can view their own profiles" ON profiles FOR SELECT USING (auth.uid() = id);
+  END IF;
+
+  -- السماح للجميع برؤية مواقع الطيارين المتصلين (للمطاعم والأدمن)
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view online drivers') THEN
+    CREATE POLICY "Anyone can view online drivers" ON profiles FOR SELECT USING (role = 'driver' AND is_online = true);
   END IF;
   
   -- السماح للمستخدمين بتحديث ملفاتهم الشخصية فقط

@@ -210,14 +210,18 @@ export default function VendorApp() {
       const dbOrders = await getVendorOrders(user.id);
       setOrders(dbOrders.map(mapDBOrderToUI));
       
-      // جلب الطيارين المتصلين حالياً (بحث غير حساس لحالة الأحرف)
-      const { data: driversData } = await supabase
+      // جلب الطيارين المتصلين حالياً (مع معالجة الخطأ والتنسيق)
+      const { data: driversData, error: driversError } = await supabase
         .from('profiles')
         .select('id, full_name, location, is_online, updated_at, last_location_update, role')
         .eq('is_online', true);
       
+      if (driversError) {
+        console.error("Vendor: Error fetching drivers:", driversError);
+      }
+
       if (driversData) {
-        setOnlineDrivers(driversData
+        const processed = driversData
           .filter(d => (d.role || '').toLowerCase() === 'driver' && d.location)
           .map(d => {
             let loc = d.location;
@@ -234,7 +238,8 @@ export default function VendorApp() {
               lastSeen: formatTime(d.last_location_update || d.updated_at)
             };
           })
-          .filter(d => d !== null));
+          .filter(d => d !== null);
+        setOnlineDrivers(processed as any[]);
       }
 
       // جلب محفظة المحل

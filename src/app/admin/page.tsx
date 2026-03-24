@@ -328,85 +328,97 @@ export default function AdminPanel() {
 
   const fetchProfiles = async () => {
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // استخدام RPC لتجاوز RLS للأدمن وضمان جلب كافة البيانات
+      const { data: profiles, error: profilesError } = await supabase.rpc('get_all_profiles_admin');
       
       if (profilesError) {
         setDebugInfo({ profilesCount: 0, error: profilesError.message });
-        throw profilesError;
+        // إذا فشل الـ RPC، نحاول الجلب المباشر كحل احتياطي
+        const { data: directProfiles, error: directError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (directError) throw directError;
+        if (directProfiles) processProfiles(directProfiles);
+      } else if (profiles) {
+        processProfiles(profiles);
       }
-      
-      if (profiles) {
-        // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف وتنسيق البيانات
-        const online = profiles
-          .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online && p.location)
-          .map(p => {
-            // معالجة الموقع سواء كان كائناً أو سلسلة نصية
-            let loc = p.location;
-            if (typeof loc === 'string') {
-              try { loc = JSON.parse(loc); } catch (e) { loc = null; }
-            }
-            
-            if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
+    } catch (err: any) {
+      console.error("Admin: Error fetching profiles:", err);
+      if (!debugInfo.error) setDebugInfo(prev => ({ ...prev, error: err.message }));
+    }
+  };
 
-            return {
-              id: p.id,
-              name: p.full_name,
-              lat: loc.lat,
-              lng: loc.lng,
-              lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-            };
-          })
-          .filter(p => p !== null);
-        setOnlineDrivers(online as any[]);
-        setDebugInfo({ profilesCount: profiles.length, error: null });
+  const processProfiles = (profiles: any[]) => {
+    // تحديث الطيارين المتصلين للخريطة مع معالجة غير حساسة لحالة الأحرف وتنسيق البيانات
+    const online = profiles
+      .filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online && p.location)
+      .map(p => {
+        // معالجة الموقع سواء كان كائناً أو سلسلة نصية
+        let loc = p.location;
+        if (typeof loc === 'string') {
+          try { loc = JSON.parse(loc); } catch (e) { loc = null; }
+        }
         
-        // 1. تحديث قائمة "حسابات المستخدمين"
-        setAllUsers(profiles.map((u: any) => ({
-          id: u.id,
-          email: u.email,
-          full_name: u.full_name || "غير مسجل",
-          phone: u.phone || "غير مسجل",
-          area: u.area || "غير محدد",
-          vehicle_type: u.vehicle_type || "غير محدد",
-          national_id: u.national_id || "غير مسجل",
-          role: (u.role || 'driver').toLowerCase(),
-          created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
-        })));
+        if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
 
-        // 2. تحديث قائمة "المناديب" و "المحلات"
-        const drvs = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver').map((p: any) => ({
-          id: p.id.slice(0, 8),
-          id_full: p.id,
-          name: p.full_name || "بدون اسم",
-          status: p.is_locked ? "محظور" : "نشط",
-          isShiftLocked: p.is_locked,
-          earnings: 0,
-          debt: 0,
-          totalOrders: 0
-        }));
-        
-        const vnds = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'vendor').map((p: any) => ({
-          id: p.id.slice(0, 8),
-          id_full: p.id,
-          name: p.full_name || "بدون اسم",
-          type: "محل",
-          orders: 0,
-          balance: 0,
-          status: "نشط",
-          location: p.location
-        }));
+        return {
+          id: p.id,
+          name: p.full_name,
+          lat: loc.lat,
+          lng: loc.lng,
+          lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        };
+      })
+      .filter(p => p !== null);
+    setOnlineDrivers(online as any[]);
+    setDebugInfo({ profilesCount: profiles.length, error: null });
+    
+    // 1. تحديث قائمة "حسابات المستخدمين"
+    setAllUsers(profiles.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      full_name: u.full_name || "غير مسجل",
+      phone: u.phone || "غير مسجل",
+      area: u.area || "غير محدد",
+      vehicle_type: u.vehicle_type || "غير محدد",
+      national_id: u.national_id || "غير مسجل",
+      role: (u.role || 'driver').toLowerCase(),
+      created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
+    })));
 
-        setDrivers(drvs);
-        setVendors(vnds);
+    // 2. تحديث قائمة "المناديب" و "المحلات"
+    const drvs = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver').map((p: any) => ({
+      id: p.id.slice(0, 8),
+      id_full: p.id,
+      name: p.full_name || "بدون اسم",
+      status: p.is_locked ? "محظور" : "نشط",
+      isShiftLocked: p.is_locked,
+      earnings: 0,
+      debt: 0,
+      totalOrders: 0
+    }));
+    
+    const vnds = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'vendor').map((p: any) => ({
+      id: p.id.slice(0, 8),
+      id_full: p.id,
+      name: p.full_name || "بدون اسم",
+      type: "محل",
+      orders: 0,
+      balance: 0,
+      status: "نشط",
+      location: p.location
+    }));
 
-        // 3. جلب المحافظ (بشكل مباشر أيضاً)
-        const { data: wallets, error: walletError } = await supabase
-          .from('wallets')
-          .select('*');
+    setDrivers(drvs);
+    setVendors(vnds);
 
+    // جلب المحافظ (بشكل مباشر)
+    supabase
+      .from('wallets')
+      .select('*')
+      .then(({ data: wallets, error: walletError }) => {
         if (!walletError && wallets) {
           // حساب إجمالي مديونية الشركة من كافة المحافظ
           const totalDebt = wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0);
@@ -421,11 +433,7 @@ export default function AdminPanel() {
             return w ? { ...v, balance: (w.debt || 0) + (w.system_balance || 0) } : v;
           }));
         }
-      }
-    } catch (err: any) {
-      console.error("Admin: Error fetching profiles:", err);
-      if (!debugInfo.error) setDebugInfo(prev => ({ ...prev, error: err.message }));
-    }
+      });
   };
 
   // حذف الدالة المكررة fetchAllUsers لأننا دمجناها داخل fetchProfiles

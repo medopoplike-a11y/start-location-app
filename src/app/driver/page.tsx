@@ -225,16 +225,22 @@ export default function DriverApp() {
         setDriverLocation(newLocation);
         setLocationAccuracy(position.coords.accuracy);
         
-        // تحديث الموقع وحالة الاتصال لضمان الظهور على الخريطة
-        await supabase
-          .from('profiles')
-          .update({ 
-            location: newLocation,
-            is_online: true, // التأكيد على حالة الاتصال عند تحديث الموقع
-            last_location_update: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', driverId);
+      // تحديث الموقع وحالة الاتصال لضمان الظهور على الخريطة
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          location: newLocation,
+          is_online: true, // التأكيد على حالة الاتصال عند تحديث الموقع
+          last_location_update: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', driverId);
+
+      if (error) {
+        console.error("Critical: Failed to update location in DB:", error);
+      } else {
+        console.log("Location successfully updated in DB:", newLocation);
+      }
       },
       (error) => {
         console.error("Error getting driver location:", error);
