@@ -10,9 +10,16 @@ import { Download, AlertCircle, RefreshCw } from "lucide-react";
 import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater } from 'capacitor-updater';
 
-const CURRENT_VERSION = "0.2.0"; // توحيد الإصدار مع المكون الأساسي
+const CURRENT_VERSION = "0.2.0";
 
-// ... (interface remains same)
+interface AppConfig {
+  latest_version: string;
+  min_version: string;
+  download_url: string;
+  bundle_url: string;
+  force_update: boolean;
+  update_message: string;
+}
 
 export default function SplashPage() {
   const router = useRouter();
@@ -22,7 +29,7 @@ export default function SplashPage() {
     const checkAppAndRedirect = async () => {
       try {
         // 1. التحقق من التحديثات اللحظية (OTA) فقط إذا كان تطبيقاً أصلياً
-        if (Capacitor.isNativePlatform()) {
+        if (typeof window !== "undefined" && Capacitor.isNativePlatform()) {
           try {
             const { data: config } = await supabase.from('app_config').select('bundle_url, latest_version').single();
             if (config?.bundle_url) {
@@ -64,17 +71,6 @@ export default function SplashPage() {
     return () => clearTimeout(timer);
   }, [router]);
 
-  // دالة لمقارنة أرقام الإصدارات (X.Y.Z)
-  const compareVersions = (v1: string, v2: string) => {
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
-    for (let i = 0; i < 3; i++) {
-      if (parts1[i] > parts2[i]) return 1;
-      if (parts1[i] < parts2[i]) return -1;
-    }
-    return 0;
-  };
-
   return (
     <main className="min-h-screen bg-[#000814] flex flex-col items-center justify-center relative font-sans overflow-hidden">
       {/* Animated Digital Grid Background */}
@@ -98,70 +94,61 @@ export default function SplashPage() {
         className="relative z-10 flex flex-col items-center"
       >
         <motion.div
-          animate={{ y: [0, -15, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          className="drop-shadow-[0_20px_30px_rgba(0,71,255,0.3)]"
+          animate={{ 
+            boxShadow: ["0 0 20px rgba(0,71,255,0.2)", "0 0 60px rgba(0,71,255,0.4)", "0 0 20px rgba(0,71,255,0.2)"]
+          }}
+          transition={{ duration: 3, repeat: Infinity }}
+          className="rounded-full p-1 mb-8"
         >
-          <StartLogo className="w-48 h-48 md:w-56 md:h-56" />
+          <StartLogo className="w-32 h-32" />
         </motion.div>
 
-        <div className="text-center mt-8">
-          <h1 className="text-5xl md:text-6xl font-black text-white tracking-tighter">
-            Start Location
-          </h1>
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: "100%" }}
-            transition={{ delay: 1, duration: 1 }}
-            className="h-0.5 bg-blue-500 mx-auto rounded-full mt-4 shadow-[0_0_15px_rgba(59,130,246,0.7)]"
-          />
+        <h1 className="text-5xl font-black text-white tracking-tighter mb-2">
+          START <span className="text-white/40 font-light">LOCATION</span>
+        </h1>
+        
+        <div className="flex items-center gap-3 opacity-40">
+          <div className="h-px w-8 bg-white" />
+          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white">Initializing OS</p>
+          <div className="h-px w-8 bg-white" />
+        </div>
+
+        {/* Loading Indicator */}
+        <div className="mt-12 flex flex-col items-center gap-4">
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                animate={{ 
+                  scale: [1, 1.5, 1],
+                  opacity: [0.3, 1, 0.3]
+                }}
+                transition={{ 
+                  duration: 1, 
+                  repeat: Infinity, 
+                  delay: i * 0.2 
+                }}
+                className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6]"
+              />
+            ))}
+          </div>
+          <AnimatePresence>
+            {isChecking && (
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-[9px] font-bold text-blue-400/60 uppercase tracking-widest"
+              >
+                Securing Connection...
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
-      {/* Update Modal */}
-      <AnimatePresence>
-        {showUpdateModal && appConfig && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-[#001233] border border-blue-500/30 rounded-[32px] p-8 w-full max-w-md text-center shadow-[0_0_50px_rgba(0,71,255,0.2)]"
-            >
-              <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <RefreshCw className="w-10 h-10 text-blue-500 animate-spin-slow" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-4">تحديث جديد متاح</h2>
-              <p className="text-gray-400 mb-8 leading-relaxed">
-                {appConfig.update_message}
-              </p>
-              
-              <div className="space-y-4">
-                <a 
-                  href={appConfig.download_url}
-                  className="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold transition-all transform active:scale-95 shadow-lg shadow-blue-600/20"
-                >
-                  <Download className="w-5 h-5" />
-                  تحميل التحديث الآن
-                </a>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                  Version {appConfig.latest_version}
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* System Status Footer */}
-      <div className="absolute bottom-12 flex items-center gap-3 px-6 py-3 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
-        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.7)]" />
-        <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">
-          {isChecking ? "Checking System..." : "System Online"}
-        </span>
+      {/* Decorative Elements */}
+      <div className="absolute bottom-10 left-10 opacity-10">
+        <div className="text-[8px] font-black text-white tracking-[1em] uppercase vertical-text">v0.2.0 • START-OS</div>
       </div>
     </main>
   );

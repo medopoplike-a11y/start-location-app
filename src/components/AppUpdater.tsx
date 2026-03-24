@@ -28,8 +28,10 @@ export default function AppUpdater() {
           
           // دالة مقارنة بسيطة
           const isOutdated = (v: string) => {
+            if (!v || typeof v !== 'string') return false;
             const currentParts = CURRENT_VERSION.split('.').map(Number);
             const targetParts = v.split('.').map(Number);
+            if (targetParts.length !== 3) return false;
             for (let i = 0; i < 3; i++) {
               if (targetParts[i] > currentParts[i]) return true;
               if (targetParts[i] < currentParts[i]) return false;
