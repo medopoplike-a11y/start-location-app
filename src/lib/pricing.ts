@@ -30,9 +30,10 @@ export const VENDOR_INSURANCE_FEE = 1.0; // Vendor's contribution to insurance f
 export interface OrderFinancials {
   totalFee: number;
   insuranceFundTotal: number; // Sum of driver + vendor insurance contributions
-  systemCommission: number;
+  systemCommission: number; // Driver side (15%)
+  vendorCommission: number; // Vendor side (20%)
   driverEarnings: number;
-  vendorFee: number;
+  vendorFee: number; // Vendor contribution to insurance
 }
 
 export const calculateOrderFinancials = (distance: number, surgeFee: number = 0): OrderFinancials => {
@@ -45,17 +46,21 @@ export const calculateOrderFinancials = (distance: number, surgeFee: number = 0)
   
   // System Commission (Driver side): 15% of delivery fee
   const systemCommission = deliveryFee * 0.15;
+
+  // System Commission (Vendor side): 20% of delivery fee
+  const vendorCommission = deliveryFee * 0.20;
   
   // Driver Earnings: The delivery fee minus the system commission and their insurance contribution
   const driverEarnings = deliveryFee - systemCommission - driverInsurance;
 
-  // Vendor Fee: Fixed 1 EGP per order (all goes to insurance)
+  // Vendor Fee: Fixed contribution to insurance
   const vendorFee = vendorInsurance;
 
   return {
     totalFee: deliveryFee,
     insuranceFundTotal,
     systemCommission,
+    vendorCommission,
     driverEarnings,
     vendorFee
   };

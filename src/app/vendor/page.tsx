@@ -35,7 +35,7 @@ import LocationMarker from "@/components/LocationMarker";
 
 import { VENDOR_INSURANCE_FEE, calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
-import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
+import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, subscribeToProfiles, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import dynamic from 'next/dynamic';
@@ -77,6 +77,7 @@ export default function VendorApp() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [balance, setBalance] = useState(0);
+  const [companyCommission, setCompanyCommission] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,46 +227,73 @@ export default function VendorApp() {
         })).filter(d => d.lat && d.lng));
       }
 
+      // جلب محفظة المحل
+      const { data: walletData } = await supabase
+        .from('wallets')
+        .select('system_balance')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (walletData) {
+        setCompanyCommission(walletData.system_balance);
+      }
+
       setLoading(false);
 
-      // الاشتراك في التغييرات اللحظية للطلبات
+      // الاشتراك في التغييرات اللحظية للطلبات مع معالجة محسنة
       subscription = subscribeToOrders((payload) => {
+        console.log("Real-time order change received in Vendor:", payload);
         const { eventType, new: newRecord, old: oldRecord } = payload;
+
+        // تحديث الرصيد والبيانات الأخرى
+        const user = { id: vendorId || '' }; // Use closure variable
+        if (eventType === 'UPDATE' && newRecord.status === 'delivered') {
+          // جلب محفظة المحل لتحديث العمولات
+          supabase
+            .from('wallets')
+            .select('system_balance')
+            .eq('user_id', user.id)
+            .single()
+            .then(({ data: walletData }) => {
+              if (walletData) setCompanyCommission(walletData.system_balance);
+            });
+        }
 
         setOrders(prevOrders => {
           let updatedOrders = [...prevOrders];
 
           if (eventType === 'INSERT') {
-            // نتحقق أن الطلب يخص هذا المحل
             if (newRecord.vendor_id === user.id) {
               const newUIOrder = mapDBOrderToUI(newRecord);
-              // تجنب التكرار إذا كان الطلب أضيف يدوياً بالفعل
               if (!updatedOrders.find(o => o.id === newUIOrder.id)) {
                 updatedOrders = [newUIOrder, ...updatedOrders];
               }
             }
           } else if (eventType === 'UPDATE') {
-            updatedOrders = updatedOrders.map(o => 
-              o.id === newRecord.id ? mapDBOrderToUI(newRecord) : o
-            );
+            // تحديث الطلب إذا كان موجوداً، أو إضافته إذا أصبح يخص هذا المحل
+            if (newRecord.vendor_id === user.id) {
+              const index = updatedOrders.findIndex(o => o.id === newRecord.id);
+              if (index > -1) {
+                updatedOrders[index] = mapDBOrderToUI(newRecord);
+              } else {
+                updatedOrders = [mapDBOrderToUI(newRecord), ...updatedOrders];
+              }
+            } else {
+              // إزالة الطلب إذا لم يعد يخص هذا المحل (نادر الحدوث)
+              updatedOrders = updatedOrders.filter(o => o.id !== newRecord.id);
+            }
           } else if (eventType === 'DELETE') {
             updatedOrders = updatedOrders.filter(o => o.id !== oldRecord.id);
           }
 
           return updatedOrders;
         });
-
-        // تحديث الرصيد عند حدوث أي تغيير في حالة الطلب
-        if (eventType === 'UPDATE' && newRecord.status === 'delivered') {
-          setBalance(prev => prev + newRecord.financials.order_value);
-        }
       });
 
-      // الاشتراك في تحديثات مواقع الطيارين
-      const profilesSubscription = supabase
-        .channel('public:profiles')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: 'role=eq.driver' }, (payload) => {
-          const newProfile = payload.new as any;
+      // الاشتراك في تحديثات مواقع الطيارين مع معالجة محسنة
+      const profilesSubscription = subscribeToProfiles((payload) => {
+        const { eventType, new: newProfile } = payload;
+        if (newProfile && newProfile.role === 'driver') {
           setOnlineDrivers(prev => {
             if (!newProfile.is_online) {
               return prev.filter(d => d.id !== newProfile.id);
@@ -287,12 +315,12 @@ export default function VendorApp() {
             }
             return [...prev, updatedDriver];
           });
-        })
-        .subscribe();
+        }
+      });
         
       return () => {
-        if (subscription) subscription.unsubscribe();
-        if (profilesSubscription) profilesSubscription.unsubscribe();
+        if (subscription) supabase.removeChannel(subscription);
+        if (profilesSubscription) supabase.removeChannel(profilesSubscription);
       };
     };
 
@@ -559,13 +587,17 @@ export default function VendorApp() {
         alert("حدث خطأ أثناء حفظ الموقع.");
       } else {
         setVendorLocation(location);
-        alert("تم حفظ موقع المحل بنجاح!");
+        alert("تم حفظ موقع المحل بنجاح بدقة عالية!");
       }
       setSavingLocation(false);
     }, (error) => {
       console.error("Location error:", error);
-      alert("فشل تحديد الموقع. تأكد من تفعيل الـ GPS.");
+      alert("فشل تحديد الموقع. تأكد من تفعيل الـ GPS وإعطاء الصلاحية للمتصفح.");
       setSavingLocation(false);
+    }, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     });
   };
 
@@ -978,16 +1010,47 @@ export default function VendorApp() {
   const renderWalletView = () => (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
+      
+      {/* مديونية الشركة (عمولة 20%) */}
       <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
         <div className="relative z-10">
-          <p className="text-white/60 text-sm mb-2 font-bold">إجمالي المديونية من الطيارين</p>
-          <h3 className="text-4xl font-black mb-6">{balance.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
-          <div className="flex gap-3">
-            <button className="flex-1 bg-white/10 hover:bg-white/20 border border-white/10 py-3 rounded-2xl text-xs font-bold transition-all">سجل التحصيلات</button>
-            <button className="flex-1 bg-white text-gray-900 py-3 rounded-2xl text-xs font-bold transition-all">دليل المحفظة</button>
+          <div className="flex items-center gap-2 mb-2 opacity-60">
+            <ShieldCheck className="w-4 h-4" />
+            <p className="text-xs font-bold uppercase tracking-wider">عمولة الشركة المستحقة</p>
+          </div>
+          <div className="flex items-end justify-between">
+            <h3 className="text-4xl font-black">{companyCommission.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
+            <button 
+              onClick={() => alert("يرجى التواصل مع الإدارة لسداد العمولة المستحقة")}
+              className="bg-white text-gray-900 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-gray-100 transition-colors shadow-lg"
+            >
+              سداد للشركة
+            </button>
+          </div>
+          <p className="text-[10px] mt-6 opacity-40 leading-relaxed">
+            عمولة الشركة 20% من قيمة خدمة التوصيل لكل طلب. يتم سدادها للشركة فقط بشكل دوري.
+          </p>
+        </div>
+        <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/5 rounded-full blur-[80px]" />
+      </div>
+
+      {/* مديونية الطيارين للمحل */}
+      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2 text-gray-400">
+            <Wallet className="w-4 h-4" />
+            <p className="text-xs font-bold uppercase tracking-wider">مستحقات حالية لدى الطيارين</p>
+          </div>
+          <h3 className="text-4xl font-black text-gray-900">{balance.toLocaleString()} <span className="text-lg font-bold text-gray-400">ج.م</span></h3>
+          <p className="text-[10px] text-gray-400 mt-6 leading-relaxed">
+            هذا الرصيد يمثل مجموع مبالغ الطلبات التي تم توصيلها ولم يقم الطيارون بتوريدها لك بعد.
+          </p>
+          <div className="flex gap-3 mt-6">
+            <button className="flex-1 bg-gray-50 hover:bg-gray-100 py-3 rounded-2xl text-xs font-bold transition-all text-gray-600">سجل التحصيلات</button>
+            <button className="flex-1 bg-gray-50 hover:bg-gray-100 py-3 rounded-2xl text-xs font-bold transition-all text-gray-600">دليل المحفظة</button>
           </div>
         </div>
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-brand-orange/20 blur-[80px] rounded-full" />
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-brand-orange/10 blur-[80px] rounded-full" />
       </div>
 
       <div className="space-y-4">

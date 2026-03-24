@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 
 import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
 import { signOut, createUserByAdmin, getUserProfile } from "@/lib/auth";
+import { subscribeToOrders, subscribeToProfiles } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import LocationMarker from "@/components/LocationMarker";
@@ -102,6 +103,8 @@ export default function AdminPanel() {
   const [showAssignDriver, setShowAssignDriver] = useState(false);
   const [assigningOrder, setAssigningOrder] = useState<any>(null);
   const [assignSearch, setAssignSearch] = useState("");
+
+  const [totalSystemDebt, setTotalSystemDebt] = useState(0); // إجمالي العمولات المستحقة للشركة
 
   const [appConfig, setAppConfig] = useState({
     latest_version: "0.2.0",
@@ -215,34 +218,33 @@ export default function AdminPanel() {
         setLoading(false);
       }
 
-      // الاشتراك في التغييرات اللحظية لضمان تحديث البيانات فوراً
-      const ordersSub = supabase
-        .channel('admin_orders_all')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-          // بدلاً من التحديث المحلي المعقد، نكتفي بطلب إعادة الجلب لضمان دقة البيانات المربوطة
-          fetchOrders();
-          // تحديث التسويات أيضاً في حال كان التغيير مرتبطاً بها
-          fetchSettlements();
-        })
-        .subscribe();
+      // الاشتراك في التغييرات اللحظية لضمان تحديث البيانات فوراً مع معالجة محسنة
+      const ordersSub = subscribeToOrders((payload) => {
+        console.log("Real-time order change received in Admin:", payload);
+        // تحديث الطلبات والتسويات فوراً
+        fetchOrders();
+        fetchSettlements();
+      });
 
-      const profilesSub = supabase
-        .channel('admin_profiles_all')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-          fetchProfiles();
-        })
-        .subscribe();
+      const profilesSub = subscribeToProfiles((payload) => {
+        console.log("Real-time profile change received in Admin:", payload);
+        // تحديث البروفايلات والمواقع فوراً
+        fetchProfiles();
+      });
 
+      // إضافة اشتراك للمحافظ أيضاً لضمان دقة الأرصدة
       const walletsSub = supabase
         .channel('admin_wallets_all')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, (payload) => {
+          console.log("Real-time wallet change received in Admin:", payload);
           fetchProfiles(); // المحافظ مرتبطة بالبروفايلات في العرض
         })
         .subscribe();
 
       return () => {
-        ordersSub.unsubscribe();
-        profilesSub.unsubscribe();
+        if (ordersSub) supabase.removeChannel(ordersSub);
+        if (profilesSub) supabase.removeChannel(profilesSub);
+        if (walletsSub) supabase.removeChannel(walletsSub);
       };
     };
 
@@ -394,13 +396,17 @@ export default function AdminPanel() {
           .select('*');
 
         if (!walletError && wallets) {
+          // حساب إجمالي مديونية الشركة من كافة المحافظ
+          const totalDebt = wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0);
+          setTotalSystemDebt(totalDebt);
+
           setDrivers(prev => prev.map((d: any) => {
             const w = wallets.find((wal: any) => wal.user_id === d.id_full);
-            return w ? { ...d, earnings: w.balance, debt: w.debt } : d;
+            return w ? { ...d, earnings: w.balance, debt: (w.debt || 0) + (w.system_balance || 0) } : d;
           }));
           setVendors(prev => prev.map((v: any) => {
             const w = wallets.find((wal: any) => wal.user_id === v.id_full);
-            return w ? { ...v, balance: w.balance } : v;
+            return w ? { ...v, balance: (w.debt || 0) + (w.system_balance || 0) } : v;
           }));
         }
       }
@@ -539,7 +545,8 @@ export default function AdminPanel() {
     { title: "إجمالي الطلبات", value: allOrders.length.toString(), icon: <Truck className="text-blue-500" />, trend: "+12%" },
     { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length.toString(), icon: <Users className="text-green-500" />, trend: "+5%" },
     { title: "صندوق التأمين", value: `${insuranceFund.toLocaleString()} ج.م`, icon: <ShieldCheck className="text-brand-red" />, trend: "+2%" },
-    { title: "صافي الأرباح", value: `${totalProfits.toLocaleString()} ج.م`, icon: <DollarSign className="text-yellow-500" />, trend: "+18%" }
+    { title: "عمولات مستحقة", value: `${totalSystemDebt.toLocaleString()} ج.م`, icon: <Wallet className="text-purple-500" />, trend: "المديونية الحالية" },
+    { title: "صافي الأرباح المحصلة", value: `${totalProfits.toLocaleString()} ج.م`, icon: <DollarSign className="text-yellow-500" />, trend: "+18%" }
   ];
 
   const handleSignOut = async () => {

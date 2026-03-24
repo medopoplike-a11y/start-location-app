@@ -122,11 +122,50 @@ export const deleteCanceledOrders = async (vendorId: string) => {
 };
 
 /**
- * الاستماع للتغييرات اللحظية في الطلبات (Real-time)
+ * الاستماع للتغييرات اللحظية في الطلبات (Real-time) مع معالجة محسنة
  */
 export const subscribeToOrders = (callback: (payload: any) => void) => {
-  return supabase
-    .channel('orders_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
-    .subscribe();
+  const channel = supabase
+    .channel('orders_realtime_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'orders' },
+      (payload) => {
+        console.log("Real-time order change:", payload);
+        callback(payload);
+      }
+    )
+    .subscribe((status) => {
+      console.log("Orders subscription status:", status);
+      if (status === 'SUBSCRIPTION_ERROR') {
+        console.warn("Real-time subscription error, attempting to reconnect...");
+        setTimeout(() => channel.subscribe(), 5000);
+      }
+    });
+  
+  return channel;
+};
+
+/**
+ * الاستماع لتغييرات الملفات الشخصية (للمواقع والاتصال)
+ */
+export const subscribeToProfiles = (callback: (payload: any) => void) => {
+  const channel = supabase
+    .channel('profiles_realtime_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'profiles' },
+      (payload) => {
+        console.log("Real-time profile change:", payload);
+        callback(payload);
+      }
+    )
+    .subscribe((status) => {
+      console.log("Profiles subscription status:", status);
+      if (status === 'SUBSCRIPTION_ERROR') {
+        setTimeout(() => channel.subscribe(), 5000);
+      }
+    });
+  
+  return channel;
 };

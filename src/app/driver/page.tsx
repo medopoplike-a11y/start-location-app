@@ -31,12 +31,14 @@ import {
   MessageCircle,
   Menu,
   X,
-  Settings
+  Settings,
+  Store
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import LocationMarker from "@/components/LocationMarker";
+import LiveMap from "@/components/LiveMap";
 import { SAFE_RIDE_FEE, calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { updateOrder, subscribeToOrders, driverConfirmPayment, type Order as DBOrder } from "@/lib/orders";
@@ -146,10 +148,10 @@ export default function DriverApp() {
       }
     }
   }, [isActive, autoAccept, driverId]);
-  const [earnings, setEarnings] = useState(0);
+  const [todayDeliveryFees, setTodayDeliveryFees] = useState(0); // إجمالي سعر خدمة التوصيل لليوم
   const [vendorDebt, setVendorDebt] = useState(0);
   const [systemDebt, setSystemDebt] = useState(0);
-  const [showMap, setShowMap] = useState<string | null>(null);
+  // const [showMap, setShowMap] = useState<string | null>(null); // تم إلغاء نظام التوجيه
   const [activeTab, setActiveTab] = useState<"current" | "history">("current");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -164,6 +166,7 @@ export default function DriverApp() {
   const DEBT_LIMIT = 1000;
 
   const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const ACCEPTANCE_RADIUS_KM = 5; // 5 km radius
 
   // مراجع للقيم اللحظية لاستخدامها في الاشتراكات دون إعادة تفعيلها
@@ -175,28 +178,42 @@ export default function DriverApp() {
   useEffect(() => { autoAcceptRef.current = autoAccept; }, [autoAccept]);
   useEffect(() => { locationRef.current = driverLocation; }, [driverLocation]);
 
-  // تتبع موقع الطيار
+  // تتبع موقع الطيار وتحديثه في قاعدة البيانات بدقة عالية
   useEffect(() => {
-    if (!navigator.geolocation) {
-      console.error("Geolocation is not supported by this browser.");
-      return;
-    }
+    if (!navigator.geolocation || !driverId || !isActive) return;
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
 
     const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        setDriverLocation({
+      async (position) => {
+        const newLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        });
+        };
+        setDriverLocation(newLocation);
+        setLocationAccuracy(position.coords.accuracy);
+        
+        // تحديث الموقع في قاعدة البيانات فوراً لضمان دقة الخريطة للأدمن
+        await supabase
+          .from('profiles')
+          .update({ 
+            location: newLocation,
+            last_location_update: new Date().toISOString()
+          })
+          .eq('id', driverId);
       },
       (error) => {
         console.error("Error getting driver location:", error);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+      options
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [driverId, isActive]);
 
   // التحقق من الهوية وجلب البيانات
   useEffect(() => {
@@ -223,37 +240,48 @@ export default function DriverApp() {
       fetchStats(user.id);
       setLoading(false);
 
-      // الاشتراك في التغييرات اللحظية
+      // الاشتراك في التغييرات اللحظية مع معالجة أفضل
       subscription = subscribeToOrders((payload) => {
-        const { eventType, new: newRecord } = payload;
-
-        // تحديث القائمة بالكامل لضمان مزامنة البيانات
+        console.log("Real-time update received in Driver:", payload);
+        
+        // تحديث البيانات فوراً عند أي تغيير
         fetchOrders(user.id);
         fetchStats(user.id);
+
+        const { eventType, new: newRecord } = payload;
         
-        if (eventType === 'INSERT') {
+        if (eventType === 'INSERT' || (eventType === 'UPDATE' && (newRecord as DBOrder).status === 'pending')) {
           playNotification();
           
           const newOrder = newRecord as DBOrder;
-          if (newOrder.status === 'pending') {
-            // إظهار تنبيه بصري
-            setNewOrderNotify(mapDBOrderToUI(newOrder));
-            setTimeout(() => setNewOrderNotify(null), 10000); // إخفاء بعد 10 ثوانٍ
+          // جلب بيانات المحل للحصول على الموقع إذا كان الطلب معلقاً
+          supabase
+            .from('profiles')
+            .select('location, full_name, phone')
+            .eq('id', newOrder.vendor_id)
+            .single()
+            .then(({ data: vendorProfile }) => {
+              if (vendorProfile) {
+                // إظهار تنبيه بصري
+                const uiOrder = mapDBOrderToUI({ ...newOrder, profiles: vendorProfile });
+                setNewOrderNotify(uiOrder);
+                setTimeout(() => setNewOrderNotify(null), 10000);
 
-            // منطق القبول التلقائي
-            if (autoAcceptRef.current && isActiveRef.current) {
-              const distance = calculateDistance(
-                locationRef.current?.lat || 0,
-                locationRef.current?.lng || 0,
-                (newOrder as any).profiles?.location?.lat || 0,
-                (newOrder as any).profiles?.location?.lng || 0
-              );
-              
-              if (distance <= ACCEPTANCE_RADIUS_KM) {
-                acceptOrder(newOrder.id);
+                // منطق القبول التلقائي
+                if (autoAcceptRef.current && isActiveRef.current && vendorProfile.location) {
+                  const distance = calculateDistance(
+                    locationRef.current?.lat || 0,
+                    locationRef.current?.lng || 0,
+                    vendorProfile.location.lat,
+                    vendorProfile.location.lng
+                  );
+                  
+                  if (distance <= ACCEPTANCE_RADIUS_KM) {
+                    acceptOrder(newOrder.id);
+                  }
+                }
               }
-            }
-          }
+            });
         }
       });
     };
@@ -262,66 +290,95 @@ export default function DriverApp() {
 
     return () => {
       if (subscription) {
-        subscription.unsubscribe();
+        supabase.removeChannel(subscription);
       }
     };
   }, [router]); // Only depend on router now, refs handle the rest
 
   const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
 
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+
   const fetchStats = async (currentDriverId: string) => {
-    // 1. جلب بيانات المحفظة مباشرة
-    const { data: walletData, error: walletError } = await supabase
-      .from('wallets')
-      .select('balance, debt')
-      .eq('user_id', currentDriverId)
-      .single();
+    setLastSyncTime(new Date());
+    // جلب البيانات من الجداول مباشرة لضمان أحدث القيم
+    try {
+      // 1. جلب بيانات المحفظة مباشرة (المديونية فقط، تم إلغاء الرصيد المتاح)
+      const { data: walletData, error: walletError } = await supabase
+        .from('wallets')
+        .select('debt, system_balance')
+        .eq('user_id', currentDriverId)
+        .single();
 
-    // 2. جلب الطلبات لحساب مديونية المطاعم الحالية (التي لم تُحصل بعد)
-    const { data: ordersData, error: ordersError } = await supabase
-      .from('orders')
-      .select('financials, status, vendor_collected_at')
-      .eq('driver_id', currentDriverId)
-      .eq('status', 'delivered')
-      .is('vendor_collected_at', null);
+      // 2. جلب مديونية المطاعم الحالية (التي لم تُحصل بعد)
+      const { data: ordersDebtData, error: ordersDebtError } = await supabase
+        .from('orders')
+        .select('financials')
+        .eq('driver_id', currentDriverId)
+        .eq('status', 'delivered')
+        .is('vendor_collected_at', null);
 
-    // 3. جلب سجل التسويات للعرض فقط
-    const { data: settlementsData, error: settlementsError } = await supabase
-      .from('settlements')
-      .select('*')
-      .eq('driver_id', currentDriverId)
-      .order('created_at', { ascending: false });
+      // 3. حساب إجمالي سعر خدمة التوصيل لطلبات اليوم (لتطبيق العمولة)
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      
+      const { data: todayOrders, error: todayError } = await supabase
+        .from('orders')
+        .select('financials')
+        .eq('driver_id', currentDriverId)
+        .eq('status', 'delivered')
+        .gte('created_at', startOfToday.toISOString());
 
-    if (!walletError && walletData) {
-      setEarnings(walletData.balance);
-      setSystemDebt(walletData.debt); // المديونية الإجمالية (سيستم + مطاعم متبقية)
-    }
+      // 4. جلب سجل التسويات للعرض فقط
+      const { data: settlementsData, error: settlementsError } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('driver_id', currentDriverId)
+        .order('created_at', { ascending: false });
 
-    if (!ordersError && ordersData) {
-      const totalVendorDebt = ordersData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
-      setVendorDebt(totalVendorDebt);
-    }
+      if (!walletError && walletData) {
+        setSystemDebt(walletData.system_balance); // عمولة الشركة المنفصلة
+      }
 
-    if (!settlementsError && settlementsData) {
-      setSettlementHistory(settlementsData.map(s => ({
-        id: s.id,
-        vendor: "تسوية مديونية",
-        amount: s.amount,
-        status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
-        date: new Date(s.created_at).toLocaleDateString('ar-EG')
-      })));
+      if (!ordersDebtError && ordersDebtData) {
+        const totalVendorDebt = ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
+        setVendorDebt(totalVendorDebt);
+      }
+
+      if (!todayError && todayOrders) {
+        const totalFees = todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0);
+        setTodayDeliveryFees(totalFees);
+      }
+
+      if (!settlementsError && settlementsData) {
+        setSettlementHistory(settlementsData.map(s => ({
+          id: s.id,
+          vendor: "تسوية مديونية",
+          amount: s.amount,
+          status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
+          date: new Date(s.created_at).toLocaleDateString('ar-EG')
+        })));
+      }
+    } catch (err) {
+      console.error("Error fetching driver stats:", err);
     }
   };
 
   const fetchOrders = async (currentDriverId: string) => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, profiles!vendor_id(full_name, location, phone)')
-      .or(`status.eq.pending,driver_id.eq.${currentDriverId}`)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, profiles!vendor_id(full_name, location, phone)')
+        .or(`status.eq.pending,driver_id.eq.${currentDriverId}`)
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setOrders(data.map(mapDBOrderToUI));
+      if (!error && data) {
+        setOrders(data.map(mapDBOrderToUI));
+      } else if (error) {
+        throw error;
+      }
+    } catch (err) {
+      console.error("Error fetching driver orders:", err);
     }
   };
 
@@ -482,9 +539,6 @@ export default function DriverApp() {
     if (!error && data) {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
       playNotification();
-      
-      // إرسال إشعار للمحل بأن الطلب في الطريق (عبر Realtime)
-      // سوبابيز تتعامل مع هذا تلقائياً عبر Postgres Changes
     }
   };
 
@@ -502,10 +556,10 @@ export default function DriverApp() {
     setIsSimulating(false);
   };
 
-  const openNavigation = (address: string) => {
-    const encodedAddress = encodeURIComponent(address);
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`, '_blank');
-  };
+  // const openNavigation = (address: string) => {
+  //   const encodedAddress = encodeURIComponent(address);
+  //   window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`, '_blank');
+  // };
 
   const handleSignOut = async () => {
     await signOut();
@@ -623,6 +677,18 @@ export default function DriverApp() {
     </AnimatePresence>
   );
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    if (!driverId) return;
+    setIsRefreshing(true);
+    await Promise.all([
+      fetchOrders(driverId),
+      fetchStats(driverId)
+    ]);
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
   const renderHeader = () => (
     <header className="bg-white p-6 shadow-sm flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center gap-3">
@@ -631,17 +697,43 @@ export default function DriverApp() {
         </button>
         <div>
           <h1 className="text-lg font-bold text-gray-900 leading-tight">Start Location</h1>
-          <p className="text-[10px] text-gray-400">لوحة تحكم الكابتن</p>
+          <div className="flex items-center gap-1">
+            <p className="text-[10px] text-gray-400">لوحة تحكم الكابتن</p>
+            {isActive && locationAccuracy && (
+              <span className={`w-1.5 h-1.5 rounded-full ${locationAccuracy < 20 ? 'bg-green-500' : locationAccuracy < 100 ? 'bg-yellow-500' : 'bg-red-500'}`} title={`دقة الموقع: ${Math.round(locationAccuracy)} متر`} />
+            )}
+          </div>
         </div>
       </div>
       
-      <button 
-        onClick={toggleActive}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all border ${isActive ? "bg-green-50 border-green-100 text-green-600" : "bg-red-50 border-red-100 text-red-600"}`}
-      >
-        <div className={`w-2 h-2 rounded-full animate-pulse ${isActive ? "bg-green-500" : "bg-red-500"}`} />
-        <span className="font-black text-xs">{isActive ? "متصل" : "غير متصل"}</span>
-      </button>
+      <div className="flex items-center gap-2">
+        {/* زر التحديث اليدوي */}
+        <button 
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className={`p-2 rounded-xl transition-all ${isRefreshing ? "bg-gray-100 text-gray-300" : "bg-gray-50 text-gray-500 hover:bg-gray-100"} border border-gray-100`}
+          title="تحديث البيانات"
+        >
+          <History className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
+        </button>
+
+        {/* زر القبول التلقائي السريع */}
+        <button 
+          onClick={() => setAutoAccept(!autoAccept)}
+          className={`p-2 rounded-xl transition-all ${autoAccept ? "bg-brand-yellow/20 text-brand-yellow border-brand-yellow/50" : "bg-gray-100 text-gray-400 border-gray-200"} border`}
+          title={autoAccept ? "إيقاف القبول التلقائي" : "تفعيل القبول التلقائي"}
+        >
+          {autoAccept ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
+        </button>
+
+        <button 
+          onClick={toggleActive}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all border ${isActive ? "bg-green-50 border-green-100 text-green-600" : "bg-red-50 border-red-100 text-red-600"}`}
+        >
+          <div className={`w-2 h-2 rounded-full animate-pulse ${isActive ? "bg-green-500" : "bg-red-500"}`} />
+          <span className="font-black text-xs">{isActive ? "متصل" : "غير متصل"}</span>
+        </button>
+      </div>
     </header>
   );
 
@@ -649,18 +741,18 @@ export default function DriverApp() {
     <div className="grid grid-cols-2 gap-4">
       <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center text-green-600">
-            <TrendingUp className="w-4 h-4" />
+          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+            <Banknote className="w-4 h-4" />
           </div>
-          <p className="text-[10px] font-bold text-gray-400">صافي الربح</p>
+          <p className="text-[10px] font-bold text-gray-400">دخل التوصيل (اليوم)</p>
         </div>
-        <h2 className="text-xl font-black text-gray-900">{earnings.toLocaleString()} <span className="text-[10px]">ج.م</span></h2>
+        <h2 className="text-xl font-black text-gray-900">{todayDeliveryFees.toLocaleString()} <span className="text-[10px]">ج.م</span></h2>
       </section>
 
       <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-600">
-            <TrendingDown className="w-4 h-4" />
+            <Store className="w-4 h-4" />
           </div>
           <p className="text-[10px] font-bold text-gray-400">مديونية المطاعم</p>
         </div>
@@ -674,6 +766,17 @@ export default function DriverApp() {
     
     return (
       <section className="space-y-4">
+        {isActive && driverLocation && (
+          <div className="mb-4">
+            <LiveMap 
+              drivers={[{ id: driverId || 'me', name: 'موقعي', ...driverLocation }]} 
+              center={[driverLocation.lat, driverLocation.lng]}
+              zoom={15}
+              className="h-40 w-full rounded-[32px] overflow-hidden shadow-sm border border-gray-100"
+            />
+          </div>
+        )}
+
         {!isActive ? (
           <div className="bg-white p-8 rounded-[40px] shadow-sm text-center border border-gray-100">
             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Power className="w-8 h-8" /></div>
@@ -760,7 +863,6 @@ export default function DriverApp() {
                 <div className="flex justify-between items-center mt-2 pt-3 border-t border-gray-50">
                   <span className="font-bold text-brand-red">{order.fee}</span>
                   <div className="flex gap-2">
-                    <button onClick={() => setShowMap(showMap === order.id ? null : order.id)} className="bg-gray-100 text-gray-600 text-[10px] px-3 py-2 rounded-xl flex items-center gap-1"><Navigation2 className="w-3 h-3" />الخريطة</button>
                     {order.status === 'pending' && (
                       <button onClick={() => acceptOrder(order.id)} disabled={!isOrderInRange(order.coords)} className="bg-blue-600 text-white text-[10px] px-4 py-2 rounded-xl flex items-center gap-1 shadow-sm disabled:bg-gray-300">قبول</button>
                     )}
@@ -780,16 +882,6 @@ export default function DriverApp() {
                     <ShieldCheck className="w-3.5 h-3.5" /> تأكيد تحصيل المديونية
                   </button>
                 )}
-
-                <AnimatePresence>
-                  {showMap === order.id && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-blue-50 rounded-xl mt-2 p-4 text-center">
-                      <button onClick={() => openNavigation(order.address)} className="bg-brand-red text-white px-6 py-3 rounded-2xl flex items-center gap-2 mx-auto text-xs">
-                        <NavigationIcon className="w-4 h-4" /> فتح الخريطة (Google Maps)
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -801,19 +893,38 @@ export default function DriverApp() {
 
   const renderHistory = () => (
     <section className="space-y-6">
-      <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
-        <p className="text-white/60 text-sm mb-2 font-bold">الرصيد المتاح</p>
-        <h3 className="text-4xl font-black mb-6">{earnings.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
-        <div className="flex gap-3">
-          <div className="flex-1 bg-white/10 p-3 rounded-2xl">
-            <p className="text-[8px] text-white/50 mb-1 font-bold">المديونية</p>
-            <p className="text-sm font-bold text-brand-red">{systemDebt.toLocaleString()} ج.م</p>
+      {/* مديونية الشركة (عمولة 15%) */}
+      <div className="bg-gray-900 text-white p-6 rounded-[32px] shadow-xl shadow-gray-900/20 relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2 opacity-60">
+            <ShieldCheck className="w-4 h-4" />
+            <p className="text-xs font-bold uppercase tracking-wider">مديونية الشركة (العمولة)</p>
           </div>
-          <div className="flex-1 bg-white/10 p-3 rounded-2xl">
-            <p className="text-[8px] text-white/50 mb-1 font-bold">السقف</p>
-            <p className="text-sm font-bold text-green-400">{DEBT_LIMIT.toLocaleString()} ج.م</p>
+          <div className="flex items-end justify-between">
+            <h3 className="text-3xl font-black">{systemDebt.toLocaleString()} <span className="text-sm">ج.م</span></h3>
+            <button 
+              onClick={handleOpenSettlement}
+              className="bg-white text-gray-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-100 transition-colors"
+            >
+              سداد للشركة
+            </button>
           </div>
+          <p className="text-[10px] mt-4 opacity-40">عمولة الشركة 15% من قيمة التوصيل. يتم سدادها للشركة فقط.</p>
         </div>
+        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
+      </div>
+
+      {/* مديونية المطاعم */}
+      <div className="bg-brand-red text-white p-6 rounded-[32px] shadow-xl shadow-brand-red/20 relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2 opacity-60">
+            <Store className="w-4 h-4" />
+            <p className="text-xs font-bold uppercase tracking-wider">مديونية المطاعم (العهد)</p>
+          </div>
+          <h3 className="text-3xl font-black">{vendorDebt.toLocaleString()} <span className="text-sm">ج.م</span></h3>
+          <p className="text-[10px] mt-4 opacity-40">قيمة الطلبات التي تم توصيلها ولم تسلم للمطعم بعد.</p>
+        </div>
+        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
       </div>
 
       <div className="space-y-4">
@@ -926,6 +1037,11 @@ export default function DriverApp() {
               >
                 سجل الطلبات
               </button>
+            </div>
+
+            <div className="px-2 mb-2 flex justify-between items-center">
+              <p className="text-[10px] text-gray-400 font-medium">آخر مزامنة: {lastSyncTime.toLocaleTimeString('ar-EG')}</p>
+              {isRefreshing && <div className="w-3 h-3 border-2 border-brand-red border-t-transparent rounded-full animate-spin"></div>}
             </div>
 
             {activeTab === "current" ? renderCurrentOrders() : renderHistory()}

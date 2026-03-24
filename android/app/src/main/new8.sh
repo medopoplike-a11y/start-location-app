@@ -1,2 +1,3 @@
-    .\gradlew assembleDebug
+    #!/bin/bash
+./gradlew assembleDebug
     

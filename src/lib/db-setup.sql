@@ -118,9 +118,18 @@ CREATE TABLE IF NOT EXISTS wallets (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
   balance FLOAT DEFAULT 0 NOT NULL,
   debt FLOAT DEFAULT 0 NOT NULL,
+  system_balance FLOAT DEFAULT 0 NOT NULL, -- مديونية الشركة (العمولة)
   debt_limit FLOAT DEFAULT 1000 NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- التأكد من وجود عمود system_balance في حال كان الجدول موجوداً
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wallets' AND column_name='system_balance') THEN
+    ALTER TABLE wallets ADD COLUMN system_balance FLOAT DEFAULT 0 NOT NULL;
+  END IF;
+END $$;
 
 -- تفعيل RLS للمحافظ
 ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
@@ -292,24 +301,35 @@ DECLARE
     order_val FLOAT;
     drv_earnings FLOAT;
     sys_comm FLOAT;
+    vnd_comm FLOAT;
     ins_fee FLOAT;
 BEGIN
     -- استخراج القيم المالية من الـ JSONB مع التحويل الآمن
     order_val := COALESCE((new.financials->>'order_value')::FLOAT, 0);
     drv_earnings := COALESCE((new.financials->>'driver_earnings')::FLOAT, 0);
     sys_comm := COALESCE((new.financials->>'system_commission')::FLOAT, 0);
+    vnd_comm := COALESCE((new.financials->>'vendor_commission')::FLOAT, 0);
     ins_fee := COALESCE((new.financials->>'insurance_fee')::FLOAT, 0);
 
-    -- 1. عند توصيل الطلب (Delivered): زيادة أرباح الطيار وزيادة مديونيته
+    -- 1. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
+        -- تحديث محفظة الطيار: زيادة الأرباح، زيادة مديونية المحل (قيمة الطلب + التأمين)، زيادة مديونية الشركة (العمولة)
         UPDATE public.wallets 
         SET 
             balance = balance + drv_earnings,
-            debt = debt + order_val + sys_comm + ins_fee
+            debt = debt + order_val + (ins_fee / 2), -- نصيب الطيار من التأمين
+            system_balance = system_balance + sys_comm
         WHERE user_id = new.driver_id;
+
+        -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة 20% + التأمين)
+        UPDATE public.wallets
+        SET
+            system_balance = system_balance + vnd_comm,
+            debt = debt + (ins_fee / 2) -- نصيب المحل من التأمين
+        WHERE user_id = new.vendor_id;
     END IF;
 
-    -- 2. عند تحصيل المحل للمبلغ (Vendor Collected): خصم قيمة الطلب من مديونية الطيار
+    -- 2. عند تحصيل المحل للمبلغ من الطيار (Vendor Collected): خصم قيمة الطلب فقط من مديونية الطيار
     IF (new.vendor_collected_at IS NOT NULL AND old.vendor_collected_at IS NULL) THEN
         UPDATE public.wallets 
         SET debt = debt - order_val
@@ -332,8 +352,9 @@ RETURNS trigger AS $$
 BEGIN
     -- إذا تغيرت حالة التسوية إلى 'approved' من قبل الأدمن
     IF (new.status = 'approved' AND (old.status IS NULL OR old.status != 'approved')) THEN
+        -- خصم مبلغ التسوية من مديونية الشركة (system_balance)
         UPDATE public.wallets 
-        SET debt = debt - new.amount
+        SET system_balance = system_balance - new.amount
         WHERE user_id = new.driver_id;
     END IF;
     RETURN new;
@@ -362,7 +383,7 @@ BEGIN
     DELETE FROM public.settlements WHERE driver_id = target_user_id;
     
     -- 3. تصفير المحفظة
-    UPDATE public.wallets SET balance = 0, debt = 0 WHERE user_id = target_user_id;
+    UPDATE public.wallets SET balance = 0, debt = 0, system_balance = 0 WHERE user_id = target_user_id;
     
     RETURN TRUE;
   ELSE
@@ -410,7 +431,7 @@ BEGIN
     -- استخدام شرط لتجاوز حماية الحذف الشامل
     DELETE FROM public.orders WHERE id IS NOT NULL;
     DELETE FROM public.settlements WHERE id IS NOT NULL;
-    UPDATE public.wallets SET balance = 0, debt = 0 WHERE id IS NOT NULL;
+    UPDATE public.wallets SET balance = 0, debt = 0, system_balance = 0 WHERE id IS NOT NULL;
     RETURN TRUE;
   ELSE
     RAISE EXCEPTION 'غير مصرح.';
