@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Zap, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
 import { signIn, getUserProfile } from "@/lib/auth";
-import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { StartLogo } from "@/components/StartLogo";
 import LocationMarker from "@/components/LocationMarker";
+import { useAuth } from "@/components/AuthProvider";
 
 type LoginRole = "driver" | "vendor" | "admin";
 
@@ -63,24 +63,12 @@ export default function LoginPage() {
       }
       setSystemStatus(prev => ({...prev, net: navigator.onLine ? "active" : "offline"}));
     }
-    
-    const checkUser = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          console.log("LoginPage: Existing session found, redirecting...");
-          const profile = await getUserProfile(session.user.id);
-          if (profile) redirectUserByRole(profile.role);
-        }
-      } catch (e) {
-        console.error("LoginPage: Error checking session", e);
-      }
-    };
-    checkUser();
   }, []);
 
   const redirectUserByRole = (role: string) => {
     const normalizedRole = role?.toLowerCase();
+    console.log("LoginPage: Attempting redirect to role:", normalizedRole);
+    
     if (normalizedRole === "admin") router.replace("/admin");
     else if (normalizedRole === "driver") router.replace("/driver");
     else if (normalizedRole === "vendor") router.replace("/vendor");
@@ -101,31 +89,32 @@ export default function LoginPage() {
     } else if (data?.user) {
       console.log("LoginPage: Login successful for user", data.user.id);
       
-      // Give Supabase a moment to persist the session
-      setTimeout(async () => {
-        try {
+      // Let's handle redirect manually here to ensure it works
+      try {
+        const profile = await getUserProfile(data.user.id);
+        console.log("LoginPage: Profile found:", profile);
+        
+        if (profile?.role) {
+          if (profile.role.toLowerCase() !== role) {
+            setError(`هذا الحساب مخصص لـ ${profile.role} فقط`);
+            setLoading(false);
+            return;
+          }
+          redirectUserByRole(profile.role);
+        } else {
+          // Special case for admin
           if (data.user.email === 'medopoplike@gmail.com') {
             redirectUserByRole('admin');
           } else {
-            const profile = await getUserProfile(data.user.id);
-            if (profile?.role) {
-              if (profile.role.toLowerCase() !== role) {
-                setError(`هذا الحساب مخصص لـ ${profile.role} فقط`);
-                setLoading(false);
-                return;
-              }
-              redirectUserByRole(profile.role);
-            } else {
-              setError("لم يتم تحديد صلاحيات لهذا الحساب");
-              setLoading(false);
-            }
+            setError("لم يتم تحديد صلاحيات لهذا الحساب");
+            setLoading(false);
           }
-        } catch (e) {
-          console.error("LoginPage: Error during redirect", e);
-          setError("حدث خطأ أثناء التوجيه، يرجى المحاولة مرة أخرى");
-          setLoading(false);
         }
-      }, 500);
+      } catch (err) {
+        console.error("LoginPage: Profile fetch error", err);
+        setError("فشل تحميل بيانات المستخدم");
+        setLoading(false);
+      }
     }
   };
 
@@ -159,10 +148,11 @@ export default function LoginPage() {
     }
   };
 
-  if (!mounted) return <div className="min-h-screen bg-[#020617]" />;
+  if (!mounted) return <div className="min-h-screen bg-[#f3f4f6]" />;
 
   return (
-    <main className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-white/20" dir="rtl">
+    <main className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-blue-600/10" dir="rtl">
+      <div className="silver-live-bg" />
       {/* Background Architecture */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Dynamic Nodes */}
@@ -171,7 +161,7 @@ export default function LoginPage() {
         ))}
         
         {/* Subtle Vector Grid */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(#00000005_1px,transparent_1px)] [background-size:32px_32px]" />
         
         {/* Ambient Moving Orbs */}
         <motion.div 

@@ -146,34 +146,28 @@ export default function DriverApp() {
     const setup = async () => {
       try {
         const user = await getCurrentUser();
-        if (!user) {
-          console.log("DriverPage: No session, redirecting to login...");
-          router.replace("/login");
-          return;
+        if (user) {
+          const profile = await getUserProfile(user.id);
+          if (profile) {
+            setDriverId(user.id);
+            setDriverName(profile.full_name || "كابتن");
+            setProfileData({
+              full_name: profile.full_name || "",
+              phone: profile.phone || "",
+              area: profile.area || "",
+              vehicle_type: profile.vehicle_type || "موتوسيكل",
+              national_id: profile.national_id || ""
+            });
+          }
+          await Promise.all([
+            fetchOrders(user.id),
+            fetchStats(user.id)
+          ]);
         }
-
-        const profile = await getUserProfile(user.id);
-        if (!profile || profile.role !== 'driver') {
-          console.log("DriverPage: Invalid role, redirecting to login...");
-          router.replace("/login");
-          return;
-        }
-
-      setDriverId(user.id);
-      setDriverName(profile.full_name || "كابتن");
-      setProfileData({
-        full_name: profile.full_name || "",
-        phone: profile.phone || "",
-        area: profile.area || "",
-        vehicle_type: profile.vehicle_type || "موتوسيكل",
-        national_id: profile.national_id || ""
-      });
-      
-      await Promise.all([
-        fetchOrders(user.id),
-        fetchStats(user.id)
-      ]);
-      setLoading(false);
+        setLoading(false);
+      } catch (e) {
+        console.error("DriverPage: Setup error", e);
+      }
     };
 
     setup();
@@ -793,7 +787,8 @@ export default function DriverApp() {
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
+      <div className="silver-live-bg" />
       {renderHeader()}
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
         {activeTab === "orders" ? (

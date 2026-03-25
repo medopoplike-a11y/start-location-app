@@ -100,7 +100,19 @@ export const createUserByAdmin = async (
 /**
  * دالة للحصول على الملف الشخصي للمستخدم الحالي مع دعم البيانات الاحتياطية (Metadata)
  */
-export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+export const getUserProfile = async (userId: string, email?: string): Promise<UserProfile | null> => {
+  // Hardcoded admin check
+  if (email === 'medopoplike@gmail.com') {
+    return {
+      id: userId,
+      email: email,
+      full_name: 'مدير النظام',
+      role: 'admin',
+      is_locked: false,
+      created_at: new Date().toISOString()
+    };
+  }
+
   try {
     // 1. محاولة جلب الملف من قاعدة البيانات
     const { data, error } = await supabase
@@ -140,7 +152,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
       };
     }
   } catch (authError) {
-    console.error('Auth error in fallback:', authError);
+    console.error('Auth: Error fetching profile:', authError);
   }
 
   return null;

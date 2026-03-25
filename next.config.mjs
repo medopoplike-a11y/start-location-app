@@ -12,6 +12,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  trailingSlash: false,
   env: {
     IS_BUILDING: process.env.npm_lifecycle_script === 'next build',
   },

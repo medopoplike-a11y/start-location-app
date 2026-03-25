@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile } from "@/lib/auth";
 import { StartLogo } from "@/components/StartLogo";
 import { isNative, downloadLiveUpdate } from "@/lib/native-utils";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function SplashPage() {
   if (process.env.IS_BUILDING) {
@@ -15,7 +16,7 @@ export default function SplashPage() {
 
   const router = useRouter();
   const [status, setStatus] = useState("Checking System...");
-  const [error, setError] = useState<string | null>(null);
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
     // Force body background to be matte silver
@@ -23,112 +24,45 @@ export default function SplashPage() {
       document.body.style.backgroundColor = '#f3f4f6';
       document.body.style.color = '#1f2937';
     }
+  }, []);
 
-    let isMounted = true;
+  useEffect(() => {
+    if (loading) {
+      setStatus("Initializing Start-OS...");
+    } else if (user && !profile) {
+      setStatus("Syncing Profile...");
+    } else if (!user) {
+      setStatus("Entering System...");
+      const timer = setTimeout(() => {
+        router.replace("/login");
+      }, 1500);
+      return () => clearTimeout(timer);
+    } else if (user && profile) {
+      setStatus("Welcome back!");
+      const role = profile.role?.toLowerCase();
+      const timer = setTimeout(() => {
+        router.replace(`/${role}`);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, user, profile, router]);
 
-    const checkAppAndRedirect = async () => {
-      console.log("Splash: Starting check...");
-      setStatus("Loading System...");
-      
-      // Safety timeout after 10 seconds regardless of what happens
-      const safetyTimeout = setTimeout(() => {
-        if (isMounted) {
-          console.log("Splash: Safety timeout reached, forcing redirect to login");
-          router.replace("/login");
-        }
-      }, 10000);
+  const handlePanicLogout = async () => {
+    const { signOut } = await import("@/lib/auth");
+    await signOut();
+  };
 
-      try {
-        // 0. Check Supabase Config
-        if (!supabase.auth) {
-          throw new Error("Supabase client not initialized correctly. Check URL/Key.");
-        }
-
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        
-        if (!supabaseUrl || !supabaseKey || supabaseKey.includes('placeholder')) {
-          console.warn("Splash: Supabase config looks incomplete", { url: !!supabaseUrl, key: !!supabaseKey });
-          // We continue anyway, but this is a likely point of failure
-        }
-        
-        if (supabaseKey && !supabaseKey.startsWith('eyJ')) {
-          console.warn("Splash: Supabase Anon Key format looks unusual. Expected JWT.");
-        }
-
-        // 1. Native update check (non-blocking)
-        if (isNative()) {
-          console.log("Splash: Native environment detected");
-          setStatus("Checking for updates...");
-          try {
-            const { data: config, error: configError } = await supabase.from('app_config').select('bundle_url, latest_version').single();
-            if (configError) {
-              console.warn('Splash: App config fetch failed:', configError);
-            } else if (config?.bundle_url) {
-              console.log("Splash: Update found, downloading...");
-              await downloadLiveUpdate(config.bundle_url, config.latest_version);
-            }
-          } catch (e) {
-            console.warn('Splash: Native update check failed:', e);
-          }
-        }
-
-        // 2. Auth check
-        setStatus("Securing Connection...");
-        console.log("Splash: Getting session...");
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error("Splash: Session error:", sessionError);
-          throw new Error(`Auth Error: ${sessionError.message}`);
-        }
-
-        if (session?.user) {
-          console.log("Splash: User session found:", session.user.id);
-          setStatus("Loading Profile...");
-          const profile = await getUserProfile(session.user.id);
-          if (profile && isMounted) {
-            const normalizedRole = profile.role?.toLowerCase();
-            console.log("Splash: Profile found, role:", normalizedRole);
-            if (normalizedRole === "admin") router.replace("/admin");
-            else if (normalizedRole === "driver") router.replace("/driver");
-            else if (normalizedRole === "vendor") router.replace("/vendor");
-            else router.replace("/login");
-            clearTimeout(safetyTimeout);
-            return;
-          } else {
-            console.warn("Splash: Profile not found for user");
-          }
-        } else {
-          console.log("Splash: No session found");
-        }
-
-        if (isMounted) {
-          router.replace("/login");
-          clearTimeout(safetyTimeout);
-        }
-      } catch (err: any) {
-        console.error("Splash CRITICAL error:", err);
-        if (isMounted) {
-          setError(err.message || String(err));
-          // Don't redirect immediately on error so user can see it
-          setTimeout(() => {
-            if (isMounted && !error) router.replace("/login");
-          }, 5000);
-          clearTimeout(safetyTimeout);
-        }
+  // Global Error Handler for "This page couldn't load"
+  useEffect(() => {
+    const handleError = (e: ErrorEvent) => {
+      console.error("Splash: Global error caught", e);
+      if (e.message?.includes("Hydration")) {
+        window.location.reload();
       }
     };
-
-    checkAppAndRedirect().catch(e => {
-      console.error("Splash: Uncaught error in checkAppAndRedirect:", e);
-      if (isMounted) setError(`Fatal: ${e.message}`);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-8 overflow-hidden relative" dir="rtl">
@@ -165,6 +99,21 @@ export default function SplashPage() {
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">{status}</p>
           </div>
         </div>
+
+        {/* Panic Mode - Only shows if stuck */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 5 }}
+          className="mt-8"
+        >
+          <button 
+            onClick={handlePanicLogout}
+            className="px-6 py-2 bg-white/50 backdrop-blur-sm border border-white/40 rounded-full text-[10px] font-bold text-gray-400 hover:text-red-500 transition-colors"
+          >
+            إذا علق النظام، اضغط هنا لتسجيل الخروج
+          </button>
+        </motion.div>
       </motion.div>
     </div>
   );

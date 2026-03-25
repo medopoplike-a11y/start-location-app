@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import AppUpdater from "@/components/AppUpdater";
+import { AuthProvider } from "@/components/AuthProvider";
 import Script from "next/script";
 
 const cairo = Cairo({ 
@@ -46,25 +47,38 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className="bg-[#f3f4f6]">
       <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
         <div className="silver-live-bg" />
-        <AppWrapper>
-          {children}
-        </AppWrapper>
-        <Script id="sw-registration" strategy="afterInteractive">
+        <AuthProvider>
+          <AppWrapper>
+            {children}
+          </AppWrapper>
+        </AuthProvider>
+        <Script id="kill-sw" strategy="beforeInteractive">
           {`
-            if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform()) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(
-                  function(registration) {
-                    console.log('App: ServiceWorker registered');
-                  },
-                  function(err) {
-                    console.log('App: ServiceWorker registration failed: ', err);
-                  }
-                );
+            // Force clear old Service Workers and Caches
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                  registration.unregister();
+                }
               });
+            }
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                for (let name of names) caches.delete(name);
+              });
+            }
+            // Clear specific old session keys
+            if (typeof localStorage !== 'undefined') {
+              if (!localStorage.getItem('start_v3_clean')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                localStorage.setItem('start_v3_clean', 'true');
+                window.location.reload();
+              }
             }
           `}
         </Script>
+
       </body>
     </html>
   );
@@ -87,15 +101,19 @@ function AppWrapper({ children }: { children: React.ReactNode }) {
           backgroundColor: '#f3f4f6', 
           minHeight: '100vh', 
           display: 'flex', 
+          flexDirection: 'column',
           alignItems: 'center', 
           justifyContent: 'center',
           color: '#1f2937',
           fontSize: '12px',
           fontWeight: 'bold',
-          fontFamily: 'sans-serif'
+          fontFamily: 'sans-serif',
+          gap: '10px'
         }}
       >
-        LOADING START-OS...
+        <div style={{ width: '40px', height: '40px', border: '4px solid #e5e7eb', borderTop: '4px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        SYNCING START-OS...
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }

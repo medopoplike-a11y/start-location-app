@@ -137,46 +137,35 @@ export default function VendorApp() {
     const init = async () => {
       try {
         const user = await getCurrentUser();
-        if (!user) {
-          console.log("VendorPage: No session, redirecting to login...");
-          router.replace("/login");
-          return;
-        }
-        
-        const profile = await getUserProfile(user.id);
-        if (!profile || profile.role !== 'vendor') {
-          console.log("VendorPage: Invalid role, redirecting to login...");
-          router.replace("/login");
-          return;
-        }
+        if (user) {
+          const profile = await getUserProfile(user.id);
+          if (profile) {
+            setVendorId(user.id);
+            setVendorName(profile.full_name || "محل");
+            setVendorPhone(profile.phone || "");
+            setVendorLocation((profile as any).location);
+            setSettingsData({ 
+              name: profile.full_name || "", 
+              phone: profile.phone || "",
+              area: (profile as any).area || ""
+            });
+          }
+          await updateData(user.id);
 
-        setVendorId(user.id);
-        setVendorName(profile.full_name || "محل");
-        setVendorPhone(profile.phone || "");
-        setVendorLocation((profile as any).location);
-        setSettingsData({ 
-          name: profile.full_name || "", 
-          phone: profile.phone || "",
-          area: (profile as any).area || ""
-        });
-        
-        await updateData(user.id);
-
-        // جلب إعدادات النظام
-        const { data: config } = await supabase.from('app_config').select('*').single();
-        if (config) {
-          setAppConfig({
-            driver_commission: config.driver_commission || 15,
-            vendor_commission: config.vendor_commission || 20,
-            vendor_fee: config.vendor_fee || 1,
-            safe_ride_fee: config.safe_ride_fee || 1
-          });
+          // جلب إعدادات النظام
+          const { data: config } = await supabase.from('app_config').select('*').single();
+          if (config) {
+            setAppConfig({
+              driver_commission: config.driver_commission || 15,
+              vendor_commission: config.vendor_commission || 20,
+              vendor_fee: config.vendor_fee || 1,
+              safe_ride_fee: config.safe_ride_fee || 1
+            });
+          }
         }
-
         setLoading(false);
       } catch (e) {
         console.error("VendorPage: Init error", e);
-        router.replace("/login");
       }
     };
 
@@ -678,7 +667,8 @@ export default function VendorApp() {
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
+      <div className="silver-live-bg" />
       <PushNotificationManager userId={vendorId} />
       {renderHeader()}
       {renderDrawer()}

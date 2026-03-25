@@ -47,8 +47,7 @@ import AccountsView from "./AccountsView";
 import { PremiumCard } from "@/components/PremiumCard";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
-
-import { SyncIndicator } from "@/components/SyncIndicator";
+import { useSync } from "@/hooks/useSync";
 
 export default function AdminPanel() {
   const router = useRouter();
@@ -117,87 +116,12 @@ export default function AdminPanel() {
   }, []);
 
   useEffect(() => {
-    let ordersSub: any;
-    let profilesSub: any;
-    let walletsSub: any;
-    let settlementsSub: any;
-
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { router.replace("/login"); return; }
-      
-      const profile = await getUserProfile(session.user.id);
-      let role = profile?.role || session.user.user_metadata?.role;
-      if (session.user.email?.includes('admin') || session.user.email === 'medopoplike@gmail.com') role = 'admin';
-      
-      if (!role || role.toLowerCase() !== 'admin') { router.replace("/login"); return; }
-
       await fetchData();
       setLoading(false);
-
-      // Real-time Subscriptions with smart updates
-      ordersSub = subscribeToOrders(() => {
-        fetchOrders();
-        fetchSettlements();
-      });
-
-      profilesSub = subscribeToProfiles((payload) => {
-        const { eventType, new: newProfile } = payload;
-        // تحديث سريع لمواقع الطيارين على الخريطة دون إعادة جلب الكل
-        if (eventType === 'UPDATE' && newProfile.role === 'driver') {
-          setOnlineDrivers(prev => {
-            const loc = newProfile.location;
-            if (!loc) return prev;
-            const updated = {
-              id: newProfile.id,
-              name: newProfile.full_name,
-              lat: loc.lat,
-              lng: loc.lng,
-              lastSeen: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-            };
-            const idx = prev.findIndex(d => d.id === newProfile.id);
-            if (idx > -1) {
-              const next = [...prev];
-              next[idx] = updated;
-              return next;
-            }
-            return [...prev, updated];
-          });
-        }
-        // تحديث باقي البيانات في الخلفية
-        fetchProfiles();
-      });
-
-      // اشتراك شامل للمحافظ (لكل المستخدمين في لوحة الأدمن)
-      walletsSub = supabase
-        .channel('admin_wallets_all')
-        .on(
-          'postgres_changes', 
-          { event: '*', schema: 'public', table: 'wallets' }, 
-          () => {
-            fetchProfiles(); // لتحديث الأرصدة والمديونيات
-          }
-        )
-        .subscribe();
-
-      // اشتراك التسويات
-      settlementsSub = supabase
-        .channel('admin_settlements_all')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'settlements' },
-          () => fetchSettlements()
-        )
-        .subscribe();
     };
 
     init();
-    return () => {
-      if (ordersSub) supabase.removeChannel(ordersSub);
-      if (profilesSub) supabase.removeChannel(profilesSub);
-      if (walletsSub) supabase.removeChannel(walletsSub);
-      if (settlementsSub) supabase.removeChannel(settlementsSub);
-    };
   }, [router]);
 
   useEffect(() => {
@@ -406,7 +330,8 @@ export default function AdminPanel() {
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen flex font-sans text-right relative overflow-hidden" dir="rtl">
+    <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
+      <div className="silver-live-bg" />
       {/* Sidebar Overlay */}
       <AnimatePresence>{isMobile && sidebarOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm lg:hidden" />}</AnimatePresence>
 
