@@ -173,14 +173,13 @@ export const signOut = async () => {
       localStorage.clear();
       sessionStorage.clear();
       
-      // التوجيه لصفحة البداية (Splash Page) لتتولى التحقق من الجلسة
-      // نستخدم window.location.href لضمان إعادة تحميل كاملة للتطبيق
-      window.location.href = '/';
+      // التوجيه لصفحة الدخول مباشرة بطريقة تضمن كسر حلقة التوجيه
+      window.location.href = '/login';
     }
   } catch (error) {
     console.error('Error during signOut:', error);
     if (typeof window !== 'undefined') {
-      window.location.href = '/';
+      window.location.href = '/login';
     }
   }
 };
