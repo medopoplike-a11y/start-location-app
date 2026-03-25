@@ -36,7 +36,7 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
 
 import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { updateOrder, subscribeToOrders, driverConfirmPayment, type Order as DBOrder } from "@/lib/orders";
+import { updateOrder, subscribeToOrders, subscribeToWallets, subscribeToSettlements, driverConfirmPayment, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 
 const ACCEPTANCE_RADIUS_KM = 5;
@@ -136,7 +136,9 @@ export default function DriverApp() {
     if (savedActive !== null) setIsActive(savedActive === "true");
     if (savedAutoAccept !== null) setAutoAccept(savedAutoAccept === "true");
 
-    let subscription: any;
+    let ordersSub: any;
+    let walletSub: any;
+    let settlementsSub: any;
 
     const setup = async () => {
       const user = await getCurrentUser();
@@ -167,7 +169,8 @@ export default function DriverApp() {
       ]);
       setLoading(false);
 
-      subscription = subscribeToOrders((payload) => {
+      // 1. اشتراك الطلبات
+      ordersSub = subscribeToOrders((payload) => {
         fetchOrders(user.id);
         fetchStats(user.id);
 
@@ -201,12 +204,24 @@ export default function DriverApp() {
             });
         }
       });
+
+      // 2. اشتراك المحفظة (تحديث الأرصدة فوراً)
+      walletSub = subscribeToWallets(user.id, () => {
+        fetchStats(user.id);
+      });
+
+      // 3. اشتراك التسويات
+      settlementsSub = subscribeToSettlements(user.id, () => {
+        fetchStats(user.id);
+      });
     };
 
     setup();
 
     return () => {
-      if (subscription) supabase.removeChannel(subscription);
+      if (ordersSub) supabase.removeChannel(ordersSub);
+      if (walletSub) supabase.removeChannel(walletSub);
+      if (settlementsSub) supabase.removeChannel(settlementsSub);
     };
   }, [router]);
 
@@ -320,7 +335,7 @@ export default function DriverApp() {
       startOfToday.setHours(0, 0, 0, 0);
       const { data: todayOrders } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'delivered').gte('created_at', startOfToday.toISOString());
       
-      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('driver_id', currentDriverId).order('created_at', { ascending: false });
+      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
 
       if (walletData) setSystemDebt(walletData.system_balance);
       if (ordersDebtData) setVendorDebt(ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0));
@@ -350,11 +365,12 @@ export default function DriverApp() {
 
   const mapDBOrderToUI = (db: any): Order => {
     const distanceValue = db.distance || 2.5;
+    const vendorProfile = db.profiles || {};
     return {
       id: db.id,
-      vendor: db.profiles?.full_name || "محل غير معروف",
+      vendor: vendorProfile.full_name || "محل غير معروف",
       vendorId: db.vendor_id,
-      vendorPhone: db.profiles?.phone || "",
+      vendorPhone: vendorProfile.phone || "",
       customer: db.customer_details.name,
       customerPhone: db.customer_details.phone || "",
       address: db.customer_details.address,
@@ -362,7 +378,7 @@ export default function DriverApp() {
       distance: `${distanceValue} كم`,
       fee: `${db.financials.delivery_fee} ج.م`,
       status: db.status,
-      coords: db.profiles?.location || { lat: 30.0444, lng: 31.2357 },
+      coords: vendorProfile.location || { lat: 30.0444, lng: 31.2357 },
       prepTime: db.financials.prep_time,
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
       priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : 3),
@@ -437,16 +453,25 @@ export default function DriverApp() {
 
   const pickupOrder = async (orderId: string) => {
     if (!driverId) return;
-    const { error: confirmError } = await driverConfirmPayment(orderId);
-    if (confirmError) {
-      alert("حدث خطأ أثناء تأكيد الدفع للمحل.");
-      return;
-    }
     const { data, error } = await updateOrder(orderId, { driver_id: driverId, status: 'in_transit' });
     if (!error && data) {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
       playNotification();
       addActivity(`استلام الطلب #${orderId.slice(0, 8)}`);
+    } else {
+      alert("حدث خطأ أثناء تأكيد الاستلام.");
+    }
+  };
+
+  const initiatePaymentSettlement = async (orderId: string) => {
+    if (!driverId) return;
+    const { error } = await driverConfirmPayment(orderId);
+    if (!error) {
+      addActivity(`تم طلب تسوية الدفع للمحل #${orderId.slice(0, 8)}`);
+      playNotification();
+      fetchOrders(driverId);
+    } else {
+      alert("حدث خطأ أثناء طلب التسوية.");
     }
   };
 
@@ -455,7 +480,10 @@ export default function DriverApp() {
     const { data, error } = await updateOrder(orderId, { status: 'delivered' });
     if (!error && data) {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
-      if (driverId) fetchStats(driverId);
+      if (driverId) {
+        await fetchStats(driverId);
+        await fetchOrders(driverId);
+      }
       playNotification();
       addActivity(`تم تسليم الطلب #${orderId.slice(0, 8)}`);
     } else {
@@ -601,21 +629,51 @@ export default function DriverApp() {
           </div>
         ) : (
           orders.filter(o => o.status === "delivered" || o.status === "cancelled").map(order => (
-            <div key={order.id} className="bg-white p-5 rounded-3xl border border-gray-100 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
-                  <History className="w-6 h-6" />
+            <div key={order.id} className="bg-white p-5 rounded-3xl border border-gray-100 flex flex-col gap-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                    <History className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{order.vendor}</p>
+                    <p className="text-[10px] text-gray-400 font-bold">#{order.id.slice(0, 8)} • {order.fee}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-gray-900">{order.vendor}</p>
-                  <p className="text-[10px] text-gray-400 font-bold">#{order.id.slice(0, 8)} • {order.fee}</p>
+                <div className="text-left">
+                  <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                    {translateStatus(order.status)}
+                  </span>
                 </div>
               </div>
-              <div className="text-left">
-                <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
-                  {translateStatus(order.status)}
-                </span>
-              </div>
+              
+              {/* Payment Settlement Section for Delivered Orders */}
+              {order.status === "delivered" && !order.vendorCollectedAt && (
+                <div className="pt-3 border-t border-gray-50">
+                  {!order.driverConfirmedAt ? (
+                    <button 
+                      onClick={() => initiatePaymentSettlement(order.id)}
+                      className="w-full bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow hover:text-gray-900 py-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Banknote className="w-4 h-4" />
+                      تسوية الدفع مع المحل
+                    </button>
+                  ) : (
+                    <div className="w-full bg-gray-50 text-gray-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      بانتظار تأكيد المحل لاستلام المبلغ
+                    </div>
+                  )}
+                </div>
+              )}
+              {order.status === "delivered" && order.vendorCollectedAt && (
+                <div className="pt-3 border-t border-gray-50">
+                  <div className="w-full bg-green-50 text-green-600 py-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    تمت تسوية الدفع مع المحل
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -660,15 +718,57 @@ export default function DriverApp() {
                 <div className="flex items-center gap-2 text-gray-600"><Clock className="w-4 h-4 text-gray-400" /><p className="text-xs font-bold">وقت التحضير: {order.prepTime} دقيقة</p></div>
                 <div className="flex items-center gap-2 text-gray-600"><Truck className="w-4 h-4 text-gray-400" /><p className="text-xs font-bold truncate">{order.address}</p></div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-3">
                 {order.status === 'pending' ? (
-                  <button onClick={() => acceptOrder(order.id)} className="flex-1 bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-red-100 active:scale-95 transition-transform">قبول الطلب</button>
-                ) : order.status === 'assigned' ? (
-                  <button onClick={() => pickupOrder(order.id)} className="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform">تأكيد الاستلام</button>
+                  <div className="flex gap-2">
+                    <button onClick={() => acceptOrder(order.id)} className="flex-1 bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-red-100 active:scale-95 transition-transform">قبول الطلب</button>
+                  </div>
                 ) : (
-                  <button onClick={() => simulateDelivery(order.id)} disabled={isSimulating} className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform disabled:opacity-50">تأكيد التسليم</button>
+                  <>
+                    {/* Main Action Button */}
+                    <div className="flex gap-2">
+                      {order.status === 'assigned' ? (
+                        <button onClick={() => pickupOrder(order.id)} className="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform">تأكيد الاستلام من المحل</button>
+                      ) : (
+                        <button onClick={() => simulateDelivery(order.id)} disabled={isSimulating} className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform disabled:opacity-50">تأكيد التسليم للعميل</button>
+                      )}
+                    </div>
+
+                    {/* Payment Settlement Button (Flexible timing) */}
+                    {!order.vendorCollectedAt && (
+                      <div className="pt-2 border-t border-gray-50 mt-1">
+                        {!order.driverConfirmedAt ? (
+                          <button 
+                            onClick={() => initiatePaymentSettlement(order.id)}
+                            className="w-full bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/20 py-3 rounded-xl text-[10px] font-black hover:bg-brand-yellow hover:text-gray-900 transition-all flex items-center justify-center gap-2"
+                          >
+                            <Banknote className="w-4 h-4" />
+                            دفع المديونية للمحل الآن (اختياري حالياً)
+                          </button>
+                        ) : (
+                          <div className="w-full bg-gray-50 text-gray-400 py-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-300" />
+                            بانتظار تأكيد المحل لاستلام المبلغ
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
-                <a href={`tel:${order.vendorPhone}`} className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-brand-red/10 hover:text-brand-red transition-colors"><Phone className="w-6 h-6" /></a>
+                
+                {/* Contact Buttons */}
+                <div className="flex gap-2 mt-1">
+                  <a href={`tel:${order.vendorPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-50 text-gray-600 rounded-xl hover:bg-brand-red/10 hover:text-brand-red transition-colors text-[10px] font-bold border border-gray-100">
+                    <Phone className="w-4 h-4" />
+                    اتصال بالمحل
+                  </a>
+                  {order.customerPhone && (
+                    <a href={`tel:${order.customerPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors text-[10px] font-bold border border-blue-100">
+                      <MessageCircle className="w-4 h-4" />
+                      اتصال بالعميل
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ))

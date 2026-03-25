@@ -147,6 +147,52 @@ export const subscribeToOrders = (callback: (payload: any) => void) => {
 };
 
 /**
+ * الاستماع لتغييرات المحفظة (Real-time) لضمان تحديث الأرصدة فوراً
+ */
+export const subscribeToWallets = (userId: string, callback: (payload: any) => void) => {
+  const channel = supabase
+    .channel(`wallet_${userId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${userId}` },
+      (payload) => {
+        console.log("Real-time wallet update:", payload);
+        callback(payload);
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        setTimeout(() => channel.subscribe(), 5000);
+      }
+    });
+  
+  return channel;
+};
+
+/**
+ * الاستماع لتغييرات التسويات (Settlements)
+ */
+export const subscribeToSettlements = (userId: string, callback: (payload: any) => void) => {
+  const channel = supabase
+    .channel(`settlements_${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'settlements', filter: `user_id=eq.${userId}` },
+      (payload) => {
+        console.log("Real-time settlement change:", payload);
+        callback(payload);
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        setTimeout(() => channel.subscribe(), 5000);
+      }
+    });
+  
+  return channel;
+};
+
+/**
  * الاستماع لتغييرات الملفات الشخصية (للمواقع والاتصال)
  */
 export const subscribeToProfiles = (callback: (payload: any) => void) => {

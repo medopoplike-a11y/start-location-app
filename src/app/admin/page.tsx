@@ -40,7 +40,7 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
 
 import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
 import { signOut, createUserByAdmin, getUserProfile } from "@/lib/auth";
-import { subscribeToOrders, subscribeToProfiles } from "@/lib/orders";
+import { subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import AccountsView from "./AccountsView";
@@ -115,6 +115,7 @@ export default function AdminPanel() {
     let ordersSub: any;
     let profilesSub: any;
     let walletsSub: any;
+    let settlementsSub: any;
 
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -129,9 +130,60 @@ export default function AdminPanel() {
       await fetchData();
       setLoading(false);
 
-      ordersSub = subscribeToOrders(() => { fetchOrders(); fetchSettlements(); });
-      profilesSub = subscribeToProfiles(() => fetchProfiles());
-      walletsSub = supabase.channel('admin_wallets_all').on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => fetchProfiles()).subscribe();
+      // Real-time Subscriptions with smart updates
+      ordersSub = subscribeToOrders(() => {
+        fetchOrders();
+        fetchSettlements();
+      });
+
+      profilesSub = subscribeToProfiles((payload) => {
+        const { eventType, new: newProfile } = payload;
+        // تحديث سريع لمواقع الطيارين على الخريطة دون إعادة جلب الكل
+        if (eventType === 'UPDATE' && newProfile.role === 'driver') {
+          setOnlineDrivers(prev => {
+            const loc = newProfile.location;
+            if (!loc) return prev;
+            const updated = {
+              id: newProfile.id,
+              name: newProfile.full_name,
+              lat: loc.lat,
+              lng: loc.lng,
+              lastSeen: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            };
+            const idx = prev.findIndex(d => d.id === newProfile.id);
+            if (idx > -1) {
+              const next = [...prev];
+              next[idx] = updated;
+              return next;
+            }
+            return [...prev, updated];
+          });
+        }
+        // تحديث باقي البيانات في الخلفية
+        fetchProfiles();
+      });
+
+      // اشتراك شامل للمحافظ (لكل المستخدمين في لوحة الأدمن)
+      walletsSub = supabase
+        .channel('admin_wallets_all')
+        .on(
+          'postgres_changes', 
+          { event: '*', schema: 'public', table: 'wallets' }, 
+          () => {
+            fetchProfiles(); // لتحديث الأرصدة والمديونيات
+          }
+        )
+        .subscribe();
+
+      // اشتراك التسويات
+      settlementsSub = supabase
+        .channel('admin_settlements_all')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'settlements' },
+          () => fetchSettlements()
+        )
+        .subscribe();
     };
 
     init();
@@ -139,6 +191,7 @@ export default function AdminPanel() {
       if (ordersSub) supabase.removeChannel(ordersSub);
       if (profilesSub) supabase.removeChannel(profilesSub);
       if (walletsSub) supabase.removeChannel(walletsSub);
+      if (settlementsSub) supabase.removeChannel(settlementsSub);
     };
   }, [router]);
 

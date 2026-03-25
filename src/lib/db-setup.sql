@@ -378,6 +378,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ج. تغيير حالة الطلب عند تأكيد المحل لاستلام المبلغ
+CREATE OR REPLACE FUNCTION public.handle_payment_confirmation()
+RETURNS trigger AS $$
+BEGIN
+    -- عند تأكيد المحل لاستلام المبلغ، يتم تغيير حالة الطلب إلى "في الطريق"
+    IF (NEW.vendor_collected_at IS NOT NULL AND OLD.vendor_collected_at IS NULL AND NEW.status = 'assigned') THEN
+        UPDATE public.orders SET status = 'in_transit' WHERE id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- إنشاء التريجر إذا لم يكن موجوداً
+DROP TRIGGER IF EXISTS on_vendor_confirm_set_in_transit ON public.orders;
+
 -- ربط الدالة بتريجر على جدول التسويات
 DROP TRIGGER IF EXISTS on_settlement_approval ON public.settlements;
 CREATE TRIGGER on_settlement_approval

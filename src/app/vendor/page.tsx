@@ -40,7 +40,7 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
 import LocationMarker from "@/components/LocationMarker";
 import { VENDOR_INSURANCE_FEE, calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, subscribeToProfiles, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
+import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
 
@@ -126,6 +126,8 @@ export default function VendorApp() {
   useEffect(() => {
     let ordersSub: any;
     let profilesSub: any;
+    let walletSub: any;
+    let settlementsSub: any;
 
     const init = async () => {
       const user = await getCurrentUser();
@@ -144,11 +146,23 @@ export default function VendorApp() {
         area: (profile as any).area || ""
       });
       
-      const dbOrders = await getVendorOrders(user.id);
-      setOrders(dbOrders.map(mapDBOrderToUI));
-      
-      const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', user.id).single();
-      if (walletData) setCompanyCommission(walletData.system_balance);
+      const updateData = async () => {
+        const dbOrders = await getVendorOrders(user.id);
+        setOrders(dbOrders.map(mapDBOrderToUI));
+        const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', user.id).single();
+        if (walletData) setCompanyCommission(walletData.system_balance);
+        const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        if (settlementsData) {
+          setSettlementHistory(settlementsData.map(s => ({
+            id: s.id,
+            amount: s.amount,
+            status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
+            date: new Date(s.created_at).toLocaleDateString('ar-EG')
+          })));
+        }
+      };
+
+      await updateData();
 
       // جلب إعدادات النظام
       const { data: config } = await supabase.from('app_config').select('*').single();
@@ -161,35 +175,10 @@ export default function VendorApp() {
         });
       }
 
-      // جلب سجل التسويات
-      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-      if (settlementsData) {
-        setSettlementHistory(settlementsData.map(s => ({
-          id: s.id,
-          amount: s.amount,
-          status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
-          date: new Date(s.created_at).toLocaleDateString('ar-EG')
-        })));
-      }
-
       setLoading(false);
 
-      ordersSub = subscribeToOrders((payload) => {
-        const { eventType, new: newRecord, old: oldRecord } = payload;
-        if (eventType === 'UPDATE' && newRecord.status === 'delivered') {
-          supabase.from('wallets').select('system_balance').eq('user_id', user.id).single().then(({ data }) => {
-            if (data) setCompanyCommission(data.system_balance);
-          });
-        }
-
-        setOrders(prev => {
-          if (eventType === 'INSERT' && newRecord.vendor_id === user.id) return [mapDBOrderToUI(newRecord), ...prev];
-          if (eventType === 'UPDATE' && newRecord.vendor_id === user.id) return prev.map(o => o.id === newRecord.id ? mapDBOrderToUI(newRecord) : o);
-          if (eventType === 'DELETE') return prev.filter(o => o.id !== oldRecord.id);
-          return prev;
-        });
-      });
-
+      // Real-time Subscriptions
+      ordersSub = subscribeToOrders(() => updateData());
       profilesSub = subscribeToProfiles((payload) => {
         const { new: newProfile } = payload;
         if (newProfile && (newProfile.role || '').toLowerCase() === 'driver') {
@@ -206,12 +195,16 @@ export default function VendorApp() {
           });
         }
       });
+      walletSub = subscribeToWallets(user.id, () => updateData());
+      settlementsSub = subscribeToSettlements(user.id, () => updateData());
     };
 
     init();
     return () => {
       if (ordersSub) supabase.removeChannel(ordersSub);
       if (profilesSub) supabase.removeChannel(profilesSub);
+      if (walletSub) supabase.removeChannel(walletSub);
+      if (settlementsSub) supabase.removeChannel(settlementsSub);
     };
   }, [router]);
 
@@ -366,11 +359,18 @@ export default function VendorApp() {
   };
 
   const handleCollectDebt = async (orderId: string) => {
-    const { data, error } = await vendorCollectDebt(orderId);
-    if (error) return alert("حدث خطأ أثناء تحديث حالة التحصيل.");
-    if (data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
+    const { error } = await vendorCollectDebt(orderId);
+    if (!error) {
       addActivity(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)}`);
+      // تحديث البيانات فوراً
+      if (vendorId) {
+        const dbOrders = await getVendorOrders(vendorId);
+        setOrders(dbOrders.map(mapDBOrderToUI));
+        const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', vendorId).single();
+        if (walletData) setCompanyCommission(walletData.system_balance);
+      }
+    } else {
+      alert("حدث خطأ أثناء تأكيد التحصيل.");
     }
   };
 
@@ -529,8 +529,27 @@ export default function VendorApp() {
                     <div className="flex items-center gap-2"><div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">{order.driver ? <div className="bg-brand-orange w-full h-full flex items-center justify-center text-white text-[10px] font-bold">{order.driver.charAt(0)}</div> : <Truck className="w-4 h-4 text-gray-400" />}</div><span className="text-xs font-bold text-gray-700">{order.driver || "بانتظار طيار..."}</span></div>
                     <span className="font-bold text-gray-900">{order.amount}</span>
                   </div>
-                  {order.status === "delivered" && !order.vendorCollectedAt && (
-                    <button onClick={() => handleCollectDebt(order.id)} className="w-full mt-4 bg-orange-50 text-brand-orange py-3 rounded-xl text-[10px] font-bold hover:bg-orange-100 transition-all flex items-center justify-center gap-2"><Banknote className="w-3.5 h-3.5" />تأكيد تحصيل قيمة الأوردر من الطيار</button>
+                  
+                  {/* Flexible Payment Confirmation Section */}
+                  {!order.vendorCollectedAt && (
+                    <div className="mt-4 pt-4 border-t border-gray-50">
+                      {order.driverConfirmedAt ? (
+                        <button 
+                          onClick={() => handleCollectDebt(order.id)} 
+                          className="w-full bg-green-500 text-white py-4 rounded-2xl text-[10px] font-black hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          تأكيد استلام مبلغ المديونية ({order.amount})
+                        </button>
+                      ) : (
+                        order.status === "delivered" && (
+                          <div className="w-full bg-gray-50 text-gray-400 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-dashed border-gray-200">
+                            <Clock className="w-4 h-4 text-gray-300" />
+                            بانتظار قيام الطيار بطلب تسوية الدفع
+                          </div>
+                        )
+                      )}
+                    </div>
                   )}
                 </motion.div>
               ))}
