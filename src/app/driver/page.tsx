@@ -584,6 +584,69 @@ export default function DriverApp() {
     );
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
+
+  const renderDrawer = () => (
+    <AnimatePresence>
+      {showDrawer && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrawer(false)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]" />
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 bottom-0 w-72 bg-white z-[101] shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-brand-red/10 rounded-xl flex items-center justify-center text-brand-red">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">{driverName}</p>
+                  <p className="text-[10px] text-gray-400 font-bold">{isActive ? 'متصل الآن' : 'غير متصل'}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="flex-1 p-4 space-y-2">
+              <button onClick={() => { setActiveTab("orders"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "orders" ? "bg-brand-red/10 text-brand-red" : "hover:bg-gray-50 text-gray-700"}`}>
+                <Truck className="w-5 h-5" />
+                <span className="text-sm font-bold">الطلبات المتاحة</span>
+              </button>
+              <button onClick={() => { setActiveTab("wallet"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "wallet" ? "bg-brand-red/10 text-brand-red" : "hover:bg-gray-50 text-gray-700"}`}>
+                <Wallet className="w-5 h-5" />
+                <span className="text-sm font-bold">المحفظة المالية</span>
+              </button>
+              <button onClick={() => { setActiveTab("history"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "history" ? "bg-brand-red/10 text-brand-red" : "hover:bg-gray-50 text-gray-700"}`}>
+                <History className="w-5 h-5" />
+                <span className="text-sm font-bold">سجل العمليات</span>
+              </button>
+              <div className="h-px bg-gray-100 my-4" />
+              <button onClick={() => { setShowDrawer(false); setShowProfileModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors">
+                <Settings className="w-5 h-5 text-gray-400" />
+                <span className="text-sm font-bold text-gray-700">إعدادات الحساب</span>
+              </button>
+              <button onClick={() => { setShowDrawer(false); setShowPasswordModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors">
+                <ShieldCheck className="w-5 h-5 text-gray-400" />
+                <span className="text-sm font-bold text-gray-700">تغيير كلمة السر</span>
+              </button>
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <button onClick={handleSignOut} className="w-full flex items-center gap-3 p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-colors">
+                <LogOut className="w-5 h-5" />
+                <span className="text-sm font-bold">تسجيل الخروج</span>
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+
   if (loading) return <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center font-bold text-gray-400">جاري تحميل البيانات...</div>;
 
   return (

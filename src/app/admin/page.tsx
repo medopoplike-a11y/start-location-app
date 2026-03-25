@@ -203,7 +203,7 @@ export default function AdminPanel() {
       if (error) throw error;
       if (profiles) {
         setDebugInfo({ profilesCount: profiles.length, error: null });
-        const online = profiles.filter(p => (p.role || '').toLowerCase() === 'driver' && p.is_online).map(p => {
+        const online = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver' && p.is_online).map((p: any) => {
           let loc = p.location;
           if (typeof loc === 'string') try { loc = JSON.parse(loc); } catch { loc = null; }
           return {

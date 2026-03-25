@@ -137,7 +137,7 @@ export const subscribeToOrders = (callback: (payload: any) => void) => {
     )
     .subscribe((status) => {
       console.log("Orders subscription status:", status);
-      if (status === 'SUBSCRIPTION_ERROR') {
+      if (status === 'CHANNEL_ERROR') {
         console.warn("Real-time subscription error, attempting to reconnect...");
         setTimeout(() => channel.subscribe(), 5000);
       }
@@ -162,7 +162,7 @@ export const subscribeToProfiles = (callback: (payload: any) => void) => {
     )
     .subscribe((status) => {
       console.log("Profiles subscription status:", status);
-      if (status === 'SUBSCRIPTION_ERROR') {
+      if (status === 'CHANNEL_ERROR') {
         setTimeout(() => channel.subscribe(), 5000);
       }
     });

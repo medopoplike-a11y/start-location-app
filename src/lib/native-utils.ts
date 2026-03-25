@@ -17,8 +17,7 @@ export const downloadLiveUpdate = async (url: string, version: string) => {
     // استيراد ديناميكي للمكتبة لمنع تعطل الويب
     const { CapacitorUpdater } = await import('capacitor-updater');
     await CapacitorUpdater.download({
-      url,
-      version
+      url
     });
     console.log('Native: Live update downloaded successfully');
   } catch (e) {
