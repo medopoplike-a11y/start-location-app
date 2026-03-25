@@ -44,6 +44,11 @@ import { subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeTo
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import AccountsView from "./AccountsView";
+import { PremiumCard } from "@/components/PremiumCard";
+import { AppLoader } from "@/components/AppLoader";
+import { SyncIndicator } from "@/components/SyncIndicator";
+
+import { SyncIndicator } from "@/components/SyncIndicator";
 
 export default function AdminPanel() {
   const router = useRouter();
@@ -54,7 +59,7 @@ export default function AdminPanel() {
   const [activeView, setActiveView] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(new Date());
+  const { lastSync, isSyncing } = useSync(undefined, () => fetchData());
   const [debugInfo, setDebugInfo] = useState({ profilesCount: 0, error: null as string | null });
 
   // Data State
@@ -392,13 +397,13 @@ export default function AdminPanel() {
   const handleSignOut = async () => { await signOut(); router.push("/login"); };
 
   const stats = [
-    { title: "إجمالي الطلبات", value: allOrders.length.toString(), icon: <Truck className="text-blue-500 w-6 h-6" />, trend: "+12%" },
-    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length.toString(), icon: <Users className="text-green-500 w-6 h-6" />, trend: "+5%" },
-    { title: "صندوق التأمين", value: `${insuranceFund.toLocaleString()} ج.م`, icon: <ShieldCheck className="text-brand-red w-6 h-6" />, trend: "+2%" },
-    { title: "عمولات مستحقة", value: `${totalSystemDebt.toLocaleString()} ج.م`, icon: <Wallet className="text-purple-500 w-6 h-6" />, trend: "المديونية" },
+    { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-blue-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب" },
+    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-green-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن" },
+    { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-brand-red w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م" },
+    { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-purple-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م" },
   ];
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">جاري تحميل النظام...</div>;
+  if (loading) return <AppLoader />;
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-right relative overflow-hidden" dir="rtl">
@@ -436,8 +441,12 @@ export default function AdminPanel() {
           <div className="flex items-center gap-6">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-gray-50 text-gray-900 rounded-xl border border-gray-200">{sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
             <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /><span className="text-[10px] font-black text-gray-400 uppercase">Live</span></div>
-              <div className="w-px h-3 bg-gray-200" /><div className="flex items-center gap-2"><Activity className="w-3 h-3 text-blue-500" /><span className="text-[10px] font-bold text-gray-500">{lastSyncTime.toLocaleTimeString('ar-EG')}</span></div>
+              <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
+              <div className="w-px h-3 bg-gray-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[10px] font-black text-gray-400 uppercase">Live</span>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -464,10 +473,16 @@ export default function AdminPanel() {
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, idx) => (
-                  <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div><p className="text-gray-400 text-xs mb-1 font-bold">{stat.title}</p><h3 className="text-2xl font-bold text-gray-900">{stat.value}</h3><span className="text-[10px] text-green-500 font-bold">{stat.trend}</span></div>
-                    <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center">{stat.icon}</div>
-                  </div>
+                  <PremiumCard
+                    key={idx}
+                    title={stat.title}
+                    value={stat.value}
+                    icon={stat.icon}
+                    trend={stat.trend}
+                    trendType={stat.trendType}
+                    subtitle={stat.subtitle}
+                    delay={idx * 0.1}
+                  />
                 ))}
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

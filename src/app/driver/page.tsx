@@ -38,6 +38,9 @@ import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { updateOrder, subscribeToOrders, subscribeToWallets, subscribeToSettlements, driverConfirmPayment, getAvailableOrders, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
+import { PremiumCard } from "@/components/PremiumCard";
+import { AppLoader } from "@/components/AppLoader";
+import { useSync } from "@/hooks/useSync";
 
 const ACCEPTANCE_RADIUS_KM = 5;
 const DEBT_LIMIT = 1000;
@@ -168,61 +171,9 @@ export default function DriverApp() {
         fetchStats(user.id)
       ]);
       setLoading(false);
-
-      // 1. اشتراك الطلبات
-      ordersSub = subscribeToOrders((payload) => {
-        fetchOrders(user.id);
-        fetchStats(user.id);
-
-        const { eventType, new: newRecord } = payload;
-        if (eventType === 'INSERT' || (eventType === 'UPDATE' && (newRecord as DBOrder).status === 'pending')) {
-          playNotification();
-          const newOrder = newRecord as DBOrder;
-          supabase
-            .from('profiles')
-            .select('location, full_name, phone')
-            .eq('id', newOrder.vendor_id)
-            .single()
-            .then(({ data: vendorProfile }) => {
-              if (vendorProfile) {
-                const uiOrder = mapDBOrderToUI({ ...newOrder, profiles: vendorProfile });
-                setNewOrderNotify(uiOrder);
-                setTimeout(() => setNewOrderNotify(null), 10000);
-
-                if (autoAcceptRef.current && isActiveRef.current && vendorProfile.location) {
-                  const distance = calculateDistance(
-                    locationRef.current?.lat || 0,
-                    locationRef.current?.lng || 0,
-                    vendorProfile.location.lat,
-                    vendorProfile.location.lng
-                  );
-                  if (distance <= ACCEPTANCE_RADIUS_KM) {
-                    acceptOrder(newOrder.id);
-                  }
-                }
-              }
-            });
-        }
-      });
-
-      // 2. اشتراك المحفظة (تحديث الأرصدة فوراً)
-      walletSub = subscribeToWallets(user.id, () => {
-        fetchStats(user.id);
-      });
-
-      // 3. اشتراك التسويات
-      settlementsSub = subscribeToSettlements(user.id, () => {
-        fetchStats(user.id);
-      });
     };
 
     setup();
-
-    return () => {
-      if (ordersSub) supabase.removeChannel(ordersSub);
-      if (walletSub) supabase.removeChannel(walletSub);
-      if (settlementsSub) supabase.removeChannel(settlementsSub);
-    };
   }, [router]);
 
   // Persistent Connection & Wake Lock
@@ -529,29 +480,27 @@ export default function DriverApp() {
   // --- Render Functions ---
 
   const renderHeader = () => (
-    <header className="bg-white p-6 shadow-sm flex items-center justify-between sticky top-0 z-40">
+    <header className="bg-white/80 backdrop-blur-xl p-6 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
       <div className="flex items-center gap-3">
-        <button onClick={() => setShowDrawer(true)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-          <Menu className="w-6 h-6 text-gray-600" />
+        <button onClick={() => setShowDrawer(true)} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100">
+          <Menu className="w-5 h-5 text-gray-900" />
         </button>
-        <div>
+        <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">Start Location</h1>
-            {isActive && <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }} className="w-2 h-2 bg-green-500 rounded-full" />}
+            <h1 className="text-sm font-black text-gray-900 leading-tight uppercase tracking-tighter">Start Location</h1>
+            {isActive && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]" />}
           </div>
-          <p className="text-[10px] text-gray-400">كابتن: {driverName}</p>
+          <p className="text-[10px] font-bold text-gray-400">كابتن: {driverName}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={handleManualRefresh} className={`p-2 rounded-xl transition-all ${isRefreshing ? "bg-gray-100 text-gray-300" : "bg-gray-50 text-gray-500 hover:bg-gray-100"}`}>
-          <History className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
-        </button>
-        <button onClick={() => setAutoAccept(!autoAccept)} className={`p-2 rounded-xl border ${autoAccept ? "bg-brand-yellow/20 text-brand-yellow border-brand-yellow/50" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+        <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
+        <button onClick={() => setAutoAccept(!autoAccept)} className={`p-2.5 rounded-2xl border transition-all ${autoAccept ? "bg-blue-50 text-blue-600 border-blue-100 shadow-sm shadow-blue-50" : "bg-gray-50 text-gray-400 border-gray-100"}`}>
           {autoAccept ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
         </button>
-        <button onClick={toggleActive} className={`flex items-center gap-2 px-4 py-2 rounded-full border ${isActive ? "bg-green-50 border-green-100 text-green-600" : "bg-red-50 border-red-100 text-red-600"}`}>
-          <div className={`w-2 h-2 rounded-full animate-pulse ${isActive ? "bg-green-500" : "bg-red-500"}`} />
-          <span className="font-black text-xs">{isActive ? "متصل" : "غير متصل"}</span>
+        <button onClick={toggleActive} className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all ${isActive ? "bg-green-50 border-green-100 text-green-600 shadow-sm shadow-green-50" : "bg-red-50 border-red-100 text-red-600 shadow-sm shadow-red-50"}`}>
+          <Power className={`w-4 h-4 ${isActive ? "text-green-500" : "text-red-500"}`} />
+          <span className="font-black text-[10px] uppercase tracking-widest">{isActive ? "Online" : "Offline"}</span>
         </button>
       </div>
     </header>
@@ -861,15 +810,30 @@ export default function DriverApp() {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-400 mb-1">دخل اليوم</p>
-                <h2 className="text-xl font-black text-gray-900">{todayDeliveryFees} <span className="text-[10px]">ج.م</span></h2>
-              </section>
-              <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-400 mb-1">مديونية المحلات</p>
-                <h2 className="text-xl font-black text-gray-900">{vendorDebt} <span className="text-[10px]">ج.م</span></h2>
-              </section>
+              <PremiumCard
+                title="أرباح اليوم"
+                value={todayDeliveryFees}
+                icon={<TrendingDown className="text-green-500 w-5 h-5" />}
+                subtitle="ج.م"
+                delay={0.1}
+              />
+              <PremiumCard
+                title="مديونية المحلات"
+                value={vendorDebt}
+                icon={<Store className="text-brand-orange w-5 h-5" />}
+                subtitle="ج.م"
+                delay={0.2}
+              />
             </div>
+            
+            <PremiumCard
+              title="مديونية الشركة (العمولات)"
+              value={systemDebt}
+              icon={<ShieldCheck className="text-brand-red w-5 h-5" />}
+              subtitle="ج.م"
+              className="mt-4"
+              delay={0.3}
+            />
 
             {renderCurrentOrders()}
           </>

@@ -43,6 +43,10 @@ import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/li
 import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
+import { PremiumCard } from "@/components/PremiumCard";
+import { AppLoader } from "@/components/AppLoader";
+import { SyncIndicator } from "@/components/SyncIndicator";
+import { useSync } from "@/hooks/useSync";
 
 interface Order {
   id: string;
@@ -66,6 +70,7 @@ interface Order {
 
 export default function VendorApp() {
   const router = useRouter();
+  const { isSyncing, lastSync } = useSync();
   
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);
@@ -449,8 +454,9 @@ export default function VendorApp() {
           <p className="text-[10px] text-gray-400">لوحة تحكم المحل</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="relative group">
+      <div className="flex items-center gap-4">
+        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
+        <div className="relative group hidden sm:block">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-orange transition-colors" />
           <input type="text" placeholder="بحث..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-gray-100 pr-9 pl-3 py-2 rounded-xl text-xs border-none outline-none focus:ring-2 ring-brand-orange/20 w-32 transition-all" />
         </div>
@@ -485,15 +491,31 @@ export default function VendorApp() {
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <section onClick={() => setActiveView("wallet")} className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm cursor-pointer active:scale-95 transition-all">
-              <div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center text-green-600"><Wallet className="w-4 h-4" /></div><p className="text-[10px] font-bold text-gray-400">المديونية من الطيارين</p></div>
-              <h2 className="text-xl font-black text-gray-900">{balance.toLocaleString()} <span className="text-[10px]">ج.م</span></h2>
-            </section>
-            <section onClick={() => setShowLiveMap(!showLiveMap)} className={`p-5 rounded-[32px] border transition-all cursor-pointer active:scale-95 ${showLiveMap ? "bg-brand-orange text-white border-brand-orange shadow-lg shadow-orange-100" : "bg-white border-gray-100 shadow-sm"}`}>
-              <div className="flex items-center gap-2 mb-3"><div className={`w-8 h-8 rounded-lg flex items-center justify-center ${showLiveMap ? "bg-white/20" : "bg-orange-50 text-brand-orange"}`}><MapPin className="w-4 h-4" /></div><p className={`text-[10px] font-bold ${showLiveMap ? "text-white/80" : "text-gray-400"}`}>الطيارين المتصلين</p></div>
-              <h2 className={`text-xl font-black ${showLiveMap ? "text-white" : "text-gray-900"}`}>{onlineDrivers.length} <span className="text-[10px]">طيار</span></h2>
-            </section>
+            <PremiumCard
+              title="مديونية الطيارين"
+              value={balance.toLocaleString()}
+              icon={<Wallet className="text-green-600 w-5 h-5" />}
+              subtitle="ج.م"
+              delay={0.1}
+            />
+            <PremiumCard
+              title="الطيارين المتصلين"
+              value={onlineDrivers.length}
+              icon={<MapPin className="text-brand-orange w-5 h-5" />}
+              subtitle="طيار"
+              delay={0.2}
+              className={showLiveMap ? "ring-2 ring-brand-orange" : ""}
+            />
           </div>
+          
+          <PremiumCard
+            title="عمولة الشركة المستحقة"
+            value={companyCommission.toLocaleString()}
+            icon={<ShieldCheck className="text-brand-red w-5 h-5" />}
+            subtitle="ج.م"
+            className="mt-4"
+            delay={0.3}
+          />
         </div>
 
         <AnimatePresence>
