@@ -28,12 +28,29 @@ export interface Order {
 export const getVendorOrders = async (vendorId: string) => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*, profiles!driver_id(full_name, phone)') // جلب معلومات السائق
+    .select('*, profiles:driver_id(full_name, phone)') // جلب معلومات السائق
     .eq('vendor_id', vendorId)
     .order('created_at', { ascending: false });
   
   if (error) {
     console.error("Error fetching vendor orders:", error);
+    return [];
+  }
+  return data || [];
+};
+
+/**
+ * جلب الطلبات المتاحة للطيارين (مع بيانات المطعم)
+ */
+export const getAvailableOrders = async () => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, profiles:vendor_id(full_name, phone, location)') // جلب معلومات المطعم
+    .or('status.eq.pending,status.eq.assigned,status.eq.in_transit')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching available orders:", error);
     return [];
   }
   return data || [];

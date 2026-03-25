@@ -37,8 +37,17 @@ BEGIN
   END IF;
 END $$;
 
--- تفعيل خاصية التحديث اللحظي للجدول
-ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+-- تفعيل Real-time لكافة الجداول الحساسة
+alter publication supabase_realtime add table orders;
+alter publication supabase_realtime add table wallets;
+alter publication supabase_realtime add table profiles;
+alter publication supabase_realtime add table settlements;
+
+-- التأكد من تفعيل Replica Identity Full لضمان وصول كافة الحقول في الـ Payload
+alter table public.orders replica identity full;
+alter table public.wallets replica identity full;
+alter table public.profiles replica identity full;
+alter table public.settlements replica identity full;
 
 -- 2. تفعيل الحماية على مستوى الصفوف (Row Level Security)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;

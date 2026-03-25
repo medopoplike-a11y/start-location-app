@@ -36,7 +36,7 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
 
 import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { updateOrder, subscribeToOrders, subscribeToWallets, subscribeToSettlements, driverConfirmPayment, type Order as DBOrder } from "@/lib/orders";
+import { updateOrder, subscribeToOrders, subscribeToWallets, subscribeToSettlements, driverConfirmPayment, getAvailableOrders, type Order as DBOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 
 const ACCEPTANCE_RADIUS_KM = 5;
@@ -355,11 +355,9 @@ export default function DriverApp() {
   };
 
   const fetchOrders = async (currentDriverId: string) => {
-    try {
-      const { data, error } = await supabase.from('orders').select('*, profiles!vendor_id(full_name, location, phone)').or(`status.eq.pending,driver_id.eq.${currentDriverId}`).order('created_at', { ascending: false });
-      if (!error && data) setOrders(data.map(mapDBOrderToUI));
-    } catch (err) {
-      console.error("Error fetching orders:", err);
+    const data = await getAvailableOrders();
+    if (data) {
+      setOrders(data.map(mapDBOrderToUI));
     }
   };
 
