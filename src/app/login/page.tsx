@@ -12,23 +12,30 @@ import LocationMarker from "@/components/LocationMarker";
 type LoginRole = "driver" | "vendor" | "admin";
 
 const DataNode = ({ index }: { index: number }) => {
-  const randomX = Math.random() * 100;
-  const randomY = Math.random() * 100;
-  const randomDelay = Math.random() * 5;
-  const randomDuration = 10 + Math.random() * 20;
+  const [mounted, setMounted] = useState(false);
+  const [config] = useState(() => ({
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    delay: Math.random() * 5,
+    duration: 10 + Math.random() * 20
+  }));
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
 
   return (
     <motion.div
-      initial={{ x: `${randomX}%`, y: `${randomY}%`, opacity: 0 }}
+      initial={{ x: `${config.x}%`, y: `${config.y}%`, opacity: 0 }}
       animate={{ 
-        x: [`${randomX}%`, `${(randomX + 10) % 100}%`, `${randomX}%`],
-        y: [`${randomY}%`, `${(randomY + 10) % 100}%`, `${randomY}%`],
+        x: [`${config.x}%`, `${(config.x + 10) % 100}%`, `${config.x}%`],
+        y: [`${config.y}%`, `${(config.y + 10) % 100}%`, `${config.y}%`],
         opacity: [0, 0.2, 0] 
       }}
       transition={{ 
-        duration: randomDuration, 
+        duration: config.duration, 
         repeat: Infinity, 
-        delay: randomDelay,
+        delay: config.delay,
         ease: "easeInOut" 
       }}
       className="absolute w-1 h-1 bg-blue-400 rounded-full blur-[1px]"
@@ -44,14 +51,18 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [systemStatus, setSystemStatus] = useState({ gps: "detecting", net: "online", battery: "100%" });
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    setMounted(true);
     // Check sensors on load
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(() => setSystemStatus(prev => ({...prev, gps: "active"})), () => setSystemStatus(prev => ({...prev, gps: "restricted"})));
+    if (typeof window !== "undefined") {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(() => setSystemStatus(prev => ({...prev, gps: "active"})), () => setSystemStatus(prev => ({...prev, gps: "restricted"})));
+      }
+      setSystemStatus(prev => ({...prev, net: navigator.onLine ? "active" : "offline"}));
     }
-    setSystemStatus(prev => ({...prev, net: navigator.onLine ? "active" : "offline"}));
     
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -131,10 +142,17 @@ export default function LoginPage() {
     }
   };
 
+  if (!mounted) return <div className="min-h-screen bg-[#020617]" />;
+
   return (
     <main className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-white/20" dir="rtl">
       {/* Background Architecture */}
       <div className="absolute inset-0 z-0 pointer-events-none">
+        {/* Dynamic Nodes */}
+        {[...Array(20)].map((_, i) => (
+          <DataNode key={i} index={i} />
+        ))}
+        
         {/* Subtle Vector Grid */}
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
         

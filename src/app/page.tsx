@@ -6,9 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile } from "@/lib/auth";
 import { StartLogo } from "@/components/StartLogo";
-import { Download, AlertCircle, RefreshCw } from "lucide-react";
-import { Capacitor } from '@capacitor/core';
-import { CapacitorUpdater } from 'capacitor-updater';
+import { isNative, downloadLiveUpdate } from "@/lib/native-utils";
 
 const CURRENT_VERSION = "0.2.0";
 
@@ -29,17 +27,14 @@ export default function SplashPage() {
     const checkAppAndRedirect = async () => {
       try {
         // 1. التحقق من التحديثات اللحظية (OTA) فقط إذا كان تطبيقاً أصلياً
-        if (typeof window !== "undefined" && Capacitor.isNativePlatform()) {
+        if (isNative()) {
           try {
             const { data: config } = await supabase.from('app_config').select('bundle_url, latest_version').single();
             if (config?.bundle_url) {
-              await CapacitorUpdater.download({
-                url: config.bundle_url,
-                version: config.latest_version
-              });
+              await downloadLiveUpdate(config.bundle_url, config.latest_version);
             }
           } catch (e) {
-            console.warn('Live update check skipped or failed:', e);
+            console.warn('Splash: Native update check failed:', e);
           }
         }
 

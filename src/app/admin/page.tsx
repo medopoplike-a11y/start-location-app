@@ -83,7 +83,7 @@ export default function AdminPanel() {
 
   const addActivity = (text: string) => {
     setActivityLog(prev => [{
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 11),
       text,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
     }, ...prev].slice(0, 5));

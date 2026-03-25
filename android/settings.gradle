@@ -1,6 +1,25 @@
 plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
+
+// Fix for Capacitor Proguard issue in node_modules
+def nodeModulesDir = new File(settingsDir, '../node_modules')
+if (nodeModulesDir.exists()) {
+    nodeModulesDir.eachFileRecurse { file ->
+        if (file.name == 'build.gradle' && (file.path.contains('capacitor') || file.path.contains('@capacitor'))) {
+            try {
+                def content = file.text
+                if (content.contains("proguard-android.txt")) {
+                    println "Auto-fixing Proguard in: ${file.path}"
+                    file.text = content.replace("proguard-android.txt", "proguard-android-optimize.txt")
+                }
+            } catch (Exception e) {
+                // Ignore files that can't be read/written
+            }
+        }
+    }
+}
+
 include ':app'
 include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
