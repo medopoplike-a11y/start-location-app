@@ -1,15 +1,21 @@
-# قواعد حماية Capacitor من الحذف العشوائي عند البناء
--keep class com.getcapacitor.** { *; }
--keep  class * extends com.getcapacitor.BridgeActivity
--keep  class * extends com.getcapacitor.Plugin
--keep  class * extends com.getcapacitor.annotation.CapacitorPlugin
--keep  class * extends com.getcapacitor.annotation.Permission
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# حماية الـ WebView وواجهاته
--keepclassmembers class * {
-  @android.webkit.JavascriptInterface <methods>;
-}
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
 
-# حماية مكتبة Splash Screen الجديدة
--keep class androidx.core.splashscreen.** { *; }
--dontwarn androidx.core.splashscreen.**
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
+
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile

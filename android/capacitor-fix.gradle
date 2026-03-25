@@ -1,9 +1,0 @@
-allprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android.buildTypes.all { buildType ->
-                    }
-            }
-        }
-    }
-}

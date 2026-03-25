@@ -59,17 +59,21 @@ export default function SplashPage() {
         // 1. Native update check (non-blocking)
         if (isNative()) {
           console.log("Splash: Native environment detected");
-          setStatus("Checking for updates...");
+          setStatus("Checking for Cloud Updates...");
           try {
             const { data: config, error: configError } = await supabase.from('app_config').select('bundle_url, latest_version').single();
             if (configError) {
               console.warn('Splash: App config fetch failed:', configError);
+              setStatus("Starting Offline Mode...");
             } else if (config?.bundle_url) {
-              console.log("Splash: Update found, downloading...");
+              setStatus(`Updating OS to v${config.latest_version}...`);
               await downloadLiveUpdate(config.bundle_url, config.latest_version);
+              // If downloadLiveUpdate succeeds, it will reload the app
+              return;
             }
           } catch (e) {
             console.warn('Splash: Native update check failed:', e);
+            setStatus("Starting System...");
           }
         }
 
