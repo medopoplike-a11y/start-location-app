@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node zip.js",
+    "build": "next build && node fix-paths.js && node zip.js",
     "start": "next start",
     "lint": "next lint",
     "static": "next build",

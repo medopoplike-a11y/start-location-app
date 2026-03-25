@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
@@ -40,20 +41,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={cairo.className}>
-        <AppUpdater />
-        {children}
+    <html lang="ar" dir="rtl" className="bg-[#000814]">
+      <body className={`${cairo.className} bg-[#000814] text-white`}>
+        <AppWrapper>
+          {children}
+        </AppWrapper>
         <Script id="sw-registration" strategy="afterInteractive">
           {`
-            if ('serviceWorker' in navigator) {
+            if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform()) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(
                   function(registration) {
-                    console.log('ServiceWorker registered');
+                    console.log('App: ServiceWorker registered');
                   },
                   function(err) {
-                    console.log('ServiceWorker registration failed: ', err);
+                    console.log('App: ServiceWorker registration failed: ', err);
                   }
                 );
               });
@@ -62,5 +64,40 @@ export default function RootLayout({
         </Script>
       </body>
     </html>
+  );
+}
+
+// Wrapper to ensure hydration and global error handling
+function AppWrapper({ children }: { children: React.ReactNode }) {
+  const [isHydrated, setIsHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsHydrated(true);
+    console.log("App: Root Layout Hydrated");
+  }, []);
+
+  if (!isHydrated) {
+    return (
+      <div 
+        style={{ 
+          backgroundColor: '#000814', 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: '12px'
+        }}
+      >
+        LOADING START-OS...
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <AppUpdater />
+      {children}
+    </>
   );
 }

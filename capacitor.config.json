@@ -1,5 +1,5 @@
 {
-  "appId": "com.sarte.location",
+  "appId": "com.traestartzlum.app",
   "appName": "Start Location",
   "webDir": "out",
   "plugins": {
@@ -10,11 +10,12 @@
     }
   },
   "server": {
-    "androidScheme": "https",
+    "androidScheme": "http",
     "cleartext": true,
     "allowNavigation": [
       "*.supabase.co",
-      "*.vercel.app"
+      "*.vercel.app",
+      "localhost"
     ]
   },
   "android": {

@@ -1,0 +1,16 @@
+{
+  "appId": "com.traestartzlum.app",
+  "appName": "Start Location",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://traestartzlum.vercel.app",
+    "allowNavigation": ["traestartzlum.vercel.app"],
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": true
+    }
+  }
+}

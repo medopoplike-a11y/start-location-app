@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // تفعيل التصدير الثابت ضروري لعمل التطبيق على الهاتف (Capacitor)
+  output: 'export',
+  // assetPrefix: './', // تسبب خطأ في بناء الخطوط، سنستخدم حل بديل
   images: {
     unoptimized: true,
   },
@@ -11,7 +12,10 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  trailingSlash: false,
+  trailingSlash: true,
+  env: {
+    IS_BUILDING: process.env.npm_lifecycle_script === 'next build',
+  },
 };
 
 export default nextConfig;

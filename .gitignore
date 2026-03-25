@@ -1,13 +1,17 @@
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
+
+# gradle
+.gradle_home/
+.gradle/
 
 # testing
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
