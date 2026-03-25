@@ -1,13 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install --legacy-peer-deps",
-  "cleanUrls": true,
-  "trailingSlash": true,
-  "routes": [
-    { "src": "/admin/(.*)", "dest": "/admin/index.html" },
-    { "src": "/driver/(.*)", "dest": "/driver/index.html" },
-    { "src": "/vendor/(.*)", "dest": "/vendor/index.html" },
-    { "src": "/login/(.*)", "dest": "/login/index.html" },
-    { "src": "/(.*)", "dest": "/$1" }
-  ]
+  "trailingSlash": true
 }

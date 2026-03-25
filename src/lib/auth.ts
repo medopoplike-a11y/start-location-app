@@ -169,26 +169,18 @@ export const signOut = async () => {
   try {
     await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
-      // مسح كافة البيانات المخزنة محلياً
+      // مسح البيانات الأساسية للجلسة
       localStorage.clear();
       sessionStorage.clear();
       
-      // مسح الكوكيز المتعلقة بـ Supabase (محاولة يدوية لضمان الخروج)
-      const cookies = document.cookie.split(";");
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i];
-        const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-      }
-
-      // إعادة التوجيه لصفحة تسجيل الدخول مع إعادة تحميل كاملة
-      window.location.replace('/login');
+      // التوجيه لصفحة البداية (Splash Page) لتتولى التحقق من الجلسة
+      // نستخدم window.location.href لضمان إعادة تحميل كاملة للتطبيق
+      window.location.href = '/';
     }
   } catch (error) {
     console.error('Error during signOut:', error);
     if (typeof window !== 'undefined') {
-      window.location.replace('/login');
+      window.location.href = '/';
     }
   }
 };
