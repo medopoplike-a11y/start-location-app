@@ -135,73 +135,49 @@ export default function VendorApp() {
     let settlementsSub: any;
 
     const init = async () => {
-      const user = await getCurrentUser();
-      if (!user) { router.push("/login"); return; }
-      
-      const profile = await getUserProfile(user.id);
-      if (!profile || profile.role !== 'vendor') { router.push("/login"); return; }
-
-      setVendorId(user.id);
-      setVendorName(profile.full_name || "محل");
-      setVendorPhone(profile.phone || "");
-      setVendorLocation((profile as any).location);
-      setSettingsData({ 
-        name: profile.full_name || "", 
-        phone: profile.phone || "",
-        area: (profile as any).area || ""
-      });
-      
-      const updateData = async () => {
-        const dbOrders = await getVendorOrders(user.id);
-        setOrders(dbOrders.map(mapDBOrderToUI));
-        const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', user.id).single();
-        if (walletData) setCompanyCommission(walletData.system_balance);
-        const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (settlementsData) {
-          setSettlementHistory(settlementsData.map(s => ({
-            id: s.id,
-            amount: s.amount,
-            status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
-            date: new Date(s.created_at).toLocaleDateString('ar-EG')
-          })));
+      try {
+        const user = await getCurrentUser();
+        if (!user) {
+          console.log("VendorPage: No session, redirecting to login...");
+          router.replace("/login");
+          return;
         }
-      };
+        
+        const profile = await getUserProfile(user.id);
+        if (!profile || profile.role !== 'vendor') {
+          console.log("VendorPage: Invalid role, redirecting to login...");
+          router.replace("/login");
+          return;
+        }
 
-      await updateData();
-
-      // جلب إعدادات النظام
-      const { data: config } = await supabase.from('app_config').select('*').single();
-      if (config) {
-        setAppConfig({
-          driver_commission: config.driver_commission || 15,
-          vendor_commission: config.vendor_commission || 20,
-          vendor_fee: config.vendor_fee || 1,
-          safe_ride_fee: config.safe_ride_fee || 1
+        setVendorId(user.id);
+        setVendorName(profile.full_name || "محل");
+        setVendorPhone(profile.phone || "");
+        setVendorLocation((profile as any).location);
+        setSettingsData({ 
+          name: profile.full_name || "", 
+          phone: profile.phone || "",
+          area: (profile as any).area || ""
         });
-      }
+        
+        await updateData(user.id);
 
-      setLoading(false);
-
-      // Real-time Subscriptions
-      ordersSub = subscribeToOrders(() => updateData());
-      profilesSub = subscribeToProfiles((payload) => {
-        const { new: newProfile } = payload;
-        if (newProfile && (newProfile.role || '').toLowerCase() === 'driver') {
-          setOnlineDrivers(prev => {
-            if (!newProfile.is_online) return prev.filter(d => d.id !== newProfile.id);
-            let loc = newProfile.location;
-            if (typeof loc === 'string') try { loc = JSON.parse(loc); } catch { loc = null; }
-            if (!loc || typeof loc.lat !== 'number') return prev;
-
-            const updated = { id: newProfile.id, name: newProfile.full_name, lat: loc.lat, lng: loc.lng, lastSeen: formatTime(newProfile.last_location_update || newProfile.updated_at) };
-            const idx = prev.findIndex(d => d.id === newProfile.id);
-            if (idx > -1) { const next = [...prev]; next[idx] = updated; return next; }
-            return [...prev, updated];
+        // جلب إعدادات النظام
+        const { data: config } = await supabase.from('app_config').select('*').single();
+        if (config) {
+          setAppConfig({
+            driver_commission: config.driver_commission || 15,
+            vendor_commission: config.vendor_commission || 20,
+            vendor_fee: config.vendor_fee || 1,
+            safe_ride_fee: config.safe_ride_fee || 1
           });
         }
-      });
-      walletSub = subscribeToWallets(user.id, () => updateData());
-      settlementsSub = subscribeToSettlements(user.id, () => updateData());
+
+        setLoading(false);
+      } catch (e) {
+        console.error("VendorPage: Init error", e);
+        router.replace("/login");
+      }
     };
 
     init();
@@ -699,10 +675,10 @@ export default function VendorApp() {
     </AnimatePresence>
   );
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-20"><div className="w-10 h-10 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mb-4" /><p className="text-sm text-gray-400 font-bold">جاري تحميل البيانات...</p></div>;
+  if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative overflow-hidden font-sans" dir="rtl">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
       <PushNotificationManager userId={vendorId} />
       {renderHeader()}
       {renderDrawer()}

@@ -18,10 +18,10 @@ export default function SplashPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Force body background to be dark even if CSS fails
+    // Force body background to be matte silver
     if (typeof document !== 'undefined') {
-      document.body.style.backgroundColor = '#000814';
-      document.body.style.color = 'white';
+      document.body.style.backgroundColor = '#f3f4f6';
+      document.body.style.color = '#1f2937';
     }
 
     let isMounted = true;
@@ -131,68 +131,41 @@ export default function SplashPage() {
   }, [router]);
 
   return (
-    <main 
-      className="min-h-screen bg-[#000814] flex flex-col items-center justify-center relative font-sans overflow-hidden"
-      style={{ backgroundColor: '#000814', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
-    >
-      {/* Animated Digital Grid Background */}
-      <div className="absolute inset-0 z-0" style={{ position: 'absolute', inset: 0 }}>
-        <div 
-          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-          style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(to right, rgba(128,128,128,0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(128,128,128,0.07) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
-        />
-        <div 
-          className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_50%,#0047FF33,transparent)]"
-          style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle 500px at 50% 50%, rgba(0,71,255,0.2), transparent)' }}
-        />
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center">
-        <div className="rounded-full p-1 mb-8">
-          <StartLogo className="w-32 h-32" />
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-8 overflow-hidden relative" dir="rtl">
+      {/* Background Live Silver Effect */}
+      <div className="silver-live-bg" />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 flex flex-col items-center gap-12"
+      >
+        <div className="relative">
+          <motion.div
+            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="absolute inset-0 bg-blue-400 blur-3xl rounded-full"
+          />
+          <StartLogo className="w-32 h-32 relative z-10 drop-shadow-2xl" />
         </div>
 
-        <h1 className="text-5xl font-black text-white tracking-tighter mb-2" style={{ color: 'white', fontWeight: 900, fontSize: '3rem' }}>
-          START <span className="text-white/40 font-light" style={{ opacity: 0.4, fontWeight: 300 }}>LOCATION</span>
-        </h1>
-        
-        <div className="flex items-center gap-3 opacity-40" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', opacity: 0.4 }}>
-          <div className="h-px w-8 bg-white" style={{ height: '1px', width: '2rem', backgroundColor: 'white' }} />
-          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white" style={{ color: 'white', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5em' }}>Initializing OS</p>
-          <div className="h-px w-8 bg-white" style={{ height: '1px', width: '2rem', backgroundColor: 'white' }} />
-        </div>
-
-        {/* Loading Indicator or Error */}
-        <div className="mt-12 flex flex-col items-center gap-4" style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          {!error ? (
-            <>
-              <div className="flex gap-1.5" style={{ display: 'flex', gap: '0.375rem' }}>
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6] animate-pulse"
-                    style={{ width: '6px', height: '6px', borderRadius: '9999px', backgroundColor: '#3b82f6' }}
-                  />
-                ))}
-              </div>
-              <p className="text-[9px] font-bold text-blue-400/60 uppercase tracking-widest min-h-[1.5em]" style={{ color: 'rgba(96,165,250,0.6)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                {status}
-              </p>
-            </>
-          ) : (
-            <div className="bg-red-500/20 border border-red-500/50 p-4 rounded-lg max-w-xs text-center">
-              <p className="text-red-400 text-xs font-bold mb-2">CRITICAL ERROR</p>
-              <p className="text-white text-[10px] break-all">{error}</p>
-              <button 
-                onClick={() => router.replace("/login")}
-                className="mt-4 px-4 py-2 bg-red-500 text-white text-[10px] font-bold rounded"
-              >
-                GO TO LOGIN
-              </button>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">Start <span className="text-blue-600">Location</span></h1>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                  className="w-1.5 h-1.5 bg-blue-600 rounded-full"
+                />
+              ))}
             </div>
-          )}
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">{status}</p>
+          </div>
         </div>
-      </div>
-    </main>
+      </motion.div>
+    </div>
   );
 }

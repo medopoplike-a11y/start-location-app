@@ -65,10 +65,15 @@ export default function LoginPage() {
     }
     
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const profile = await getUserProfile(session.user.id);
-        if (profile) redirectUserByRole(profile.role);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log("LoginPage: Existing session found, redirecting...");
+          const profile = await getUserProfile(session.user.id);
+          if (profile) redirectUserByRole(profile.role);
+        }
+      } catch (e) {
+        console.error("LoginPage: Error checking session", e);
       }
     };
     checkUser();
@@ -92,24 +97,36 @@ export default function LoginPage() {
       setError(signInError.message.includes("Invalid login credentials") 
         ? "خطأ في البريد الإلكتروني أو كلمة المرور" 
         : signInError.message);
+      setLoading(false);
     } else if (data?.user) {
-      if (data.user.email === 'medopoplike@gmail.com') {
-        redirectUserByRole('admin');
-      } else {
-        const profile = await getUserProfile(data.user.id);
-        if (profile?.role) {
-          if (profile.role.toLowerCase() !== role) {
-            setError(`هذا الحساب مخصص لـ ${profile.role} فقط`);
-            setLoading(false);
-            return;
+      console.log("LoginPage: Login successful for user", data.user.id);
+      
+      // Give Supabase a moment to persist the session
+      setTimeout(async () => {
+        try {
+          if (data.user.email === 'medopoplike@gmail.com') {
+            redirectUserByRole('admin');
+          } else {
+            const profile = await getUserProfile(data.user.id);
+            if (profile?.role) {
+              if (profile.role.toLowerCase() !== role) {
+                setError(`هذا الحساب مخصص لـ ${profile.role} فقط`);
+                setLoading(false);
+                return;
+              }
+              redirectUserByRole(profile.role);
+            } else {
+              setError("لم يتم تحديد صلاحيات لهذا الحساب");
+              setLoading(false);
+            }
           }
-          redirectUserByRole(profile.role);
-        } else {
-          setError("لم يتم تحديد صلاحيات لهذا الحساب");
+        } catch (e) {
+          console.error("LoginPage: Error during redirect", e);
+          setError("حدث خطأ أثناء التوجيه، يرجى المحاولة مرة أخرى");
+          setLoading(false);
         }
-      }
+      }, 500);
     }
-    setLoading(false);
   };
 
   const roleConfigs = {

@@ -1,6 +1,4 @@
 {
   "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps",
-  "trailingSlash": true,
-  "cleanUrls": true
+  "installCommand": "npm install --legacy-peer-deps"
 }

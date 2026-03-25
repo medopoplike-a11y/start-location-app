@@ -167,19 +167,21 @@ export const signIn = async (email: string, password?: string) => {
  */
 export const signOut = async () => {
   try {
+    console.log('Auth: Starting signOut...');
     await supabase.auth.signOut();
+    
     if (typeof window !== 'undefined') {
-      // مسح البيانات الأساسية للجلسة
+      // مسح كافة البيانات المخزنة محلياً لضمان عدم وجود جلسات معلقة
       localStorage.clear();
       sessionStorage.clear();
       
-      // التوجيه لصفحة الدخول مباشرة بطريقة تضمن كسر حلقة التوجيه
-      window.location.href = '/login';
+      // التوجيه لصفحة الدخول باستخدام مسار مطلق وتحديث كامل للصفحة لكسر أي حلقة
+      window.location.replace('/login/');
     }
   } catch (error) {
-    console.error('Error during signOut:', error);
+    console.error('Auth: Error during signOut:', error);
     if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+      window.location.replace('/login/');
     }
   }
 };
@@ -249,9 +251,27 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
 };
 
 /**
- * دالة للحصول على الجلسة الحالية
+ * دالة للحصول على الجلسة الحالية بسرعة (أفضل للأداء في الواجهة)
+ */
+export const getCurrentSession = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
+};
+
+/**
+ * دالة للحصول على المستخدم الحالي (أكثر أماناً)
  */
 export const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      // إذا فشل getUser، نجرب getSession كخيار بديل سريع
+      const session = await getCurrentSession();
+      return session?.user || null;
+    }
+    return user;
+  } catch (e) {
+    const session = await getCurrentSession();
+    return session?.user || null;
+  }
 };

@@ -10,8 +10,10 @@ const cairo = Cairo({
   weight: ["300", "400", "500", "700"],
 });
 
+import { requestAllPermissions } from "@/lib/native-utils";
+
 export const viewport: Viewport = {
-  themeColor: "#000814",
+  themeColor: "#f3f4f6",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -41,8 +43,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className="bg-[#000814]">
-      <body className={`${cairo.className} bg-[#000814] text-white`}>
+    <html lang="ar" dir="rtl" className="bg-[#f3f4f6]">
+      <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
+        <div className="silver-live-bg" />
         <AppWrapper>
           {children}
         </AppWrapper>
@@ -74,19 +77,22 @@ function AppWrapper({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     setIsHydrated(true);
     console.log("App: Root Layout Hydrated");
+    requestAllPermissions();
   }, []);
 
   if (!isHydrated) {
     return (
       <div 
         style={{ 
-          backgroundColor: '#000814', 
+          backgroundColor: '#f3f4f6', 
           minHeight: '100vh', 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          color: 'white',
-          fontSize: '12px'
+          color: '#1f2937',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          fontFamily: 'sans-serif'
         }}
       >
         LOADING START-OS...

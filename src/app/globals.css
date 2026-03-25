@@ -3,21 +3,50 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 31, 41, 55;
+  --background-silver: #e5e7eb;
+  --matte-silver: #f3f4f6;
 }
 
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
+    background-color: var(--matte-silver);
   }
   body {
-    @apply antialiased bg-gray-50;
+    @apply antialiased text-gray-900;
+    background: radial-gradient(circle at top left, #f9fafb, #e5e7eb);
+    min-height: 100vh;
     user-select: none;
     -webkit-user-select: none;
   }
+}
+
+/* Matte Silver Live Background Animation */
+.silver-live-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+.silver-live-bg::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, transparent 50%);
+  animation: bg-float 20s infinite linear;
+  opacity: 0.5;
+}
+
+@keyframes bg-float {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @layer utilities {

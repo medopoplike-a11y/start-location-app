@@ -144,17 +144,20 @@ export default function DriverApp() {
     let settlementsSub: any;
 
     const setup = async () => {
-      const user = await getCurrentUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      try {
+        const user = await getCurrentUser();
+        if (!user) {
+          console.log("DriverPage: No session, redirecting to login...");
+          router.replace("/login");
+          return;
+        }
 
-      const profile = await getUserProfile(user.id);
-      if (!profile || profile.role !== 'driver') {
-        router.push("/login");
-        return;
-      }
+        const profile = await getUserProfile(user.id);
+        if (!profile || profile.role !== 'driver') {
+          console.log("DriverPage: Invalid role, redirecting to login...");
+          router.replace("/login");
+          return;
+        }
 
       setDriverId(user.id);
       setDriverName(profile.full_name || "كابتن");
@@ -787,10 +790,10 @@ export default function DriverApp() {
     </AnimatePresence>
   );
 
-  if (loading) return <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center font-bold text-gray-400">جاري تحميل البيانات...</div>;
+  if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
       {renderHeader()}
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
         {activeTab === "orders" ? (

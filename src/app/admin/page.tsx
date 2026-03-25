@@ -406,12 +406,12 @@ export default function AdminPanel() {
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-right relative overflow-hidden" dir="rtl">
+    <div className="min-h-screen flex font-sans text-right relative overflow-hidden" dir="rtl">
       {/* Sidebar Overlay */}
       <AnimatePresence>{isMobile && sidebarOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm lg:hidden" />}</AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white border-l border-gray-100 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
+      <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 backdrop-blur-xl border-l border-white/20 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
         <div className="p-6 flex items-center gap-4 border-b border-gray-50 h-24">
           <div className="flex-shrink-0 bg-gray-50 p-2 rounded-2xl"><StartLogo className="w-10 h-10" /></div>
           {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-bold text-gray-900 leading-none">START</h1><span className="text-[10px] font-bold text-gray-400 uppercase mt-1">Management</span></div>}

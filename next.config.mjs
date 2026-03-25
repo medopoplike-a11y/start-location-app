@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  // assetPrefix: './', // تسبب خطأ في بناء الخطوط، سنستخدم حل بديل
+  // Only export statically if specifically requested (for mobile builds)
+  output: process.env.BUILD_TYPE === 'static' ? 'export' : undefined,
   images: {
     unoptimized: true,
   },
@@ -12,7 +12,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  trailingSlash: true,
   env: {
     IS_BUILDING: process.env.npm_lifecycle_script === 'next build',
   },
