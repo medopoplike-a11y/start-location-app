@@ -474,11 +474,12 @@ export default function DriverApp() {
 
   const handleRequestSettlement = async () => {
     if (!driverId || !settlementAmount) return;
-    const { error } = await supabase.from('settlements').insert([{ driver_id: driverId, amount: Number(settlementAmount), status: 'pending', method: 'Vodafone Cash' }]);
+    const { error } = await supabase.from('settlements').insert([{ user_id: driverId, amount: Number(settlementAmount), status: 'pending', method: 'Vodafone Cash' }]);
     if (!error) {
       alert("تم إرسال طلب التسوية بنجاح.");
       setShowSettlementModal(false);
       setSettlementAmount("");
+      if (driverId) fetchStats(driverId);
     } else {
       alert("حدث خطأ أثناء إرسال الطلب.");
     }
@@ -528,6 +529,98 @@ export default function DriverApp() {
         </button>
       </div>
     </header>
+  );
+
+  const renderWalletView = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
+        <button onClick={() => setShowFinancialGuide(true)} className="p-2 bg-blue-50 text-blue-600 rounded-xl"><AlertCircle className="w-5 h-5" /></button>
+      </div>
+
+      {/* Debt Cards */}
+      <div className="space-y-4">
+        <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">مديونية الشركة (العمولة)</p>
+            <h3 className="text-4xl font-black">{systemDebt.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
+            <button onClick={() => setShowSettlementModal(true)} className="mt-6 w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl text-xs font-bold transition-colors border border-white/10">طلب تسوية مديونية</button>
+          </div>
+          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-brand-red/20 blur-[80px] rounded-full" />
+        </div>
+
+        <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">مديونية المحلات (عهد الطلبات)</p>
+            <h3 className="text-4xl font-black text-gray-900">{vendorDebt.toLocaleString()} <span className="text-lg font-bold text-gray-400">ج.م</span></h3>
+            <p className="text-[10px] text-gray-400 mt-2 font-bold flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-green-500" /> يتم تصفيرها تلقائياً عند تأكيد المحل للاستلام</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Settlements History */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-gray-900 pr-2">طلبات التسوية الأخيرة</h3>
+        {settlementHistory.length === 0 ? (
+          <div className="bg-gray-50 p-8 rounded-[32px] text-center border border-dashed border-gray-200">
+            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات تسوية سابقة</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {settlementHistory.map(s => (
+              <div key={s.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.status === 'تم السداد' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{s.vendor}</p>
+                    <p className="text-[10px] text-gray-400 font-bold">{s.date}</p>
+                  </div>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-black text-gray-900">{s.amount} ج.م</p>
+                  <p className={`text-[10px] font-bold ${s.status === 'تم السداد' ? 'text-green-600' : 'text-orange-600'}`}>{s.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderHistoryView = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">سجل العمليات</h2>
+      <div className="space-y-4">
+        {orders.filter(o => o.status === "delivered" || o.status === "cancelled").length === 0 ? (
+          <div className="bg-white p-12 rounded-[40px] text-center border border-dashed border-gray-200">
+            <History className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+            <p className="text-sm text-gray-400 font-bold">السجل فارغ حالياً</p>
+          </div>
+        ) : (
+          orders.filter(o => o.status === "delivered" || o.status === "cancelled").map(order => (
+            <div key={order.id} className="bg-white p-5 rounded-3xl border border-gray-100 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                  <History className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">{order.vendor}</p>
+                  <p className="text-[10px] text-gray-400 font-bold">#{order.id.slice(0, 8)} • {order.fee}</p>
+                </div>
+              </div>
+              <div className="text-left">
+                <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                  {translateStatus(order.status)}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 
   const renderCurrentOrders = () => {
@@ -653,32 +746,40 @@ export default function DriverApp() {
     <div className="min-h-screen bg-[#FDFDFD] flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
       {renderHeader()}
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
-        {isActive && activityLog.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-red animate-pulse" />
-            <AnimatePresence mode="popLayout">
-              {activityLog.map(log => (
-                <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-2">
-                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-red" /><span className="text-[10px] font-bold text-gray-600">{log.text}</span></div>
-                  <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+        {activeTab === "orders" ? (
+          <>
+            {isActive && activityLog.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-red animate-pulse" />
+                <AnimatePresence mode="popLayout">
+                  {activityLog.map(log => (
+                    <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-2">
+                      <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-red" /><span className="text-[10px] font-bold text-gray-600">{log.text}</span></div>
+                      <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 mb-1">دخل اليوم</p>
+                <h2 className="text-xl font-black text-gray-900">{todayDeliveryFees} <span className="text-[10px]">ج.م</span></h2>
+              </section>
+              <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 mb-1">مديونية المحلات</p>
+                <h2 className="text-xl font-black text-gray-900">{vendorDebt} <span className="text-[10px]">ج.م</span></h2>
+              </section>
+            </div>
+
+            {renderCurrentOrders()}
+          </>
+        ) : activeTab === "wallet" ? (
+          renderWalletView()
+        ) : (
+          renderHistoryView()
         )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
-            <p className="text-[10px] font-bold text-gray-400 mb-1">دخل اليوم</p>
-            <h2 className="text-xl font-black text-gray-900">{todayDeliveryFees} <span className="text-[10px]">ج.م</span></h2>
-          </section>
-          <section className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm">
-            <p className="text-[10px] font-bold text-gray-400 mb-1">مديونية المحلات</p>
-            <h2 className="text-xl font-black text-gray-900">{vendorDebt} <span className="text-[10px]">ج.م</span></h2>
-          </section>
-        </div>
-
-        {renderCurrentOrders()}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-4 flex justify-around items-center z-40">

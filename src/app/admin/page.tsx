@@ -79,7 +79,18 @@ export default function AdminPanel() {
   const [newDriverData, setNewDriverData] = useState({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
   const [newVendorData, setNewVendorData] = useState({ name: "", email: "", password: "", phone: "" });
   const [systemSettings, setSystemSettings] = useState({ driverCommission: 15, vendorFee: 1, safeRideFee: 1, debtLimit: 1000, surgePricing: 0 });
-  const [appConfig, setAppConfig] = useState({ latest_version: "0.2.0", min_version: "0.2.0", download_url: "/start-location-v0.2.0.apk", bundle_url: "", force_update: true, update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة." });
+  const [appConfig, setAppConfig] = useState({ 
+    latest_version: "0.2.0", 
+    min_version: "0.2.0", 
+    download_url: "/start-location-v0.2.0.apk", 
+    bundle_url: "", 
+    force_update: true, 
+    update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة.",
+    driver_commission: 15.0,
+    vendor_commission: 20.0,
+    vendor_fee: 1.0,
+    safe_ride_fee: 1.0
+  });
 
   const addActivity = (text: string) => {
     setActivityLog(prev => [{
@@ -136,9 +147,12 @@ export default function AdminPanel() {
       const profits = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
-          const commission = financials.system_commission ?? (financials.delivery_fee * (systemSettings.driverCommission / 100));
-          const insurance = financials.insurance_fee ?? (systemSettings.safeRideFee + VENDOR_INSURANCE_FEE);
-          return acc + commission + insurance;
+          // حساب العمولات (نستخدم المسجل في الطلب أو نحسبه من الإعدادات الحالية كخطة بديلة)
+          const driverComm = financials.system_commission ?? (financials.delivery_fee * (appConfig.driver_commission / 100));
+          const vendorComm = financials.vendor_commission ?? (financials.delivery_fee * (appConfig.vendor_commission / 100));
+          const insurance = financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee);
+          
+          return acc + driverComm + vendorComm + insurance;
         }
         return acc;
       }, 0);
@@ -146,7 +160,7 @@ export default function AdminPanel() {
       const fund = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
-          return acc + (financials.insurance_fee ?? (systemSettings.safeRideFee + VENDOR_INSURANCE_FEE));
+          return acc + (financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee));
         }
         return acc;
       }, 0);
@@ -154,7 +168,7 @@ export default function AdminPanel() {
       setTotalProfits(profits);
       setInsuranceFund(fund);
     }
-  }, [allOrders, systemSettings]);
+  }, [allOrders, appConfig]);
 
   const fetchData = async () => {
     setLastSyncTime(new Date());
@@ -238,7 +252,7 @@ export default function AdminPanel() {
   };
 
   const fetchSettlements = async () => {
-    const { data } = await supabase.from('settlements').select('*, profiles!driver_id(full_name)').eq('status', 'pending').order('created_at', { ascending: true });
+    const { data } = await supabase.from('settlements').select('*, profiles!user_id(full_name, role)').eq('status', 'pending').order('created_at', { ascending: true });
     if (data) setSettlements(data);
   };
 
@@ -286,8 +300,8 @@ export default function AdminPanel() {
     e.preventDefault();
     setActionLoading(true);
     const { error } = await supabase.from('app_config').update(appConfig).eq('id', 1);
-    if (!error) alert("تم تحديث إعدادات التطبيق!");
-    else alert("حدث خطأ.");
+    if (!error) alert("تم تحديث إعدادات النظام بنجاح!");
+    else alert(`خطأ: ${error.message}`);
     setActionLoading(false);
   };
 
@@ -461,9 +475,43 @@ export default function AdminPanel() {
           {activeView === "settlements" && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900">طلبات التسوية ({settlements.length})</h2>
-              <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-6 overflow-x-auto"><table className="w-full text-right"><thead><tr className="text-gray-400 text-xs border-b border-gray-50"><th className="pb-4 pr-4">الطيار</th><th className="pb-4 text-center">المبلغ</th><th className="pb-4 text-center">الإجراء</th></tr></thead><tbody className="divide-y divide-gray-50 text-sm">{settlements.map(s => (
-                <tr key={s.id} className="group hover:bg-gray-50/50 transition-colors"><td className="py-4 pr-4"><p className="font-bold text-gray-800">{s.profiles.full_name}</p></td><td className="py-4 text-center font-bold text-brand-red">{s.amount} ج.م</td><td className="py-4 text-center"><div className="flex items-center justify-center gap-2"><button onClick={() => handleSettlementAction(s.id, 'approved')} className="bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-bold">موافقة</button><button onClick={() => handleSettlementAction(s.id, 'rejected')} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-xs font-bold">رفض</button></div></td></tr>
-              ))}</tbody></table>{settlements.length === 0 && <div className="text-center py-12"><CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" /><p className="text-sm text-gray-400 font-bold">لا توجد طلبات معلقة</p></div>}</div>
+              <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-6 overflow-x-auto">
+                <table className="w-full text-right">
+                  <thead>
+                    <tr className="text-gray-400 text-xs border-b border-gray-50">
+                      <th className="pb-4 pr-4">المستخدم</th>
+                      <th className="pb-4 text-center">النوع</th>
+                      <th className="pb-4 text-center">المبلغ</th>
+                      <th className="pb-4 text-center">الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 text-sm">
+                    {settlements.map(s => (
+                      <tr key={s.id} className="group hover:bg-gray-50/50 transition-colors">
+                        <td className="py-4 pr-4"><p className="font-bold text-gray-800">{s.profiles?.full_name || "غير معروف"}</p></td>
+                        <td className="py-4 text-center">
+                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${s.profiles?.role === 'vendor' ? 'bg-orange-50 text-brand-orange' : 'bg-blue-50 text-blue-600'}`}>
+                            {s.profiles?.role === 'vendor' ? 'محل' : 'طيار'}
+                          </span>
+                        </td>
+                        <td className="py-4 text-center font-bold text-brand-red">{s.amount} ج.م</td>
+                        <td className="py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => handleSettlementAction(s.id, 'approved')} className="bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-bold">موافقة</button>
+                            <button onClick={() => handleSettlementAction(s.id, 'rejected')} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-xs font-bold">رفض</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {settlements.length === 0 && (
+                  <div className="text-center py-12">
+                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                    <p className="text-sm text-gray-400 font-bold">لا توجد طلبات معلقة</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -482,11 +530,53 @@ export default function AdminPanel() {
 
           {activeView === "settings" && (
             <div className="max-w-4xl space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900">مركز التحكم</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6"><div className="flex items-center gap-3 mb-2"><DollarSign className="text-brand-red w-6 h-6" /><h3 className="font-bold text-gray-800">العمولات والرسوم</h3></div><div className="space-y-4"><div><label className="text-xs font-bold text-gray-400 block mb-2">عمولة الطيار (%)</label><input type="number" value={systemSettings.driverCommission} onChange={(e) => setSystemSettings({...systemSettings, driverCommission: Number(e.target.value)})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none" /></div><div><label className="text-xs font-bold text-gray-400 block mb-2">تأمين المحل (ج.م)</label><input type="number" value={systemSettings.vendorFee} onChange={(e) => setSystemSettings({...systemSettings, vendorFee: Number(e.target.value)})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none" /></div></div></div>
-                <div className="bg-red-50 p-8 rounded-[40px] border border-red-100 shadow-sm space-y-6"><div className="flex items-center gap-3 mb-2"><Trash2 className="text-brand-red w-6 h-6" /><h3 className="font-bold text-red-900">منطقة الخطر</h3></div><div className="space-y-4"><p className="text-xs text-red-600 font-bold">حذف كافة الطلبات وتصفير كافة محافظ المستخدمين نهائياً.</p><button onClick={handleGlobalReset} disabled={actionLoading} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-brand-red/20"><RefreshCw className={`w-4 h-4 ${actionLoading ? 'animate-spin' : ''}`} />{actionLoading ? "جاري التصفير..." : "تصفير شامل للنظام"}</button></div></div>
-              </div>
+              <h2 className="text-2xl font-bold text-gray-900">مركز التحكم المالي</h2>
+              <form onSubmit={handleUpdateAppConfig} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <DollarSign className="text-brand-red w-6 h-6" />
+                      <h3 className="font-bold text-gray-800">العمولات والرسوم</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 block mb-2">عمولة الطيار (%)</label>
+                        <input type="number" step="0.1" value={appConfig.driver_commission} onChange={(e) => setAppConfig({...appConfig, driver_commission: Number(e.target.value)})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-red/20" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 block mb-2">عمولة المحل (%)</label>
+                        <input type="number" step="0.1" value={appConfig.vendor_commission} onChange={(e) => setAppConfig({...appConfig, vendor_commission: Number(e.target.value)})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-red/20" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 block mb-2">تأمين المحل (ج.م لكل طلب)</label>
+                        <input type="number" step="0.1" value={appConfig.vendor_fee} onChange={(e) => setAppConfig({...appConfig, vendor_fee: Number(e.target.value)})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-red/20" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 block mb-2">تأمين الطيار (ج.م لكل طلب)</label>
+                        <input type="number" step="0.1" value={appConfig.safe_ride_fee} onChange={(e) => setAppConfig({...appConfig, safe_ride_fee: Number(e.target.value)})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-red/20" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 p-8 rounded-[40px] border border-red-100 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Trash2 className="text-brand-red w-6 h-6" />
+                      <h3 className="font-bold text-red-900">منطقة الخطر</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <p className="text-xs text-red-600 font-bold">حذف كافة الطلبات وتصفير كافة محافظ المستخدمين نهائياً.</p>
+                      <button type="button" onClick={handleGlobalReset} disabled={actionLoading} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-brand-red/20">
+                        <RefreshCw className={`w-4 h-4 ${actionLoading ? 'animate-spin' : ''}`} />
+                        {actionLoading ? "جاري التصفير..." : "تصفير شامل للنظام"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <button type="submit" disabled={actionLoading} className="w-full bg-gray-900 text-white py-5 rounded-3xl font-bold shadow-xl active:scale-[0.98] transition-all">
+                  {actionLoading ? "جاري الحفظ..." : "حفظ كافة الإعدادات المالية"}
+                </button>
+              </form>
             </div>
           )}
         </div>

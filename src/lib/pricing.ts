@@ -36,19 +36,28 @@ export interface OrderFinancials {
   vendorFee: number; // Vendor contribution to insurance
 }
 
-export const calculateOrderFinancials = (distance: number, surgeFee: number = 0): OrderFinancials => {
-  const deliveryFee = calculateDeliveryFee(distance, surgeFee);
+export interface PricingConfig {
+  driverCommissionPct: number; // e.g., 15
+  vendorCommissionPct: number; // e.g., 20
+  driverInsuranceFee: number; // e.g., 1
+  vendorInsuranceFee: number; // e.g., 1
+}
+
+export const calculateOrderFinancials = (distance: number, surgeFee: number = 0, manualFee?: number, config?: PricingConfig): OrderFinancials => {
+  const deliveryFee = manualFee !== undefined ? manualFee : calculateDeliveryFee(distance, surgeFee);
   
-  // Insurance Fund Contributions
-  const driverInsurance = SAFE_RIDE_FEE;
-  const vendorInsurance = VENDOR_INSURANCE_FEE;
+  const driverCommPct = (config?.driverCommissionPct ?? 15) / 100;
+  const vendorCommPct = (config?.vendorCommissionPct ?? 20) / 100;
+  const driverInsurance = config?.driverInsuranceFee ?? SAFE_RIDE_FEE;
+  const vendorInsurance = config?.vendorInsuranceFee ?? VENDOR_INSURANCE_FEE;
+  
   const insuranceFundTotal = driverInsurance + vendorInsurance;
   
-  // System Commission (Driver side): 15% of delivery fee
-  const systemCommission = deliveryFee * 0.15;
+  // System Commission (Driver side)
+  const systemCommission = deliveryFee * driverCommPct;
 
-  // System Commission (Vendor side): 20% of delivery fee
-  const vendorCommission = deliveryFee * 0.20;
+  // System Commission (Vendor side)
+  const vendorCommission = deliveryFee * vendorCommPct;
   
   // Driver Earnings: The delivery fee minus the system commission and their insurance contribution
   const driverEarnings = deliveryFee - systemCommission - driverInsurance;

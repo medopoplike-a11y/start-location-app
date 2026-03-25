@@ -116,6 +116,12 @@ export default function VendorApp() {
     }, ...prev].slice(0, 3));
   };
 
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
+
+  const [appConfig, setAppConfig] = useState({ driver_commission: 15, vendor_commission: 20, vendor_fee: 1, safe_ride_fee: 1 });
+
   // Initialization & Auth Check
   useEffect(() => {
     let ordersSub: any;
@@ -143,6 +149,28 @@ export default function VendorApp() {
       
       const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', user.id).single();
       if (walletData) setCompanyCommission(walletData.system_balance);
+
+      // جلب إعدادات النظام
+      const { data: config } = await supabase.from('app_config').select('*').single();
+      if (config) {
+        setAppConfig({
+          driver_commission: config.driver_commission || 15,
+          vendor_commission: config.vendor_commission || 20,
+          vendor_fee: config.vendor_fee || 1,
+          safe_ride_fee: config.safe_ride_fee || 1
+        });
+      }
+
+      // جلب سجل التسويات
+      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      if (settlementsData) {
+        setSettlementHistory(settlementsData.map(s => ({
+          id: s.id,
+          amount: s.amount,
+          status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
+          date: new Date(s.created_at).toLocaleDateString('ar-EG')
+        })));
+      }
 
       setLoading(false);
 
@@ -301,7 +329,13 @@ export default function VendorApp() {
       distance = Math.round(calculateDistance(vendorLocation.lat, vendorLocation.lng, formData.customerCoords.lat, formData.customerCoords.lng) * 10) / 10;
     }
 
-    const calculated = calculateOrderFinancials(distance);
+    const manualDeliveryFee = Number(formData.deliveryFee);
+    const calculated = calculateOrderFinancials(distance, 0, manualDeliveryFee, {
+      driverCommissionPct: appConfig.driver_commission,
+      vendorCommissionPct: appConfig.vendor_commission,
+      driverInsuranceFee: appConfig.safe_ride_fee,
+      vendorInsuranceFee: appConfig.vendor_fee
+    });
     const orderData = {
       vendor_id: vendorId,
       driver_id: null,
@@ -310,7 +344,7 @@ export default function VendorApp() {
       customer_details: { name: formData.customer, phone: formData.phone, address: formData.address, notes: formData.notes, coords: formData.customerCoords },
       financials: { 
         order_value: Number(formData.orderValue), 
-        delivery_fee: Number(formData.deliveryFee), 
+        delivery_fee: manualDeliveryFee, 
         prep_time: formData.prepTime, 
         system_commission: calculated.systemCommission, 
         vendor_commission: calculated.vendorCommission,
@@ -507,14 +541,72 @@ export default function VendorApp() {
     );
   };
 
+  const handleRequestSettlement = async () => {
+    if (!vendorId || !settlementAmount) return;
+    const { error } = await supabase.from('settlements').insert([{ user_id: vendorId, amount: Number(settlementAmount), status: 'pending', method: 'Vodafone Cash' }]);
+    if (!error) {
+      alert("تم إرسال طلب التسوية بنجاح.");
+      setShowSettlementModal(false);
+      setSettlementAmount("");
+      // تحديث البيانات
+      const { data: walletData } = await supabase.from('wallets').select('system_balance').eq('user_id', vendorId).single();
+      if (walletData) setCompanyCommission(walletData.system_balance);
+      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', vendorId).order('created_at', { ascending: false });
+      if (settlementsData) {
+        setSettlementHistory(settlementsData.map(s => ({
+          id: s.id,
+          amount: s.amount,
+          status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
+          date: new Date(s.created_at).toLocaleDateString('ar-EG')
+        })));
+      }
+    } else {
+      alert("حدث خطأ أثناء إرسال الطلب.");
+    }
+  };
+
   const renderWalletView = () => (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
       <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
-        <div className="relative z-10"><p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">عمولة الشركة المستحقة</p><h3 className="text-4xl font-black">{companyCommission.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3></div>
+        <div className="relative z-10">
+          <p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">عمولة الشركة المستحقة</p>
+          <h3 className="text-4xl font-black">{companyCommission.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
+          <button onClick={() => setShowSettlementModal(true)} className="mt-6 w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl text-xs font-bold transition-colors border border-white/10">طلب تسوية مديونية</button>
+        </div>
       </div>
       <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
         <div className="relative z-10"><p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">مستحقات لدى الطيارين</p><h3 className="text-4xl font-black text-gray-900">{balance.toLocaleString()} <span className="text-lg font-bold text-gray-400">ج.م</span></h3></div>
+      </div>
+
+      {/* Settlements History */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-gray-900 pr-2">طلبات التسوية الأخيرة</h3>
+        {settlementHistory.length === 0 ? (
+          <div className="bg-gray-50 p-8 rounded-[32px] text-center border border-dashed border-gray-200">
+            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات تسوية سابقة</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {settlementHistory.map(s => (
+              <div key={s.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.status === 'تم السداد' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">تسوية مديونية</p>
+                    <p className="text-[10px] text-gray-400 font-bold">{s.date}</p>
+                  </div>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-black text-gray-900">{s.amount} ج.م</p>
+                  <p className={`text-[10px] font-bold ${s.status === 'تم السداد' ? 'text-green-600' : 'text-orange-600'}`}>{s.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -605,14 +697,33 @@ export default function VendorApp() {
       <AnimatePresence>
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-sm:max-w-xs max-w-sm rounded-[40px] p-8 shadow-2xl relative">
               <button onClick={() => setShowPasswordModal(false)} className="absolute top-6 left-6 text-gray-400">×</button>
-              <h2 className="text-xl font-black mb-6">تغيير كلمة السر</h2>
+              <h2 className="text-xl font-black mb-6 text-right">تغيير كلمة السر</h2>
               <div className="space-y-4">
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-orange font-bold" />
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-orange font-bold" />
-                {passwordError && <p className="text-red-500 text-xs font-bold">{passwordError}</p>}
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-orange font-bold text-right" />
+                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-orange font-bold text-right" />
+                {passwordError && <p className="text-red-500 text-xs font-bold text-right">{passwordError}</p>}
                 <button onClick={handleChangePassword} disabled={changingPassword} className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-lg">{changingPassword ? "جاري التغيير..." : "حفظ التغييرات"}</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Settlement Modal */}
+      <AnimatePresence>
+        {showSettlementModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-sm:max-w-xs max-w-sm rounded-[40px] p-8 shadow-2xl relative">
+              <button onClick={() => setShowSettlementModal(false)} className="absolute top-6 left-6 text-gray-400">×</button>
+              <h2 className="text-xl font-black mb-6 text-right">طلب تسوية مديونية</h2>
+              <div className="space-y-4">
+                <div className="text-right">
+                  <label className="text-xs font-bold text-gray-400 block mb-2">المبلغ المراد سداده</label>
+                  <input type="number" value={settlementAmount} onChange={(e) => setSettlementAmount(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-right" placeholder="0.00" />
+                </div>
+                <button onClick={handleRequestSettlement} className="w-full bg-brand-orange text-white py-4 rounded-2xl font-bold shadow-lg">إرسال الطلب</button>
               </div>
             </motion.div>
           </div>

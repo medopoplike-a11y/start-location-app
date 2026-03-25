@@ -287,7 +287,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 8. إنشاء جدول التسويات (Settlements) إذا لم يكن موجوداً
 CREATE TABLE IF NOT EXISTS settlements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  driver_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL, -- تم التغيير من driver_id لدعم المناديب والمحلات
   amount FLOAT NOT NULL,
   status TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending' NOT NULL,
   method TEXT,
@@ -299,8 +299,8 @@ ALTER TABLE settlements ENABLE ROW LEVEL SECURITY;
 
 DO $$ 
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Drivers can view their own settlements') THEN
-    CREATE POLICY "Drivers can view their own settlements" ON settlements FOR SELECT USING (auth.uid() = driver_id);
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own settlements') THEN
+    CREATE POLICY "Users can view their own settlements" ON settlements FOR SELECT USING (auth.uid() = user_id);
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can manage all settlements') THEN
@@ -372,7 +372,7 @@ BEGIN
         -- خصم مبلغ التسوية من مديونية الشركة (system_balance)
         UPDATE public.wallets 
         SET system_balance = system_balance - new.amount
-        WHERE user_id = new.driver_id;
+        WHERE user_id = new.user_id;
     END IF;
     RETURN new;
 END;
@@ -411,15 +411,37 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 10. جدول إعدادات التطبيق والتحديثات التلقائية
 CREATE TABLE IF NOT EXISTS app_config (
-  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1), -- قيد لضمان وجود صف واحد فقط
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   latest_version TEXT NOT NULL DEFAULT '0.1.0',
   min_version TEXT NOT NULL DEFAULT '0.1.0',
   download_url TEXT,
-  bundle_url TEXT, -- رابط ملف التحديث الحي
+  bundle_url TEXT,
   force_update BOOLEAN DEFAULT FALSE,
   update_message TEXT DEFAULT 'يتوفر إصدار جديد من التطبيق، يرجى التحديث للمتابعة.',
+  -- إعدادات النظام المالية
+  driver_commission FLOAT DEFAULT 15.0,
+  vendor_commission FLOAT DEFAULT 20.0, -- إضافة عمود عمولة المحل
+  vendor_fee FLOAT DEFAULT 1.0,
+  safe_ride_fee FLOAT DEFAULT 1.0,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- التأكد من وجود الأعمدة الجديدة
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='driver_commission') THEN
+    ALTER TABLE app_config ADD COLUMN driver_commission FLOAT DEFAULT 15.0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='vendor_commission') THEN
+    ALTER TABLE app_config ADD COLUMN vendor_commission FLOAT DEFAULT 20.0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='vendor_fee') THEN
+    ALTER TABLE app_config ADD COLUMN vendor_fee FLOAT DEFAULT 1.0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='safe_ride_fee') THEN
+    ALTER TABLE app_config ADD COLUMN safe_ride_fee FLOAT DEFAULT 1.0;
+  END IF;
+END $$;
 
 -- إدراج البيانات الافتراضية إذا لم تكن موجودة
 INSERT INTO app_config (id, latest_version, min_version, force_update)
