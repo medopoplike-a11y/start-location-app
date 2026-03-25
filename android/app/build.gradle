@@ -1,50 +1,62 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.traestartzlum.app"
-    compileSdk rootProject.ext.compileSdkVersion
+    namespace = "com.traestartzlum.app"
+    compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.traestartzlum.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.2"
+        versionCode 4
+        versionName "1.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
     }
     buildTypes {
         release {
             minifyEnabled true
-            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
-        debug {
-            minifyEnabled false
-            shrinkResources false
-        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "androidx.appcompat:appcompat:${rootProject.ext.androidxAppCompatVersion}"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:${rootProject.ext.androidxCoordinatorLayoutVersion}"
-    implementation "androidx.core:core-splashscreen:${rootProject.ext.coreSplashScreenVersion}"
-    
-    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-common'
     implementation 'com.google.firebase:firebase-messaging'
-
-    implementation project(':capacitor-android')
-    implementation project(':capacitor-cordova-android-plugins')
-    implementation project(':capacitor-push-notifications')
-    
-    testImplementation "junit:junit:${rootProject.ext.junitVersion}"
-    androidTestImplementation "androidx.test.ext:junit:${rootProject.ext.androidxJunitVersion}"
-    androidTestImplementation "androidx.test.espresso:espresso-core:${rootProject.ext.androidxEspressoCoreVersion}"
-    androidTestImplementation "junit:junit:${rootProject.ext.junitVersion}"
 }
 
 apply from: 'capacitor.build.gradle'
-apply plugin: 'com.google.firebase.crashlytics'
-apply plugin: 'com.google.gms.google-services'
 
+// تطبيق إضافات جوجل (Firebase) بشكل ذكي لضمان عمل التنبيهات
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    def isReleaseBuild = project.gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") || it.toLowerCase().contains("bundle") }
+    if (isReleaseBuild) {
+        throw new GradleException("CRITICAL ERROR: 'google-services.json' is missing for a Release/Production build. Push notifications will fail. Please add the file to 'android/app/'.")
+    } else {
+        logger.warn("DEVELOPMENT WARNING: 'google-services.json' not found. Push notifications will be disabled in this Debug build.")
+    }
+}

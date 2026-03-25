@@ -2,7 +2,6 @@ package com.traestartzlum.app;
 
 import android.os.Bundle;
 import android.view.View;
-import android.os.Build;
 import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
 
@@ -11,12 +10,10 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
-        
-        // منع الانهيار عند إدخال البيانات (Autofill crash fix)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (getBridge() != null && getBridge().getWebView() != null) {
-                getBridge().getWebView().setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
-            }
+
+        // Fix for autofill crash on some Android versions
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
         }
     }
 }

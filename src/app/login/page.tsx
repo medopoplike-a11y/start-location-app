@@ -123,36 +123,35 @@ export default function LoginPage() {
       title: "نظام الطيار", 
       label: "DRIVER OS",
       icon: <Truck size={24} />, 
-      color: "#FF3B30", 
-      shadow: "shadow-red-500/20",
-      accent: "bg-red-500",
-      glow: "from-red-600/20 to-transparent"
+      color: "#ef4444", 
+      shadow: "shadow-brand-secondary/20",
+      accent: "bg-brand-secondary",
+      glow: "from-brand-secondary/20 to-transparent"
     },
     vendor: { 
       title: "نظام المحل", 
       label: "VENDOR OS",
       icon: <Store size={24} />, 
-      color: "#FF9500", 
-      shadow: "shadow-orange-500/20",
-      accent: "bg-orange-500",
-      glow: "from-orange-600/20 to-transparent"
+      color: "#f59e0b", 
+      shadow: "shadow-brand-warning/20",
+      accent: "bg-brand-warning",
+      glow: "from-brand-warning/20 to-transparent"
     },
     admin: { 
       title: "لوحة التحكم", 
       label: "CORE ADMIN",
       icon: <Settings size={24} />, 
-      color: "#007AFF", 
-      shadow: "shadow-blue-500/20",
-      accent: "bg-blue-500",
-      glow: "from-blue-600/20 to-transparent"
+      color: "#3b82f6", 
+      shadow: "shadow-brand-primary/20",
+      accent: "bg-brand-primary",
+      glow: "from-brand-primary/20 to-transparent"
     }
   };
 
-  if (!mounted) return <div className="min-h-screen bg-[#f3f4f6]" />;
+  if (!mounted) return <div className="min-h-screen bg-brand-dark" />;
 
   return (
-    <main className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-blue-600/10" dir="rtl">
-      <div className="silver-live-bg" />
+    <main className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-white/20" dir="rtl">
       {/* Background Architecture */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Dynamic Nodes */}
@@ -167,12 +166,12 @@ export default function LoginPage() {
         <motion.div 
           animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
           transition={{ duration: 10, repeat: Infinity }}
-          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[120px]" 
+          className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-brand-primary/10 rounded-full blur-[120px]" 
         />
         <motion.div 
           animate={{ scale: [1.2, 1, 1.2], opacity: [0.1, 0.15, 0.1] }}
           transition={{ duration: 15, repeat: Infinity }}
-          className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[120px]" 
+          className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-brand-secondary/10 rounded-full blur-[120px]" 
         />
 
         {/* Dynamic Glow for Active Role */}
@@ -184,7 +183,7 @@ export default function LoginPage() {
             exit={{ opacity: 0 }}
             className="absolute inset-0 transition-colors duration-1000"
             style={{ 
-              background: `radial-gradient(circle at 50% 50%, ${roleConfigs[role].color}10 0%, transparent 60%)` 
+              background: `radial-gradient(circle at 50% 50%, ${roleConfigs[role].color}15 0%, transparent 60%)` 
             }}
           />
         </AnimatePresence>
@@ -203,7 +202,7 @@ export default function LoginPage() {
              <div className="flex gap-1.5 mt-2">
                {["GPS", "NET", "SYNC"].map(s => (
                  <div key={s} className="px-2 py-0.5 rounded-full border border-white/5 bg-white/5 flex items-center gap-1">
-                   <div className={`w-1 h-1 rounded-full ${s === 'GPS' && systemStatus.gps === 'active' ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-white/20'}`} />
+                   <div className={`w-1 h-1 rounded-full ${s === 'GPS' && systemStatus.gps === 'active' ? 'bg-brand-success shadow-[0_0_5px_#10b981]' : 'bg-white/20'}`} />
                    <span className="text-[7px] font-black text-white/30 uppercase tracking-widest">{s}</span>
                  </div>
                ))}
@@ -224,8 +223,8 @@ export default function LoginPage() {
       >
         <div className="bg-[#0f172a]/60 backdrop-blur-2xl rounded-[48px] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] overflow-hidden">
           
-          {/* Header Role Selector */}
-          <div className="p-3 bg-black/40 flex gap-2 border-b border-white/5">
+          {/* Role Selection */}
+          <div className="p-3 bg-brand-card/50 backdrop-blur-md flex gap-2 border-b border-brand-border">
             {(["driver", "vendor", "admin"] as const).map((r) => (
               <button
                 key={r}
@@ -262,7 +261,7 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] px-2 block">Identity Code</label>
-                <div className={`group relative flex items-center bg-black/40 rounded-[28px] border-2 transition-all duration-500 ${focusedField === 'email' ? 'border-white/20 ring-4 ring-white/5' : 'border-transparent'}`}>
+                <div className={`group relative flex items-center bg-brand-muted rounded-[28px] border-2 border-brand-border transition-all duration-500 ${focusedField === 'email' ? 'border-white/20 ring-4 ring-white/5' : 'border-transparent'}`}>
                   <div className="p-5 pl-2 text-white/20">
                     <Mail size={18} />
                   </div>
@@ -274,14 +273,14 @@ export default function LoginPage() {
                     onBlur={() => setFocusedField(null)}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="user@start-location.com"
-                    className="w-full bg-transparent p-5 pr-2 outline-none text-sm font-bold text-white placeholder:text-white/10"
+                    className="w-full bg-transparent p-5 pr-2 outline-none text-sm font-bold text-white placeholder:text-white/10 focus:bg-transparent"
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] px-2 block">Security Token</label>
-                <div className={`group relative flex items-center bg-black/40 rounded-[28px] border-2 transition-all duration-500 ${focusedField === 'password' ? 'border-white/20 ring-4 ring-white/5' : 'border-transparent'}`}>
+                <div className={`group relative flex items-center bg-brand-muted rounded-[28px] border-2 border-brand-border transition-all duration-500 ${focusedField === 'password' ? 'border-white/20 ring-4 ring-white/5' : 'border-transparent'}`}>
                   <div className="p-5 pl-2 text-white/20">
                     <Lock size={18} />
                   </div>
@@ -293,7 +292,7 @@ export default function LoginPage() {
                     onBlur={() => setFocusedField(null)}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-transparent p-5 pr-2 outline-none text-sm font-bold text-white placeholder:text-white/10"
+                    className="w-full bg-transparent p-5 pr-2 outline-none text-sm font-bold text-white placeholder:text-white/10 focus:bg-transparent"
                   />
                 </div>
               </div>
@@ -303,10 +302,10 @@ export default function LoginPage() {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-500/10 border border-red-500/20 p-5 rounded-[28px] flex items-center gap-4"
+                    className="bg-brand-secondary/10 border border-brand-secondary/20 p-5 rounded-[28px] flex items-center gap-4"
                   >
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-xs font-bold text-red-400">{error}</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-secondary animate-pulse" />
+                    <span className="text-xs font-bold text-brand-secondary">{error}</span>
                   </motion.div>
                 )}
               </AnimatePresence>

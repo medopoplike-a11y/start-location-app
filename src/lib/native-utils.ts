@@ -8,12 +8,17 @@ export const isNative = () => {
 };
 
 /**
+<<<<<<< HEAD
  * دالة لطلب كافة الأذونات المطلوبة من المستخدم عند بدء التطبيق
+=======
+ * دالة لتحميل تحديث لحظي (OTA) وتثبيته فوراً
+>>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
  */
 export const requestAllPermissions = async () => {
   if (!isNative()) return;
 
   try {
+<<<<<<< HEAD
     // 1. طلب إذن الموقع
     const { Geolocation } = await import('@capacitor/geolocation');
     await Geolocation.requestPermissions();
@@ -32,5 +37,21 @@ export const requestAllPermissions = async () => {
     console.log('Native: All permissions requested');
   } catch (e) {
     console.warn('Native: Failed to request permissions', e);
+=======
+    const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+    
+    // تحميل وتثبيت النسخة الجديدة فوراً
+    await CapacitorUpdater.download({
+      url,
+      version
+    });
+    
+    console.log('Native: Live update installed successfully');
+    
+    // إعادة تشغيل التطبيق لتطبيق التحديث
+    await CapacitorUpdater.set({ id: version });
+  } catch (e) {
+    console.warn('Native: Live update failed', e);
+>>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
   }
 };

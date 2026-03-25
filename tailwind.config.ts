@@ -10,11 +10,22 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          red: "#FF0000",
-          orange: "#FF8C00",
-          yellow: "#FFD700",
-        }
-      }
+          dark: "#000814",
+          card: "#0f172a",
+          primary: "#3b82f6", // Blue
+          secondary: "#ef4444", // Red
+          success: "#10b981", // Emerald
+          warning: "#f59e0b", // Amber
+          info: "#06b6d4", // Cyan
+          muted: "rgba(255, 255, 255, 0.05)",
+          border: "rgba(255, 255, 255, 0.1)",
+        },
+        background: "#000814",
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+      },
     },
   },
   plugins: [],

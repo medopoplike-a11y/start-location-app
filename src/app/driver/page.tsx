@@ -31,7 +31,7 @@ import dynamic from 'next/dynamic';
 
 const LiveMap = dynamic(() => import('@/components/LiveMap'), { 
   ssr: false,
-  loading: () => <div className="h-40 w-full bg-gray-100 animate-pulse rounded-[32px] flex items-center justify-center text-gray-400 font-bold">جاري تحميل الخريطة...</div>
+  loading: () => <div className="h-40 w-full bg-brand-card animate-pulse rounded-[32px] flex items-center justify-center text-gray-500 font-bold border border-brand-border">جاري تحميل الخريطة...</div>
 });
 
 import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
@@ -474,6 +474,7 @@ export default function DriverApp() {
     }
   };
 
+<<<<<<< HEAD
   // --- Render Functions ---
 
   const renderHeader = () => (
@@ -721,6 +722,8 @@ export default function DriverApp() {
     );
   };
 
+=======
+>>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -729,6 +732,7 @@ export default function DriverApp() {
     }
   };
 
+<<<<<<< HEAD
   const renderDrawer = () => (
     <AnimatePresence>
       {showDrawer && (
@@ -790,17 +794,51 @@ export default function DriverApp() {
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
       <div className="silver-live-bg" />
       {renderHeader()}
+=======
+  if (loading) return <div className="min-h-screen bg-brand-dark flex items-center justify-center font-bold text-gray-400">جاري تحميل البيانات...</div>;
+
+  return (
+    <div className="min-h-screen bg-brand-dark text-white flex flex-col font-sans selection:bg-brand-secondary/10" dir="rtl">
+      {/* Updated Header */}
+      <header className="bg-brand-card/80 backdrop-blur-md p-6 shadow-lg border-b border-brand-border flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowDrawer(true)} className="p-2 hover:bg-brand-muted rounded-xl transition-colors">
+            <Menu className="w-6 h-6 text-white" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-white leading-tight">Start Location</h1>
+              {isActive && <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }} className="w-2 h-2 bg-brand-success rounded-full" />}
+            </div>
+            <p className="text-[10px] text-gray-400">كابتن: {driverName}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={handleManualRefresh} className={`p-2 rounded-xl transition-all ${isRefreshing ? "bg-brand-muted text-gray-600" : "bg-brand-muted text-gray-400 hover:text-white"}`}>
+            <History className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button onClick={() => setAutoAccept(!autoAccept)} className={`p-2 rounded-xl border ${autoAccept ? "bg-brand-warning/20 text-brand-warning border-brand-warning/50" : "bg-brand-muted text-gray-500 border-brand-border"}`}>
+            {autoAccept ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
+          </button>
+          <button onClick={toggleActive} className={`flex items-center gap-2 px-4 py-2 rounded-full border ${isActive ? "bg-brand-success/10 border-brand-success/20 text-brand-success" : "bg-brand-secondary/10 border-brand-secondary/20 text-brand-secondary"}`}>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${isActive ? "bg-brand-success" : "bg-brand-secondary"}`} />
+            <span className="font-black text-xs">{isActive ? "متصل" : "غير متصل"}</span>
+          </button>
+        </div>
+      </header>
+
+>>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
         {activeTab === "orders" ? (
           <>
             {isActive && activityLog.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-red animate-pulse" />
+              <div className="bg-brand-card/50 backdrop-blur-md border border-brand-border rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-secondary animate-pulse" />
                 <AnimatePresence mode="popLayout">
                   {activityLog.map(log => (
                     <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-2">
-                      <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-red" /><span className="text-[10px] font-bold text-gray-600">{log.text}</span></div>
-                      <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
+                      <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-secondary" /><span className="text-[10px] font-bold text-gray-300">{log.text}</span></div>
+                      <span className="text-[8px] font-bold text-gray-500">{log.time}</span>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -808,6 +846,7 @@ export default function DriverApp() {
             )}
 
             <div className="grid grid-cols-2 gap-4">
+<<<<<<< HEAD
               <PremiumCard
                 title="أرباح اليوم"
                 value={todayDeliveryFees}
@@ -822,6 +861,16 @@ export default function DriverApp() {
                 subtitle="ج.م"
                 delay={0.2}
               />
+=======
+              <section className="bg-brand-card p-5 rounded-[32px] border border-brand-border shadow-lg">
+                <p className="text-[10px] font-bold text-gray-400 mb-1">دخل اليوم</p>
+                <h2 className="text-xl font-black text-white">{todayDeliveryFees} <span className="text-[10px]">ج.م</span></h2>
+              </section>
+              <section className="bg-brand-card p-5 rounded-[32px] border border-brand-border shadow-lg">
+                <p className="text-[10px] font-bold text-gray-400 mb-1">مديونية المحلات</p>
+                <h2 className="text-xl font-black text-white">{vendorDebt} <span className="text-[10px]">ج.م</span></h2>
+              </section>
+>>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
             </div>
             
             <PremiumCard
@@ -833,82 +882,272 @@ export default function DriverApp() {
               delay={0.3}
             />
 
-            {renderCurrentOrders()}
+            <section className="space-y-4">
+              {isActive && driverLocation && (
+                <LiveMap 
+                  drivers={[{ id: driverId || 'me', name: 'موقعي', ...driverLocation }]} 
+                  center={[driverLocation.lat, driverLocation.lng]}
+                  zoom={15}
+                  className="h-40 w-full rounded-[32px] overflow-hidden shadow-xl border border-brand-border mb-4 grayscale invert brightness-90 contrast-125"
+                />
+              )}
+              {!isActive ? (
+                <div className="bg-brand-card p-8 rounded-[40px] shadow-xl text-center border border-brand-border">
+                  <div className="w-16 h-16 bg-brand-secondary/10 text-brand-secondary rounded-full flex items-center justify-center mx-auto mb-4"><Power className="w-8 h-8" /></div>
+                  <h2 className="text-xl font-bold text-white mb-2">أنت غير متصل</h2>
+                  <button onClick={toggleActive} className="w-full bg-brand-secondary text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-secondary/20 mt-6">بدء العمل الآن</button>
+                </div>
+              ) : orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length === 0 ? (
+                <div className="bg-brand-card p-8 rounded-[40px] shadow-xl text-center border border-brand-border">
+                  <Truck className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-sm text-gray-400 font-bold">لا توجد طلبات متاحة حالياً</p>
+                </div>
+              ) : (
+                orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').map(order => (
+                  <div key={order.id} className="bg-brand-card p-6 rounded-[32px] border border-brand-border shadow-xl relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-brand-muted rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-brand-secondary/10 group-hover:text-brand-secondary transition-colors"><Store className="w-6 h-6" /></div>
+                        <div><h3 className="font-black text-white">{order.vendor}</h3><p className="text-[10px] text-gray-500">#{order.id.slice(0, 8)}</p></div>
+                      </div>
+                      <div className="text-left"><p className="text-sm font-black text-brand-secondary">{order.fee}</p><p className="text-[10px] text-gray-500">{order.distance}</p></div>
+                    </div>
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center gap-2 text-gray-400"><Clock className="w-4 h-4 text-gray-600" /><p className="text-xs font-bold">وقت التحضير: {order.prepTime} دقيقة</p></div>
+                      <div className="flex items-center gap-2 text-gray-300"><Truck className="w-4 h-4 text-gray-600" /><p className="text-xs font-bold truncate">{order.address}</p></div>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {order.status === 'pending' ? (
+                        <button onClick={() => acceptOrder(order.id)} className="w-full bg-brand-secondary text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-secondary/20 active:scale-95 transition-transform">قبول الطلب</button>
+                      ) : (
+                        <>
+                          <div className="flex gap-2">
+                            {order.status === 'assigned' ? (
+                              <button onClick={() => pickupOrder(order.id)} className="flex-1 bg-white text-brand-dark py-4 rounded-2xl font-bold active:scale-95 transition-transform">تأكيد الاستلام من المحل</button>
+                            ) : (
+                              <button onClick={() => simulateDelivery(order.id)} disabled={isSimulating} className="flex-1 bg-brand-success text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform disabled:opacity-50">تأكيد التسليم للعميل</button>
+                            )}
+                          </div>
+                          {!order.vendorCollectedAt && (
+                            <button 
+                              onClick={() => initiatePaymentSettlement(order.id)}
+                              className="w-full bg-brand-warning/10 text-brand-warning border border-brand-warning/20 py-3 rounded-xl text-[10px] font-black hover:bg-brand-warning hover:text-brand-dark transition-all flex items-center justify-center gap-2"
+                            >
+                              <Banknote className="w-4 h-4" />
+                              دفع المديونية للمحل الآن
+                            </button>
+                          )}
+                        </>
+                      )}
+                      <div className="flex gap-2 mt-1">
+                        <a href={`tel:${order.vendorPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-muted text-gray-300 rounded-xl hover:text-white transition-colors text-[10px] font-bold border border-brand-border">
+                          <Phone className="w-4 h-4" />
+                          اتصال بالمحل
+                        </a>
+                        {order.customerPhone && (
+                          <a href={`tel:${order.customerPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary/20 transition-colors text-[10px] font-bold border border-brand-primary/20">
+                            <MessageCircle className="w-4 h-4" />
+                            اتصال بالعميل
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </section>
           </>
         ) : activeTab === "wallet" ? (
-          renderWalletView()
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white">المحفظة المالية</h2>
+            <div className="bg-brand-card text-white p-8 rounded-[40px] shadow-xl border border-brand-border relative overflow-hidden">
+              <div className="relative z-10">
+                <p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">مديونية الشركة (العمولة)</p>
+                <h3 className="text-4xl font-black">{systemDebt.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
+                <button onClick={() => setShowSettlementModal(true)} className="mt-6 w-full bg-white text-brand-dark py-3 rounded-2xl text-xs font-bold transition-all hover:bg-gray-200 shadow-lg">طلب تسوية مديونية</button>
+              </div>
+              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-brand-secondary/20 blur-[80px] rounded-full" />
+            </div>
+            <div className="bg-brand-card p-8 rounded-[40px] border border-brand-border shadow-lg relative overflow-hidden">
+              <div className="relative z-10">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">مديونية المحلات (عهد الطلبات)</p>
+                <h3 className="text-4xl font-black text-white">{vendorDebt.toLocaleString()} <span className="text-lg font-bold text-gray-600">ج.م</span></h3>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-white pr-2">طلبات التسوية الأخيرة</h3>
+              {settlementHistory.map(s => (
+                <div key={s.id} className="bg-brand-card p-4 rounded-2xl border border-brand-border flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.status === 'تم السداد' ? 'bg-brand-success/10 text-brand-success' : 'bg-brand-warning/10 text-brand-warning'}`}>
+                      <Wallet className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">{s.vendor}</p>
+                      <p className="text-[10px] text-gray-500 font-bold">{s.date}</p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-black text-white">{s.amount} ج.م</p>
+                    <p className={`text-[10px] font-bold ${s.status === 'تم السداد' ? 'text-brand-success' : 'text-brand-warning'}`}>{s.status}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
-          renderHistoryView()
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white">سجل العمليات</h2>
+            <div className="space-y-4">
+              {orders.filter(o => o.status === "delivered" || o.status === "cancelled").length === 0 ? (
+                <div className="bg-brand-card p-12 rounded-[40px] text-center border border-dashed border-brand-border">
+                  <History className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+                  <p className="text-sm text-gray-500 font-bold">السجل فارغ حالياً</p>
+                </div>
+              ) : (
+                orders.filter(o => o.status === "delivered" || o.status === "cancelled").map(order => (
+                  <div key={order.id} className="bg-brand-card p-5 rounded-3xl border border-brand-border flex flex-col gap-4 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border border-brand-border ${order.status === "delivered" ? "bg-brand-success/10 text-brand-success" : "bg-brand-secondary/10 text-brand-secondary"}`}>
+                          <History className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-white">{order.vendor}</p>
+                          <p className="text-[10px] text-gray-500 font-bold">#{order.id.slice(0, 8)} • {order.fee}</p>
+                        </div>
+                      </div>
+                      <div className="text-left">
+                        <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-brand-success/10 text-brand-success" : "bg-brand-secondary/10 text-brand-secondary"}`}>
+                          {translateStatus(order.status)}
+                        </span>
+                      </div>
+                    </div>
+                    {order.status === "delivered" && !order.vendorCollectedAt && (
+                      <div className="pt-3 border-t border-brand-border">
+                        {!order.driverConfirmedAt ? (
+                          <button 
+                            onClick={() => initiatePaymentSettlement(order.id)}
+                            className="w-full bg-brand-warning/10 text-brand-warning hover:bg-brand-warning hover:text-brand-dark py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-brand-warning/20"
+                          >
+                            <Banknote className="w-4 h-4" />
+                            تسوية الدفع مع المحل
+                          </button>
+                        ) : (
+                          <div className="w-full bg-brand-muted text-gray-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-600" />
+                            بانتظار تأكيد المحل لاستلام المبلغ
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-4 flex justify-around items-center z-40">
-        {[
-          { id: "orders", icon: <Truck className="w-6 h-6" />, label: "الطلبات" },
-          { id: "wallet", icon: <Wallet className="w-6 h-6" />, label: "المحفظة" },
-          { id: "history", icon: <History className="w-6 h-6" />, label: "السجل" }
-        ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === tab.id ? "text-brand-red scale-110" : "text-gray-300"}`}>
-            {tab.icon}<span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {/* Profile Modal */}
+      {/* Drawer */}
       <AnimatePresence>
-        {showProfileModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-              <button onClick={() => setShowProfileModal(false)} className="absolute top-6 left-6 text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
-              <h2 className="text-xl font-black mb-6">تعديل الملف الشخصي</h2>
-              <div className="space-y-4">
-                <div><label className="text-xs font-bold text-gray-400 block mb-2">الاسم بالكامل</label><input type="text" value={profileData.full_name} onChange={(e) => setProfileData({...profileData, full_name: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" /></div>
-                <div><label className="text-xs font-bold text-gray-400 block mb-2">رقم الهاتف</label><input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" /></div>
-                <div><label className="text-xs font-bold text-gray-400 block mb-2">منطقة العمل</label><input type="text" value={profileData.area} onChange={(e) => setProfileData({...profileData, area: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" /></div>
-                <div><label className="text-xs font-bold text-gray-400 block mb-2">نوع المركبة</label><select value={profileData.vehicle_type} onChange={(e) => setProfileData({...profileData, vehicle_type: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold appearance-none"><option>موتوسيكل</option><option>عجلة</option><option>سيارة</option><option>سكوتر</option></select></div>
-                <div><label className="text-xs font-bold text-gray-400 block mb-2">الرقم القومي</label><input type="text" value={profileData.national_id} onChange={(e) => setProfileData({...profileData, national_id: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" /></div>
-                <button onClick={handleUpdateProfile} disabled={savingProfile} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold disabled:opacity-50 shadow-lg shadow-red-100">{savingProfile ? "جاري الحفظ..." : "حفظ التغييرات"}</button>
+        {showDrawer && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrawer(false)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]" />
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 bottom-0 w-72 bg-brand-card z-[101] shadow-2xl flex flex-col border-l border-brand-border">
+              <div className="p-6 border-b border-brand-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-brand-secondary/10 rounded-xl flex items-center justify-center text-brand-secondary">
+                    <Activity className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-sm">{driverName}</p>
+                    <p className="text-[10px] text-gray-500 font-bold">{isActive ? 'متصل الآن' : 'غير متصل'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-brand-muted rounded-full">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
               </div>
+              <div className="flex-1 p-4 space-y-2">
+                <button onClick={() => { setActiveTab("orders"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "orders" ? "bg-brand-secondary/10 text-brand-secondary" : "hover:bg-brand-muted text-gray-400"}`}>
+                  <Truck className="w-5 h-5" />
+                  <span className="text-sm font-bold">الطلبات المتاحة</span>
+                </button>
+                <button onClick={() => { setActiveTab("wallet"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "wallet" ? "bg-brand-secondary/10 text-brand-secondary" : "hover:bg-brand-muted text-gray-400"}`}>
+                  <Wallet className="w-5 h-5" />
+                  <span className="text-sm font-bold">المحفظة المالية</span>
+                </button>
+                <button onClick={() => { setActiveTab("history"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "history" ? "bg-brand-secondary/10 text-brand-secondary" : "hover:bg-brand-muted text-gray-400"}`}>
+                  <History className="w-5 h-5" />
+                  <span className="text-sm font-bold">سجل العمليات</span>
+                </button>
+                <div className="h-px bg-brand-border my-4" />
+                <button onClick={() => { setShowDrawer(false); setShowProfileModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-brand-muted rounded-2xl transition-colors">
+                  <Settings className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm font-bold text-gray-300">إعدادات الحساب</span>
+                </button>
+                <button onClick={() => { setShowDrawer(false); setShowPasswordModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-brand-muted rounded-2xl transition-colors">
+                  <ShieldCheck className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm font-bold text-gray-300">تغيير كلمة السر</span>
+                </button>
+              </div>
+              <div className="p-4 border-t border-brand-border">
+                <button onClick={handleSignOut} className="w-full flex items-center gap-3 p-4 text-brand-secondary hover:bg-brand-secondary/10 rounded-2xl transition-colors">
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-bold">تسجيل الخروج</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modals with Dark Theme */}
+      <AnimatePresence>
+        {(showProfileModal || showSettlementModal || showPasswordModal) && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-brand-card w-full max-w-sm rounded-[40px] p-8 shadow-2xl border border-brand-border relative max-h-[90vh] overflow-y-auto">
+              <button onClick={() => { setShowProfileModal(false); setShowSettlementModal(false); setShowPasswordModal(false); }} className="absolute top-6 left-6 text-gray-500 hover:text-white text-2xl">×</button>
+              
+              {showProfileModal && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-black text-white text-right">تحديث الملف الشخصي</h2>
+                  <div className="space-y-4">
+                    <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} placeholder="الاسم بالكامل" className="w-full bg-brand-muted p-4 rounded-2xl border border-brand-border text-white outline-none focus:ring-2 ring-brand-secondary font-bold text-right" />
+                    <input type="tel" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} placeholder="رقم الهاتف" className="w-full bg-brand-muted p-4 rounded-2xl border border-brand-border text-white outline-none focus:ring-2 ring-brand-secondary font-bold text-right" />
+                    <input type="text" value={profileData.area} onChange={e => setProfileData({...profileData, area: e.target.value})} placeholder="المنطقة" className="w-full bg-brand-muted p-4 rounded-2xl border border-brand-border text-white outline-none focus:ring-2 ring-brand-secondary font-bold text-right" />
+                    <button onClick={handleUpdateProfile} disabled={savingProfile} className="w-full bg-brand-secondary text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-secondary/20 active:scale-95 transition-all">{savingProfile ? "جاري الحفظ..." : "حفظ التغييرات"}</button>
+                  </div>
+                </div>
+              )}
+
+              {showSettlementModal && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-black text-white text-right">طلب تسوية مديونية</h2>
+                  <div className="space-y-4">
+                    <p className="text-xs text-gray-500 font-bold text-right">يرجى إدخال المبلغ الذي قمت بتحويله للشركة</p>
+                    <input type="number" value={settlementAmount} onChange={e => setSettlementAmount(e.target.value)} placeholder="0.00" className="w-full bg-brand-muted p-4 rounded-2xl border border-brand-border text-white outline-none focus:ring-2 ring-brand-secondary font-bold text-right" />
+                    <button onClick={handleRequestSettlement} className="w-full bg-brand-secondary text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-secondary/20 active:scale-95 transition-all">إرسال الطلب</button>
+                  </div>
+                </div>
+              )}
+
+              {showPasswordModal && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-black text-white text-right">تغيير كلمة السر</h2>
+                  <div className="space-y-4">
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-brand-muted p-4 rounded-2xl border border-brand-border text-white outline-none focus:ring-2 ring-brand-secondary font-bold text-right" />
+                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-brand-muted p-4 rounded-2xl border border-brand-border text-white outline-none focus:ring-2 ring-brand-secondary font-bold text-right" />
+                    {passwordError && <p className="text-brand-secondary text-[10px] font-bold text-right">{passwordError}</p>}
+                    <button onClick={handleChangePassword} disabled={changingPassword} className="w-full bg-brand-secondary text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-secondary/20 active:scale-95 transition-all">{changingPassword ? "جاري التغيير..." : "حفظ التغييرات"}</button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
-      {/* Settlement Modal */}
-      <AnimatePresence>
-        {showSettlementModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative">
-              <button onClick={() => setShowSettlementModal(false)} className="absolute top-6 left-6 text-gray-400">×</button>
-              <h2 className="text-xl font-black mb-6">طلب تسوية مديونية</h2>
-              <div className="space-y-4">
-                <div><label className="text-xs font-bold text-gray-400 block mb-2">المبلغ المراد سداده</label><input type="number" value={settlementAmount} onChange={(e) => setSettlementAmount(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-red font-bold" /></div>
-                <button onClick={handleRequestSettlement} className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-lg">إرسال الطلب</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Password Modal */}
-      <AnimatePresence>
-        {showPasswordModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative">
-              <button onClick={() => setShowPasswordModal(false)} className="absolute top-6 left-6 text-gray-400">×</button>
-              <h2 className="text-xl font-black mb-6">تغيير كلمة السر</h2>
-              <div className="space-y-4">
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-red font-bold" />
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-brand-red font-bold" />
-                {passwordError && <p className="text-red-500 text-xs font-bold">{passwordError}</p>}
-                <button onClick={handleChangePassword} disabled={changingPassword} className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-lg">{changingPassword ? "جاري التغيير..." : "حفظ التغييرات"}</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {renderDrawer()}
     </div>
   );
 }
