@@ -8,26 +8,26 @@ import { getUserProfile } from "@/lib/auth";
 import { StartLogo } from "@/components/StartLogo";
 import { isNative, downloadLiveUpdate } from "@/lib/native-utils";
 
-const CURRENT_VERSION = "0.2.0";
-
-interface AppConfig {
-  latest_version: string;
-  min_version: string;
-  download_url: string;
-  bundle_url: string;
-  force_update: boolean;
-  update_message: string;
-}
-
 export default function SplashPage() {
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
+  const [status, setStatus] = useState("Checking System...");
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAppAndRedirect = async () => {
+      // Safety timeout after 8 seconds regardless of what happens
+      const safetyTimeout = setTimeout(() => {
+        if (isMounted) {
+          console.log("Splash: Safety timeout reached, forcing redirect to login");
+          router.replace("/login");
+        }
+      }, 8000);
+
       try {
-        // 1. التحقق من التحديثات اللحظية (OTA) فقط إذا كان تطبيقاً أصلياً
+        // 1. Native update check (non-blocking)
         if (isNative()) {
+          setStatus("Checking for updates...");
           try {
             const { data: config } = await supabase.from('app_config').select('bundle_url, latest_version').single();
             if (config?.bundle_url) {
@@ -38,32 +38,44 @@ export default function SplashPage() {
           }
         }
 
-        // 2. استكمال عملية التوجيه
-        const { data: { session } } = await supabase.auth.getSession();
+        // 2. Auth check
+        setStatus("Securing Connection...");
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
         if (session?.user) {
+          setStatus("Loading Profile...");
           const profile = await getUserProfile(session.user.id);
-          if (profile) {
+          if (profile && isMounted) {
             const normalizedRole = profile.role?.toLowerCase();
             if (normalizedRole === "admin") router.replace("/admin");
             else if (normalizedRole === "driver") router.replace("/driver");
             else if (normalizedRole === "vendor") router.replace("/vendor");
             else router.replace("/login");
-          } else {
-            router.replace("/login");
+            clearTimeout(safetyTimeout);
+            return;
           }
-        } else {
+        }
+
+        if (isMounted) {
           router.replace("/login");
+          clearTimeout(safetyTimeout);
         }
       } catch (err) {
         console.error("Splash error:", err);
-        router.replace("/login");
-      } finally {
-        setIsChecking(false);
+        if (isMounted) {
+          router.replace("/login");
+          clearTimeout(safetyTimeout);
+        }
       }
     };
 
-    const timer = setTimeout(checkAppAndRedirect, 2000);
-    return () => clearTimeout(timer);
+    checkAppAndRedirect();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   return (
@@ -127,17 +139,9 @@ export default function SplashPage() {
               />
             ))}
           </div>
-          <AnimatePresence>
-            {isChecking && (
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-[9px] font-bold text-blue-400/60 uppercase tracking-widest"
-              >
-                Securing Connection...
-              </motion.p>
-            )}
-          </AnimatePresence>
+          <p className="text-[9px] font-bold text-blue-400/60 uppercase tracking-widest min-h-[1.5em]">
+            {status}
+          </p>
         </div>
       </motion.div>
 

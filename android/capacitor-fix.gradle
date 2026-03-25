@@ -2,14 +2,7 @@ allprojects {
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
             project.android.buildTypes.all { buildType ->
-                def files = buildType.getProguardFiles()
-                def newFiles = files.collect { file ->
-                    if (file instanceof File && file.name == 'proguard-android.txt') {
-                        return project.getDefaultProguardFile('proguard-android-optimize.txt')
                     }
-                    return file
-                }
-                buildType.setProguardFiles(newFiles)
             }
         }
     }
