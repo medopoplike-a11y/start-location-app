@@ -1,0 +1,107 @@
+// Prisma schema file for Start Location
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+  DRIVER
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(DRIVER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile fields
+  phone        String?
+  address      String?
+  area         String?
+  vehicleType  String?  @map("vehicle_type")
+  nationalId   String?  @map("national_id")
+  
+  // Relationships
+  ordersAsVendor Order[] @relation("VendorOrders")
+  ordersAsDriver Order[] @relation("DriverOrders")
+  wallet         Wallet?
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  status          OrderStatus @default(PENDING)
+  customerName    String
+  customerPhone   String
+  customerAddress String
+  orderImage      String?     // URL or base64 image
+  
+  // Distance and Pricing
+  distance        Float       // in KM
+  deliveryFee     Float       // Calculated delivery fee
+  surgeFee        Float       @default(0)
+  safeRideFee     Float       @default(1.5)
+  totalAmount     Float       // Total collected from customer
+  
+  // Financial tracking
+  driverCommission Float      // What driver earns
+  systemCommission Float      // What Start Location earns
+  
+  // Relationships
+  vendorId String
+  vendor   User   @relation("VendorOrders", fields: [vendorId], references: [id])
+  
+  driverId String?
+  driver   User?  @relation("DriverOrders", fields: [driverId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Settlement
+  isSettled      Boolean @default(false)
+  settledAt      DateTime?
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  balance   Float    @default(0)
+  debt      Float    @default(0) // Current debt (collections not yet paid to vendors/system)
+  debtLimit Float    @default(1000) // Default limit is 1000 EGP
+  
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id])
+  amount    Float
+  type      String   // CREDIT, DEBIT
+  description String
+  createdAt DateTime @default(now())
+}
+
+model SafeRideFund {
+  id        String   @id @default(cuid())
+  totalPool Float    @default(0)
+  updatedAt DateTime @updatedAt
+}

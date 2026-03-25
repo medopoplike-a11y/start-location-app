@@ -1,0 +1,144 @@
+[33mcommit 4e3fa7e32566f4d0cf0e9842dabca27186c81aad[m
+Author: medo <medopoplike@gmail.com>
+Date:   Wed Mar 25 17:05:33 2026 +0200
+
+    Update root with latest source code and project configuration
+
+ delete mode 100644 .eslintrc.json
+ create mode 100644 .idea/markdown.xml
+ rename .idea/{start.iml => start-new.iml} (100%)
+ create mode 100644 .idea/vcs.xml
+ delete mode 100644 .npmrc
+ rename start-new/AGENTS.md => AGENTS.md (100%)
+ rename start-new/CLAUDE.md => CLAUDE.md (100%)
+ rename start-new/README.md => README.md (100%)
+ delete mode 100644 android/.idea/.gitignore
+ delete mode 100644 android/.idea/AndroidProjectSystem.xml
+ delete mode 100644 android/.idea/compiler.xml
+ delete mode 100644 android/.idea/deploymentTargetSelector.xml
+ delete mode 100644 android/.idea/migrations.xml
+ delete mode 100644 android/.idea/misc.xml
+ delete mode 100644 android/.idea/runConfigurations.xml
+ delete mode 100644 android/app/google-services.json
+ delete mode 100644 android/app/src/main/java/com/traestartzlum/app/MainApplication.java
+ delete mode 100644 android/app/src/main/new.js
+ delete mode 100644 android/app/src/main/res/values/colors.xml
+ delete mode 100644 android/app/src/main/res/xml/network_security_config.xml
+ delete mode 100644 android/capacitor-fix.gradle
+ rename start-new/eslint.config.mjs => eslint.config.mjs (100%)
+ delete mode 100644 fix-paths.js
+ delete mode 100644 next.config.mjs
+ rename start-new/next.config.ts => next.config.ts (100%)
+ delete mode 100644 out/_next/static/chunks/23-eb1565b78f8cbe45.js
+ delete mode 100644 out/_next/static/chunks/app/_not-found/page-7f6a09f2e4056156.js
+ delete mode 100644 out/_next/static/chunks/d0deef33.afff9b3bf7059c8b.js
+ delete mode 100644 out/_next/static/chunks/fd9d1056-844a5cc198651369.js
+ delete mode 100644 out/_next/static/chunks/framework-f66176bb897dc684.js
+ delete mode 100644 out/_next/static/chunks/main-12410f820d43f305.js
+ delete mode 100644 out/_next/static/chunks/main-app-e603d4d18227a66d.js
+ delete mode 100644 out/_next/static/chunks/pages/_app-6a626577ffa902a4.js
+ delete mode 100644 out/_next/static/chunks/pages/_error-1be831200e60c5c0.js
+ delete mode 100644 out/_next/static/chunks/polyfills-78c92fac7aa8fdd8.js
+ delete mode 100644 out/_next/static/css/857aa62baa17c894.css
+ delete mode 100644 out/_next/static/media/01f0c602c274ea55-s.p.woff2
+ delete mode 100644 out/_next/static/media/350b852752f8489d-s.p.woff2
+ delete mode 100644 out/_next/static/media/5ec84f17416dda4d-s.woff2
+ delete mode 100644 out/_next/static/media/layers-2x.9859cd12.png
+ delete mode 100644 out/_next/static/media/layers.ef6db872.png
+ delete mode 100644 out/_next/static/media/marker-icon.d577052a.png
+ delete mode 100644 out/logo.png
+ delete mode 100644 out/logo.svg
+ delete mode 100644 out/manifest.json
+ delete mode 100644 prisma/schema.prisma
+ rename {start-new/public => public}/file.svg (100%)
+ rename {start-new/public => public}/globe.svg (100%)
+ delete mode 100644 public/logo.png
+ delete mode 100644 public/logo.svg
+ delete mode 100644 public/manifest.json
+ rename {start-new/public => public}/next.svg (100%)
+ delete mode 100644 public/start-location-v0.2.0.apk
+ delete mode 100644 public/sw.js
+ rename {start-new/public => public}/vercel.svg (100%)
+ rename {start-new/public => public}/window.svg (100%)
+ delete mode 100644 public/www.zip
+ rename {start-new/src => src}/app/favicon.ico (100%)
+ delete mode 100644 start-new/.gitignore
+ delete mode 100644 start-new/android/.gitignore
+ delete mode 100644 start-new/android/app/.gitignore
+ delete mode 100644 start-new/android/app/build.gradle
+ delete mode 100644 start-new/android/app/capacitor.build.gradle
+ delete mode 100644 start-new/android/app/proguard-rules.pro
+ delete mode 100644 start-new/android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java
+ delete mode 100644 start-new/android/app/src/main/AndroidManifest.xml
+ delete mode 100644 start-new/android/app/src/main/java/com/traestartzlum/app/MainActivity.java
+ delete mode 100644 start-new/android/app/src/main/res/drawable-land-hdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-land-mdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-land-xhdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-land-xxhdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-land-xxxhdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-port-hdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-port-mdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-port-xhdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-port-xxhdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-port-xxxhdpi/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml
+ delete mode 100644 start-new/android/app/src/main/res/drawable/ic_launcher_background.xml
+ delete mode 100644 start-new/android/app/src/main/res/drawable/splash.png
+ delete mode 100644 start-new/android/app/src/main/res/layout/activity_main.xml
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+ delete mode 100644 start-new/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+ delete mode 100644 start-new/android/app/src/main/res/values/ic_launcher_background.xml
+ delete mode 100644 start-new/android/app/src/main/res/values/strings.xml
+ delete mode 100644 start-new/android/app/src/main/res/values/styles.xml
+ delete mode 100644 start-new/android/app/src/main/res/xml/file_paths.xml
+ delete mode 100644 start-new/android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java
+ delete mode 100644 start-new/android/build.gradle
+ delete mode 100644 start-new/android/capacitor.settings.gradle
+ delete mode 100644 start-new/android/gradle.properties
+ delete mode 100644 start-new/android/gradle/wrapper/gradle-wrapper.jar
+ delete mode 100644 start-new/android/gradle/wrapper/gradle-wrapper.properties
+ delete mode 100644 start-new/android/gradlew
+ delete mode 100644 start-new/android/gradlew.bat
+ delete mode 100644 start-new/android/settings.gradle
+ delete mode 100644 start-new/android/variables.gradle
+ delete mode 100644 start-new/capacitor.config.json
+ delete mode 100644 start-new/package-lock.json
+ delete mode 100644 start-new/package.json
+ delete mode 100644 start-new/postcss.config.mjs
+ delete mode 100644 start-new/src/app/admin/AccountsView.tsx
+ delete mode 100644 start-new/src/app/admin/page.tsx
+ delete mode 100644 start-new/src/app/driver/page.tsx
+ delete mode 100644 start-new/src/app/globals.css
+ delete mode 100644 start-new/src/app/layout.tsx
+ delete mode 100644 start-new/src/app/login/page.tsx
+ delete mode 100644 start-new/src/app/page.tsx
+ delete mode 100644 start-new/src/app/vendor/page.tsx
+ delete mode 100644 start-new/src/components/AppUpdater.tsx
+ delete mode 100644 start-new/src/components/LiveMap.tsx
+ delete mode 100644 start-new/src/components/LocationMarker.tsx
+ delete mode 100644 start-new/src/components/PushNotificationManager.tsx
+ delete mode 100644 start-new/src/components/StartLogo.tsx
+ delete mode 100644 start-new/src/lib/auth.ts
+ delete mode 100644 start-new/src/lib/db-setup.sql
+ delete mode 100644 start-new/src/lib/native-utils.ts
+ delete mode 100644 start-new/src/lib/orders.ts
+ delete mode 100644 start-new/src/lib/pricing.ts
+ delete mode 100644 start-new/src/lib/supabaseClient.ts
+ delete mode 100644 start-new/tailwind.config.ts
+ delete mode 100644 start-new/tsconfig.json
+ delete mode 100644 zip.js

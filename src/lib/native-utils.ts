@@ -8,19 +8,25 @@ export const isNative = () => {
 };
 
 /**
- * دالة لتحميل تحديث لحظي (OTA) فقط في البيئة الأصلية
+ * دالة لتحميل تحديث لحظي (OTA) وتثبيته فوراً
  */
 export const downloadLiveUpdate = async (url: string, version: string) => {
   if (!isNative()) return;
 
   try {
-    // استيراد ديناميكي للمكتبة لمنع تعطل الويب
-    const { CapacitorUpdater } = await import('capacitor-updater');
+    const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+    
+    // تحميل وتثبيت النسخة الجديدة فوراً
     await CapacitorUpdater.download({
-      url
+      url,
+      version
     });
-    console.log('Native: Live update downloaded successfully');
+    
+    console.log('Native: Live update installed successfully');
+    
+    // إعادة تشغيل التطبيق لتطبيق التحديث
+    await CapacitorUpdater.set({ id: version });
   } catch (e) {
-    console.warn('Native: Live update download failed', e);
+    console.warn('Native: Live update failed', e);
   }
 };
