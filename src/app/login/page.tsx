@@ -79,42 +79,44 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const { data, error: signInError } = await signIn(email, password);
+    try {
+      const { data, error: signInError } = await signIn(email, password);
 
-    if (signInError) {
-      setError(signInError.message.includes("Invalid login credentials") 
-        ? "خطأ في البريد الإلكتروني أو كلمة المرور" 
-        : signInError.message);
-      setLoading(false);
-    } else if (data?.user) {
-      console.log("LoginPage: Login successful for user", data.user.id);
-      
-      // Let's handle redirect manually here to ensure it works
-      try {
-        const profile = await getUserProfile(data.user.id);
+      if (signInError) {
+        setError(signInError.message.includes("Invalid login credentials") 
+          ? "خطأ في البريد الإلكتروني أو كلمة المرور" 
+          : signInError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.user) {
+        console.log("LoginPage: Login successful for user", data.user.id);
+        
+        // Wait for profile to be fetched to ensure we have the role
+        const profile = await getUserProfile(data.user.id, data.user.email);
         console.log("LoginPage: Profile found:", profile);
         
         if (profile?.role) {
-          if (profile.role.toLowerCase() !== role) {
+          const userRole = profile.role.toLowerCase();
+          // Check if user is trying to login with correct role selector
+          if (userRole !== role && userRole !== 'admin') {
             setError(`هذا الحساب مخصص لـ ${profile.role} فقط`);
             setLoading(false);
             return;
           }
-          redirectUserByRole(profile.role);
+          
+          // Force a full page reload to the dashboard to clear all states
+          window.location.href = `/${userRole}`;
         } else {
-          // Special case for admin
-          if (data.user.email === 'medopoplike@gmail.com') {
-            redirectUserByRole('admin');
-          } else {
-            setError("لم يتم تحديد صلاحيات لهذا الحساب");
-            setLoading(false);
-          }
+          setError("لم يتم العثور على صلاحيات لهذا الحساب");
+          setLoading(false);
         }
-      } catch (err) {
-        console.error("LoginPage: Profile fetch error", err);
-        setError("فشل تحميل بيانات المستخدم");
-        setLoading(false);
       }
+    } catch (err: any) {
+      console.error("LoginPage: Login error", err);
+      setError("حدث خطأ غير متوقع أثناء تسجيل الدخول");
+      setLoading(false);
     }
   };
 

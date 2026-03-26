@@ -58,7 +58,7 @@ export default function AdminPanel() {
   const [activeView, setActiveView] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const { lastSync, isSyncing } = useSync(undefined, () => fetchData());
+  const { lastSync, isSyncing } = useSync(undefined, () => fetchData(), true);
   const [debugInfo, setDebugInfo] = useState({ profilesCount: 0, error: null as string | null });
 
   // Data State
@@ -119,60 +119,6 @@ export default function AdminPanel() {
     const init = async () => {
       await fetchData();
       setLoading(false);
-<<<<<<< HEAD
-=======
-
-      // Real-time Subscriptions with smart updates
-      ordersSub = subscribeToOrders(() => {
-        fetchOrders();
-        fetchSettlements();
-      });
-
-      profilesSub = subscribeToProfiles((payload) => {
-        const { eventType, new: newProfile } = payload;
-        if (eventType === 'UPDATE' && newProfile.role === 'driver') {
-          setOnlineDrivers(prev => {
-            const loc = newProfile.location;
-            if (!loc) return prev;
-            const updated = {
-              id: newProfile.id,
-              name: newProfile.full_name,
-              lat: loc.lat,
-              lng: loc.lng,
-              lastSeen: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-            };
-            const idx = prev.findIndex(d => d.id === newProfile.id);
-            if (idx > -1) {
-              const next = [...prev];
-              next[idx] = updated;
-              return next;
-            }
-            return [...prev, updated];
-          });
-        }
-        fetchProfiles();
-      });
-
-      walletsSub = supabase
-        .channel('admin_wallets_all')
-        .on(
-          'postgres_changes', 
-          { event: '*', schema: 'public', table: 'wallets' }, 
-          () => {
-            fetchProfiles();
-          }
-        )
-        .subscribe();
-
-      settlementsSub = supabase
-        .channel('admin_settlements_all')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'settlements' },
-          () => fetchSettlements()
-        )
-        .subscribe();
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
     };
 
     init();
@@ -206,7 +152,6 @@ export default function AdminPanel() {
   }, [allOrders, appConfig]);
 
   const fetchData = async () => {
-    setLastSyncTime(new Date());
     try {
       await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
     } catch (err) {
@@ -374,7 +319,6 @@ export default function AdminPanel() {
   const handleSignOut = async () => { await signOut(); router.push("/login"); };
 
   const stats = [
-<<<<<<< HEAD
     { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-blue-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب" },
     { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-green-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن" },
     { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-brand-red w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م" },
@@ -394,24 +338,6 @@ export default function AdminPanel() {
         <div className="p-6 flex items-center gap-4 border-b border-gray-50 h-24">
           <div className="flex-shrink-0 bg-gray-50 p-2 rounded-2xl"><StartLogo className="w-10 h-10" /></div>
           {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-bold text-gray-900 leading-none">START</h1><span className="text-[10px] font-bold text-gray-400 uppercase mt-1">Management</span></div>}
-=======
-    { title: "إجمالي الطلبات", value: allOrders.length.toString(), icon: <Truck className="text-brand-primary w-6 h-6" />, trend: "+12%" },
-    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length.toString(), icon: <Users className="text-brand-success w-6 h-6" />, trend: "+5%" },
-    { title: "صندوق التأمين", value: `${insuranceFund.toLocaleString()} ج.م`, icon: <ShieldCheck className="text-brand-secondary w-6 h-6" />, trend: "+2%" },
-    { title: "عمولات مستحقة", value: `${totalSystemDebt.toLocaleString()} ج.م`, icon: <Wallet className="text-brand-info w-6 h-6" />, trend: "المديونية" },
-  ];
-
-  if (loading) return <div className="min-h-screen bg-brand-dark flex items-center justify-center font-bold text-gray-500">جاري تحميل النظام...</div>;
-
-  return (
-    <div className="min-h-screen bg-brand-dark flex font-sans text-right relative overflow-hidden selection:bg-brand-primary/10" dir="rtl">
-      <AnimatePresence>{isMobile && sidebarOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/70 z-[60] backdrop-blur-sm lg:hidden" />}</AnimatePresence>
-
-      <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-brand-card border-l border-brand-border fixed lg:relative z-[70] h-screen overflow-hidden shadow-2xl flex flex-col">
-        <div className="p-6 flex items-center gap-4 border-b border-brand-border h-24">
-          <div className="flex-shrink-0 bg-brand-muted p-2 rounded-2xl border border-brand-border"><StartLogo className="w-10 h-10" /></div>
-          {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-black text-white leading-none">START</h1><span className="text-[10px] font-bold text-brand-primary uppercase mt-1">Management OS</span></div>}
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {[
@@ -435,7 +361,6 @@ export default function AdminPanel() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-brand-dark/80 backdrop-blur-md sticky top-0 z-40 h-20 px-8 border-b border-brand-border flex items-center justify-between shadow-xl">
           <div className="flex items-center gap-6">
-<<<<<<< HEAD
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-gray-50 text-gray-900 rounded-xl border border-gray-200">{sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
             <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
               <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
@@ -444,16 +369,6 @@ export default function AdminPanel() {
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-[10px] font-black text-gray-400 uppercase">Live</span>
               </div>
-=======
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-brand-card text-white rounded-xl border border-brand-border hover:bg-brand-muted transition-colors">{sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
-            <div className="relative group">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-brand-primary transition-colors" />
-              <input type="text" placeholder="بحث سريع في النظام..." className="bg-brand-muted border border-brand-border text-white pr-11 pl-4 py-2.5 rounded-2xl text-xs outline-none focus:ring-2 ring-brand-primary/20 w-64 transition-all focus:bg-transparent" />
-            </div>
-            <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-brand-muted rounded-2xl border border-brand-border">
-              <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-brand-success animate-pulse" /><span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Live System</span></div>
-              <div className="w-px h-3 bg-brand-border" /><div className="flex items-center gap-2"><Activity className="w-3 h-3 text-brand-primary" /><span className="text-[10px] font-bold text-gray-400">{lastSyncTime.toLocaleTimeString('ar-EG')}</span></div>
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -480,7 +395,6 @@ export default function AdminPanel() {
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, idx) => (
-<<<<<<< HEAD
                   <PremiumCard
                     key={idx}
                     title={stat.title}
@@ -491,12 +405,6 @@ export default function AdminPanel() {
                     subtitle={stat.subtitle}
                     delay={idx * 0.1}
                   />
-=======
-                  <div key={idx} className="bg-brand-card p-6 rounded-3xl border border-brand-border shadow-xl flex items-center justify-between hover:border-brand-primary/30 transition-all group">
-                    <div><p className="text-gray-500 text-xs mb-1 font-bold">{stat.title}</p><h3 className="text-2xl font-black text-white">{stat.value}</h3><span className="text-[10px] text-brand-success font-bold">{stat.trend}</span></div>
-                    <div className="w-12 h-12 bg-brand-muted rounded-2xl flex items-center justify-center border border-brand-border group-hover:bg-brand-primary/10 transition-colors">{stat.icon}</div>
-                  </div>
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
                 ))}
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

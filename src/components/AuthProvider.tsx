@@ -69,19 +69,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Centralized Routing Logic - DISABLED AUTOMATIC REDIRECTS TO PREVENT LOOPS
+  // Centralized Routing Logic
   useEffect(() => {
     if (loading) return;
 
-    // Check for "This page couldn't load" (Hydration Failures)
-    if (typeof window !== 'undefined' && !localStorage.getItem('start_v4_reset')) {
-      localStorage.clear();
-      sessionStorage.clear();
-      localStorage.setItem('start_v4_reset', 'true');
-      window.location.reload();
+    const role = profile?.role?.toLowerCase();
+    const isLoginPage = pathname === "/login";
+    const isRootPage = pathname === "/";
+
+    // Debugging current state
+    console.log("AuthProvider: State", { user: !!user, profile: !!profile, role, pathname });
+
+    // 1. If not logged in and not on login page, go to login
+    if (!user && !isLoginPage && !isRootPage) {
+      console.log("AuthProvider: Redirecting to login (unauthenticated)");
+      router.replace("/login");
       return;
     }
-  }, [loading]);
+
+    // 2. If logged in and on login page, go to dashboard
+    if (user && profile && isLoginPage) {
+      console.log(`AuthProvider: Redirecting to /${role} (authenticated)`);
+      router.replace(`/${role}`);
+      return;
+    }
+
+    // 3. Handle Root Page specifically (Splash handles its own but this is backup)
+    if (user && profile && isRootPage) {
+      console.log(`AuthProvider: Root page, redirecting to /${role}`);
+      router.replace(`/${role}`);
+      return;
+    }
+
+    // Check for "This page couldn't load" (Hydration Failures) - Only if truly stuck
+    if (typeof window !== 'undefined' && !localStorage.getItem('start_v4_reset')) {
+      localStorage.setItem('start_v4_reset', 'true');
+      // No clear() here to avoid infinite loops if it fails again
+      // window.location.reload(); 
+    }
+  }, [loading, user, profile, pathname, router]);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading }}>

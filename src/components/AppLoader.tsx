@@ -5,9 +5,12 @@ import { StartLogo } from "./StartLogo";
 
 export const AppLoader = () => {
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-[#f3f4f6] flex flex-col items-center justify-center overflow-hidden">
+      {/* Background Live Silver Effect */}
+      <div className="silver-live-bg opacity-30" />
+      
       {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[100px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px]" />
       
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}

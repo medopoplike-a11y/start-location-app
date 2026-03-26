@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabaseClient";
-import { getUserProfile } from "@/lib/auth";
+import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
-import { isNative, downloadLiveUpdate } from "@/lib/native-utils";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function SplashPage() {
@@ -52,98 +49,12 @@ export default function SplashPage() {
     await signOut();
   };
 
-<<<<<<< HEAD
   // Global Error Handler for "This page couldn't load"
   useEffect(() => {
     const handleError = (e: ErrorEvent) => {
       console.error("Splash: Global error caught", e);
       if (e.message?.includes("Hydration")) {
         window.location.reload();
-=======
-      try {
-        // 0. Check Supabase Config
-        if (!supabase.auth) {
-          throw new Error("Supabase client not initialized correctly. Check URL/Key.");
-        }
-
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        
-        if (!supabaseUrl || !supabaseKey || supabaseKey.includes('placeholder')) {
-          console.warn("Splash: Supabase config looks incomplete", { url: !!supabaseUrl, key: !!supabaseKey });
-          // We continue anyway, but this is a likely point of failure
-        }
-        
-        if (supabaseKey && !supabaseKey.startsWith('eyJ')) {
-          console.warn("Splash: Supabase Anon Key format looks unusual. Expected JWT.");
-        }
-
-        // 1. Native update check (non-blocking)
-        if (isNative()) {
-          console.log("Splash: Native environment detected");
-          setStatus("Checking for Cloud Updates...");
-          try {
-            const { data: config, error: configError } = await supabase.from('app_config').select('bundle_url, latest_version').single();
-            if (configError) {
-              console.warn('Splash: App config fetch failed:', configError);
-              setStatus("Starting Offline Mode...");
-            } else if (config?.bundle_url) {
-              setStatus(`Updating OS to v${config.latest_version}...`);
-              await downloadLiveUpdate(config.bundle_url, config.latest_version);
-              // If downloadLiveUpdate succeeds, it will reload the app
-              return;
-            }
-          } catch (e) {
-            console.warn('Splash: Native update check failed:', e);
-            setStatus("Starting System...");
-          }
-        }
-
-        // 2. Auth check
-        setStatus("Securing Connection...");
-        console.log("Splash: Getting session...");
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error("Splash: Session error:", sessionError);
-          throw new Error(`Auth Error: ${sessionError.message}`);
-        }
-
-        if (session?.user) {
-          console.log("Splash: User session found:", session.user.id);
-          setStatus("Loading Profile...");
-          const profile = await getUserProfile(session.user.id);
-          if (profile && isMounted) {
-            const normalizedRole = profile.role?.toLowerCase();
-            console.log("Splash: Profile found, role:", normalizedRole);
-            if (normalizedRole === "admin") router.replace("/admin");
-            else if (normalizedRole === "driver") router.replace("/driver");
-            else if (normalizedRole === "vendor") router.replace("/vendor");
-            else router.replace("/login");
-            clearTimeout(safetyTimeout);
-            return;
-          } else {
-            console.warn("Splash: Profile not found for user");
-          }
-        } else {
-          console.log("Splash: No session found");
-        }
-
-        if (isMounted) {
-          router.replace("/login");
-          clearTimeout(safetyTimeout);
-        }
-      } catch (err: any) {
-        console.error("Splash CRITICAL error:", err);
-        if (isMounted) {
-          setError(err.message || String(err));
-          // Don't redirect immediately on error so user can see it
-          setTimeout(() => {
-            if (isMounted && !error) router.replace("/login");
-          }, 5000);
-          clearTimeout(safetyTimeout);
-        }
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
       }
     };
     window.addEventListener('error', handleError);

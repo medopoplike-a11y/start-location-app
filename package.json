@@ -5,10 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-<<<<<<< HEAD
-    "build:mobile": "export BUILD_TYPE=static && next build && node fix-paths.js && node zip.js",
-=======
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
+    "build:mobile": "next build && node fix-paths.js && npx cap sync android",
+    "build:win": "next build ; node fix-paths.js ; npx cap sync android",
     "start": "next start",
     "lint": "eslint"
   },
@@ -16,6 +14,7 @@
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
+    "@capacitor/geolocation": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.2",
     "@capgo/capacitor-updater": "^8.43.11",
     "@supabase/supabase-js": "^2.100.0",

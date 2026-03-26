@@ -6,55 +6,19 @@ import "./globals.css";
 import AppUpdater from "@/components/AppUpdater";
 import { AuthProvider } from "@/components/AuthProvider";
 import Script from "next/script";
+import { requestAllPermissions } from "@/lib/native-utils";
 
 const cairo = Cairo({ 
   subsets: ["arabic", "latin"],
   weight: ["300", "400", "500", "700"],
 });
 
-<<<<<<< HEAD
-import { requestAllPermissions } from "@/lib/native-utils";
-
-export const viewport: Viewport = {
-  themeColor: "#f3f4f6",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
-};
-
-export const metadata: Metadata = {
-  title: "Start Location - نظام التوصيل الذكي",
-  description: "نظام توصيل ذكي، آمن، وشفاف يربط بين التاجر والمندوب بأقل نسبة هدر.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Start Location",
-    startupImage: "/logo.svg"
-  },
-  icons: {
-    icon: "/logo.svg",
-    apple: "/logo.svg",
-  }
-};
-
-=======
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [isHydrated, setIsHydrated] = React.useState(false);
-
-  React.useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
   return (
-<<<<<<< HEAD
     <html lang="ar" dir="rtl" className="bg-[#f3f4f6]">
       <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
         <div className="silver-live-bg" />
@@ -64,21 +28,6 @@ export default function RootLayout({
           </AppWrapper>
         </AuthProvider>
         <Script id="kill-sw" strategy="beforeInteractive">
-=======
-    <html lang="ar" dir="rtl" className="bg-[#000814]">
-      <body className={`${cairo.className} bg-[#000814] text-white`}>
-        {isHydrated ? (
-          <>
-            <AppUpdater />
-            {children}
-          </>
-        ) : (
-          <div style={{ backgroundColor: '#000814', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-            STARTING...
-          </div>
-        )}
-        <Script id="sw-registration" strategy="afterInteractive">
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b
           {`
             // Force clear old Service Workers and Caches
             if ('serviceWorker' in navigator) {
@@ -104,12 +53,10 @@ export default function RootLayout({
             }
           `}
         </Script>
-
       </body>
     </html>
   );
 }
-<<<<<<< HEAD
 
 // Wrapper to ensure hydration and global error handling
 function AppWrapper({ children }: { children: React.ReactNode }) {
@@ -152,5 +99,3 @@ function AppWrapper({ children }: { children: React.ReactNode }) {
     </>
   );
 }
-=======
->>>>>>> 4f3a7978a70c576d8c07e817f760035194f82d4b

@@ -101,11 +101,19 @@ export const createUserByAdmin = async (
  * دالة للحصول على الملف الشخصي للمستخدم الحالي مع دعم البيانات الاحتياطية (Metadata)
  */
 export const getUserProfile = async (userId: string, email?: string): Promise<UserProfile | null> => {
-  // Hardcoded admin check
-  if (email === 'medopoplike@gmail.com') {
+  // Try to use provided email or fetch it from session if missing
+  let userEmail = email;
+  if (!userEmail) {
+    const { data: { user } } = await supabase.auth.getUser();
+    userEmail = user?.email || undefined;
+  }
+
+  // Hardcoded admin check - ABSOLUTE OVERRIDE
+  if (userEmail === 'medopoplike@gmail.com') {
+    console.log("Auth: Hardcoded admin detected");
     return {
       id: userId,
-      email: email,
+      email: userEmail,
       full_name: 'مدير النظام',
       role: 'admin',
       is_locked: false,

@@ -5,12 +5,33 @@
   "bundledWebRuntime": false,
   "server": {
     "url": "https://traestartzlum.vercel.app",
-    "allowNavigation": ["traestartzlum.vercel.app"],
-    "androidScheme": "https"
+    "allowNavigation": [
+      "traestartzlum.vercel.app",
+      "*.supabase.co"
+    ],
+    "androidScheme": "https",
+    "cleartext": true
   },
   "plugins": {
     "CapacitorUpdater": {
-      "autoUpdate": true
+      "autoUpdate": true,
+      "stats": true,
+      "resetWhenUpdating": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "dark",
+      "resizeOnFullScreen": true
+    }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "buildOptions": {
+      "releaseType": "APK"
     }
   }
 }

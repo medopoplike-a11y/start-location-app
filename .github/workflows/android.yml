@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web Project
+        run: npm run build
+
+      - name: Fix Paths
+        run: node fix-paths.js
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Android APK
+        run: |
+          npx cap sync android
+          cd android && ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: start-location-release-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
