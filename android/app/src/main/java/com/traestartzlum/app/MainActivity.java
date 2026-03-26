@@ -1,4 +1,4 @@
-package com.traestartzlum.app;
+package com.start.location;
 
 import android.os.Bundle;
 import android.view.View;
