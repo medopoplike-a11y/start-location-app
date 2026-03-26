@@ -36,13 +36,12 @@ jobs:
 
       - name: Build Android APK
         run: |
-          # إعطاء صلاحية التنفيذ لملف جرادل (حل مشكلة الويندوز)
           chmod +x android/gradlew
           npx cap sync android
-          cd android && ./gradlew assembleRelease
+          cd android && ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: start-location-release-apk
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: start-location-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
