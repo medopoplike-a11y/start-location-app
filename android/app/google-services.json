@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "802053473019",
+    "project_id": "traestartzlum",
+    "storage_bucket": "traestartzlum.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:802053473019:android:de70f445dd52141411a65e",
+        "android_client_info": {
+          "package_name": "com.start.location"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD32_I4OogbERY0YmTvMUAq8XJnxgvd8fQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
