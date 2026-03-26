@@ -29,7 +29,7 @@ export interface Order {
 }
 
 /**
- * جلب جميع الطلبات المتاحة للطيارين (محسن للأداء)
+ * جلب جميع الطلبات المتاحة للطيارين
  */
 export const getAvailableOrders = async () => {
   const { data, error } = await supabase
@@ -46,18 +46,57 @@ export const getAvailableOrders = async () => {
 };
 
 /**
- * جلب تفاصيل طلب واحد مع بيانات المحل والطيار
+ * جلب طلبات مطعم معين
  */
-export const getOrderDetails = async (orderId: string) => {
-  return await supabase
+export const getVendorOrders = async (vendorId: string) => {
+  const { data, error } = await supabase
     .from('orders')
-    .select('*, vendor:vendor_id(full_name, phone, location), driver:driver_id(full_name, phone)')
-    .eq('id', orderId)
-    .single();
+    .select('*, driver:driver_id(full_name, phone)')
+    .eq('vendor_id', vendorId)
+    .order('created_at', { ascending: false });
+  return data || [];
 };
 
 /**
- * تحديث حالة الطلب مع تسجيل الحدث في الـ History (قريباً)
+ * إنشاء طلب جديد
+ */
+export const createOrder = async (order: Partial<Order>) => {
+  return await supabase.from('orders').insert([order]).select().single();
+};
+
+/**
+ * تحديث طلب موجود
+ */
+export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
+  return await supabase.from('orders').update(updates).eq('id', orderId).select().single();
+};
+
+/**
+ * إلغاء طلب
+ */
+export const cancelOrder = async (orderId: string) => {
+  return await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId).select().single();
+};
+
+/**
+ * تأكيد تحصيل المديونية من قبل المطعم
+ */
+export const vendorCollectDebt = async (orderId: string) => {
+  return await supabase
+    .from('orders')
+    .update({ vendor_collected_at: new Date().toISOString() })
+    .eq('id', orderId);
+};
+
+/**
+ * حذف الطلبات الملغاة (اختياري)
+ */
+export const deleteCanceledOrders = async (vendorId: string) => {
+  return await supabase.from('orders').delete().eq('vendor_id', vendorId).eq('status', 'cancelled');
+};
+
+/**
+ * تحديث حالة الطلب
  */
 export const updateOrderStatus = async (orderId: string, status: Order['status'], driverId?: string) => {
   const updates: any = { status };
@@ -73,17 +112,47 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
 };
 
 /**
- * نظام الدردشة - إرسال رسالة
+ * الاشتراكات الحية (Real-time Subscriptions)
  */
-export const sendChatMessage = async (orderId: string, senderId: string, text: string) => {
-  return await supabase
-    .from('order_messages')
-    .insert([{ order_id: orderId, sender_id: senderId, message: text }]);
+
+export const subscribeToOrders = (callback: () => void) => {
+  return supabase
+    .channel('public:orders')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
+    .subscribe();
 };
 
-/**
- * نظام الدردشة - الاستماع للرسائل الجديدة
- */
+export const subscribeToProfiles = (callback: () => void) => {
+  return supabase
+    .channel('public:profiles')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, callback)
+    .subscribe();
+};
+
+export const subscribeToWallets = (userId: string, callback: () => void) => {
+  return supabase
+    .channel(`wallet:${userId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'wallets',
+      filter: `user_id=eq.${userId}`
+    }, callback)
+    .subscribe();
+};
+
+export const subscribeToSettlements = (userId: string, callback: () => void) => {
+  return supabase
+    .channel(`settlements:${userId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'settlements',
+      filter: `user_id=eq.${userId}`
+    }, callback)
+    .subscribe();
+};
+
 export const subscribeToMessages = (orderId: string, onNewMessage: (msg: any) => void) => {
   return supabase
     .channel(`chat-${orderId}`)
@@ -94,32 +163,4 @@ export const subscribeToMessages = (orderId: string, onNewMessage: (msg: any) =>
       filter: `order_id=eq.${orderId}`
     }, (payload) => onNewMessage(payload.new))
     .subscribe();
-};
-
-/**
- * تأكيد استلام المديونية (المطعم يؤكد استلام المال من الطيار)
- */
-export const confirmVendorCollection = async (orderId: string) => {
-  return await supabase
-    .from('orders')
-    .update({ vendor_collected_at: new Date().toISOString() })
-    .eq('id', orderId);
-};
-
-// بقية الدوال الأساسية
-export const getVendorOrders = async (vendorId: string) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*, driver:driver_id(full_name, phone)')
-    .eq('vendor_id', vendorId)
-    .order('created_at', { ascending: false });
-  return data || [];
-};
-
-export const createOrder = async (order: Partial<Order>) => {
-  return await supabase.from('orders').insert([order]).select().single();
-};
-
-export const cancelOrder = async (orderId: string) => {
-  return await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId).select().single();
 };
