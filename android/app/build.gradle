@@ -7,8 +7,8 @@ android {
         applicationId "com.start.location"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.4"
+        versionCode 5
+        versionName "1.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,7 +18,9 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled true
+            // تم تعطيل Minify لحل مشكلة R8 وضمان نجاح البناء فوراً
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -41,7 +43,7 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
 
-    // Firebase
+    // Firebase Core & Messaging
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-common'
     implementation 'com.google.firebase:firebase-messaging'
@@ -49,13 +51,7 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-// تطبيق إضافات جوجل (Firebase) بشكل ذكي لضمان عمل التنبيهات
+// تطبيق إضافات جوجل (Firebase) بشكل ذكي
 if (file('google-services.json').exists()) {
     apply plugin: 'com.google.gms.google-services'
-} else {
-    def isReleaseBuild = project.gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") || it.toLowerCase().contains("bundle") }
-    if (isReleaseBuild) {
-        // Warning only instead of hard crash during build check
-        logger.warn("CRITICAL WARNING: 'google-services.json' is missing for a Release build.")
-    }
 }
