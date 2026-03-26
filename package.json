@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,7 @@
     "@capacitor/geolocation": "^8.0.0",
     "@capacitor/camera": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.2",
-    "@capacitor-community/background-geolocation": "^2.0.0",
+    "@capacitor-community/background-geolocation": "^1.0.3",
     "@capgo/capacitor-updater": "^8.43.11",
     "@supabase/supabase-js": "^2.100.0",
     "@types/leaflet": "^1.9.21",
