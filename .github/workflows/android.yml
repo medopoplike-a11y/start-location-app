@@ -18,10 +18,12 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Project
         run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Fix Paths
         run: node fix-paths.js
@@ -34,6 +36,8 @@ jobs:
 
       - name: Build Android APK
         run: |
+          # إعطاء صلاحية التنفيذ لملف جرادل (حل مشكلة الويندوز)
+          chmod +x android/gradlew
           npx cap sync android
           cd android && ./gradlew assembleRelease
 
