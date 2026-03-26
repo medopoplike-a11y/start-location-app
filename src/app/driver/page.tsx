@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Power, 
@@ -9,7 +9,6 @@ import {
   Banknote,
   AlertCircle, 
   ChevronRight,
-  Route,
   Zap,
   ZapOff,
   TrendingDown,
@@ -24,28 +23,23 @@ import {
   X,
   Settings,
   Store,
-  Activity,
-  Check
+  Activity
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 
 const LiveMap = dynamic(() => import('@/components/LiveMap'), { 
   ssr: false,
-  loading: () => <div className="h-40 w-full bg-white animate-pulse rounded-[32px] flex items-center justify-center text-gray-400 font-bold border border-gray-100">جاري تحميل الخريطة...</div>
+  loading: () => <div className="h-40 w-full bg-gray-50 animate-pulse rounded-[32px] flex items-center justify-center text-gray-400 font-bold border border-gray-100">جاري تحميل الخريطة...</div>
 });
 
-import { SAFE_RIDE_FEE, VENDOR_INSURANCE_FEE } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { updateOrder, subscribeToOrders, subscribeToWallets, subscribeToSettlements, driverConfirmPayment, getAvailableOrders, type Order as DBOrder } from "@/lib/orders";
+import { updateOrder, driverConfirmPayment, getAvailableOrders } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { PremiumCard } from "@/components/PremiumCard";
 import { AppLoader } from "@/components/AppLoader";
 import { useSync } from "@/hooks/useSync";
 import { SyncIndicator } from "@/components/SyncIndicator";
-
-const ACCEPTANCE_RADIUS_KM = 5;
-const DEBT_LIMIT = 1000;
 
 interface Order {
   id: string;
@@ -76,20 +70,14 @@ export default function DriverApp() {
   const [isActive, setIsActive] = useState(false);
   const [autoAccept, setAutoAccept] = useState(false);
   const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSimulating, setIsSimulating] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "history">("orders");
-  const [newOrderNotify, setNewOrderNotify] = useState<Order | null>(null);
-  const [showLockAlert, setShowLockAlert] = useState(false);
-  const [showFinancialGuide, setShowFinancialGuide] = useState(false);
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
   const [vendorDebt, setVendorDebt] = useState(0);
   const [systemDebt, setSystemDebt] = useState(0);
-  const [backgroundActive, setBackgroundActive] = useState(false);
-  const [wakeLockActive, setWakeLockActive] = useState(false);
   const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
@@ -122,12 +110,13 @@ export default function DriverApp() {
     }
   });
 
-  // Initialization & Auth Check
   useEffect(() => {
-    const savedActive = localStorage.getItem("driver_is_active");
-    const savedAutoAccept = localStorage.getItem("driver_auto_accept");
-    if (savedActive !== null) setIsActive(savedActive === "true");
-    if (savedAutoAccept !== null) setAutoAccept(savedAutoAccept === "true");
+    if (typeof window !== "undefined") {
+      const savedActive = localStorage.getItem("driver_is_active");
+      const savedAutoAccept = localStorage.getItem("driver_auto_accept");
+      if (savedActive !== null) setIsActive(savedActive === "true");
+      if (savedAutoAccept !== null) setAutoAccept(savedAutoAccept === "true");
+    }
 
     const setup = async () => {
       try {
@@ -157,18 +146,16 @@ export default function DriverApp() {
     };
 
     setup();
-  }, [router]);
+  }, []);
 
-  // High-accuracy location tracking
   useEffect(() => {
-    if (!navigator.geolocation || !driverId || !isActive) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation || !driverId || !isActive) return;
 
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const newLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
         setDriverLocation(newLocation);
-        setLocationAccuracy(position.coords.accuracy);
-        
+
         await supabase.from('profiles').update({ 
           location: newLocation,
           is_online: true,
@@ -178,7 +165,6 @@ export default function DriverApp() {
       },
       (error) => {
         if (error.code === 1) {
-          alert("صلاحية الوصول للموقع مرفوضة. يرجى تفعيل الـ GPS وإعطاء الصلاحية للمتصفح.");
           setIsActive(false);
         }
       },
@@ -187,8 +173,6 @@ export default function DriverApp() {
 
     return () => navigator.geolocation.clearWatch(watchId);
   }, [driverId, isActive]);
-
-  // --- Logic Helpers ---
 
   const fetchStats = async (currentDriverId: string) => {
     setLastSyncTime(new Date());
@@ -263,8 +247,6 @@ export default function DriverApp() {
       setDriverName(profileData.full_name);
       alert("تم تحديث الملف الشخصي بنجاح.");
       setShowProfileModal(false);
-    } else {
-      alert("حدث خطأ أثناء تحديث الملف الشخصي.");
     }
     setSavingProfile(false);
   };
@@ -272,15 +254,11 @@ export default function DriverApp() {
   const toggleActive = async () => {
     const newStatus = !isActive;
     setIsActive(newStatus);
-    localStorage.setItem("driver_is_active", newStatus.toString());
+    if (typeof window !== "undefined") {
+      localStorage.setItem("driver_is_active", newStatus.toString());
+    }
     if (driverId) {
       await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
-    }
-    if (newStatus) {
-      playNotification();
-      addActivity("بدء المناوبة - أنت متصل الآن");
-    } else {
-      addActivity("إنهاء المناوبة - أنت غير متصل");
     }
   };
 
@@ -292,476 +270,87 @@ export default function DriverApp() {
     }, ...prev].slice(0, 3));
   };
 
-  const acceptOrder = async (orderId: string) => {
-    if (!driverId) return;
-    if (orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length >= 3) {
-      alert("عذراً، لا يمكنك قبول أكثر من 3 طلبات نشطة في نفس الوقت.");
-      return;
-    }
-    const { data, error } = await updateOrder(orderId, { driver_id: driverId, status: 'assigned' });
-    if (!error && data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
-      playNotification();
-      addActivity(`تم قبول الطلب #${orderId.slice(0, 8)}`);
-    }
-  };
-
-  const pickupOrder = async (orderId: string) => {
-    if (!driverId) return;
-    const { data, error } = await updateOrder(orderId, { driver_id: driverId, status: 'in_transit' });
-    if (!error && data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
-      playNotification();
-      addActivity(`استلام الطلب #${orderId.slice(0, 8)}`);
-    }
-  };
-
-  const initiatePaymentSettlement = async (orderId: string) => {
-    if (!driverId) return;
-    const { error } = await driverConfirmPayment(orderId);
-    if (!error) {
-      addActivity(`تم طلب تسوية الدفع للمحل #${orderId.slice(0, 8)}`);
-      playNotification();
-      fetchOrders(driverId);
-    }
-  };
-
-  const simulateDelivery = async (orderId: string) => {
-    setIsSimulating(true);
-    const { data, error } = await updateOrder(orderId, { status: 'delivered' });
-    if (!error && data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data) : o));
-      if (driverId) {
-        await fetchStats(driverId);
-        await fetchOrders(driverId);
-      }
-      playNotification();
-      addActivity(`تم تسليم الطلب #${orderId.slice(0, 8)}`);
-    }
-    setIsSimulating(false);
-  };
-
-  const playNotification = () => {
-    if (typeof window !== "undefined") {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
-      audio.play().catch(() => {});
-      if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
-    }
-  };
-
-  const handleRequestSettlement = async () => {
-    if (!driverId || !settlementAmount) return;
-    const { error } = await supabase.from('settlements').insert([{ user_id: driverId, amount: Number(settlementAmount), status: 'pending', method: 'Vodafone Cash' }]);
-    if (!error) {
-      alert("تم إرسال طلب التسوية بنجاح.");
-      setShowSettlementModal(false);
-      setSettlementAmount("");
-      if (driverId) fetchStats(driverId);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (newPassword !== confirmPassword) { setPasswordError("كلمات السر غير متطابقة"); return; }
-    if (newPassword.length < 6) { setPasswordError("6 أحرف على الأقل"); return; }
-    setChangingPassword(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setChangingPassword(false);
-    if (!error) {
-      setShowPasswordModal(false);
-      setNewPassword(""); setConfirmPassword(""); setPasswordError("");
-      alert("تم التغيير بنجاح");
-    } else {
-      setPasswordError(error.message);
-    }
-  };
-
   const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Sign out failed:', error);
-    }
+    try { await signOut(); router.push("/login"); } catch (error) { console.error('Sign out failed:', error); }
   };
-
-  // --- Render Functions ---
-
-  const renderHeader = () => (
-    <header className="bg-white/80 backdrop-blur-xl p-6 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
-      <div className="flex items-center gap-3">
-        <button onClick={() => setShowDrawer(true)} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100">
-          <Menu className="w-5 h-5 text-gray-900" />
-        </button>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-black text-gray-900 leading-tight uppercase tracking-tighter">Start Location</h1>
-            {isActive && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]" />}
-          </div>
-          <p className="text-[10px] font-bold text-gray-400">كابتن: {driverName}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
-        <button onClick={() => setAutoAccept(!autoAccept)} className={`p-2.5 rounded-2xl border transition-all ${autoAccept ? "bg-blue-50 text-blue-600 border-blue-100 shadow-sm shadow-blue-50" : "bg-gray-50 text-gray-400 border-gray-100"}`}>
-          {autoAccept ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
-        </button>
-        <button onClick={toggleActive} className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all ${isActive ? "bg-green-50 border-green-100 text-green-600 shadow-sm shadow-green-50" : "bg-red-50 border-red-100 text-red-600 shadow-sm shadow-red-50"}`}>
-          <Power className={`w-4 h-4 ${isActive ? "text-green-500" : "text-red-500"}`} />
-          <span className="font-black text-[10px] uppercase tracking-widest">{isActive ? "Online" : "Offline"}</span>
-        </button>
-      </div>
-    </header>
-  );
-
-  const renderWalletView = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
-        <button onClick={() => setShowFinancialGuide(true)} className="p-2 bg-blue-50 text-blue-600 rounded-xl"><AlertCircle className="w-5 h-5" /></button>
-      </div>
-
-      <div className="space-y-4">
-        <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">مديونية الشركة (العمولة)</p>
-            <h3 className="text-4xl font-black">{systemDebt.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
-            <button onClick={() => setShowSettlementModal(true)} className="mt-6 w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl text-xs font-bold transition-colors border border-white/10">طلب تسوية مديونية</button>
-          </div>
-          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-brand-red/20 blur-[80px] rounded-full" />
-        </div>
-
-        <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">مديونية المحلات (عهد الطلبات)</p>
-            <h3 className="text-4xl font-black text-gray-900">{vendorDebt.toLocaleString()} <span className="text-lg font-bold text-gray-400">ج.م</span></h3>
-            <p className="text-[10px] text-gray-400 mt-2 font-bold flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-green-500" /> يتم تصفيرها تلقائياً عند تأكيد المحل للاستلام</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900 pr-2">طلبات التسوية الأخيرة</h3>
-        {settlementHistory.length === 0 ? (
-          <div className="bg-gray-50 p-8 rounded-[32px] text-center border border-dashed border-gray-200">
-            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات تسوية سابقة</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {settlementHistory.map(s => (
-              <div key={s.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.status === 'تم السداد' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
-                    <Wallet className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">{s.vendor}</p>
-                    <p className="text-[10px] text-gray-400 font-bold">{s.date}</p>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-black text-gray-900">{s.amount} ج.م</p>
-                  <p className={`text-[10px] font-bold ${s.status === 'تم السداد' ? 'text-green-600' : 'text-orange-600'}`}>{s.status}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderHistoryView = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">سجل العمليات</h2>
-      <div className="space-y-4">
-        {orders.filter(o => o.status === "delivered" || o.status === "cancelled").length === 0 ? (
-          <div className="bg-white p-12 rounded-[40px] text-center border border-dashed border-gray-200">
-            <History className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-            <p className="text-sm text-gray-400 font-bold">السجل فارغ حالياً</p>
-          </div>
-        ) : (
-          orders.filter(o => o.status === "delivered" || o.status === "cancelled").map(order => (
-            <div key={order.id} className="bg-white p-5 rounded-3xl border border-gray-100 flex flex-col gap-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
-                    <History className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-900">{order.vendor}</p>
-                    <p className="text-[10px] text-gray-400 font-bold">#{order.id.slice(0, 8)} • {order.fee}</p>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
-                    {translateStatus(order.status)}
-                  </span>
-                </div>
-              </div>
-              
-              {order.status === "delivered" && !order.vendorCollectedAt && (
-                <div className="pt-3 border-t border-gray-50">
-                  {!order.driverConfirmedAt ? (
-                    <button 
-                      onClick={() => initiatePaymentSettlement(order.id)}
-                      className="w-full bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow hover:text-gray-900 py-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Banknote className="w-4 h-4" />
-                      تسوية الدفع مع المحل
-                    </button>
-                  ) : (
-                    <div className="w-full bg-gray-50 text-gray-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      بانتظار تأكيد المحل لاستلام المبلغ
-                    </div>
-                  )}
-                </div>
-              )}
-              {order.status === "delivered" && order.vendorCollectedAt && (
-                <div className="pt-3 border-t border-gray-50">
-                  <div className="w-full bg-green-50 text-green-600 py-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2">
-                    <CheckCircle className="w-3 h-3" />
-                    تمت تسوية الدفع مع المحل
-                  </div>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  const renderDrawer = () => (
-    <AnimatePresence>
-      {showDrawer && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrawer(false)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]" />
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 bottom-0 w-72 bg-white z-[101] shadow-2xl flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-brand-red/10 rounded-xl flex items-center justify-center text-brand-red">
-                  <Activity className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 text-sm">{driverName}</p>
-                  <p className="text-[10px] text-gray-400 font-bold">{isActive ? 'متصل الآن' : 'غير متصل'}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="flex-1 p-4 space-y-2">
-              <button onClick={() => { setActiveTab("orders"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "orders" ? "bg-brand-red/10 text-brand-red" : "hover:bg-gray-50 text-gray-700"}`}>
-                <Truck className="w-5 h-5" />
-                <span className="text-sm font-bold">الطلبات المتاحة</span>
-              </button>
-              <button onClick={() => { setActiveTab("wallet"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "wallet" ? "bg-brand-red/10 text-brand-red" : "hover:bg-gray-50 text-gray-700"}`}>
-                <Wallet className="w-5 h-5" />
-                <span className="text-sm font-bold">المحفظة المالية</span>
-              </button>
-              <button onClick={() => { setActiveTab("history"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === "history" ? "bg-brand-red/10 text-brand-red" : "hover:bg-gray-50 text-gray-700"}`}>
-                <History className="w-5 h-5" />
-                <span className="text-sm font-bold">سجل العمليات</span>
-              </button>
-              <div className="h-px bg-gray-100 my-4" />
-              <button onClick={() => { setShowDrawer(false); setShowProfileModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors">
-                <Settings className="w-5 h-5 text-gray-400" />
-                <span className="text-sm font-bold text-gray-700">إعدادات الحساب</span>
-              </button>
-              <button onClick={() => { setShowDrawer(false); setShowPasswordModal(true); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors">
-                <ShieldCheck className="w-5 h-5 text-gray-400" />
-                <span className="text-sm font-bold text-gray-700">تغيير كلمة السر</span>
-              </button>
-            </div>
-            <div className="p-4 border-t border-gray-100">
-              <button onClick={handleSignOut} className="w-full flex items-center gap-3 p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-colors">
-                <LogOut className="w-5 h-5" />
-                <span className="text-sm font-bold">تسجيل الخروج</span>
-              </button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
 
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-red/10" dir="rtl">
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans" dir="rtl">
       <div className="silver-live-bg" />
-      {renderHeader()}
+
+      <header className="bg-white/80 backdrop-blur-xl p-6 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowDrawer(true)} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100">
+            <Menu className="w-5 h-5 text-gray-900" />
+          </button>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-black text-gray-900 leading-tight">Start Location</h1>
+            <p className="text-[10px] font-bold text-gray-400">كابتن: {driverName}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
+          <button onClick={toggleActive} className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all ${isActive ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+            <Power className="w-4 h-4" />
+            <span className="font-black text-[10px]">{isActive ? "Online" : "Offline"}</span>
+          </button>
+        </div>
+      </header>
+
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
-        {activeTab === "orders" ? (
-          <>
-            {isActive && activityLog.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-red animate-pulse" />
-                <AnimatePresence mode="popLayout">
-                  {activityLog.map(log => (
-                    <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-2">
-                      <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-red" /><span className="text-[10px] font-bold text-gray-600">{log.text}</span></div>
-                      <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+        <Suspense fallback={<AppLoader />}>
+          {activeTab === "orders" ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <PremiumCard title="أرباح اليوم" value={todayDeliveryFees} icon={<TrendingDown className="text-green-500 w-5 h-5" />} subtitle="ج.م" delay={0.1} />
+                <PremiumCard title="مديونية المحلات" value={vendorDebt} icon={<Store className="text-orange-500 w-5 h-5" />} subtitle="ج.م" delay={0.2} />
               </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <PremiumCard
-                title="أرباح اليوم"
-                value={todayDeliveryFees}
-                icon={<TrendingDown className="text-green-500 w-5 h-5" />}
-                subtitle="ج.م"
-                delay={0.1}
-              />
-              <PremiumCard
-                title="مديونية المحلات"
-                value={vendorDebt}
-                icon={<Store className="text-brand-orange w-5 h-5" />}
-                subtitle="ج.م"
-                delay={0.2}
-              />
-            </div>
-            
-            <PremiumCard
-              title="مديونية الشركة (العمولات)"
-              value={systemDebt}
-              icon={<ShieldCheck className="text-brand-red w-5 h-5" />}
-              subtitle="ج.م"
-              className="mt-4"
-              delay={0.3}
-            />
-
-            <section className="space-y-4">
-              {isActive && driverLocation && (
-                <LiveMap 
-                  drivers={[{ id: driverId || 'me', name: 'موقعي', ...driverLocation }]} 
-                  center={[driverLocation.lat, driverLocation.lng]}
-                  zoom={15}
-                  className="h-40 w-full rounded-[32px] overflow-hidden shadow-sm border border-gray-100 mb-4"
-                />
-              )}
-              {!isActive ? (
-                <div className="bg-white p-8 rounded-[40px] shadow-sm text-center border border-gray-100">
-                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Power className="w-8 h-8" /></div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">أنت غير متصل</h2>
-                  <button onClick={toggleActive} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-red-200 mt-6">بدء العمل الآن</button>
-                </div>
-              ) : orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length === 0 ? (
-                <div className="bg-white p-8 rounded-[40px] shadow-sm text-center border border-gray-100">
-                  <Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                  <p className="text-sm text-gray-400 font-bold">لا توجد طلبات متاحة حالياً</p>
-                </div>
-              ) : (
-                orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').map(order => (
-                  <div key={order.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative overflow-hidden group">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-brand-red/10 group-hover:text-brand-red transition-colors"><Store className="w-6 h-6" /></div>
-                        <div><h3 className="font-black text-gray-900">{order.vendor}</h3><p className="text-[10px] text-gray-400">#{order.id.slice(0, 8)}</p></div>
-                      </div>
-                      <div className="text-left"><p className="text-sm font-black text-brand-red">{order.fee}</p><p className="text-[10px] text-gray-400">{order.distance}</p></div>
-                    </div>
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-2 text-gray-600"><Clock className="w-4 h-4 text-gray-400" /><p className="text-xs font-bold">وقت التحضير: {order.prepTime} دقيقة</p></div>
-                      <div className="flex items-center gap-2 text-gray-600"><Truck className="w-4 h-4 text-gray-400" /><p className="text-xs font-bold truncate">{order.address}</p></div>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {order.status === 'pending' ? (
-                        <button onClick={() => acceptOrder(order.id)} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-red-100 active:scale-95 transition-transform">قبول الطلب</button>
-                      ) : (
-                        <>
-                          <div className="flex gap-2">
-                            {order.status === 'assigned' ? (
-                              <button onClick={() => pickupOrder(order.id)} className="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform">تأكيد الاستلام من المحل</button>
-                            ) : (
-                              <button onClick={() => simulateDelivery(order.id)} disabled={isSimulating} className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform disabled:opacity-50">تأكيد التسليم للعميل</button>
-                            )}
-                          </div>
-                          {!order.vendorCollectedAt && (
-                            <button 
-                              onClick={() => initiatePaymentSettlement(order.id)}
-                              className="w-full bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/20 py-3 rounded-xl text-[10px] font-black hover:bg-brand-yellow hover:text-gray-900 transition-all flex items-center justify-center gap-2"
-                            >
-                              <Banknote className="w-4 h-4" />
-                              دفع المديونية للمحل الآن
-                            </button>
-                          )}
-                        </>
-                      )}
-                      <div className="flex gap-2 mt-1">
-                        <a href={`tel:${order.vendorPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-50 text-gray-600 rounded-xl hover:bg-brand-red/10 hover:text-brand-red transition-colors text-[10px] font-bold border border-gray-100">
-                          <Phone className="w-4 h-4" />
-                          اتصال بالمحل
-                        </a>
-                        {order.customerPhone && (
-                          <a href={`tel:${order.customerPhone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors text-[10px] font-bold border border-blue-100">
-                            <MessageCircle className="w-4 h-4" />
-                            اتصال بالعميل
-                          </a>
-                        )}
-                      </div>
-                    </div>
+              
+              <section className="space-y-4">
+                {isActive && driverLocation && (
+                  <LiveMap drivers={[{ id: driverId || 'me', name: 'موقعي', ...driverLocation }]} center={[driverLocation.lat, driverLocation.lng]} zoom={15} className="h-40 w-full rounded-[32px] overflow-hidden shadow-sm border border-gray-100 mb-4" />
+                )}
+                {orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length === 0 ? (
+                  <div className="bg-white p-8 rounded-[40px] shadow-sm text-center border border-gray-100">
+                    <Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                    <p className="text-sm text-gray-400 font-bold">لا توجد طلبات متاحة</p>
                   </div>
-                ))
-              )}
-            </section>
-          </>
-        ) : activeTab === "wallet" ? (
-          renderWalletView()
-        ) : (
-          renderHistoryView()
-        )}
+                ) : (
+                  orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').map(order => (
+                    <div key={order.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400"><Store className="w-6 h-6" /></div>
+                          <div><h3 className="font-black text-gray-900">{order.vendor}</h3><p className="text-[10px] text-gray-400">#{order.id.slice(0, 8)}</p></div>
+                        </div>
+                        <div className="text-left"><p className="text-sm font-black text-red-600">{order.fee}</p></div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </section>
+            </>
+          ) : (
+            <div className="text-center py-20"><p className="text-gray-400">جاري تحميل البيانات...</p></div>
+          )}
+        </Suspense>
       </main>
 
-      {renderDrawer()}
-
-      {/* Modals */}
       <AnimatePresence>
-        {(showProfileModal || showSettlementModal || showPasswordModal) && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl border border-gray-100 relative max-h-[90vh] overflow-y-auto">
-              <button onClick={() => { setShowProfileModal(false); setShowSettlementModal(false); setShowPasswordModal(false); }} className="absolute top-6 left-6 text-gray-400 hover:text-gray-900 text-2xl">×</button>
-              
-              {showProfileModal && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-black text-gray-900 text-right">تحديث الملف الشخصي</h2>
-                  <div className="space-y-4">
-                    <input type="text" value={profileData.full_name} onChange={e => setProfileData({...profileData, full_name: e.target.value})} placeholder="الاسم بالكامل" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-800 outline-none focus:ring-2 ring-brand-red font-bold text-right" />
-                    <input type="tel" value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} placeholder="رقم الهاتف" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-800 outline-none focus:ring-2 ring-brand-red font-bold text-right" />
-                    <input type="text" value={profileData.area} onChange={e => setProfileData({...profileData, area: e.target.value})} placeholder="المنطقة" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-800 outline-none focus:ring-2 ring-brand-red font-bold text-right" />
-                    <button onClick={handleUpdateProfile} disabled={savingProfile} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-red/20 active:scale-95 transition-all">{savingProfile ? "جاري الحفظ..." : "حفظ التغييرات"}</button>
-                  </div>
-                </div>
-              )}
-
-              {showSettlementModal && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-black text-gray-900 text-right">طلب تسوية مديونية</h2>
-                  <div className="space-y-4">
-                    <p className="text-xs text-gray-500 font-bold text-right">يرجى إدخال المبلغ الذي قمت بتحويله للشركة</p>
-                    <input type="number" value={settlementAmount} onChange={e => setSettlementAmount(e.target.value)} placeholder="0.00" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-800 outline-none focus:ring-2 ring-brand-red font-bold text-right" />
-                    <button onClick={handleRequestSettlement} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-red/20 active:scale-95 transition-all">إرسال الطلب</button>
-                  </div>
-                </div>
-              )}
-
-              {showPasswordModal && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-black text-gray-900 text-right">تغيير كلمة السر</h2>
-                  <div className="space-y-4">
-                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-800 outline-none focus:ring-2 ring-brand-red font-bold text-right" />
-                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-800 outline-none focus:ring-2 ring-brand-red font-bold text-right" />
-                    {passwordError && <p className="text-brand-red text-[10px] font-bold text-right">{passwordError}</p>}
-                    <button onClick={handleChangePassword} disabled={changingPassword} className="w-full bg-brand-red text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-red/20 active:scale-95 transition-all">{changingPassword ? "جاري التغيير..." : "حفظ التغييرات"}</button>
-                  </div>
-                </div>
-              )}
+        {showDrawer && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrawer(false)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]" />
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 bottom-0 w-72 bg-white z-[101] shadow-2xl flex flex-col">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center"><h3 className="font-bold">القائمة</h3><button onClick={() => setShowDrawer(false)}><X className="w-5 h-5" /></button></div>
+              <div className="flex-1 p-4 space-y-2">
+                <button onClick={() => setActiveTab("orders")} className="w-full text-right p-4 rounded-xl hover:bg-gray-50 font-bold">الطلبات</button>
+                <button onClick={() => setActiveTab("wallet")} className="w-full text-right p-4 rounded-xl hover:bg-gray-50 font-bold">المحفظة</button>
+                <button onClick={handleSignOut} className="w-full text-right p-4 rounded-xl hover:bg-red-50 text-red-500 font-bold">تسجيل الخروج</button>
+              </div>
             </motion.div>
-          </div>
+          </>
         )}
       </AnimatePresence>
     </div>
