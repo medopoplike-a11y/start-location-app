@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  output: 'export', // ضروري لعمل التطبيق كـ Native APK
   images: {
-    unoptimized: true,
+    unoptimized: true, // الصور يجب أن تكون غير محسنة لتعمل محلياً في الأندرويد
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  trailingSlash: true,
+  // إزالة server.url إذا كنت تريد الاعتماد كلياً على ملفات APK المحلية مع OTA
+  // ولكننا سنبقيها في capacitor.config.json للسرعة حالياً
 };
 
 export default nextConfig;

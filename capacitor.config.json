@@ -7,7 +7,8 @@
     "url": "https://traestartzlum.vercel.app",
     "allowNavigation": [
       "traestartzlum.vercel.app",
-      "*.supabase.co"
+      "*.supabase.co",
+      "*.firebaseio.com"
     ],
     "androidScheme": "https",
     "cleartext": true
@@ -16,7 +17,8 @@
     "CapacitorUpdater": {
       "autoUpdate": true,
       "stats": true,
-      "resetWhenUpdating": false
+      "resetWhenUpdating": false,
+      "appId": "com.start.location"
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
@@ -25,6 +27,13 @@
       "resize": "body",
       "style": "dark",
       "resizeOnFullScreen": true
+    },
+    "BackgroundGeolocation": {
+      "staleLocationInterval": 10000,
+      "distanceFilter": 10,
+      "stopOnTerminate": false,
+      "startOnBoot": true,
+      "foregroundService": true
     }
   },
   "android": {

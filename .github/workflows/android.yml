@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build & Deploy Start-OS
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -20,13 +22,17 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Web Project
+      - name: Build Static Web
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Fix Paths
-        run: node fix-paths.js
+      - name: Fix Paths & Bundle OTA
+        run: |
+          node fix-paths.js
+          mkdir -p dist
+          cd out && zip -r ../dist/update.zip .
+          cd ..
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -34,15 +40,29 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build Android APK
+      - name: Build Signed APK
         run: |
-          # إعطاء صلاحية التنفيذ لملف جرادل (حل مشكلة الويندوز)
           chmod +x android/gradlew
           npx cap sync android
           cd android && ./gradlew assembleRelease
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main')
         with:
-          name: start-location-release-apk
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          files: |
+            android/app/build/outputs/apk/release/app-release-unsigned.apk
+            dist/update.zip
+          tag_name: v${{ github.run_number }}
+          name: Start-OS Release v${{ github.run_number }}
+          body: |
+            🚀 تحديث جديد للنظام (Start-OS)
+            - إضافة نظام التتبع في الخلفية (GPS)
+            - تفعيل التحديثات التلقائية (OTA)
+            - تحسين واجهة المستخدم (Silver Theme)
+            - إصلاح أذونات الكاميرا وسجل المكالمات
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

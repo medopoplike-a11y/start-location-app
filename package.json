@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +8,8 @@
     "build:mobile": "next build && node fix-paths.js && npx cap sync android",
     "build:win": "next build ; node fix-paths.js ; npx cap sync android",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "bundle:ota": "next build && node fix-paths.js && cd out && zip -r ../dist/update.zip ."
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
@@ -17,6 +18,7 @@
     "@capacitor/geolocation": "^8.0.0",
     "@capacitor/camera": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.2",
+    "@capacitor-community/background-geolocation": "^2.0.0",
     "@capgo/capacitor-updater": "^8.43.11",
     "@supabase/supabase-js": "^2.100.0",
     "@types/leaflet": "^1.9.21",

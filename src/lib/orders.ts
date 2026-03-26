@@ -29,135 +29,97 @@ export interface Order {
 }
 
 /**
- * جلب طلبات المحل
- */
-export const getVendorOrders = async (vendorId: string) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*, profiles:driver_id(full_name, phone)')
-    .eq('vendor_id', vendorId)
-    .order('created_at', { ascending: false });
-  return data || [];
-};
-
-/**
- * جلب الطلبات المتاحة للطيارين (مع بيانات المطعم)
+ * جلب جميع الطلبات المتاحة للطيارين (محسن للأداء)
  */
 export const getAvailableOrders = async () => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*, profiles:vendor_id(full_name, phone, location)')
-    .or('status.eq.pending,status.eq.assigned,status.eq.in_transit')
+    .select('*, profiles:vendor_id(full_name, phone, location, area)')
+    .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error("Error fetching available orders:", error);
+    console.error("Orders: Fetch available failed", error);
     return [];
   }
   return data || [];
 };
 
 /**
- * إنشاء طلب جديد
+ * جلب تفاصيل طلب واحد مع بيانات المحل والطيار
  */
-export const createOrder = async (order: Partial<Order>) => {
-  const { data, error } = await supabase
+export const getOrderDetails = async (orderId: string) => {
+  return await supabase
     .from('orders')
-    .insert([order])
-    .select()
+    .select('*, vendor:vendor_id(full_name, phone, location), driver:driver_id(full_name, phone)')
+    .eq('id', orderId)
     .single();
-
-  return { data, error };
 };
 
 /**
- * تحديث حالة الطلب
+ * تحديث حالة الطلب مع تسجيل الحدث في الـ History (قريباً)
  */
-export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
-  const { data, error } = await supabase
+export const updateOrderStatus = async (orderId: string, status: Order['status'], driverId?: string) => {
+  const updates: any = { status };
+  if (driverId) updates.driver_id = driverId;
+  if (status === 'delivered') updates.driver_confirmed_at = new Date().toISOString();
+
+  return await supabase
     .from('orders')
     .update(updates)
     .eq('id', orderId)
     .select()
     .single();
-  return { data, error };
 };
 
 /**
- * إلغاء الطلب
+ * نظام الدردشة - إرسال رسالة
  */
-export const cancelOrder = async (orderId: string) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .update({ status: 'cancelled' })
-    .eq('id', orderId)
-    .select()
-    .single();
-  return { data, error };
+export const sendChatMessage = async (orderId: string, senderId: string, text: string) => {
+  return await supabase
+    .from('order_messages')
+    .insert([{ order_id: orderId, sender_id: senderId, message: text }]);
 };
 
 /**
- * تأكيد تحصيل المديونية من قبل المحل
+ * نظام الدردشة - الاستماع للرسائل الجديدة
  */
-export const vendorCollectDebt = async (orderId: string) => {
-  const { error } = await supabase
+export const subscribeToMessages = (orderId: string, onNewMessage: (msg: any) => void) => {
+  return supabase
+    .channel(`chat-${orderId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'order_messages',
+      filter: `order_id=eq.${orderId}`
+    }, (payload) => onNewMessage(payload.new))
+    .subscribe();
+};
+
+/**
+ * تأكيد استلام المديونية (المطعم يؤكد استلام المال من الطيار)
+ */
+export const confirmVendorCollection = async (orderId: string) => {
+  return await supabase
     .from('orders')
-    .update({
-      vendor_collected_at: new Date().toISOString()
-    })
+    .update({ vendor_collected_at: new Date().toISOString() })
     .eq('id', orderId);
-  return { error };
 };
 
-/**
- * تأكيد دفع المديونية من قبل الطيار
- */
-export const driverConfirmPayment = async (orderId: string) => {
+// بقية الدوال الأساسية
+export const getVendorOrders = async (vendorId: string) => {
   const { data, error } = await supabase
     .from('orders')
-    .update({ driver_confirmed_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .select()
-    .single();
-
-  return { data, error };
-};
-
-// --- الاشتراكات اللحظية ---
-
-export const subscribeToOrders = (onUpdate: (payload: any) => void) => {
-  return supabase
-    .channel('orders-channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, onUpdate)
-    .subscribe();
-};
-
-export const subscribeToProfiles = (onUpdate: (payload: any) => void) => {
-  return supabase
-    .channel('profiles-channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, onUpdate)
-    .subscribe();
-};
-
-export const subscribeToWallets = (userId: string, onUpdate: (payload: any) => void) => {
-  return supabase
-    .channel(`wallet-${userId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `user_id=eq.${userId}` }, onUpdate)
-    .subscribe();
-};
-
-export const subscribeToSettlements = (userId: string, onUpdate: (payload: any) => void) => {
-  return supabase
-    .channel(`settlements-${userId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements', filter: `user_id=eq.${userId}` }, onUpdate)
-    .subscribe();
-};
-
-export const deleteCanceledOrders = async (vendorId: string) => {
-  const { error } = await supabase
-    .from('orders')
-    .delete()
+    .select('*, driver:driver_id(full_name, phone)')
     .eq('vendor_id', vendorId)
-    .eq('status', 'cancelled');
-  return { error };
+    .order('created_at', { ascending: false });
+  return data || [];
+};
+
+export const createOrder = async (order: Partial<Order>) => {
+  return await supabase.from('orders').insert([order]).select().single();
+};
+
+export const cancelOrder = async (orderId: string) => {
+  return await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId).select().single();
 };
