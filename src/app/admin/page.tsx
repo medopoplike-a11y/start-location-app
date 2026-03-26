@@ -401,8 +401,6 @@ export default function AdminPanel() {
                 <div className="bg-white border border-gray-100 rounded-[40px] p-6 shadow-sm"><AccountsView users={allUsers} /></div>
               </div>
             )}
-
-            {/* باقي الواجهات يتم إضافتها هنا بشكل مشابه */}
           </Suspense>
         </div>
       </main>

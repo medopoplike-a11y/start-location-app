@@ -37,11 +37,28 @@ export const getVendorOrders = async (vendorId: string) => {
     .select('*, profiles:driver_id(full_name, phone)')
     .eq('vendor_id', vendorId)
     .order('created_at', { ascending: false });
-  return { data, error };
+  return data || [];
 };
 
 /**
- * إنشاء طلب جديد مع إشعار الطيارين القريبين (Logic خرافي)
+ * جلب الطلبات المتاحة للطيارين (مع بيانات المطعم)
+ */
+export const getAvailableOrders = async () => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, profiles:vendor_id(full_name, phone, location)')
+    .or('status.eq.pending,status.eq.assigned,status.eq.in_transit')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching available orders:", error);
+    return [];
+  }
+  return data || [];
+};
+
+/**
+ * إنشاء طلب جديد
  */
 export const createOrder = async (order: Partial<Order>) => {
   const { data, error } = await supabase
@@ -50,10 +67,6 @@ export const createOrder = async (order: Partial<Order>) => {
     .select()
     .single();
 
-  if (!error && data) {
-    // هنا يمكن إضافة logic لإرسال إشعارات للطيارين القريبين
-    console.log('Order created, notifying nearby drivers...');
-  }
   return { data, error };
 };
 
@@ -71,7 +84,7 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
 };
 
 /**
- * إلغاء الطلب (فقط إذا لم يتم استلامه)
+ * إلغاء الطلب
  */
 export const cancelOrder = async (orderId: string) => {
   const { data, error } = await supabase
@@ -96,7 +109,21 @@ export const vendorCollectDebt = async (orderId: string) => {
   return { error };
 };
 
-// --- Subscriptions (الاشتراكات اللحظية) ---
+/**
+ * تأكيد دفع المديونية من قبل الطيار
+ */
+export const driverConfirmPayment = async (orderId: string) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ driver_confirmed_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  return { data, error };
+};
+
+// --- الاشتراكات اللحظية ---
 
 export const subscribeToOrders = (onUpdate: (payload: any) => void) => {
   return supabase

@@ -5,7 +5,7 @@ import { isNative } from "@/lib/native-utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, RefreshCw, CheckCircle } from "lucide-react";
 
-export const AppUpdater = () => {
+const AppUpdater = () => {
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "downloading" | "ready">("idle");
   const [progress, setProgress] = useState(0);
 
@@ -24,8 +24,6 @@ export const AppUpdater = () => {
 
         // التحقق من وجود نسخة جديدة عند التشغيل
         setUpdateStatus("checking");
-        // ملاحظة: يتم التحديث تلقائياً بناءً على إعدادات capacitor.config.json
-        // ولكن هنا نضيف واجهة مستخدم لإعلام المستخدم
       } catch (e) {
         console.error("Updater Error:", e);
       }
@@ -75,3 +73,5 @@ export const AppUpdater = () => {
     </AnimatePresence>
   );
 };
+
+export default AppUpdater;
