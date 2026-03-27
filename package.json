@@ -9,6 +9,7 @@
     "build:win": "next build ; node fix-paths.js ; npx cap sync android",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "node fix-gradle-proguard.js",
     "bundle:ota": "next build && node fix-paths.js && cd out && zip -r ../dist/update.zip ."
   },
   "dependencies": {
