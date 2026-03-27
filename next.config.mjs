@@ -1,3 +1,5 @@
+import path from 'path';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Only export statically if specifically requested (for mobile builds)
@@ -12,6 +14,14 @@ const nextConfig = {
   trailingSlash: false,
   env: {
     IS_BUILDING: process.env.npm_lifecycle_script === 'next build' ? 'true' : 'false',
+  },
+  turbopack: {},
+  webpack: (config, options) => {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@capacitor-community/background-geolocation': path.resolve(__dirname, 'src/lib/background-geolocation-mock.ts'),
+    };
+    return config;
   },
 };
 

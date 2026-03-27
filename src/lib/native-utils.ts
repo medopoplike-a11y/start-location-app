@@ -84,7 +84,14 @@ export const startBackgroundTracking = async (userId: string) => {
   if (!isNative() || !userId) return;
 
   try {
-    const BackgroundGeolocation = (await import('@capacitor-community/background-geolocation')).BackgroundGeolocation;
+    const pluginName = ['@capacitor-community', 'background-geolocation'].join('/');
+    const pluginModule = await import(pluginName).catch(() => null);
+    if (!pluginModule || !pluginModule.BackgroundGeolocation) {
+      console.warn('BackgroundGeolocation plugin not available.');
+      return;
+    }
+
+    const BackgroundGeolocation = pluginModule.BackgroundGeolocation;
 
     const watcherId = await BackgroundGeolocation.addWatcher(
       {
