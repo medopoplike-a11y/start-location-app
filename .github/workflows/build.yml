@@ -7,6 +7,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
 jobs:
   build:
@@ -26,11 +28,22 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
     
+    - name: Verify Supabase Connection
+      run: |
+        if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then
+          echo "⚠️ Warning: NEXT_PUBLIC_SUPABASE_URL not set"
+        else
+          echo "✅ Supabase URL configured"
+        fi
+    
     - name: Install dependencies
       run: npm install --legacy-peer-deps
     
-    - name: Build Next.js
+    - name: Build Next.js with Supabase
       run: npm run build
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
     
     - name: Sync to Capacitor
       run: npx cap sync android
@@ -61,9 +74,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4.1.1
     
+    - name: Verify Vercel Connection
+      run: |
+        if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+          echo "⚠️ Warning: VERCEL_TOKEN not configured"
+        else
+          echo "✅ Vercel token configured"
+        fi
+    
     - name: Deploy to Vercel
+      if: ${{ secrets.VERCEL_TOKEN != '' }}
       uses: vercel/action@main
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
