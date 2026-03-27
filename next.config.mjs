@@ -6,15 +6,12 @@ const nextConfig = {
     unoptimized: true,
   },
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
   trailingSlash: false,
   env: {
-    IS_BUILDING: process.env.npm_lifecycle_script === 'next build',
+    IS_BUILDING: process.env.npm_lifecycle_script === 'next build' ? 'true' : 'false',
   },
 };
 

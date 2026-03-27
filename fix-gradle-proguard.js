@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 
 /**
  * Fix Gradle ProGuard issue for @capacitor-community/background-geolocation
