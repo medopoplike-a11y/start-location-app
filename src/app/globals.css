@@ -53,6 +53,19 @@
   }
 }
 
+.wicked-glow-mask {
+  position: absolute;
+  inset: 0;
+  background: repeating-radial-gradient(circle at 30% 30%, rgba(56,189,248,0.15) 0 2%, transparent 5%, rgba(99,102,241,0.16) 8%);
+  animation: pulse-mask 12s infinite ease-in-out;
+  mix-blend-mode: screen;
+}
+
+@keyframes pulse-mask {
+  0%, 100% { opacity: 0.2; transform: translate(0,0) scale(1); }
+  50% { opacity: 0.45; transform: translate(20px,-20px) scale(1.05); }
+}
+
 input:focus, button:focus, textarea:focus, select:focus {
   outline: none !important;
   background-color: inherit;

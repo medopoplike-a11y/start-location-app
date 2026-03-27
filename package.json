@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:mobile": "next build && node fix-paths.js && npx cap sync android",
-    "build:win": "next build ; node fix-paths.js ; npx cap sync android",
+    "build:mobile": "next build && node fix-paths.js && node prepare-android.js && npx cap sync android",
+    "build:win": "next build ; node fix-paths.js ; node prepare-android.js ; npx cap sync android",
+    "prepare-android": "node prepare-android.js",
     "start": "next start",
     "lint": "eslint . --max-warnings=200",
     "postinstall": "node fix-gradle-proguard.js",

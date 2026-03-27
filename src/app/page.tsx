@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { useAuth } from "@/components/AuthProvider";
 
+const neonColors = ["#0ea5e9", "#818cf8", "#8b5cf6", "#06b6d4", "#34d399"];
+
 export default function SplashPage() {
   if (process.env.IS_BUILDING) {
     return <div />;
@@ -13,14 +15,19 @@ export default function SplashPage() {
 
   const router = useRouter();
   const [status, setStatus] = useState("Checking System...");
+  const [neonColor, setNeonColor] = useState(neonColors[0]);
   const { user, profile, loading } = useAuth();
 
   useEffect(() => {
-    // Force body background to be matte silver
+    // Force body background to be matte silver with subtle pulsating gradient
     if (typeof document !== 'undefined') {
-      document.body.style.backgroundColor = '#f3f4f6';
-      document.body.style.color = '#1f2937';
+      document.body.style.background = 'radial-gradient(circle at 10% 20%, #e0efff 0%, #cbd5e1 45%, #f3f4f6 100%)';
+      document.body.style.color = '#0f172a';
     }
+    const colorInterval = setInterval(() => {
+      setNeonColor(neonColors[Math.floor(Math.random() * neonColors.length)]);
+    }, 1500);
+    return () => clearInterval(colorInterval);
   }, []);
 
   useEffect(() => {
@@ -65,10 +72,25 @@ export default function SplashPage() {
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-8 overflow-hidden relative" dir="rtl">
       {/* Background Live Silver Effect */}
       <div className="silver-live-bg" />
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="wicked-glow-mask" />
+        <div className="grid grid-cols-4 gap-5 p-8 opacity-30">
+          {[...Array(8)].map((_, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.1, 0.45, 0.1] }}
+              transition={{ duration: 6 + index, repeat: Infinity, ease: "easeInOut" }}
+              className="h-24 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl blur-xl"
+            />
+          ))}
+        </div>
+      </div>
       
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1 }}
         className="relative z-10 flex flex-col items-center gap-12"
       >
         <div className="relative">
@@ -81,7 +103,17 @@ export default function SplashPage() {
         </div>
 
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">Start <span className="text-blue-600">Location</span></h1>
+          <h1 className="text-4xl font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.75)]">Start <span className="text-[rgba(168,85,247,0.94)]">Location</span></h1>
+          <div className="relative">
+            <motion.div
+              animate={{ opacity: [0.2, 0.8, 0.2], scale: [1, 1.07, 1] }}
+              transition={{ duration: 1.7, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -inset-4 rounded-3xl bg-[radial-gradient(circle,rgba(56,189,248,0.35),transparent 60%)] blur-2xl"
+            />
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] z-10 relative" style={{ color: neonColor, textShadow: `0 0 18px ${neonColor}, 0 0 34px #475569` }}>
+              {status}
+            </p>
+          </div>
           <div className="flex flex-col items-center gap-2">
             <div className="flex gap-1.5">
               {[0, 1, 2].map((i) => (
