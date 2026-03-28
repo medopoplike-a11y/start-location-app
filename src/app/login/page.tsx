@@ -9,13 +9,26 @@ import LocationMarker from "@/components/LocationMarker";
 
 type LoginRole = "driver" | "vendor" | "admin";
 
-const DataNode = () => {
+interface DataNodeProps {
+  reduceMotion: boolean;
+}
+
+const DataNode = ({ reduceMotion }: DataNodeProps) => {
   const [config] = useState(() => ({
     x: Math.random() * 100,
     y: Math.random() * 100,
     delay: Math.random() * 5,
-    duration: 10 + Math.random() * 20
+    duration: 6 + Math.random() * 8
   }));
+
+  if (reduceMotion) {
+    return (
+      <div
+        style={{ left: `${config.x}%`, top: `${config.y}%` }}
+        className="absolute w-1 h-1 bg-blue-400 rounded-full blur-[1px] opacity-50"
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -51,12 +64,26 @@ export default function LoginPage() {
   }));
   const mounted = typeof window !== "undefined";
 
+  const supabaseConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes("placeholder")
+  );
+
+  useEffect(() => {
+    if (mounted && typeof window !== "undefined" && window.matchMedia) {
+      setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    }
+  }, [mounted]);
+
   useEffect(() => {
     // Check sensors on load
-    if (mounted) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(() => setSystemStatus(prev => ({...prev, gps: "active"})), () => setSystemStatus(prev => ({...prev, gps: "restricted"})));
-      }
+    if (mounted && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => setSystemStatus(prev => ({ ...prev, gps: "active" })),
+        () => setSystemStatus(prev => ({ ...prev, gps: "restricted" }))
+      );
     }
   }, [mounted]);
 
@@ -64,6 +91,12 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    if (!supabaseConfigured) {
+      setError("نظام Supabase غير مهيئ بشكل كامل. الرجاء ضبط NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error: signInError } = await signIn(email, password);
@@ -153,7 +186,7 @@ export default function LoginPage() {
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Dynamic Nodes */}
         {[...Array(10)].map((_, i) => (
-          <DataNode key={i} />
+          <DataNode key={i} reduceMotion={reduceMotion} />
         ))}
         
         {/* Subtle Vector Grid */}
@@ -255,6 +288,13 @@ export default function LoginPage() {
 
           {/* Form Section */}
           <div className="p-10">
+            {!supabaseConfigured && (
+              <div className="mb-6 rounded-2xl border border-red-300 bg-red-50 p-4 text-red-700 text-xs font-bold">
+                ⚠️ نظام Supabase غير مهيأ بشكل صحيح. سيتم منع تسجيل الدخول حتى يتم ضبط
+                NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY.
+              </div>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] px-2 block">Identity Code</label>
