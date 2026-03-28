@@ -10,7 +10,7 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: false,
   env: {
-    IS_BUILDING: process.env.npm_lifecycle_script === 'next build' ? 'true' : 'false',
+    IS_BUILDING: process.env.BUILD_TYPE === 'static' ? 'true' : 'false',
   },
   turbopack: {},
   webpack: (config) => {
