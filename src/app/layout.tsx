@@ -35,13 +35,10 @@ export default function RootLayout({
                 for (let name of names) caches.delete(name);
               });
             }
-            // Clear specific old session keys
+            // Mark that cleanup has run once, but preserve existing session tokens
             if (typeof localStorage !== 'undefined') {
               if (!localStorage.getItem('start_v3_clean')) {
-                localStorage.clear();
-                sessionStorage.clear();
                 localStorage.setItem('start_v3_clean', 'true');
-                window.location.reload();
               }
             }
           `}

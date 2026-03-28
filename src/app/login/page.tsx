@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
 import { signIn, getUserProfile } from "@/lib/auth";
@@ -50,13 +51,19 @@ const DataNode = ({ reduceMotion }: DataNodeProps) => {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [role, setRole] = useState<LoginRole>("driver");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+    return false;
+  });
   const [systemStatus, setSystemStatus] = useState(() => ({
     gps: "detecting",
     net: typeof window !== "undefined" && !navigator.onLine ? "offline" : "online",
@@ -71,11 +78,6 @@ export default function LoginPage() {
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes("placeholder")
   );
 
-  useEffect(() => {
-    if (mounted && typeof window !== "undefined" && window.matchMedia) {
-      setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    }
-  }, [mounted]);
 
   useEffect(() => {
     // Check sensors on load
@@ -120,11 +122,11 @@ export default function LoginPage() {
 
       if (data?.user) {
         console.log("LoginPage: Login successful for user", data.user.id);
-        
+
         // Wait for profile to be fetched to ensure we have the role
         const profile = await getUserProfile(data.user.id, data.user.email);
         console.log("LoginPage: Profile found:", profile);
-        
+
         if (profile?.role) {
           const userRole = profile.role.toLowerCase();
           // Check if user is trying to login with correct role selector
@@ -133,9 +135,14 @@ export default function LoginPage() {
             setLoading(false);
             return;
           }
-          
-          // Force a full page reload to the dashboard to clear all states
-          window.location.href = `/${userRole}`;
+
+          // Ensure Supabase session appears before navigation
+          await new Promise<void>((resolve) => setTimeout(resolve, 350));
+          console.log("LoginPage: Post-login stabilization", { userRole });
+
+          // Navigate to dashboard of role
+          console.log("LoginPage: Redirecting to", `/${userRole}`);
+          router.replace(`/${userRole}`);
         } else {
           const inferredRole = (data.user.user_metadata?.role || 'driver').toLowerCase();
           setError(`لم يتم العثور على صلاحيات لهذا الحساب. تم التعرّف على الدور كـ ${inferredRole}، يرجى التأكد من أن الصفوف موجودة في جدول profiles.`);
@@ -179,10 +186,10 @@ export default function LoginPage() {
     }
   };
 
-  if (!mounted) return <div className="min-h-screen bg-brand-dark" />;
+  if (!mounted) return <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0b1123]" />;
 
   return (
-    <main className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-white/20" dir="rtl">
+    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0b1123] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden selection:bg-white/20" dir="rtl">
       {/* Background Architecture */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Dynamic Nodes */}
@@ -242,11 +249,10 @@ export default function LoginPage() {
           <div className="h-px w-12 bg-gradient-to-r from-white/20 to-transparent" />
         </div>
         <h1 className="text-4xl font-black text-white tracking-[-0.05em] text-center">
-          START <span className="text-white/40 font-light">LOCATION</span>
-        </h1>
+        START <span className="text-white/80 font-semibold">LOCATION</span>
+      </h1>
+      <p className="text-sm text-white/70 mt-2 max-w-[320px] text-center">واجهة أكثر وضوحاً للقراءة بعكس ألوان الخلفية، ومقاس الخط مضبوط للضحى.</p>
       </motion.div>
-
-      {/* High-Performance Interface Card */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}

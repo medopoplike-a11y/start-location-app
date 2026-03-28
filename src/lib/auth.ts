@@ -112,12 +112,16 @@ export const createUserByAdmin = async (
  * دالة للحصول على الملف الشخصي للمستخدم الحالي مع دعم البيانات الاحتياطية (Metadata)
  */
 export const getUserProfile = async (userId: string, email?: string): Promise<UserProfile | null> => {
+  console.log("getUserProfile: Called with", { userId, email });
+
   // Try to use provided email or fetch it from session if missing
   let userEmail = email;
   if (!userEmail) {
     const { data: { user } } = await supabase.auth.getUser();
     userEmail = user?.email || undefined;
   }
+
+  console.log("getUserProfile: Using email", userEmail);
 
   // Optional admin bootstrap via configured emails only.
   if (isConfiguredAdminEmail(userEmail)) {
@@ -133,6 +137,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
   }
 
   try {
+    console.log("getUserProfile: Fetching from database");
     // 1. محاولة جلب الملف من قاعدة البيانات
     const { data, error } = await supabase
       .from('profiles')
@@ -140,7 +145,10 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
       .eq('id', userId)
       .maybeSingle();
 
+    console.log("getUserProfile: DB result", { data: !!data, error });
+
     if (!error && data) {
+      console.log("getUserProfile: Returning DB profile", data.role);
       return data as UserProfile;
     }
   } catch (dbError) {
@@ -149,6 +157,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
 
   // 2. خطة بديلة: جلب بيانات المستخدم من نظام المصادقة (Auth)
   try {
+    console.log("getUserProfile: Trying fallback from auth metadata");
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user && user.id === userId) {
@@ -167,6 +176,8 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
         created_at: user.created_at || new Date().toISOString(),
       };
 
+      console.log("getUserProfile: Using fallback profile", fallbackProfile.role);
+
       // حاول إنشاء / تحديث الصف حتى يتم حماية المستخدم في المرة المقبلة
       try {
         const { error: upsertError } = await supabase.from('profiles').upsert([{
@@ -180,17 +191,22 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
 
         if (upsertError) {
           console.warn('Auth: Unable to upsert fallback profile:', upsertError);
+        } else {
+          console.log("getUserProfile: Fallback profile upserted successfully");
         }
       } catch (upsertEx) {
         console.warn('Auth: Fallback profile upsert failed:', upsertEx);
       }
 
       return fallbackProfile;
+    } else {
+      console.log("getUserProfile: Auth user not found or ID mismatch");
     }
   } catch (authError) {
     console.error('Auth: Error fetching profile:', authError);
   }
 
+  console.log("getUserProfile: Returning null");
   return null;
 };
 
@@ -198,6 +214,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
  * دالة لتسجيل الدخول بكلمة المرور
  */
 export const signIn = async (email: string, password?: string) => {
+  console.log("signIn: Attempting login for", email);
   if (!password) {
     return { error: new Error("كلمة المرور مطلوبة") };
   }
@@ -206,6 +223,8 @@ export const signIn = async (email: string, password?: string) => {
     email,
     password,
   });
+
+  console.log("signIn: Result", { success: !!data?.user, error: error?.message });
 
   return { data, error };
 };

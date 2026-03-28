@@ -18,6 +18,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [hasRedirected, setHasRedirected] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -27,7 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.user) {
           const userProfile = await getUserProfile(session.user.id, session.user.email);
           if (mounted) {
@@ -38,27 +40,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.error("AuthProvider: Init error", error);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setIsInitializing(false);
+        }
       }
     };
 
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`AuthProvider: Auth event ${event}`);
-      
+      console.log(`AuthProvider: Auth event ${event}`, { session: !!session, user: !!session?.user });
+
       if (session?.user) {
+        console.log("AuthProvider: Fetching profile for user", session.user.id);
         const userProfile = await getUserProfile(session.user.id, session.user.email);
+        console.log("AuthProvider: Profile fetched", { profile: !!userProfile, role: userProfile?.role });
         if (mounted) {
           setUser(session.user);
           setProfile(userProfile);
           setLoading(false);
+          setIsInitializing(false);
+          setHasRedirected(false);
         }
       } else {
+        console.log("AuthProvider: No session, clearing user and profile");
         if (mounted) {
           setUser(null);
           setProfile(null);
           setLoading(false);
+          setIsInitializing(false);
+          setHasRedirected(false);
         }
       }
     });
@@ -71,43 +83,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Centralized Routing Logic
   useEffect(() => {
-    if (loading) return;
+    if (isInitializing || loading || hasRedirected) {
+      console.log("AuthProvider: Skipping routing", { isInitializing, loading, hasRedirected, user: !!user, profile: !!profile, role: profile?.role });
+      return;
+    }
 
     const role = profile?.role?.toLowerCase();
     const isLoginPage = pathname === "/login";
     const isRootPage = pathname === "/";
 
     // Debugging current state
-    console.log("AuthProvider: State", { user: !!user, profile: !!profile, role, pathname });
+    console.log("AuthProvider: Routing check", { user: !!user, profile: !!profile, role, pathname, isLoginPage, isRootPage });
 
-    // 1. If not logged in and not on login page, go to login
     if (!user && !isLoginPage && !isRootPage) {
       console.log("AuthProvider: Redirecting to login (unauthenticated)");
+      setHasRedirected(true);
       router.replace("/login");
       return;
     }
 
-    // 2. If logged in and on login page, go to dashboard
-    if (user && profile && isLoginPage) {
+    if (user && role && (isLoginPage || isRootPage)) {
       console.log(`AuthProvider: Redirecting to /${role} (authenticated)`);
+      setHasRedirected(true);
       router.replace(`/${role}`);
       return;
     }
 
-    // 3. Handle Root Page specifically (Splash handles its own but this is backup)
-    if (user && profile && isRootPage) {
-      console.log(`AuthProvider: Root page, redirecting to /${role}`);
-      router.replace(`/${role}`);
-      return;
-    }
-
-    // Check for "This page couldn't load" (Hydration Failures) - Only if truly stuck
-    if (typeof window !== 'undefined' && !localStorage.getItem('start_v4_reset')) {
-      localStorage.setItem('start_v4_reset', 'true');
-      // No clear() here to avoid infinite loops if it fails again
-      // window.location.reload(); 
-    }
-  }, [loading, user, profile, pathname, router]);
+    console.log("AuthProvider: No redirect needed");
+  }, [isInitializing, loading, hasRedirected, user, profile, pathname, router]);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading }}>
