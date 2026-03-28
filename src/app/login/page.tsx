@@ -21,15 +21,15 @@ const DataNode = () => {
     <motion.div
       initial={{ x: `${config.x}%`, y: `${config.y}%`, opacity: 0 }}
       animate={{ 
-        x: [`${config.x}%`, `${(config.x + 10) % 100}%`, `${config.x}%`],
-        y: [`${config.y}%`, `${(config.y + 10) % 100}%`, `${config.y}%`],
-        opacity: [0, 0.2, 0] 
+        x: [`${config.x}%`, `${(config.x + 1) % 100}%`, `${config.x}%`],
+        y: [`${config.y}%`, `${(config.y + 1) % 100}%`, `${config.y}%`],
+        opacity: [0, 0.1, 0]
       }}
-      transition={{ 
-        duration: config.duration, 
-        repeat: Infinity, 
+      transition={{
+        duration: config.duration,
+        repeat: Infinity,
         delay: config.delay,
-        ease: "easeInOut" 
+        ease: "easeInOut"
       }}
       className="absolute w-1 h-1 bg-blue-400 rounded-full blur-[1px]"
     />
@@ -43,6 +43,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const [systemStatus, setSystemStatus] = useState(() => ({
     gps: "detecting",
     net: typeof window !== "undefined" && !navigator.onLine ? "offline" : "online",
@@ -68,9 +69,18 @@ export default function LoginPage() {
       const { data, error: signInError } = await signIn(email, password);
 
       if (signInError) {
-        setError(signInError.message.includes("Invalid login credentials") 
-          ? "خطأ في البريد الإلكتروني أو كلمة المرور" 
-          : signInError.message);
+        const msg = String(signInError.message || "").toLowerCase();
+
+        if (msg.includes("invalid login credentials")) {
+          setError("خطأ في البريد الإلكتروني أو كلمة المرور");
+        } else if (msg.includes("invalid api key") || msg.includes("api key")) {
+          setError("مفتاح API غير صالح أو مفقود. تأكد من إعداد NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY في المتغيرات البيئية.");
+        } else if (msg.includes("jwt") || msg.includes("token")) {
+          setError("حدث خطأ في المصادقة. حاول تسجيل الخروج ثم تسجيل الدخول مرة أخرى.");
+        } else {
+          setError(signInError.message || "حدث خطأ أثناء تسجيل الدخول");
+        }
+
         setLoading(false);
         return;
       }
@@ -142,7 +152,7 @@ export default function LoginPage() {
       {/* Background Architecture */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Dynamic Nodes */}
-        {[...Array(20)].map((_, i) => (
+        {[...Array(10)].map((_, i) => (
           <DataNode key={i} />
         ))}
         
