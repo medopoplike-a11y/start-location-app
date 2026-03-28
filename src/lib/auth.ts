@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createSupabaseClient, supabase as baseSupabase, hasSupabaseConfig } from './supabaseClient';
+import { supabase } from './supabaseClient';
 
 export type UserRole = 'admin' | 'driver' | 'vendor';
 
@@ -70,10 +70,8 @@ export const createUserByAdmin = async (
       
       console.log("Auth user created, now attempting to sync profile:", userId);
 
-      const client = createSupabaseClient();
-
       // 2. إنشاء أو تحديث الملف الشخصي (نستخدم upsert لضمان وجود السجل في حال فشل التريجر)
-      const { error: profileError } = await client
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert([{
           id: userId,
@@ -91,7 +89,7 @@ export const createUserByAdmin = async (
 
       // 3. إنشاء المحفظة للطيار (إذا لم تكن موجودة بالفعل بفضل التريجر)
       if (role.toLowerCase() === 'driver') {
-        const { error: walletError } = await client.from('wallets').upsert([{ 
+        const { error: walletError } = await supabase.from('wallets').upsert([{ 
           user_id: userId,
           balance: 0,
           debt: 0,
@@ -117,8 +115,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
   // Try to use provided email or fetch it from session if missing
   let userEmail = email;
   if (!userEmail) {
-    const client = createSupabaseClient();
-    const { data: { user } } = await client.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     userEmail = user?.email || undefined;
   }
 
@@ -136,10 +133,8 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
   }
 
   try {
-    const client = createSupabaseClient();
-
     // 1. محاولة جلب الملف من قاعدة البيانات
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -154,8 +149,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
 
   // 2. خطة بديلة: جلب بيانات المستخدم من نظام المصادقة (Auth)
   try {
-    const client = createSupabaseClient();
-    const { data: { user } } = await client.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (user && user.id === userId) {
       const fullName = user.user_metadata?.full_name || 'مستخدم';
@@ -175,8 +169,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
 
       // حاول إنشاء / تحديث الصف حتى يتم حماية المستخدم في المرة المقبلة
       try {
-        const upsertClient = createSupabaseClient();
-        const { error: upsertError } = await upsertClient.from('profiles').upsert([{
+        const { error: upsertError } = await supabase.from('profiles').upsert([{
           id: fallbackProfile.id,
           email: fallbackProfile.email,
           full_name: fallbackProfile.full_name,
@@ -209,8 +202,7 @@ export const signIn = async (email: string, password?: string) => {
     return { error: new Error("كلمة المرور مطلوبة") };
   }
 
-  const client = createSupabaseClient();
-  const { data, error } = await client.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -224,8 +216,7 @@ export const signIn = async (email: string, password?: string) => {
 export const signOut = async () => {
   try {
     console.log('Auth: Starting signOut...');
-    const client = createSupabaseClient();
-    await client.auth.signOut();
+    await supabase.auth.signOut();
     
     if (typeof window !== 'undefined') {
       // مسح كافة البيانات المخزنة محلياً لضمان عدم وجود جلسات معلقة
@@ -248,10 +239,8 @@ export const signOut = async () => {
  */
 export const adminUpdateUser = async (userId: string, updates: Partial<UserProfile>) => {
   try {
-    const client = createSupabaseClient();
-
     // 1. تحديث البيانات في جدول profiles (كأدمن)
-    const { error: profileError } = await client
+    const { error: profileError } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', userId);
@@ -275,10 +264,8 @@ export const adminUpdateUser = async (userId: string, updates: Partial<UserProfi
  */
 export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
   try {
-    const client = createSupabaseClient();
-
     // 1. تحديث البيانات في جدول profiles
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', userId)
@@ -288,7 +275,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     if (error) throw error;
 
     // 2. تحديث Metadata في Auth إذا كان متاحاً
-    const { data: { user } } = await client.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (user && user.id === userId) {
       const authUpdates: Record<string, string> = {};
       if (updates.full_name) authUpdates.full_name = updates.full_name;
@@ -298,7 +285,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
       if (updates.national_id) authUpdates.national_id = updates.national_id;
 
       if (Object.keys(authUpdates).length > 0) {
-        await client.auth.updateUser({
+        await supabase.auth.updateUser({
           data: authUpdates
         });
       }
@@ -315,8 +302,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
  * دالة للحصول على الجلسة الحالية بسرعة (أفضل للأداء في الواجهة)
  */
 export const getCurrentSession = async () => {
-  const client = createSupabaseClient();
-  const { data: { session } } = await client.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
   return session;
 };
 
@@ -325,8 +311,7 @@ export const getCurrentSession = async () => {
  */
 export const getCurrentUser = async () => {
   try {
-    const client = createSupabaseClient();
-    const { data: { user }, error } = await client.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
     if (error) {
       // إذا فشل getUser، نجرب getSession كخيار بديل سريع
       const session = await getCurrentSession();
