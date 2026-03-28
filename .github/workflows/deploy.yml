@@ -5,24 +5,21 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4.1.1
-    
+    - uses: actions/checkout@v4
+
     - name: Set up Node.js
-      uses: actions/setup-node@v4.0.2
+      uses: actions/setup-node@v4
       with:
         node-version: '22'
-    
+
     - name: Install dependencies
       run: npm install --legacy-peer-deps
-    
+
     - name: 🔗 Verify Supabase Connection
       env:
         SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -33,7 +30,7 @@ jobs:
           exit 1
         fi
         echo "✅ Supabase configured: $SUPABASE_URL"
-    
+
     - name: 🔗 Verify Vercel Connection
       env:
         VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -45,25 +42,24 @@ jobs:
           exit 1
         fi
         echo "✅ Vercel configured"
-    
+
     - name: 🏗️ Build Next.js App
       run: npm run build
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-    
+
     - name: 📤 Deploy to Vercel
-      uses: amondnet/vercel-action@v20
+      uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
         scope: medopoplike-6086s-projects
-        prod: true
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-    
+
     - name: ✅ Deployment Complete
       run: |
         echo "🎉 Successfully deployed to Vercel!"
