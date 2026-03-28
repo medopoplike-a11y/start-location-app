@@ -137,7 +137,8 @@ export default function LoginPage() {
           // Force a full page reload to the dashboard to clear all states
           window.location.href = `/${userRole}`;
         } else {
-          setError("لم يتم العثور على صلاحيات لهذا الحساب");
+          const inferredRole = (data.user.user_metadata?.role || 'driver').toLowerCase();
+          setError(`لم يتم العثور على صلاحيات لهذا الحساب. تم التعرّف على الدور كـ ${inferredRole}، يرجى التأكد من أن الصفوف موجودة في جدول profiles.`);
           setLoading(false);
         }
       }

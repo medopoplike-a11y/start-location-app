@@ -150,25 +150,42 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
   // 2. خطة بديلة: جلب بيانات المستخدم من نظام المصادقة (Auth)
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (user && user.id === userId) {
-      // استخراج البيانات من Metadata أو استخدام قيم افتراضية
       const fullName = user.user_metadata?.full_name || 'مستخدم';
-      
-      // منطق تحديد الدور بالاعتماد على metadata أو قائمة أدمن مضبوطة في env
       let role: UserRole = (user.user_metadata?.role || 'driver').toLowerCase() as UserRole;
       if (isConfiguredAdminEmail(user.email)) {
         role = 'admin';
       }
 
-      return {
+      const fallbackProfile: UserProfile = {
         id: user.id,
         email: user.email || '',
         full_name: fullName,
         role: role,
         is_locked: false,
-        created_at: user.created_at
+        created_at: user.created_at || new Date().toISOString(),
       };
+
+      // حاول إنشاء / تحديث الصف حتى يتم حماية المستخدم في المرة المقبلة
+      try {
+        const { error: upsertError } = await supabase.from('profiles').upsert([{
+          id: fallbackProfile.id,
+          email: fallbackProfile.email,
+          full_name: fallbackProfile.full_name,
+          role: fallbackProfile.role,
+          is_locked: fallbackProfile.is_locked,
+          created_at: fallbackProfile.created_at
+        }]);
+
+        if (upsertError) {
+          console.warn('Auth: Unable to upsert fallback profile:', upsertError);
+        }
+      } catch (upsertEx) {
+        console.warn('Auth: Fallback profile upsert failed:', upsertEx);
+      }
+
+      return fallbackProfile;
     }
   } catch (authError) {
     console.error('Auth: Error fetching profile:', authError);
