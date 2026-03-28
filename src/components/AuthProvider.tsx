@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [hasRedirected, setHasRedirected] = useState(false);
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setProfile(userProfile);
           setLoading(false);
           setIsInitializing(false);
-          setHasRedirected(false);
+          setPendingRedirect(null);
         }
       } else {
         console.log("AuthProvider: No session, clearing user and profile");
@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setProfile(null);
           setLoading(false);
           setIsInitializing(false);
-          setHasRedirected(false);
+          setPendingRedirect(null);
         }
       }
     });
@@ -83,8 +83,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Centralized Routing Logic
   useEffect(() => {
-    if (isInitializing || loading || hasRedirected) {
-      console.log("AuthProvider: Skipping routing", { isInitializing, loading, hasRedirected, user: !!user, profile: !!profile, role: profile?.role });
+    if (isInitializing || loading) {
+      console.log("AuthProvider: Skipping routing (initializing/loading)", { isInitializing, loading });
       return;
     }
 
@@ -92,25 +92,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const isLoginPage = pathname === "/login";
     const isRootPage = pathname === "/";
 
-    // Debugging current state
-    console.log("AuthProvider: Routing check", { user: !!user, profile: !!profile, role, pathname, isLoginPage, isRootPage });
+    let targetPath: string | null = null;
 
-    if (!user && !isLoginPage && !isRootPage) {
-      console.log("AuthProvider: Redirecting to login (unauthenticated)");
-      setHasRedirected(true);
-      router.replace("/login");
+    if (!user && !isLoginPage) {
+      targetPath = "/login";
+    } else if (user && role && (isLoginPage || isRootPage)) {
+      targetPath = `/${role}`;
+    }
+
+    if (targetPath && pathname !== targetPath) {
+      // Avoid repeated token reset loops
+      if (pendingRedirect === targetPath) {
+        console.log("AuthProvider: Already navigating to targetPath, skipping duplicate", targetPath);
+        return;
+      }
+
+      console.log("AuthProvider: Redirecting", { from: pathname, to: targetPath });
+      setPendingRedirect(targetPath);
+      router.replace(targetPath);
       return;
     }
 
-    if (user && role && (isLoginPage || isRootPage)) {
-      console.log(`AuthProvider: Redirecting to /${role} (authenticated)`);
-      setHasRedirected(true);
-      router.replace(`/${role}`);
-      return;
+    if (!targetPath) {
+      console.log("AuthProvider: No routing action required", { pathname, user: !!user, role });
     }
-
-    console.log("AuthProvider: No redirect needed");
-  }, [isInitializing, loading, hasRedirected, user, profile, pathname, router]);
+  }, [isInitializing, loading, pendingRedirect, user, profile, pathname, router]);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading }}>
