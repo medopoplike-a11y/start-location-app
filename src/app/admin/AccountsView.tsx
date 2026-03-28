@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Shield, Store, Truck } from "lucide-react";
+import { User } from "lucide-react";
 
 interface UserProfile {
   id: string;

@@ -1,0 +1,93 @@
+name: 📱 Mobile Release + OTA
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "Release version (example: 0.3.0)"
+        required: true
+        default: "0.3.0"
+      force_update:
+        description: "Force update flag for app_config"
+        required: true
+        default: "false"
+  push:
+    tags:
+      - "v*"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+jobs:
+  release-mobile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build web for mobile
+        run: npm run build:mobile
+
+      - name: Build APK release
+        working-directory: ./android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Build OTA bundle
+        run: npm run bundle:ota
+
+      - name: Upload OTA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ota-update-zip
+          path: dist/update.zip
+          retention-days: 30
+
+      - name: Upload bundle to Capgo (optional)
+        if: ${{ secrets.CAPGO_TOKEN != '' }}
+        run: |
+          npm install -g @capgo/cli
+          capgo login --apikey "${{ secrets.CAPGO_TOKEN }}"
+          capgo bundle upload --app-id "com.start.location" --path "dist/update.zip"
+
+      - name: Update app_config in Supabase (optional)
+        if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: |
+          VERSION="${{ github.event.inputs.app_version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          FORCE="${{ github.event.inputs.force_update }}"
+          if [ -z "$FORCE" ]; then
+            FORCE="false"
+          fi
+          curl -sS -X PATCH \
+            "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/app_config?id=eq.1" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -d "{\"latest_version\":\"${VERSION}\",\"force_update\":${FORCE}}"
+

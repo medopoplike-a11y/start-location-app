@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile, UserProfile } from "@/lib/auth";
-import { AppLoader } from "./AppLoader";
 
 interface AuthContextType {
   user: User | null;

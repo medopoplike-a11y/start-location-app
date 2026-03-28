@@ -2,12 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Zap, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
+import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
 import { signIn, getUserProfile } from "@/lib/auth";
-import { useRouter } from "next/navigation";
 import { StartLogo } from "@/components/StartLogo";
 import LocationMarker from "@/components/LocationMarker";
-import { useAuth } from "@/components/AuthProvider";
 
 type LoginRole = "driver" | "vendor" | "admin";
 
@@ -51,7 +49,6 @@ export default function LoginPage() {
     battery: "100%"
   }));
   const mounted = typeof window !== "undefined";
-  const router = useRouter();
 
   useEffect(() => {
     // Check sensors on load
@@ -61,15 +58,6 @@ export default function LoginPage() {
       }
     }
   }, [mounted]);
-
-  const redirectUserByRole = (role: string) => {
-    const normalizedRole = role?.toLowerCase();
-    console.log("LoginPage: Attempting redirect to role:", normalizedRole);
-    
-    if (normalizedRole === "admin") router.replace("/admin");
-    else if (normalizedRole === "driver") router.replace("/driver");
-    else if (normalizedRole === "vendor") router.replace("/vendor");
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

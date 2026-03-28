@@ -9,132 +9,33 @@ import {
   Store, 
   ShieldCheck,
   Settings,
-  AlertCircle,
   Truck,
-  DollarSign,
   Menu,
   X,
   ChevronRight,
   LogOut, 
-  Plus, 
-  CheckCircle,
-  User,
   Wallet,
   RefreshCw,
-  Activity,
-  Trash2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
-
-const LiveMap = dynamic(() => import('@/components/LiveMap'), { 
-  ssr: false,
-  loading: () => <div className="h-[500px] w-full bg-gray-900/50 animate-pulse rounded-[40px] flex items-center justify-center text-gray-500 font-bold border border-white/10">جاري تحميل الخريطة...</div>
-});
 
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
-import { PremiumCard } from "@/components/PremiumCard";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { useSync } from "@/hooks/useSync";
-
-interface AdminOrder {
-  id: string;
-  status: "pending" | "assigned" | "in_transit" | "delivered" | "cancelled";
-  vendor_full_name?: string | null;
-  vendor_id?: string;
-  driver_id?: string | null;
-  customer_details?: { name?: string };
-  financials?: { order_value?: number; delivery_fee?: number; insurance_fee?: number; system_commission?: number; vendor_commission?: number };
-  created_at: string;
-}
-
-interface LiveOrderItem {
-  id: string;
-  id_full: string;
-  vendor: string;
-  customer: string;
-  status: string;
-  driver: string | null;
-  driver_id?: string | null;
-  amount: number;
-  delivery_fee: number;
-  created_at: string;
-}
-
-interface DriverCard {
-  id: string;
-  id_full: string;
-  name: string;
-  status: string;
-  isShiftLocked: boolean;
-  earnings: number;
-  debt: number;
-  totalOrders: number;
-}
-
-interface VendorCard {
-  id: string;
-  id_full: string;
-  name: string;
-  type: string;
-  orders: number;
-  balance: number;
-  status: string;
-  location?: { lat?: number; lng?: number } | null;
-}
-
-interface AppUser {
-  id: string;
-  email: string;
-  full_name: string;
-  phone: string;
-  area: string;
-  vehicle_type: string;
-  national_id: string;
-  role: string;
-  created_at: string;
-}
-
-interface OnlineDriver {
-  id: string;
-  name: string;
-  lat: number | null;
-  lng: number | null;
-  lastSeen: string;
-}
-
-interface SettlementItem {
-  id: string;
-}
-
-interface ProfileRow {
-  id: string;
-  role?: string;
-  is_online?: boolean;
-  is_locked?: boolean;
-  full_name?: string;
-  phone?: string;
-  area?: string;
-  vehicle_type?: string;
-  national_id?: string;
-  created_at?: string;
-  updated_at?: string;
-  last_location_update?: string;
-  location?: { lat?: number; lng?: number } | string | null;
-  email?: string;
-}
-
-interface WalletRow {
-  user_id: string;
-  balance?: number;
-  debt?: number;
-  system_balance?: number;
-}
+import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
+import DashboardView from "./components/DashboardView";
+import OrdersView from "./components/OrdersView";
+import DriversView from "./components/DriversView";
+import VendorsView from "./components/VendorsView";
+import SettlementsView from "./components/SettlementsView";
+import AppConfigView from "./components/AppConfigView";
+import SettingsView from "./components/SettingsView";
 
 export default function AdminPanel() {
   const router = useRouter();
@@ -155,8 +56,8 @@ export default function AdminPanel() {
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
   const [settlements, setSettlements] = useState<SettlementItem[]>([]);
-  const [activities, setActivities] = useState<Array<{ id: string; type: string; text: string; time: string }>>([]);
-  const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
   
   // Financial State
   const [totalProfits, setTotalProfits] = useState(0);
@@ -187,6 +88,14 @@ export default function AdminPanel() {
       text,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
     }, ...prev].slice(0, 5));
+  };
+
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) return error.message;
+    if (typeof error === "object" && error !== null && "message" in error) {
+      return String((error as { message?: unknown }).message || "حدث خطأ");
+    }
+    return "حدث خطأ";
   };
 
   useEffect(() => {
@@ -282,20 +191,30 @@ export default function AdminPanel() {
       if (error) throw error;
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
-        const online = typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'driver' && p.is_online).map((p) => {
+        const online = typedProfiles
+          .filter((p) => (p.role || '').toLowerCase() === 'driver' && p.is_online)
+          .map((p) => {
           let loc = p.location;
-          if (typeof loc === 'string') try { loc = JSON.parse(loc); } catch { loc = null; }
+          if (typeof loc === 'string') {
+            try {
+              loc = JSON.parse(loc) as { lat?: number; lng?: number };
+            } catch {
+              loc = null;
+            }
+          }
+          const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
           return {
             id: p.id,
-            name: p.full_name,
-            lat: loc?.lat || null,
-            lng: loc?.lng || null,
-            lastSeen: new Date(p.last_location_update || p.updated_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            name: p.full_name || "غير معروف",
+            lat: normalizedLoc?.lat || null,
+            lng: normalizedLoc?.lng || null,
+            lastSeen: new Date(p.last_location_update || p.updated_at || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
           };
-        });
+        })
+          .filter((d): d is OnlineDriver => d.lat !== null && d.lng !== null);
         setOnlineDrivers(online);
         setAllUsers(typedProfiles.map((u) => ({
-          id: u.id, email: u.email, full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
+          id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
         })));
 
         const { data: wallets } = await supabase.from('wallets').select('*');
@@ -308,7 +227,8 @@ export default function AdminPanel() {
           }));
           setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
             const w = typedWallets.find((wal) => wal.user_id === p.id);
-            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location: p.location };
+            const location = typeof p.location === "object" && p.location !== null ? p.location : null;
+            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location };
           }));
         }
       }
@@ -338,11 +258,12 @@ export default function AdminPanel() {
     const { error } = await createUserByAdmin(newDriverData.email, newDriverData.password, newDriverData.name, 'driver', { phone: newDriverData.phone, area: newDriverData.area, vehicle_type: newDriverData.vehicle_type, national_id: newDriverData.national_id });
     if (!error) {
       alert("تم إنشاء حساب الطيار بنجاح!");
+      addActivity(`تم إنشاء حساب طيار: ${newDriverData.name}`);
       setShowAddDriver(false);
       setNewDriverData({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
       fetchData();
     } else {
-      alert(`خطأ: ${error.message}`);
+      alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
   };
@@ -353,11 +274,12 @@ export default function AdminPanel() {
     const { error } = await createUserByAdmin(newVendorData.email, newVendorData.password, newVendorData.name, 'vendor', { phone: newVendorData.phone });
     if (!error) {
       alert("تم إنشاء حساب المحل بنجاح!");
+      addActivity(`تم إنشاء حساب محل: ${newVendorData.name}`);
       setShowAddVendor(false);
       setNewVendorData({ name: "", email: "", password: "", phone: "" });
       fetchData();
     } else {
-      alert(`خطأ: ${error.message}`);
+      alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
   };
@@ -367,7 +289,7 @@ export default function AdminPanel() {
     setActionLoading(true);
     const { error } = await supabase.from('app_config').update(appConfig).eq('id', 1);
     if (!error) alert("تم تحديث إعدادات النظام بنجاح!");
-    else alert(`خطأ: ${error.message}`);
+    else alert(`خطأ: ${getErrorMessage(error)}`);
     setActionLoading(false);
   };
 
@@ -375,21 +297,25 @@ export default function AdminPanel() {
     const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
     if (!error) {
       alert("تم التحديث!");
+      addActivity(`تم ${newStatus === "approved" ? "اعتماد" : "رفض"} تسوية`);
       setSettlements(prev => prev.filter(s => s.id !== settlementId));
     }
   };
 
   const toggleShiftLock = async (driverId: string, currentStatus: boolean) => {
     const { error } = await supabase.from('profiles').update({ is_locked: !currentStatus }).eq('id', driverId);
-    if (!error) setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
+    if (!error) {
+      addActivity(`تم ${!currentStatus ? "حظر" : "فتح"} شيفت المندوب`);
+      setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
+    }
   };
 
   const handleResetUser = async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
     setActionLoading(true);
     const { error } = await supabase.rpc('reset_user_data_admin', { target_user_id: userId });
-    if (!error) { alert("تم التصفير!"); fetchData(); }
-    else alert(`خطأ: ${error.message}`);
+    if (!error) { alert("تم التصفير!"); addActivity(`تم تصفير بيانات ${userName}`); fetchData(); }
+    else alert(`خطأ: ${getErrorMessage(error)}`);
     setActionLoading(false);
   };
 
@@ -397,8 +323,8 @@ export default function AdminPanel() {
     if (!confirm("تحذير: هل أنت متأكد من تصفير كافة بيانات النظام؟")) return;
     setActionLoading(true);
     const { error } = await supabase.rpc('reset_all_system_data_admin');
-    if (!error) { alert("تم التصفير الشامل!"); fetchData(); }
-    else alert(`خطأ: ${error.message}`);
+    if (!error) { alert("تم التصفير الشامل!"); addActivity("تم تنفيذ تصفير شامل للنظام"); fetchData(); }
+    else alert(`خطأ: ${getErrorMessage(error)}`);
     setActionLoading(false);
   };
 
@@ -409,6 +335,7 @@ export default function AdminPanel() {
     { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-green-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن" },
     { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-red-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م" },
     { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-purple-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م" },
+    { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <Wallet className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م" },
   ];
 
   if (loading) return <AppLoader />;
@@ -461,44 +388,42 @@ export default function AdminPanel() {
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
           <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
-              <>
-                {activityLog.length > 0 && (
-                  <div className="bg-white border border-gray-100 rounded-[32px] p-4 flex flex-col gap-2 relative shadow-sm overflow-hidden">
-                    <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-blue-600" />
-                    <AnimatePresence mode="popLayout">{activityLog.map(log => (
-                      <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-4 py-2 hover:bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-blue-600" /><span className="text-xs font-bold text-gray-700">{log.text}</span></div><span className="text-[10px] font-bold text-gray-400">{log.time}</span>
-                      </motion.div>
-                    ))}</AnimatePresence>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {stats.map((stat, idx) => (
-                    <PremiumCard
-                      key={idx}
-                      title={stat.title}
-                      value={stat.value}
-                      icon={stat.icon}
-                      trend={stat.trend}
-                      trendType={stat.trendType}
-                      subtitle={stat.subtitle}
-                      delay={idx * 0.1}
-                    />
-                  ))}
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2 bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden h-[400px]">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center"><h3 className="font-bold text-gray-900">الخريطة الحية للمناديب</h3></div>
-                    <div className="flex-1 relative h-[330px]"><LiveMap drivers={onlineDrivers} vendors={vendors.filter(v => v.location).map(v => ({ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng }))} zoom={12} className="h-full w-full" /></div>
-                  </div>
-                </div>
-              </>
+              <DashboardView activityLog={activityLog} stats={stats} onlineDrivers={onlineDrivers} vendors={vendors} />
             )}
 
             {activeView === "accounts" && (
               <div className="space-y-4">
                 <div className="bg-white border border-gray-100 rounded-[40px] p-6 shadow-sm"><AccountsView users={allUsers} /></div>
               </div>
+            )}
+
+            {activeView === "orders" && (
+              <OrdersView liveOrders={liveOrders} activities={activities} />
+            )}
+
+            {activeView === "drivers" && (
+              <DriversView
+                drivers={drivers}
+                onAddDriver={() => setShowAddDriver(true)}
+                onToggleShiftLock={toggleShiftLock}
+                onResetUser={handleResetUser}
+              />
+            )}
+
+            {activeView === "vendors" && (
+              <VendorsView vendors={vendors} onAddVendor={() => setShowAddVendor(true)} onResetUser={handleResetUser} />
+            )}
+
+            {activeView === "settlements" && (
+              <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
+            )}
+
+            {activeView === "app_config" && (
+              <AppConfigView appConfig={appConfig} actionLoading={actionLoading} setAppConfig={setAppConfig} onSubmit={handleUpdateAppConfig} />
+            )}
+
+            {activeView === "settings" && (
+              <SettingsView actionLoading={actionLoading} onGlobalReset={handleGlobalReset} />
             )}
           </Suspense>
         </div>
@@ -516,6 +441,21 @@ export default function AdminPanel() {
                 <input type="email" placeholder="البريد الإلكتروني" required value={newDriverData.email} onChange={e => setNewDriverData({...newDriverData, email: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <input type="password" placeholder="كلمة السر" required value={newDriverData.password} onChange={e => setNewDriverData({...newDriverData, password: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <input type="tel" placeholder="رقم الهاتف" required value={newDriverData.phone} onChange={e => setNewDriverData({...newDriverData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
+                <button type="submit" disabled={actionLoading} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-blue-200">{actionLoading ? "جاري الإنشاء..." : "إضافة الحساب الآن"}</button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+        {showAddVendor && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl relative border border-gray-100">
+              <button onClick={() => setShowAddVendor(false)} className="absolute top-6 left-6 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-gray-900"><X className="w-5 h-5" /></button>
+              <h2 className="text-2xl font-black text-gray-900 mb-8">إضافة محل جديد</h2>
+              <form onSubmit={handleAddVendor} className="space-y-6">
+                <input type="text" placeholder="اسم المحل" required value={newVendorData.name} onChange={e => setNewVendorData({...newVendorData, name: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
+                <input type="email" placeholder="البريد الإلكتروني" required value={newVendorData.email} onChange={e => setNewVendorData({...newVendorData, email: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
+                <input type="password" placeholder="كلمة السر" required value={newVendorData.password} onChange={e => setNewVendorData({...newVendorData, password: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
+                <input type="tel" placeholder="رقم الهاتف" required value={newVendorData.phone} onChange={e => setNewVendorData({...newVendorData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <button type="submit" disabled={actionLoading} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-blue-200">{actionLoading ? "جاري الإنشاء..." : "إضافة الحساب الآن"}</button>
               </form>
             </motion.div>

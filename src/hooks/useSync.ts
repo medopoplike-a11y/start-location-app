@@ -22,14 +22,10 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
   };
 
   useEffect(() => {
-    let ordersSub: RealtimeChannel | undefined;
-    let profilesSub: RealtimeChannel | undefined;
+    const ordersSub: RealtimeChannel = subscribeToOrders(triggerUpdate);
+    const profilesSub: RealtimeChannel = subscribeToProfiles(triggerUpdate);
     let walletSub: RealtimeChannel | undefined;
     let settlementsSub: RealtimeChannel | undefined;
-
-    // Subscriptions
-    ordersSub = subscribeToOrders(triggerUpdate);
-    profilesSub = subscribeToProfiles(triggerUpdate);
     
     if (isAdmin) {
       // For Admin, subscribe to all wallets and settlements

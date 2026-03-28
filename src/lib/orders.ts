@@ -51,7 +51,7 @@ export const getAvailableOrders = async () => {
  * جلب طلبات مطعم معين
  */
 export const getVendorOrders = async (vendorId: string) => {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('orders')
     .select('*, driver:driver_id(full_name, phone)')
     .eq('vendor_id', vendorId)

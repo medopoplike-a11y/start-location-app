@@ -1,91 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Plus, 
-  Store, 
-  Clock, 
-  Truck, 
-  CheckCircle, 
-  Camera, 
-  Banknote,
-  ChevronLeft,
-  Search,
-  ArrowRight,
-  Edit2,
-  LogOut,
-  XCircle,
-  MapPin,
-  AlertCircle,
-  History,
-  Wallet,
-  ArrowUpRight,
-  Settings,
-  Phone,
-  MessageCircle,
-  ShieldCheck,
-  Menu,
-  X,
-  Activity
+  Plus
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import dynamic from 'next/dynamic';
 
-const LiveMap = dynamic(() => import('@/components/LiveMap'), { 
-  ssr: false,
-  loading: () => <div className="h-[300px] w-full bg-white animate-pulse rounded-3xl flex items-center justify-center text-gray-400 font-bold border border-gray-100">جاري تحميل الخريطة...</div>
-});
-
-import LocationMarker from "@/components/LocationMarker";
-import { VENDOR_INSURANCE_FEE, calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
+import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { getVendorOrders, createOrder, updateOrder, subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements, cancelOrder, deleteCanceledOrders, vendorCollectDebt, type Order as DBOrder } from "@/lib/orders";
+import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
-import { PremiumCard } from "@/components/PremiumCard";
 import { AppLoader } from "@/components/AppLoader";
-import { SyncIndicator } from "@/components/SyncIndicator";
 import { useSync } from "@/hooks/useSync";
-
-interface Order {
-  id: string;
-  customer: string;
-  phone: string;
-  address: string;
-  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'cancelled';
-  driver: string | null;
-  driverPhone?: string;
-  amount: string;
-  deliveryFee: string;
-  time: string;
-  createdAt: string; 
-  isPickedUp: boolean;
-  notes: string;
-  prepTime: string;
-  invoiceUrl?: string;
-  vendorCollectedAt?: string | null;
-  driverConfirmedAt?: string | null;
-}
-
-interface VendorLocation {
-  lat: number;
-  lng: number;
-}
-
-interface OnlineDriver {
-  id: string;
-  name: string;
-  lat?: number;
-  lng?: number;
-}
-
-interface SettlementHistoryItem {
-  id: string;
-  amount: number;
-  status: string;
-  date: string;
-}
+import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
+import { formatVendorTime } from "./utils";
+import VendorHeader from "./components/VendorHeader";
+import StoreView from "./components/StoreView";
+import WalletView from "./components/WalletView";
+import VendorSettingsView from "./components/SettingsView";
+import HistoryView from "./components/HistoryView";
+import VendorDrawer from "./components/VendorDrawer";
+import OrderFormModal from "./components/OrderFormModal";
+import VendorAccountModals from "./components/VendorAccountModals";
 
 export default function VendorApp() {
   const router = useRouter();
@@ -93,7 +30,6 @@ export default function VendorApp() {
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [vendorName, setVendorName] = useState("محل");
-  const [vendorPhone, setVendorPhone] = useState("");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
   const [activeView, setActiveView] = useState<"store" | "wallet" | "history" | "settings">("store");
   const [showDrawer, setShowDrawer] = useState(false);
@@ -105,7 +41,6 @@ export default function VendorApp() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingLocation, setSavingLocation] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,7 +50,7 @@ export default function VendorApp() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  const [showLiveMap, setShowLiveMap] = useState(false);
+  const [showLiveMap] = useState(false);
   const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
@@ -156,7 +91,6 @@ export default function VendorApp() {
           if (profile) {
             setVendorId(user.id);
             setVendorName(profile.full_name || "محل");
-            setVendorPhone(profile.phone || "");
             setVendorLocation((profile.location as VendorLocation | undefined) || null);
             setSettingsData({ 
               name: profile.full_name || "", 
@@ -218,12 +152,15 @@ export default function VendorApp() {
         })));
       }
       if (driversRes.data) {
-        setOnlineDrivers(driversRes.data.map(d => ({
-          id: d.id,
-          name: d.full_name,
-          lat: d.location?.lat,
-          lng: d.location?.lng
-        })));
+        const drivers = driversRes.data
+          .map((d) => ({
+            id: d.id,
+            name: d.full_name,
+            lat: d.location?.lat,
+            lng: d.location?.lng
+          }))
+          .filter((d): d is OnlineDriver => typeof d.lat === "number" && typeof d.lng === "number");
+        setOnlineDrivers(drivers);
       }
     } catch (err) {
       console.error("VendorPage: Update error", err);
@@ -233,7 +170,7 @@ export default function VendorApp() {
 
   // --- Logic Helpers ---
 
-  const mapDBOrderToUI = (db: DBOrder): Order => ({
+  const mapDBOrderToUI = (db: VendorDBOrder): Order => ({
     id: db.id,
     customer: db.customer_details?.name || "عميل",
     phone: db.customer_details?.phone || "",
@@ -243,7 +180,7 @@ export default function VendorApp() {
     driverPhone: db.profiles?.phone || "",
     amount: `${db.financials?.order_value || 0} ج.م`,
     deliveryFee: `${db.financials?.delivery_fee || 0} ج.م`,
-    time: formatTime(db.created_at),
+    time: formatVendorTime(db.created_at || ""),
     createdAt: db.created_at || new Date().toISOString(),
     isPickedUp: db.status !== 'pending' && db.status !== 'assigned',
     notes: db.customer_details?.notes || "",
@@ -252,16 +189,6 @@ export default function VendorApp() {
     vendorCollectedAt: db.vendor_collected_at,
     driverConfirmedAt: db.driver_confirmed_at
   });
-
-  const translateStatus = (status: string) => {
-    const statuses: Record<string, string> = { pending: "جاري البحث عن طيار", assigned: "تم تعيين طيار", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
-    return statuses[status] || status;
-  };
-
-  const formatTime = (isoString: string) => {
-    if (!isoString) return "";
-    return new Date(isoString).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-  };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
@@ -281,7 +208,6 @@ export default function VendorApp() {
     });
     if (!error) {
       setVendorName(settingsData.name);
-      setVendorPhone(settingsData.phone);
       alert("تم تحديث الملف الشخصي بنجاح!");
       setActiveView("store");
     } else {
@@ -364,7 +290,7 @@ export default function VendorApp() {
     const { data, error } = await action;
     if (error) return alert(`خطأ: ${error.message}`);
     if (data) {
-      const ui = mapDBOrderToUI(data as DBOrder);
+      const ui = mapDBOrderToUI(data as VendorDBOrder);
       setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
       setShowOrderForm(false);
       addActivityLocal(editingOrder ? "تم تعديل الطلب" : "تم إنشاء طلب جديد");
@@ -393,25 +319,13 @@ export default function VendorApp() {
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
       setInvoiceUrl(publicUrl);
-    } catch (error: unknown) {
+    } catch {
       alert("فشل رفع الفاتورة.");
     } finally { setUploadingInvoice(false); }
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order || order.isPickedUp) return alert("لا يمكن إلغاء الطلب بعد استلامه.");
-    if (!confirm("إلغاء هذا الطلب؟")) return;
-    const { data, error } = await cancelOrder(orderId);
-    if (!error && data) {
-      setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
-      addActivityLocal(`تم إلغاء الطلب #${orderId.slice(0, 8)}`);
-    }
-  };
-
   const handleUpdateLocation = async () => {
     if (!vendorId) return;
-    setSavingLocation(true);
     const getLocation = (opt: PositionOptions) => new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, opt));
     try {
       let pos;
@@ -422,9 +336,9 @@ export default function VendorApp() {
       if (error) throw error;
       setVendorLocation(loc);
       alert("تم حفظ الموقع!");
-    } catch (err: unknown) {
+    } catch {
       alert("فشل تحديد الموقع.");
-    } finally { setSavingLocation(false); }
+    }
   };
 
   const handleChangePassword = async () => {
@@ -460,238 +374,6 @@ export default function VendorApp() {
     }
   };
 
-  // --- Render Functions ---
-
-  const renderHeader = () => (
-    <header className="bg-white/80 backdrop-blur-xl p-6 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
-      <div className="flex items-center gap-3">
-        <button onClick={() => setShowDrawer(true)} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100">
-          <Menu className="w-5 h-5 text-gray-900" />
-        </button>
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 leading-tight">{vendorName}</h1>
-          <p className="text-[10px] text-gray-400">لوحة تحكم المحل</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
-        <div className="relative group hidden sm:block">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-orange transition-colors" />
-          <input type="text" placeholder="بحث..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-gray-100 pr-9 pl-3 py-2 rounded-xl text-xs border-none outline-none focus:ring-2 ring-brand-orange/20 w-32 transition-all" />
-        </div>
-      </div>
-    </header>
-  );
-
-  const renderStoreView = () => {
-    const filteredOrders = orders.filter(o => {
-      const search = searchQuery.toLowerCase();
-      const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
-      if (!match) return false;
-      if (activeTab === "active") return o.status !== "delivered" && o.status !== "cancelled";
-      return activeTab === "مكتمل" ? o.status === "delivered" : o.status === "cancelled";
-    });
-
-    return (
-      <div className="space-y-6">
-        <div className="space-y-4">
-          {activityLog.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-orange animate-pulse" />
-              <AnimatePresence mode="popLayout">
-                {activityLog.map(log => (
-                  <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-2">
-                    <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-orange" /><span className="text-[10px] font-bold text-gray-600">{log.text}</span></div>
-                    <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <PremiumCard
-              title="مديونية الطيارين"
-              value={balance.toLocaleString()}
-              icon={<Wallet className="text-green-600 w-5 h-5" />}
-              subtitle="ج.م"
-              delay={0.1}
-            />
-            <PremiumCard
-              title="الطيارين المتصلين"
-              value={onlineDrivers.length}
-              icon={<MapPin className="text-brand-orange w-5 h-5" />}
-              subtitle="طيار"
-              delay={0.2}
-              className={showLiveMap ? "ring-2 ring-brand-orange" : ""}
-            />
-          </div>
-          
-          <PremiumCard
-            title="عمولة الشركة المستحقة"
-            value={companyCommission.toLocaleString()}
-            icon={<ShieldCheck className="text-brand-red w-5 h-5" />}
-            subtitle="ج.م"
-            className="mt-4"
-            delay={0.3}
-          />
-        </div>
-
-        <AnimatePresence>
-          {showLiveMap && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-              <LiveMap drivers={onlineDrivers} vendors={vendorLocation ? [{ id: vendorId || 'me', name: vendorName, lat: vendorLocation.lat, lng: vendorLocation.lng }] : []} center={vendorLocation ? [vendorLocation.lat, vendorLocation.lng] : undefined} className="h-64 w-full rounded-[32px] overflow-hidden shadow-sm border border-gray-100" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="bg-white p-1 rounded-2xl flex border border-gray-100 items-center">
-          {["نشط", "مكتمل", "ملغي"].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab === "نشط" ? "active" : tab)} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${(activeTab === "active" && tab === "نشط") || activeTab === tab ? "bg-brand-orange text-white shadow-md" : "text-gray-400 hover:bg-gray-50"}`}>{tab}</button>
-          ))}
-        </div>
-
-        <section className="space-y-4">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200"><Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" /><p className="text-sm text-gray-400 font-bold">لا توجد طلبات حالياً</p></div>
-          ) : (
-            <AnimatePresence mode="popLayout">
-              {filteredOrders.map(order => (
-                <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="flex justify-between items-start mb-4">
-                    <div><h3 className="font-bold text-gray-900">{order.customer}</h3><p className="text-[10px] text-gray-400 font-bold">#{order.id.slice(0, 8)}</p></div>
-                    <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-green-50 text-green-600" : order.status === "cancelled" ? "bg-red-50 text-red-600" : "bg-orange-50 text-orange-600"}`}>{translateStatus(order.status)}</span>
-                  </div>
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-xs text-gray-500"><MapPin className="w-3 h-3 text-gray-400" /><span>{order.address}</span></div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500"><Clock className="w-3 h-3 text-brand-orange" /><span>{order.time}</span></div>
-                  </div>
-                  <div className="flex justify-between items-center pt-4 border-t border-gray-50">
-                    <div className="flex items-center gap-2"><div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">{order.driver ? <div className="bg-brand-orange w-full h-full flex items-center justify-center text-white text-[10px] font-bold">{order.driver.charAt(0)}</div> : <Truck className="w-4 h-4 text-gray-400" />}</div><span className="text-xs font-bold text-gray-700">{order.driver || "بانتظار طيار..."}</span></div>
-                    <span className="font-bold text-gray-900">{order.amount}</span>
-                  </div>
-                  
-                  {!order.vendorCollectedAt && (
-                    <div className="mt-4 pt-4 border-t border-gray-50">
-                      {order.driverConfirmedAt ? (
-                        <button 
-                          onClick={() => handleCollectDebt(order.id)} 
-                          className="w-full bg-green-500 text-white py-4 rounded-2xl text-[10px] font-black hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          تأكيد استلام مبلغ المديونية ({order.amount})
-                        </button>
-                      ) : (
-                        order.status === "delivered" && (
-                          <div className="w-full bg-gray-50 text-gray-400 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-dashed border-gray-200">
-                            <Clock className="w-4 h-4 text-gray-300" />
-                            بانتظار قيام الطيار بطلب تسوية الدفع
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
-        </section>
-      </div>
-    );
-  };
-
-  const renderWalletView = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
-      <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
-        <div className="relative z-10">
-          <p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">عمولة الشركة المستحقة</p>
-          <h3 className="text-4xl font-black">{companyCommission.toLocaleString()} <span className="text-lg font-bold">ج.م</span></h3>
-          <button onClick={() => setShowSettlementModal(true)} className="mt-6 w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl text-xs font-bold transition-colors border border-white/10">طلب تسوية مديونية</button>
-        </div>
-      </div>
-      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
-        <div className="relative z-10"><p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">مستحقات لدى الطيارين</p><h3 className="text-4xl font-black text-gray-900">{balance.toLocaleString()} <span className="text-lg font-bold text-gray-400">ج.م</span></h3></div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900 pr-2">طلبات التسوية الأخيرة</h3>
-        {settlementHistory.length === 0 ? (
-          <div className="bg-gray-50 p-8 rounded-[32px] text-center border border-dashed border-gray-200">
-            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات تسوية سابقة</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {settlementHistory.map(s => (
-              <div key={s.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.status === 'تم السداد' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
-                    <Wallet className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">تسوية مديونية</p>
-                    <p className="text-[10px] text-gray-400 font-bold">{s.date}</p>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-black text-gray-900">{s.amount} ج.م</p>
-                  <p className={`text-[10px] font-bold ${s.status === 'تم السداد' ? 'text-green-600' : 'text-orange-600'}`}>{s.status}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderSettingsView = () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-6"><button onClick={() => setActiveView("store")} className="bg-white p-2 rounded-xl shadow-sm text-gray-400"><ArrowRight className="w-5 h-5" /></button><h2 className="text-2xl font-bold text-gray-900">إعدادات الحساب</h2></div>
-      <div className="bg-white p-6 rounded-[32px] border border-gray-100 space-y-6 shadow-sm">
-        <div><label className="text-xs font-bold text-gray-400 block mb-2">اسم المحل</label><input type="text" value={settingsData.name} onChange={(e) => setSettingsData({...settingsData, name: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800" /></div>
-        <div><label className="text-xs font-bold text-gray-400 block mb-2">رقم الهاتف</label><input type="tel" value={settingsData.phone} onChange={(e) => setSettingsData({...settingsData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800" /></div>
-        <button onClick={handleUpdateProfile} disabled={savingSettings} className="w-full bg-brand-orange text-white py-5 rounded-2xl font-bold shadow-lg disabled:opacity-50">{savingSettings ? "جاري الحفظ..." : "حفظ التغييرات"}</button>
-      </div>
-    </div>
-  );
-
-  const renderHistoryView = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">سجل العمليات</h2>
-      <div className="space-y-4">
-        {orders.filter(o => o.status === "delivered" || o.status === "cancelled").map(order => (
-          <div key={order.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center ${order.status === "delivered" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}><History className="w-5 h-5" /></div><div><p className="text-sm font-bold text-gray-800">{order.customer}</p><p className="text-[10px] text-gray-400">{order.time} • {order.amount}</p></div></div>
-            <span className={`text-[10px] font-bold ${order.status === "delivered" ? "text-green-600" : "text-red-600"}`}>{translateStatus(order.status)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderDrawer = () => (
-    <AnimatePresence>
-      {showDrawer && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrawer(false)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]" />
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 bottom-0 w-72 bg-white z-[101] shadow-2xl flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-brand-orange/10 rounded-xl flex items-center justify-center text-brand-orange"><Store className="w-6 h-6" /></div><div><p className="font-bold text-gray-900 text-sm">{vendorName}</p></div></div><button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-400" /></button></div>
-            <div className="flex-1 p-4 space-y-2">
-              <button onClick={() => { setActiveView("store"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "store" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Store className="w-5 h-5" /><span className="text-sm font-bold">الرئيسية والطلبات</span></button>
-              <button onClick={() => { setActiveView("wallet"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "wallet" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Wallet className="w-5 h-5" /><span className="text-sm font-bold">المحفظة المالية</span></button>
-              <button onClick={() => { setActiveView("history"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "history" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><History className="w-5 h-5" /><span className="text-sm font-bold">سجل العمليات</span></button>
-              <button onClick={() => { setActiveView("settings"); setShowDrawer(false); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "settings" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Settings className="w-5 h-5" /><span className="text-sm font-bold">إعدادات الحساب</span></button>
-              <div className="h-px bg-gray-100 my-4" />
-              <button onClick={() => { setShowDrawer(false); handleUpdateLocation(); }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors"><MapPin className="w-5 h-5 text-gray-400" /><span className="text-sm font-bold text-gray-700">تحديث موقع المحل</span></button>
-            </div>
-            <div className="p-4 border-t border-gray-100"><button onClick={handleSignOut} className="w-full flex items-center gap-3 p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-colors"><LogOut className="w-5 h-5" /><span className="text-sm font-bold">تسجيل الخروج</span></button></div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-
   if (loading) return <AppLoader />;
 
   return (
@@ -699,17 +381,49 @@ export default function VendorApp() {
       <div className="silver-live-bg" />
       <PushNotificationManager userId={vendorId ?? null} />
       
-      {renderHeader()}
+      <VendorHeader
+        vendorName={vendorName}
+        lastSync={lastSync}
+        isSyncing={isSyncing}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onOpenDrawer={() => setShowDrawer(true)}
+      />
 
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
         {activeView === "store" ? (
-          renderStoreView()
+          <StoreView
+            orders={orders}
+            searchQuery={searchQuery}
+            activeTab={activeTab}
+            activityLog={activityLog}
+            balance={balance}
+            onlineDrivers={onlineDrivers}
+            companyCommission={companyCommission}
+            showLiveMap={showLiveMap}
+            vendorLocation={vendorLocation}
+            vendorId={vendorId}
+            vendorName={vendorName}
+            onSetActiveTab={setActiveTab}
+            onCollectDebt={handleCollectDebt}
+          />
         ) : activeView === "wallet" ? (
-          renderWalletView()
+          <WalletView
+            companyCommission={companyCommission}
+            balance={balance}
+            settlementHistory={settlementHistory}
+            onOpenSettlementModal={() => setShowSettlementModal(true)}
+          />
         ) : activeView === "settings" ? (
-          renderSettingsView()
+          <VendorSettingsView
+            settingsData={settingsData}
+            savingSettings={savingSettings}
+            onBack={() => setActiveView("store")}
+            onSettingsDataChange={setSettingsData}
+            onSave={handleUpdateProfile}
+          />
         ) : (
-          renderHistoryView()
+          <HistoryView orders={orders} />
         )}
       </main>
 
@@ -722,67 +436,45 @@ export default function VendorApp() {
         </button>
       )}
       
-      {/* Order Form Modal */}
-      <AnimatePresence>
-        {showOrderForm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-end">
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-w-md mx-auto rounded-t-[40px] border-t border-gray-100 p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-900">{editingOrder ? "تعديل الطلب" : "طلب طيار جديد"}</h2><button onClick={() => setShowOrderForm(false)} className="bg-gray-100 p-2 rounded-full text-gray-400"><X className="w-5 h-5" /></button></div>
-              <div className="space-y-4">
-                <input type="text" value={formData.customer} onChange={(e) => setFormData({...formData, customer: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" placeholder="اسم العميل" />
-                <input type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" placeholder="رقم الهاتف" />
-                <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" placeholder="العنوان بالتفصيل" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="number" value={formData.orderValue} onChange={(e) => setFormData({...formData, orderValue: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" placeholder="قيمة الأوردر" />
-                  <input type="number" value={formData.deliveryFee} onChange={(e) => setFormData({...formData, deliveryFee: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" placeholder="سعر التوصيل" />
-                </div>
-                <div className="flex gap-4">
-                  <button type="button" onClick={handlePickCustomerLocation} className={`flex-1 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${formData.customerCoords ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`}><MapPin size={20} />{formData.customerCoords ? "تم تحديد الموقع" : "تحديد موقع العميل"}</button>
-                  <label className={`flex-1 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"}`}><input type="file" className="hidden" accept="image/*" onChange={handleInvoiceUpload} /><Camera className="w-6 h-6" /><span className="text-xs">{invoiceUrl ? "تم الرفع" : "رفع الفاتورة"}</span></label>
-                </div>
-                <button onClick={handleSaveOrder} disabled={!formData.customer || !formData.orderValue || uploadingInvoice} className="w-full bg-brand-orange text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50">{editingOrder ? "حفظ التعديلات" : "إرسال الطلب الآن"}</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <OrderFormModal
+        show={showOrderForm}
+        editingOrder={editingOrder}
+        formData={formData}
+        invoiceUrl={invoiceUrl}
+        uploadingInvoice={uploadingInvoice}
+        onClose={() => setShowOrderForm(false)}
+        onFormDataChange={setFormData}
+        onPickCustomerLocation={handlePickCustomerLocation}
+        onInvoiceUpload={handleInvoiceUpload}
+        onSave={handleSaveOrder}
+      />
 
-      {/* Modals */}
-      <AnimatePresence>
-        {(showPasswordModal || showSettlementModal) && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl border border-gray-100 relative">
-              {showPasswordModal && (
-                <>
-                  <button onClick={() => setShowPasswordModal(false)} className="absolute top-6 left-6 text-gray-400 hover:text-gray-900 text-2xl">×</button>
-                  <h2 className="text-xl font-black mb-6 text-gray-900 text-right">تغيير كلمة السر</h2>
-                  <div className="space-y-4">
-                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-right" />
-                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-right" />
-                    {passwordError && <p className="text-red-500 text-xs font-bold text-right">{passwordError}</p>}
-                    <button onClick={handleChangePassword} disabled={changingPassword} className="w-full bg-brand-orange text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200">{changingPassword ? "جاري التغيير..." : "حفظ التغييرات"}</button>
-                  </div>
-                </>
-              )}
-              {showSettlementModal && (
-                <>
-                  <button onClick={() => setShowSettlementModal(false)} className="absolute top-6 left-6 text-gray-400 hover:text-gray-900 text-2xl">×</button>
-                  <h2 className="text-xl font-black mb-6 text-gray-900 text-right">طلب تسوية مديونية</h2>
-                  <div className="space-y-4">
-                    <div className="text-right">
-                      <label className="text-xs font-bold text-gray-400 block mb-2">المبلغ المراد سداده</label>
-                      <input type="number" value={settlementAmount} onChange={(e) => setSettlementAmount(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-right" placeholder="0.00" />
-                    </div>
-                    <button onClick={handleRequestSettlement} className="w-full bg-brand-orange text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200">إرسال الطلب</button>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <VendorAccountModals
+        showPasswordModal={showPasswordModal}
+        showSettlementModal={showSettlementModal}
+        newPassword={newPassword}
+        confirmPassword={confirmPassword}
+        passwordError={passwordError}
+        changingPassword={changingPassword}
+        settlementAmount={settlementAmount}
+        onClosePasswordModal={() => setShowPasswordModal(false)}
+        onCloseSettlementModal={() => setShowSettlementModal(false)}
+        onNewPasswordChange={setNewPassword}
+        onConfirmPasswordChange={setConfirmPassword}
+        onSettlementAmountChange={setSettlementAmount}
+        onChangePassword={handleChangePassword}
+        onRequestSettlement={handleRequestSettlement}
+      />
 
-      {renderDrawer()}
+      <VendorDrawer
+        showDrawer={showDrawer}
+        vendorName={vendorName}
+        activeView={activeView}
+        onClose={() => setShowDrawer(false)}
+        onChangeView={setActiveView}
+        onUpdateLocation={handleUpdateLocation}
+        onSignOut={handleSignOut}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ export interface UserProfile {
   area?: string;
   vehicle_type?: string;
   national_id?: string;
+  location?: { lat: number; lng: number } | null;
   is_locked: boolean;
   created_at: string;
 }
@@ -219,7 +220,7 @@ export const signOut = async () => {
 /**
  * دالة للأدمن لتحديث بيانات أي مستخدم (طيار أو محل)
  */
-export const adminUpdateUser = async (userId: string, updates: Partial<UserProfile>, password?: string) => {
+export const adminUpdateUser = async (userId: string, updates: Partial<UserProfile>) => {
   try {
     // 1. تحديث البيانات في جدول profiles (كأدمن)
     const { error: profileError } = await supabase
@@ -300,7 +301,7 @@ export const getCurrentUser = async () => {
       return session?.user || null;
     }
     return user;
-  } catch (e) {
+  } catch {
     const session = await getCurrentSession();
     return session?.user || null;
   }

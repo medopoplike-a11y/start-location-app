@@ -1,0 +1,47 @@
+import type { Order as DBOrder } from "@/lib/orders";
+
+export interface Order {
+  id: string;
+  customer: string;
+  phone: string;
+  address: string;
+  status: "pending" | "assigned" | "in_transit" | "delivered" | "cancelled";
+  driver: string | null;
+  driverPhone?: string;
+  amount: string;
+  deliveryFee: string;
+  time: string;
+  createdAt: string;
+  isPickedUp: boolean;
+  notes: string;
+  prepTime: string;
+  invoiceUrl?: string;
+  vendorCollectedAt?: string | null;
+  driverConfirmedAt?: string | null;
+}
+
+export interface VendorLocation {
+  lat: number;
+  lng: number;
+}
+
+export interface OnlineDriver {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+export interface SettlementHistoryItem {
+  id: string;
+  amount: number;
+  status: string;
+  date: string;
+}
+
+export type VendorDBOrder = DBOrder & {
+  profiles?: {
+    full_name?: string;
+    phone?: string;
+  } | null;
+};
