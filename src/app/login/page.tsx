@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
 import { signIn, getUserProfile } from "@/lib/auth";
+import { hasSupabaseConfig, getSupabaseCredentials } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import LocationMarker from "@/components/LocationMarker";
 
@@ -57,23 +58,25 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [supabaseUrlInput, setSupabaseUrlInput] = useState("");
+  const [supabaseAnonInput, setSupabaseAnonInput] = useState("");
   const [systemStatus, setSystemStatus] = useState(() => ({
     gps: "detecting",
     net: typeof window !== "undefined" && !navigator.onLine ? "offline" : "online",
     battery: "100%"
   }));
   const mounted = typeof window !== "undefined";
-
-  const supabaseConfigured = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes("placeholder")
-  );
+  const supabaseConfigured = hasSupabaseConfig();
 
   useEffect(() => {
     if (mounted && typeof window !== "undefined" && window.matchMedia) {
       setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    }
+
+    if (mounted) {
+      const creds = getSupabaseCredentials();
+      setSupabaseUrlInput(creds.url || "");
+      setSupabaseAnonInput(creds.anonKey || "");
     }
   }, [mounted]);
 
@@ -291,8 +294,38 @@ export default function LoginPage() {
           <div className="p-10">
             {!supabaseConfigured && (
               <div className="mb-6 rounded-2xl border border-red-300 bg-red-50 p-4 text-red-700 text-xs font-bold">
-                ⚠️ نظام Supabase غير مهيأ بشكل صحيح. سيتم منع تسجيل الدخول حتى يتم ضبط
-                NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY.
+                ⚠️ نظام Supabase غير مهيأ بشكل صحيح. أدخل بيانات الإعداد هنا واضغط حفظ.
+              </div>
+            )}
+
+            {!supabaseConfigured && (
+              <div className="grid gap-3 mb-4">
+                <input
+                  value={supabaseUrlInput}
+                  onChange={(e) => setSupabaseUrlInput(e.target.value)}
+                  placeholder="NEXT_PUBLIC_SUPABASE_URL"
+                  className="w-full p-3 rounded-xl bg-black/10 text-sm text-white"
+                />
+                <input
+                  value={supabaseAnonInput}
+                  onChange={(e) => setSupabaseAnonInput(e.target.value)}
+                  placeholder="NEXT_PUBLIC_SUPABASE_ANON_KEY"
+                  className="w-full p-3 rounded-xl bg-black/10 text-sm text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem("NEXT_PUBLIC_SUPABASE_URL", supabaseUrlInput.trim());
+                      window.localStorage.setItem("NEXT_PUBLIC_SUPABASE_ANON_KEY", supabaseAnonInput.trim());
+                      window.location.reload();
+                    }
+                  }}
+                  className="w-full p-3 rounded-xl bg-emerald-500 text-white font-bold"
+                >
+                  حفظ إعدادات Supabase وإعادة تحميل
+                </button>
+                <p className="text-[10px] text-white/40">سيتم استخدام القيم من localStorage إذا لم تكن موجودة المتغيرات في البيئة.</p>
               </div>
             )}
 
