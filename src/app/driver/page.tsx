@@ -7,7 +7,9 @@ import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { AppLoader } from "@/components/AppLoader";
+import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
+import { useToast } from "@/hooks/useToast";
 import type { Order, DBDriverOrder } from "./types";
 import DriverHeader from "./components/DriverHeader";
 import DriverOrdersView from "./components/DriverOrdersView";
@@ -17,6 +19,7 @@ import DriverHistoryView from "./components/DriverHistoryView";
 
 export default function DriverApp() {
   const router = useRouter();
+  const { toasts, removeToast, success, error, info } = useToast();
   
   // Basic State
   const [driverId, setDriverId] = useState<string | null>(null);
@@ -175,6 +178,7 @@ export default function DriverApp() {
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans" dir="rtl">
       <div className="silver-live-bg" />
+      <Toast toasts={toasts} onRemove={removeToast} />
 
       <DriverHeader
         driverName={driverName}
