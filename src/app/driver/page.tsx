@@ -61,6 +61,37 @@ interface Order {
   driverConfirmedAt?: string | null;
 }
 
+interface SettlementHistoryItem {
+  id: string;
+  vendor: string;
+  amount: number;
+  status: string;
+  date: string;
+}
+
+interface DBDriverOrder {
+  id: string;
+  vendor_id: string;
+  profiles?: {
+    full_name?: string;
+    phone?: string;
+    location?: { lat: number; lng: number };
+  } | null;
+  customer_details: {
+    name: string;
+    phone?: string;
+    address: string;
+  };
+  financials: {
+    delivery_fee: number;
+    prep_time: string;
+  };
+  distance?: number;
+  status: Order["status"];
+  vendor_collected_at?: string | null;
+  driver_confirmed_at?: string | null;
+}
+
 export default function DriverApp() {
   const router = useRouter();
   
@@ -81,7 +112,7 @@ export default function DriverApp() {
   const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
-  const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
+  const [settlementHistory, setSettlementHistory] = useState<SettlementHistoryItem[]>([]);
 
   // Modals State
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -202,7 +233,7 @@ export default function DriverApp() {
     }
   }
 
-  function mapDBOrderToUI(db: any): Order {
+  function mapDBOrderToUI(db: DBDriverOrder): Order {
     const distanceValue = db.distance || 2.5;
     const vendorProfile = db.profiles || {};
     return {
@@ -227,7 +258,7 @@ export default function DriverApp() {
   }
 
   const translateStatus = (status: string) => {
-    const statuses: any = { pending: "بانتظار الاستلام", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    const statuses: Record<string, string> = { pending: "بانتظار الاستلام", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
     return statuses[status] || status;
   };
 

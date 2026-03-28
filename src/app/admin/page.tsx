@@ -42,6 +42,100 @@ import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { useSync } from "@/hooks/useSync";
 
+interface AdminOrder {
+  id: string;
+  status: "pending" | "assigned" | "in_transit" | "delivered" | "cancelled";
+  vendor_full_name?: string | null;
+  vendor_id?: string;
+  driver_id?: string | null;
+  customer_details?: { name?: string };
+  financials?: { order_value?: number; delivery_fee?: number; insurance_fee?: number; system_commission?: number; vendor_commission?: number };
+  created_at: string;
+}
+
+interface LiveOrderItem {
+  id: string;
+  id_full: string;
+  vendor: string;
+  customer: string;
+  status: string;
+  driver: string | null;
+  driver_id?: string | null;
+  amount: number;
+  delivery_fee: number;
+  created_at: string;
+}
+
+interface DriverCard {
+  id: string;
+  id_full: string;
+  name: string;
+  status: string;
+  isShiftLocked: boolean;
+  earnings: number;
+  debt: number;
+  totalOrders: number;
+}
+
+interface VendorCard {
+  id: string;
+  id_full: string;
+  name: string;
+  type: string;
+  orders: number;
+  balance: number;
+  status: string;
+  location?: { lat?: number; lng?: number } | null;
+}
+
+interface AppUser {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  area: string;
+  vehicle_type: string;
+  national_id: string;
+  role: string;
+  created_at: string;
+}
+
+interface OnlineDriver {
+  id: string;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  lastSeen: string;
+}
+
+interface SettlementItem {
+  id: string;
+}
+
+interface ProfileRow {
+  id: string;
+  role?: string;
+  is_online?: boolean;
+  is_locked?: boolean;
+  full_name?: string;
+  phone?: string;
+  area?: string;
+  vehicle_type?: string;
+  national_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  last_location_update?: string;
+  location?: { lat?: number; lng?: number } | string | null;
+  email?: string;
+}
+
+interface WalletRow {
+  user_id: string;
+  balance?: number;
+  debt?: number;
+  system_balance?: number;
+}
+
 export default function AdminPanel() {
   const router = useRouter();
   
@@ -54,14 +148,14 @@ export default function AdminPanel() {
   const { lastSync, isSyncing } = useSync(undefined, () => fetchData(), true);
 
   // Data State
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [liveOrders, setLiveOrders] = useState<any[]>([]);
-  const [allOrders, setAllOrders] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [allUsers, setAllUsers] = useState<any[]>([]);
-  const [onlineDrivers, setOnlineDrivers] = useState<any[]>([]);
-  const [settlements, setSettlements] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<DriverCard[]>([]);
+  const [liveOrders, setLiveOrders] = useState<LiveOrderItem[]>([]);
+  const [allOrders, setAllOrders] = useState<AdminOrder[]>([]);
+  const [vendors, setVendors] = useState<VendorCard[]>([]);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
+  const [settlements, setSettlements] = useState<SettlementItem[]>([]);
+  const [activities, setActivities] = useState<Array<{ id: string; type: string; text: string; time: string }>>([]);
   const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
   
   // Financial State
@@ -119,8 +213,9 @@ export default function AdminPanel() {
       const profits = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
-          const driverComm = financials.system_commission ?? (financials.delivery_fee * (appConfig.driver_commission / 100));
-          const vendorComm = financials.vendor_commission ?? (financials.delivery_fee * (appConfig.vendor_commission / 100));
+          const deliveryFee = financials.delivery_fee ?? 0;
+          const driverComm = financials.system_commission ?? (deliveryFee * (appConfig.driver_commission / 100));
+          const vendorComm = financials.vendor_commission ?? (deliveryFee * (appConfig.vendor_commission / 100));
           const insurance = financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee);
           return acc + driverComm + vendorComm + insurance;
         }
@@ -154,7 +249,9 @@ export default function AdminPanel() {
       if (error) throw error;
       if (data) {
         setAllOrders(data);
-        const live = data.filter((o: any) => o.status !== 'delivered' && o.status !== 'cancelled').map((o: any) => ({
+        const typedData = data as AdminOrder[];
+        setAllOrders(typedData);
+        const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => ({
           id: o.id.slice(0, 8),
           id_full: o.id,
           vendor: o.vendor_full_name || "محل غير معروف",
@@ -167,7 +264,7 @@ export default function AdminPanel() {
           created_at: o.created_at
         }));
         setLiveOrders(live);
-        setActivities(data.slice(0, 5).map((o: any) => ({
+        setActivities(typedData.slice(0, 5).map((o) => ({
           id: o.id,
           type: 'order',
           text: `طلب جديد من ${o.vendor_full_name || "محل"} بقيمة ${o.financials?.order_value} ج.م`,
@@ -184,7 +281,8 @@ export default function AdminPanel() {
       const { data: profiles, error } = await supabase.rpc('get_all_profiles_admin');
       if (error) throw error;
       if (profiles) {
-        const online = profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver' && p.is_online).map((p: any) => {
+        const typedProfiles = profiles as ProfileRow[];
+        const online = typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'driver' && p.is_online).map((p) => {
           let loc = p.location;
           if (typeof loc === 'string') try { loc = JSON.parse(loc); } catch { loc = null; }
           return {
@@ -196,19 +294,20 @@ export default function AdminPanel() {
           };
         });
         setOnlineDrivers(online);
-        setAllUsers(profiles.map((u: any) => ({
+        setAllUsers(typedProfiles.map((u) => ({
           id: u.id, email: u.email, full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
         })));
 
         const { data: wallets } = await supabase.from('wallets').select('*');
         if (wallets) {
-          setTotalSystemDebt(wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
-          setDrivers(profiles.filter((p: any) => (p.role || '').toLowerCase() === 'driver').map((p: any) => {
-            const w = wallets.find((wal: any) => wal.user_id === p.id);
-            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", status: p.is_locked ? "محظور" : "نشط", isShiftLocked: p.is_locked, earnings: w?.balance || 0, debt: (w?.debt || 0) + (w?.system_balance || 0), totalOrders: 0 };
+          const typedWallets = wallets as WalletRow[];
+          setTotalSystemDebt(typedWallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
+          setDrivers(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
+            const w = typedWallets.find((wal) => wal.user_id === p.id);
+            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", status: p.is_locked ? "محظور" : "نشط", isShiftLocked: !!p.is_locked, earnings: w?.balance || 0, debt: (w?.debt || 0) + (w?.system_balance || 0), totalOrders: 0 };
           }));
-          setVendors(profiles.filter((p: any) => (p.role || '').toLowerCase() === 'vendor').map((p: any) => {
-            const w = wallets.find((wal: any) => wal.user_id === p.id);
+          setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
+            const w = typedWallets.find((wal) => wal.user_id === p.id);
             return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location: p.location };
           }));
         }
@@ -229,7 +328,7 @@ export default function AdminPanel() {
   };
 
   const translateStatus = (status: string) => {
-    const statuses: any = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
     return statuses[status] || status;
   };
 

@@ -110,7 +110,7 @@ export default function LoginPage() {
           setLoading(false);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("LoginPage: Login error", err);
       setError("حدث خطأ غير متوقع أثناء تسجيل الدخول");
       setLoading(false);

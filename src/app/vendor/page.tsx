@@ -68,6 +68,25 @@ interface Order {
   driverConfirmedAt?: string | null;
 }
 
+interface VendorLocation {
+  lat: number;
+  lng: number;
+}
+
+interface OnlineDriver {
+  id: string;
+  name: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface SettlementHistoryItem {
+  id: string;
+  amount: number;
+  status: string;
+  date: string;
+}
+
 export default function VendorApp() {
   const router = useRouter();
   
@@ -75,7 +94,7 @@ export default function VendorApp() {
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [vendorName, setVendorName] = useState("محل");
   const [vendorPhone, setVendorPhone] = useState("");
-  const [vendorLocation, setVendorLocation] = useState<any>(null);
+  const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
   const [activeView, setActiveView] = useState<"store" | "wallet" | "history" | "settings">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
@@ -84,7 +103,7 @@ export default function VendorApp() {
   const [balance, setBalance] = useState(0);
   const [companyCommission, setCompanyCommission] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [onlineDrivers, setOnlineDrivers] = useState<any[]>([]);
+  const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingLocation, setSavingLocation] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -123,7 +142,7 @@ export default function VendorApp() {
 
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
-  const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
+  const [settlementHistory, setSettlementHistory] = useState<SettlementHistoryItem[]>([]);
 
   const [appConfig, setAppConfig] = useState({ driver_commission: 15, vendor_commission: 20, vendor_fee: 1, safe_ride_fee: 1 });
 
@@ -138,11 +157,11 @@ export default function VendorApp() {
             setVendorId(user.id);
             setVendorName(profile.full_name || "محل");
             setVendorPhone(profile.phone || "");
-            setVendorLocation((profile as any).location);
+            setVendorLocation((profile.location as VendorLocation | undefined) || null);
             setSettingsData({ 
               name: profile.full_name || "", 
               phone: profile.phone || "",
-              area: (profile as any).area || ""
+              area: profile.area || ""
             });
           }
           await updateData(user.id);
@@ -214,7 +233,7 @@ export default function VendorApp() {
 
   // --- Logic Helpers ---
 
-  const mapDBOrderToUI = (db: any): Order => ({
+  const mapDBOrderToUI = (db: DBOrder): Order => ({
     id: db.id,
     customer: db.customer_details?.name || "عميل",
     phone: db.customer_details?.phone || "",
@@ -235,7 +254,7 @@ export default function VendorApp() {
   });
 
   const translateStatus = (status: string) => {
-    const statuses: any = { pending: "جاري البحث عن طيار", assigned: "تم تعيين طيار", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    const statuses: Record<string, string> = { pending: "جاري البحث عن طيار", assigned: "تم تعيين طيار", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
     return statuses[status] || status;
   };
 
@@ -374,7 +393,7 @@ export default function VendorApp() {
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
       setInvoiceUrl(publicUrl);
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert("فشل رفع الفاتورة.");
     } finally { setUploadingInvoice(false); }
   };
@@ -403,7 +422,7 @@ export default function VendorApp() {
       if (error) throw error;
       setVendorLocation(loc);
       alert("تم حفظ الموقع!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert("فشل تحديد الموقع.");
     } finally { setSavingLocation(false); }
   };

@@ -1,5 +1,5 @@
 export const BackgroundGeolocation = {
-  addWatcher: async (_options: any, _callback: any) => {
+  addWatcher: async (_options: unknown, _callback: unknown) => {
     console.warn('BackgroundGeolocation is not available in web mode.');
     return null;
   },

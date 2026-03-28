@@ -40,7 +40,7 @@ export default function PushNotificationManager({ userId }: { userId: string | n
       }
     });
 
-    PushNotifications.addListener('registrationError', (error: any) => {
+    PushNotifications.addListener('registrationError', (error: unknown) => {
       console.error('Push registration error: ' + JSON.stringify(error));
     });
 

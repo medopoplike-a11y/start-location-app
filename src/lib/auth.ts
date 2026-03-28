@@ -102,7 +102,7 @@ export const createUserByAdmin = async (
     }
 
     return { error: signUpError || new Error("فشل إنشاء المستخدم") };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { error: err };
   }
 };
@@ -235,7 +235,7 @@ export const adminUpdateUser = async (userId: string, updates: Partial<UserProfi
     // سنكتفي حالياً بتحديث البيانات الأساسية.
 
     return { error: null };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in adminUpdateUser:', err);
     return { error: err };
   }
@@ -259,7 +259,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     // 2. تحديث Metadata في Auth إذا كان متاحاً
     const { data: { user } } = await supabase.auth.getUser();
     if (user && user.id === userId) {
-      const authUpdates: any = {};
+      const authUpdates: Record<string, string> = {};
       if (updates.full_name) authUpdates.full_name = updates.full_name;
       if (updates.phone) authUpdates.phone = updates.phone;
       if (updates.area) authUpdates.area = updates.area;
@@ -274,7 +274,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     }
 
     return { data, error: null };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error updating user profile:', err);
     return { error: err };
   }

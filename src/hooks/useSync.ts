@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -21,10 +22,10 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
   };
 
   useEffect(() => {
-    let ordersSub: any;
-    let profilesSub: any;
-    let walletSub: any;
-    let settlementsSub: any;
+    let ordersSub: RealtimeChannel | undefined;
+    let profilesSub: RealtimeChannel | undefined;
+    let walletSub: RealtimeChannel | undefined;
+    let settlementsSub: RealtimeChannel | undefined;
 
     // Subscriptions
     ordersSub = subscribeToOrders(triggerUpdate);
