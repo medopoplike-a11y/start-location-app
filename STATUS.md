@@ -7,7 +7,7 @@
 ### 📱 **Applications**
 - **Mobile (Android)**: APK Build Status ✅ [v0.2.2]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
-- **API (Supabase)**: PostgreSQL Backend ✅ [sdpjvorettivpdviytqo.supabase.co]
+- **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
 ### 🏗️ **Architecture**
 ```
@@ -40,8 +40,8 @@ Hosting: Vercel (Web) + GitHub Releases (APK)
 - **Database**: ✅ 14 Tables, RLS Policies
 
 ### 🔗 **Links**
-- **GitHub**: https://github.com/medopoplike-a11y/start
-- **Web App**: https://traestartzlum.vercel.app
+- **GitHub**: https://github.com/your-org/your-repo
+- **Web App**: https://your-app-domain.example.com
 - **Android APK**: Download from Releases
 
 ---

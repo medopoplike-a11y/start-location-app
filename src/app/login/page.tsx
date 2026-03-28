@@ -11,18 +11,13 @@ import { useAuth } from "@/components/AuthProvider";
 
 type LoginRole = "driver" | "vendor" | "admin";
 
-const DataNode = ({ index }: { index: number }) => {
-  const [mounted, setMounted] = useState(false);
+const DataNode = () => {
   const [config] = useState(() => ({
     x: Math.random() * 100,
     y: Math.random() * 100,
     delay: Math.random() * 5,
     duration: 10 + Math.random() * 20
   }));
-
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) return null;
 
   return (
     <motion.div
@@ -50,20 +45,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [systemStatus, setSystemStatus] = useState({ gps: "detecting", net: "online", battery: "100%" });
-  const [mounted, setMounted] = useState(false);
+  const [systemStatus, setSystemStatus] = useState(() => ({
+    gps: "detecting",
+    net: typeof window !== "undefined" && !navigator.onLine ? "offline" : "online",
+    battery: "100%"
+  }));
+  const mounted = typeof window !== "undefined";
   const router = useRouter();
 
   useEffect(() => {
-    setMounted(true);
     // Check sensors on load
-    if (typeof window !== "undefined") {
+    if (mounted) {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(() => setSystemStatus(prev => ({...prev, gps: "active"})), () => setSystemStatus(prev => ({...prev, gps: "restricted"})));
       }
-      setSystemStatus(prev => ({...prev, net: navigator.onLine ? "active" : "offline"}));
     }
-  }, []);
+  }, [mounted]);
 
   const redirectUserByRole = (role: string) => {
     const normalizedRole = role?.toLowerCase();
@@ -158,7 +155,7 @@ export default function LoginPage() {
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Dynamic Nodes */}
         {[...Array(20)].map((_, i) => (
-          <DataNode key={i} index={i} />
+          <DataNode key={i} />
         ))}
         
         {/* Subtle Vector Grid */}

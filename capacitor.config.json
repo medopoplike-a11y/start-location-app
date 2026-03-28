@@ -11,7 +11,7 @@
       "*.firebaseio.com"
     ],
     "androidScheme": "https",
-    "cleartext": true
+    "cleartext": false
   },
   "plugins": {
     "CapacitorUpdater": {
@@ -37,7 +37,7 @@
     }
   },
   "android": {
-    "allowMixedContent": true,
+    "allowMixedContent": false,
     "captureInput": true,
     "buildOptions": {
       "releaseType": "APK"

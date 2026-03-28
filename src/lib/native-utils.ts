@@ -84,14 +84,36 @@ export const startBackgroundTracking = async (userId: string) => {
   if (!isNative() || !userId) return;
 
   try {
-    const pluginName = ['@capacitor-community', 'background-geolocation'].join('/');
-    const pluginModule = await import(pluginName).catch(() => null);
-    if (!pluginModule || !pluginModule.BackgroundGeolocation) {
+    const plugins = (Capacitor as unknown as { Plugins?: Record<string, unknown> }).Plugins;
+    const BackgroundGeolocation = plugins?.BackgroundGeolocation as
+      | {
+          addWatcher: (
+            options: {
+              backgroundMessage: string;
+              backgroundTitle: string;
+              requestPermissions: boolean;
+              staleLocationInterval: number;
+              distanceFilter: number;
+            },
+            callback: (
+              location?: {
+                latitude: number;
+                longitude: number;
+                bearing: number | null;
+                speed: number | null;
+                accuracy: number;
+              },
+              error?: { code?: string }
+            ) => void
+          ) => Promise<string>;
+          openSettings: () => void;
+        }
+      | undefined;
+
+    if (!BackgroundGeolocation) {
       console.warn('BackgroundGeolocation plugin not available.');
       return;
     }
-
-    const BackgroundGeolocation = pluginModule.BackgroundGeolocation;
 
     const watcherId = await BackgroundGeolocation.addWatcher(
       {

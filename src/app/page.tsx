@@ -9,16 +9,14 @@ import { useAuth } from "@/components/AuthProvider";
 const neonColors = ["#0ea5e9", "#818cf8", "#8b5cf6", "#06b6d4", "#34d399"];
 
 export default function SplashPage() {
-  if (process.env.IS_BUILDING) {
-    return <div />;
-  }
-
+  const isBuilding = Boolean(process.env.IS_BUILDING);
   const router = useRouter();
   const [status, setStatus] = useState("Checking System...");
   const [neonColor, setNeonColor] = useState(neonColors[0]);
   const { user, profile, loading } = useAuth();
 
   useEffect(() => {
+    if (isBuilding) return;
     // Force body background to be matte silver with subtle pulsating gradient
     if (typeof document !== 'undefined') {
       document.body.style.background = 'radial-gradient(circle at 10% 20%, #e0efff 0%, #cbd5e1 45%, #f3f4f6 100%)';
@@ -28,9 +26,10 @@ export default function SplashPage() {
       setNeonColor(neonColors[Math.floor(Math.random() * neonColors.length)]);
     }, 1500);
     return () => clearInterval(colorInterval);
-  }, []);
+  }, [isBuilding]);
 
   useEffect(() => {
+    if (isBuilding) return;
     if (loading) {
       setStatus("Initializing Start-OS...");
     } else if (user && !profile) {
@@ -49,7 +48,7 @@ export default function SplashPage() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [loading, user, profile, router]);
+  }, [isBuilding, loading, user, profile, router]);
 
   const handlePanicLogout = async () => {
     const { signOut } = await import("@/lib/auth");
@@ -58,6 +57,7 @@ export default function SplashPage() {
 
   // Global Error Handler for "This page couldn't load"
   useEffect(() => {
+    if (isBuilding) return;
     const handleError = (e: ErrorEvent) => {
       console.error("Splash: Global error caught", e);
       if (e.message?.includes("Hydration")) {
@@ -66,7 +66,11 @@ export default function SplashPage() {
     };
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
-  }, []);
+  }, [isBuilding]);
+
+  if (isBuilding) {
+    return <div />;
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-8 overflow-hidden relative" dir="rtl">

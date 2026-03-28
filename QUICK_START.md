@@ -102,7 +102,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=....
 
 # أضف هذه:
 SUPABASE_SERVICE_ROLE_KEY=your-service-key
-NEXT_PUBLIC_ADMIN_EMAIL=medopoplike@gmail.com
+NEXT_PUBLIC_ADMIN_EMAILS=admin@example.com
 ENCRYPTION_KEY=your-32-char-key-here
 NEXT_PUBLIC_APP_VERSION=0.2.2
 ```

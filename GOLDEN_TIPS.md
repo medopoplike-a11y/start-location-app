@@ -5,10 +5,10 @@
 ### 1. أمان الدرجة الأولى 🔒
 ```typescript
 // ❌ لا تفعل هذا (ما هو موجود حالياً):
-const adminEmail = 'medopoplike@gmail.com'; // hardcoded!
+const adminEmail = 'admin@example.com'; // hardcoded!
 
 // ✅ افعل هذا:
-const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAILS;
 
 // ✅ للبيانات الحساسة:
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

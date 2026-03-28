@@ -12,20 +12,20 @@
 ## 🔐 How to Connect Supabase with GitHub Actions
 
 ### Step 1: Go to GitHub Secrets Page
-👉 https://github.com/medopoplike-a11y/start/settings/secrets/actions
+👉 https://github.com/your-org/your-repo/settings/secrets/actions
 
 ### Step 2: Add These 2 Secrets (Need Both!)
 
 #### Secret #1: NEXT_PUBLIC_SUPABASE_URL
 ```
 Name: NEXT_PUBLIC_SUPABASE_URL
-Value: https://sdpjvorettivpdviytqo.supabase.co
+Value: https://your-project-ref.supabase.co
 ```
 
 #### Secret #2: NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
 Name: NEXT_PUBLIC_SUPABASE_ANON_KEY
-Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcGp2b3JldHRpdnBkdml5dHFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODI2MDIsImV4cCI6MjA4OTQ1ODYwMn0.Ti0wZbQHBQwFCBZlCdSaar7JUZm7k7sYUbvr9H2MsZ4
+Value: your-public-anon-key
 ```
 
 ### Step 3: Existing Secrets (Already Added)
@@ -61,9 +61,9 @@ env:
 
 | Detail | Value |
 |--------|-------|
-| **Project ID** | sdpjvorettivpdviytqo |
+| **Project ID** | your-project-ref |
 | **Region** | Middle East (Egypt) |
-| **API URL** | https://sdpjvorettivpdviytqo.supabase.co |
+| **API URL** | https://your-project-ref.supabase.co |
 | **Database Host** | aws-0-me-south-1.pooler.supabase.com |
 | **Anon Key** | eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... |
 
@@ -75,21 +75,21 @@ All these files already have Supabase configured:
 
 ### 1. .env.local
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://sdpjvorettivpdviytqo.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### 2. vercel.json
 ```json
 "env": {
-  "NEXT_PUBLIC_SUPABASE_URL": "https://sdpjvorettivpdviytqo.supabase.co",
+  "NEXT_PUBLIC_SUPABASE_URL": "https://your-project-ref.supabase.co",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
 ### 3. src/lib/supabaseClient.ts
 ```typescript
-const supabaseUrl = 'https://sdpjvorettivpdviytqo.supabase.co';
+const supabaseUrl = 'https://your-project-ref.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {...});
 ```
@@ -131,7 +131,7 @@ git push origin main
 ```
 
 ### 2. Go to Actions Page:
-👉 https://github.com/medopoplike-a11y/start/actions
+👉 https://github.com/your-org/your-repo/actions
 
 ### 3. Check Workflow Status:
 - Look for latest workflow run
@@ -199,7 +199,7 @@ Then everything will be fully connected and automated! 🚀
 ## 🆘 Troubleshooting
 
 ### If workflow fails:
-1. Go to https://github.com/medopoplike-a11y/start/actions
+1. Go to https://github.com/your-org/your-repo/actions
 2. Click failed workflow
 3. Check error message
 4. Most common issue: Secrets not added or incorrect value

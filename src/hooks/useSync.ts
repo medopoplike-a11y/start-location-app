@@ -13,18 +13,18 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
+  const triggerUpdate = () => {
+    setIsSyncing(true);
+    if (onUpdateRef.current) onUpdateRef.current();
+    setLastSync(new Date());
+    setTimeout(() => setIsSyncing(false), 800);
+  };
+
   useEffect(() => {
     let ordersSub: any;
     let profilesSub: any;
     let walletSub: any;
     let settlementsSub: any;
-
-    const triggerUpdate = () => {
-      setIsSyncing(true);
-      if (onUpdateRef.current) onUpdateRef.current();
-      setLastSync(new Date());
-      setTimeout(() => setIsSyncing(false), 800);
-    };
 
     // Subscriptions
     ordersSub = subscribeToOrders(triggerUpdate);

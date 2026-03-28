@@ -348,14 +348,14 @@ export default function VendorApp() {
       const ui = mapDBOrderToUI(data as DBOrder);
       setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
       setShowOrderForm(false);
-      addActivity(editingOrder ? "تم تعديل الطلب" : "تم إنشاء طلب جديد");
+      addActivityLocal(editingOrder ? "تم تعديل الطلب" : "تم إنشاء طلب جديد");
     }
   };
 
   const handleCollectDebt = async (orderId: string) => {
     const { error } = await vendorCollectDebt(orderId);
     if (!error) {
-      addActivity(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)}`);
+      addActivityLocal(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)}`);
       if (vendorId) {
         updateData(vendorId);
       }
@@ -386,7 +386,7 @@ export default function VendorApp() {
     const { data, error } = await cancelOrder(orderId);
     if (!error && data) {
       setOrders(prev => prev.map(o => o.id === orderId ? mapDBOrderToUI(data as DBOrder) : o));
-      addActivity(`تم إلغاء الطلب #${orderId.slice(0, 8)}`);
+      addActivityLocal(`تم إلغاء الطلب #${orderId.slice(0, 8)}`);
     }
   };
 
@@ -678,7 +678,7 @@ export default function VendorApp() {
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
       <div className="silver-live-bg" />
-      <PushNotificationManager userId={vendorId || undefined} />
+      <PushNotificationManager userId={vendorId ?? null} />
       
       {renderHeader()}
 

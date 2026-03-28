@@ -73,9 +73,8 @@ BEGIN
   -- السماح للأدمن بإدارة جميع الملفات الشخصية (تجنب التكرار اللا نهائي مع دعم الإيميل)
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can manage all profiles') THEN
     CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
-      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR 
-      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-      auth.jwt() ->> 'email' = 'medopoplike@gmail.com'
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 END $$;
@@ -234,9 +233,8 @@ RETURNS SETOF profiles AS $$
 BEGIN
   -- التحقق من الصلاحيات باستخدام بيانات JWT (أكثر استقراراً من البروفايل)
   IF (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR 
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
     (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() ->> 'email') = 'medopoplike@gmail.com' OR
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   ) THEN
     RETURN QUERY SELECT * FROM profiles ORDER BY created_at DESC;
@@ -251,9 +249,8 @@ CREATE OR REPLACE FUNCTION get_all_wallets_admin()
 RETURNS SETOF wallets AS $$
 BEGIN
   IF (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR 
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
     (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() ->> 'email') = 'medopoplike@gmail.com' OR
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   ) THEN
     RETURN QUERY SELECT * FROM wallets;
@@ -277,9 +274,8 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   IF (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR 
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
     (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() ->> 'email') = 'medopoplike@gmail.com' OR
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   ) THEN
     RETURN QUERY 
@@ -414,14 +410,15 @@ RETURNS BOOLEAN AS $$
 BEGIN
   -- التحقق من صلاحيات الأدمن
   IF (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR 
-    (auth.jwt() ->> 'email') = 'medopoplike@gmail.com'
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   ) THEN
     -- 1. حذف الطلبات المرتبطة
     DELETE FROM public.orders WHERE vendor_id = target_user_id OR driver_id = target_user_id;
     
     -- 2. حذف التسويات المرتبطة
-    DELETE FROM public.settlements WHERE driver_id = target_user_id;
+    DELETE FROM public.settlements WHERE user_id = target_user_id;
     
     -- 3. تصفير المحفظة
     UPDATE public.wallets SET balance = 0, debt = 0, system_balance = 0 WHERE user_id = target_user_id;
@@ -488,8 +485,9 @@ CREATE OR REPLACE FUNCTION reset_all_system_data_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
   IF (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR 
-    (auth.jwt() ->> 'email') = 'medopoplike@gmail.com'
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   ) THEN
     -- استخدام شرط لتجاوز حماية الحذف الشامل
     DELETE FROM public.orders WHERE id IS NOT NULL;

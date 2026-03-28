@@ -34,7 +34,7 @@ const LiveMap = dynamic(() => import('@/components/LiveMap'), {
 });
 
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { updateOrder, driverConfirmPayment, getAvailableOrders } from "@/lib/orders";
+import { getAvailableOrders } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { PremiumCard } from "@/components/PremiumCard";
 import { AppLoader } from "@/components/AppLoader";
@@ -102,14 +102,6 @@ export default function DriverApp() {
     national_id: ""
   });
 
-  // Sync with useSync hook
-  useSync(driverId || undefined, () => {
-    if (driverId) {
-      fetchOrders(driverId);
-      fetchStats(driverId);
-    }
-  });
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedActive = localStorage.getItem("driver_is_active");
@@ -174,7 +166,7 @@ export default function DriverApp() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [driverId, isActive]);
 
-  const fetchStats = async (currentDriverId: string) => {
+  async function fetchStats(currentDriverId: string) {
     setLastSyncTime(new Date());
     try {
       const { data: walletData } = await supabase.from('wallets').select('debt, system_balance').eq('user_id', currentDriverId).single();
@@ -201,16 +193,16 @@ export default function DriverApp() {
     } catch (err) {
       console.error("Error fetching stats:", err);
     }
-  };
+  }
 
-  const fetchOrders = async (currentDriverId: string) => {
+  async function fetchOrders(_currentDriverId: string) {
     const data = await getAvailableOrders();
     if (data) {
       setOrders(data.map(mapDBOrderToUI));
     }
-  };
+  }
 
-  const mapDBOrderToUI = (db: any): Order => {
+  function mapDBOrderToUI(db: any): Order {
     const distanceValue = db.distance || 2.5;
     const vendorProfile = db.profiles || {};
     return {
@@ -232,12 +224,20 @@ export default function DriverApp() {
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at
     };
-  };
+  }
 
   const translateStatus = (status: string) => {
     const statuses: any = { pending: "بانتظار الاستلام", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
     return statuses[status] || status;
   };
+
+  // Sync with useSync hook
+  useSync(driverId || undefined, () => {
+    if (driverId) {
+      fetchOrders(driverId);
+      fetchStats(driverId);
+    }
+  });
 
   const handleUpdateProfile = async () => {
     if (!driverId) return;

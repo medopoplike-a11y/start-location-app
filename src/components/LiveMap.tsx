@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import { defaultIcon, driverIcon, vendorIcon } from '@/lib/map-icons';
+import { driverIcon, vendorIcon } from '@/lib/map-icons';
 
 interface MapPoint {
   id: string;
@@ -41,11 +40,7 @@ export default function LiveMap({
   zoom = 13,
   className = "h-[400px] w-full rounded-2xl overflow-hidden shadow-inner"
 }: LiveMapProps) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = typeof window !== 'undefined';
 
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
@@ -67,7 +62,7 @@ export default function LiveMap({
           <Marker 
             key={`driver-${driver.id}`} 
             position={[driver.lat!, driver.lng!]} 
-            icon={icons.driverIcon!}
+            icon={driverIcon!}
           >
             <Popup className="custom-popup">
               <div className="p-1 font-sans text-right" dir="rtl">

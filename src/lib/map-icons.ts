@@ -3,9 +3,9 @@
 import L from 'leaflet';
 
 // Ensure this code runs only in the browser
-let defaultIcon = null;
-let driverIcon = null;
-let vendorIcon = null;
+let defaultIcon: L.Icon | null = null;
+let driverIcon: L.DivIcon | null = null;
+let vendorIcon: L.DivIcon | null = null;
 
 if (typeof window !== 'undefined') {
   defaultIcon = L.icon({

@@ -17,7 +17,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 **من أين تأخذها:**
 1. اذهب إلى: https://supabase.com
-2. افتح project: `sdpjvorettivpdviytqo`
+2. افتح project: `your-project-ref`
 3. اذهب إلى: Settings → API
 4. انسخ:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
@@ -50,7 +50,7 @@ vercel link      # سيعطيك ORG ID و PROJECT ID
 
 ### **الطريقة:**
 
-1. اذهب إلى: `https://github.com/medopoplike-a11y/start/settings/secrets/actions`
+1. اذهب إلى: `https://github.com/your-org/your-repo/settings/secrets/actions`
 
 2. اضغط "New repository secret"
 
@@ -79,7 +79,7 @@ vercel link      # سيعطيك ORG ID و PROJECT ID
 
 بعد إضافة الـ secrets:
 
-1. اذهب إلى: https://github.com/medopoplike-a11y/start/actions
+1. اذهب إلى: https://github.com/your-org/your-repo/actions
 
 2. شغّل workflow يدويا:
    - اضغط "Run workflow"

@@ -156,12 +156,12 @@ $ git push origin main
 
 ### Supabase Dashboard
 👉 https://dashboard.supabase.com
-- Project: `sdpjvorettivpdviytqo`
+- Project: `your-project-ref`
 - Region: Middle East (Egypt)
 - Database: PostgreSQL 15
 
 ### GitHub Actions
-👉 https://github.com/medopoplike-a11y/start/actions
+👉 https://github.com/your-org/your-repo/actions
 - Monitor build status
 - Check deployment logs
 - Download APK artifacts
@@ -173,7 +173,7 @@ $ git push origin main
 - Check analytics
 
 ### GitHub Repository
-👉 https://github.com/medopoplike-a11y/start
+👉 https://github.com/your-org/your-repo
 - Main repository
 - CI/CD workflows
 - Release assets
@@ -277,7 +277,7 @@ git push origin main
 ```
 
 ### 3. Watch Automation
-- Go to: https://github.com/medopoplike-a11y/start/actions
+- Go to: https://github.com/your-org/your-repo/actions
 - Wait for workflows to complete (15-20 min)
 - Check build status
 
@@ -320,9 +320,9 @@ git push origin main
 
 | Resource | Link |
 |----------|------|
-| **GitHub Repository** | https://github.com/medopoplike-a11y/start |
-| **GitHub Actions** | https://github.com/medopoplike-a11y/start/actions |
-| **GitHub Secrets** | https://github.com/medopoplike-a11y/start/settings/secrets/actions |
+| **GitHub Repository** | https://github.com/your-org/your-repo |
+| **GitHub Actions** | https://github.com/your-org/your-repo/actions |
+| **GitHub Secrets** | https://github.com/your-org/your-repo/settings/secrets/actions |
 | **Vercel Dashboard** | https://vercel.com |
 | **Supabase Dashboard** | https://dashboard.supabase.com |
 | **Integration Guide** | SUPABASE_GITHUB_INTEGRATION.md |

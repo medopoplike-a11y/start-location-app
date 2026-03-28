@@ -104,7 +104,7 @@ Organization ID: team_xxx
 
 ### **الخطوة 1: افتح GitHub Secrets**
 ```
-https://github.com/medopoplike-a11y/start/settings/secrets/actions
+https://github.com/your-org/your-repo/settings/secrets/actions
 ```
 
 ### **الخطوة 2: أضف 3 Secrets:**

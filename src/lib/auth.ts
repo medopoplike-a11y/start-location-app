@@ -16,6 +16,16 @@ export interface UserProfile {
   created_at: string;
 }
 
+const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+const isConfiguredAdminEmail = (email?: string | null): boolean => {
+  if (!email) return false;
+  return adminEmails.includes(email.toLowerCase());
+};
+
 /**
  * دالة للأدمن لإنشاء مستخدم جديد (طيار أو محل)
  * تستخدم عميل معزول تماماً لضمان عدم تداخل الجلسات
@@ -108,12 +118,12 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
     userEmail = user?.email || undefined;
   }
 
-  // Hardcoded admin check - ABSOLUTE OVERRIDE
-  if (userEmail === 'medopoplike@gmail.com') {
-    console.log("Auth: Hardcoded admin detected");
+  // Optional admin bootstrap via configured emails only.
+  if (isConfiguredAdminEmail(userEmail)) {
+    console.log("Auth: configured admin email detected");
     return {
       id: userId,
-      email: userEmail,
+      email: userEmail || "",
       full_name: 'مدير النظام',
       role: 'admin',
       is_locked: false,
@@ -144,9 +154,9 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
       // استخراج البيانات من Metadata أو استخدام قيم افتراضية
       const fullName = user.user_metadata?.full_name || 'مستخدم';
       
-      // منطق ذكي لتحديد الدور: إذا كان الإيميل هو الإيميل المذكور، فهو أدمن
+      // منطق تحديد الدور بالاعتماد على metadata أو قائمة أدمن مضبوطة في env
       let role: UserRole = (user.user_metadata?.role || 'driver').toLowerCase() as UserRole;
-      if (user.email === 'medopoplike@gmail.com' || user.email?.includes('admin')) {
+      if (isConfiguredAdminEmail(user.email)) {
         role = 'admin';
       }
 

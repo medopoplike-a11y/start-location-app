@@ -8,15 +8,12 @@ const nextConfig = {
     unoptimized: true,
   },
   reactStrictMode: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   trailingSlash: false,
   env: {
     IS_BUILDING: process.env.npm_lifecycle_script === 'next build' ? 'true' : 'false',
   },
   turbopack: {},
-  webpack: (config, options) => {
+  webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       '@capacitor-community/background-geolocation': path.resolve(__dirname, 'src/lib/background-geolocation-mock.ts'),

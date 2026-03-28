@@ -14,7 +14,7 @@
 ### **الخطوة 1: افتح GitHub Settings**
 
 ```
-https://github.com/medopoplike-a11y/start/settings/secrets/actions
+https://github.com/your-org/your-repo/settings/secrets/actions
 ```
 
 ---
@@ -22,7 +22,7 @@ https://github.com/medopoplike-a11y/start/settings/secrets/actions
 ### **الخطوة 2: احصل على Supabase Keys**
 
 1. اذهب إلى: https://supabase.com
-2. اختر project: `sdpjvorettivpdviytqo`
+2. اختر project: `your-project-ref`
 3. انقر على: Settings → API
 4. انسخ:
    ```
@@ -49,14 +49,14 @@ vercel link
 
 ### **الخطوة 4: أضف 5 Secrets إلى GitHub**
 
-افتح: https://github.com/medopoplike-a11y/start/settings/secrets/actions
+افتح: https://github.com/your-org/your-repo/settings/secrets/actions
 
 اضغط "New repository secret" لكل واحد:
 
 #### **Secret 1: Supabase URL**
 ```
 Name: NEXT_PUBLIC_SUPABASE_URL
-Value: https://sdpjvorettivpdviytqo.supabase.co
+Value: https://your-project-ref.supabase.co
 ```
 
 #### **Secret 2: Supabase Key**
@@ -89,7 +89,7 @@ Value: <من_vercel_link>
 
 بعد إضافة الـ 5 secrets:
 
-1. اذهب إلى: https://github.com/medopoplike-a11y/start/actions
+1. اذهب إلى: https://github.com/your-org/your-repo/actions
 
 2. اضغط "Run workflow" (الزر الأزرق على اليمين)
 

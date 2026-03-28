@@ -16,9 +16,9 @@ npx cap sync android
 
 # 3. إنشاء .env.local
 @"
-NEXT_PUBLIC_SUPABASE_URL=https://sdpjvorettivpdviytqo.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-NEXT_PUBLIC_ADMIN_EMAIL=medopoplike@gmail.com
+NEXT_PUBLIC_ADMIN_EMAILS=admin@example.com
 NEXT_PUBLIC_APP_VERSION=0.2.2
 "@ | Out-File -Encoding UTF8 .env.local
 
@@ -129,7 +129,7 @@ adb logcat | grep "Start Location"
 **بعد حوالي ساعة إلى ساعة ونصف:**
 
 ✅ **الويب:**
-- التطبيق يعمل على: https://traestartzlum.vercel.app
+- التطبيق يعمل على: https://your-app-domain.example.com
 - الثلاث واجهات تعمل
 - قاعدة البيانات متصلة
 
