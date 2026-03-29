@@ -1,4 +1,4 @@
-name: 📱 Mobile Release + OTA
+name: Mobile Release + OTA
 
 on:
   workflow_dispatch:
