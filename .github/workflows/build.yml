@@ -71,3 +71,24 @@ jobs:
         files: android/app/build/outputs/apk/debug/app-debug.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+    - uses: actions/checkout@v4.1.1
+
+    - name: Deploy to Vercel
+      if: env.VERCEL_TOKEN != '' && env.VERCEL_PROJECT_ID != '' && env.VERCEL_ORG_ID != ''
+      uses: amondnet/vercel-action@v20
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        github-comment: false
+        vercel-args: '--prod'
