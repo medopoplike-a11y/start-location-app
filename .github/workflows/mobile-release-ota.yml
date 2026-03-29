@@ -18,6 +18,8 @@ on:
 env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+  CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -44,6 +46,45 @@ jobs:
       - name: Build web for mobile
         run: npm run build:mobile
 
+      - name: Verify Android signing secrets
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "❌ ANDROID_KEYSTORE_BASE64 is not set"
+            exit 1
+          fi
+          if [ -z "$RELEASE_STORE_PASSWORD" ]; then
+            echo "❌ RELEASE_STORE_PASSWORD is not set"
+            exit 1
+          fi
+          if [ -z "$RELEASE_KEY_ALIAS" ]; then
+            echo "❌ RELEASE_KEY_ALIAS is not set"
+            exit 1
+          fi
+          if [ -z "$RELEASE_KEY_PASSWORD" ]; then
+            echo "❌ RELEASE_KEY_PASSWORD is not set"
+            exit 1
+          fi
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Create keystore and Gradle signing config
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/keystore.jks
+          cat <<'EOF' > android/keystore.properties
+RELEASE_STORE_FILE=../keystore.jks
+RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD
+RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS
+RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD
+EOF
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
       - name: Build APK release
         working-directory: ./android
         run: ./gradlew assembleRelease
@@ -66,14 +107,14 @@ jobs:
           retention-days: 30
 
       - name: Upload bundle to Capgo (optional)
-        if: ${{ secrets.CAPGO_TOKEN != '' }}
+        if: ${{ env.CAPGO_TOKEN != '' }}
         run: |
           npm install -g @capgo/cli
-          capgo login --apikey "${{ secrets.CAPGO_TOKEN }}"
+          capgo login --apikey "${{ env.CAPGO_TOKEN }}"
           capgo bundle upload --app-id "com.start.location" --path "dist/update.zip"
 
       - name: Update app_config in Supabase (optional)
-        if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: ${{ env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         run: |
           VERSION="${{ github.event.inputs.app_version }}"
           if [ -z "$VERSION" ]; then
