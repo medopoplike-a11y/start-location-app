@@ -1,0 +1,13 @@
+name: Mobile Release Test
+
+on:
+  push:
+    tags:
+      - "v-test-*"
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm workflow trigger
+        run: echo "mobile release test workflow triggered"
