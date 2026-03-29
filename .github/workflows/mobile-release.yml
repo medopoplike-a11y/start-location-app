@@ -57,11 +57,11 @@ jobs:
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/keystore.jks
           cat <<'EOF' > android/keystore.properties
-RELEASE_STORE_FILE=../keystore.jks
-RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD
-RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS
-RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD
-EOF
+          RELEASE_STORE_FILE=../keystore.jks
+          RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD
+          RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS
+          RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD
+          EOF
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
