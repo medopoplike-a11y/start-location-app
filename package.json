@@ -5,13 +5,16 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:mobile": "next build && node fix-paths.js && node prepare-android.js && npx cap sync android",
-    "build:win": "next build ; node fix-paths.js ; node prepare-android.js ; npx cap sync android",
+    "build:mobile": "cross-env BUILD_TYPE=static next build && node fix-paths.js && node prepare-android.js && npx cap sync android",
+    "build:android-release": "npm run build:mobile && node -e \"const { execSync } = require('child_process'); const cmd = process.platform === 'win32' ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease'; execSync(cmd, { stdio: 'inherit' });\"",
+    "build:android-release:win": "npm run build:mobile && cd android && gradlew.bat assembleRelease",
+    "build:win": "cross-env BUILD_TYPE=static next build && node fix-paths.js && node prepare-android.js && npx cap sync android",
+    "build:ota": "node scripts/create-ota-bundle.js",
     "prepare-android": "node prepare-android.js",
     "start": "next start",
     "lint": "eslint . --max-warnings=200",
     "postinstall": "node fix-gradle-proguard.js",
-    "bundle:ota": "next build && node fix-paths.js && cd out && zip -r ../dist/update.zip ."
+    "bundle:ota": "npm run build:mobile && npm run build:ota"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",
@@ -37,6 +40,8 @@
     "@types/node": "^20",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19",
+    "archiver": "^5.3.1",
+    "cross-env": "^7.0.3",
     "eslint": "^10",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",

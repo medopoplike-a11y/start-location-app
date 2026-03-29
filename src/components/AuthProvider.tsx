@@ -23,23 +23,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
 
+  const normalizePathname = (path: string) => {
+    const clean = path.replace(/\/+$|^\s+|\s+$/g, '');
+    return clean === '' ? '/' : clean;
+  };
+
   useEffect(() => {
     let mounted = true;
 
     const initAuth = async () => {
       try {
+        console.log("AuthProvider: Starting initAuth");
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("AuthProvider: Session check", { hasSession: !!session, userId: session?.user?.id });
 
         if (session?.user) {
+          console.log("AuthProvider: Fetching profile for", session.user.id);
           const userProfile = await getUserProfile(session.user.id, session.user.email);
+          console.log("AuthProvider: Profile result", { profile: !!userProfile, role: userProfile?.role });
           if (mounted) {
             setUser(session.user);
             setProfile(userProfile);
           }
+        } else {
+          console.log("AuthProvider: No session found");
         }
       } catch (error) {
         console.error("AuthProvider: Init error", error);
       } finally {
+        console.log("AuthProvider: Setting loading to false");
         if (mounted) {
           setLoading(false);
           setIsInitializing(false);
@@ -50,7 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`AuthProvider: Auth event ${event}`, { session: !!session, user: !!session?.user });
+      console.log(`AuthProvider: Auth event ${event}`, { session: !!session, userId: session?.user?.id, userEmail: session?.user?.email });
 
       if (session?.user) {
         console.log("AuthProvider: Fetching profile for user", session.user.id);
@@ -62,6 +74,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setLoading(false);
           setIsInitializing(false);
           setPendingRedirect(null);
+
+          const currentPathname = normalizePathname(typeof window !== 'undefined' ? window.location.pathname : pathname);
+          const inferredRole = (session.user.user_metadata?.role as string | undefined)?.toLowerCase() || "driver";
+          const role = (userProfile?.role || inferredRole)?.toLowerCase();
+          const isLoginPage = currentPathname === "/login" || currentPathname.startsWith("/login");
+          const isRootPage = currentPathname === "/";
+          const targetPath = userProfile || inferredRole ? `/${role}` : null;
+
+          console.log("AuthProvider: Auth event redirect check", { currentPathname, targetPath, isLoginPage, isRootPage });
+          if (targetPath && (isLoginPage || isRootPage) && currentPathname !== targetPath) {
+            console.log("AuthProvider: Redirecting after auth event", { from: currentPathname, to: targetPath });
+            setPendingRedirect(targetPath);
+            router.replace(targetPath);
+          }
         }
       } else {
         console.log("AuthProvider: No session, clearing user and profile");
@@ -88,9 +114,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    const role = profile?.role?.toLowerCase();
-    const isLoginPage = pathname === "/login";
-    const isRootPage = pathname === "/";
+    const effectivePathname = normalizePathname(pathname);
+    const inferredRole = (user?.user_metadata?.role as string | undefined)?.toLowerCase() || "driver";
+    const role = (profile?.role || inferredRole)?.toLowerCase();
+    const isLoginPage = effectivePathname === "/login" || effectivePathname.startsWith("/login");
+    const isRootPage = effectivePathname === "/";
+
+    console.log("AuthProvider: Routing check", { user: !!user, profile: !!profile, role, pathname: effectivePathname, isLoginPage, isRootPage, inferredRole });
+
+    // If user exists but profile is still missing, provisional fallback to avoid stuck state.
+    if (user && !profile) {
+      console.log("AuthProvider: Applying fallback profile due to missing profile object", { userId: user.id, inferredRole });
+      setProfile({
+        id: user.id,
+        email: user.email || "",
+        full_name: (user.user_metadata?.full_name as string) || "مستخدم",
+        role: inferredRole as UserProfile['role'],
+        is_locked: false,
+        created_at: new Date().toISOString(),
+      });
+      // continue flow after fallback assignment
+      return;
+    }
 
     let targetPath: string | null = null;
 
@@ -100,8 +145,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       targetPath = `/${role}`;
     }
 
+    console.log("AuthProvider: Target path calculated", { targetPath, currentPath: effectivePathname });
+
     if (targetPath && pathname !== targetPath) {
-      // Avoid repeated token reset loops
       if (pendingRedirect === targetPath) {
         console.log("AuthProvider: Already navigating to targetPath, skipping duplicate", targetPath);
         return;
@@ -113,9 +159,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    if (!targetPath) {
-      console.log("AuthProvider: No routing action required", { pathname, user: !!user, role });
-    }
+    console.log("AuthProvider: No routing action required", { pathname, user: !!user, role });
   }, [isInitializing, loading, pendingRedirect, user, profile, pathname, router]);
 
   return (

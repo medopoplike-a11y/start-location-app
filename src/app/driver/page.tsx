@@ -19,7 +19,7 @@ import DriverHistoryView from "./components/DriverHistoryView";
 
 export default function DriverApp() {
   const router = useRouter();
-  const { toasts, removeToast, success, error, info } = useToast();
+  const { toasts, removeToast } = useToast();
   
   // Basic State
   const [driverId, setDriverId] = useState<string | null>(null);

@@ -41,8 +41,8 @@ export const createUserByAdmin = async (
   try {
     // 1. إنشاء الحساب في Supabase Auth
     const tempSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key',
+      (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co').trim(),
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key').trim(),
       { auth: { persistSession: false } }
     );
 
@@ -213,18 +213,51 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
 /**
  * دالة لتسجيل الدخول بكلمة المرور
  */
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+
 export const signIn = async (email: string, password?: string) => {
-  console.log("signIn: Attempting login for", email);
+  console.log("signIn: Starting signIn for", email);
   if (!password) {
+    console.log("signIn: No password provided");
     return { error: new Error("كلمة المرور مطلوبة") };
   }
 
+  console.log("signIn: Calling supabase.auth.signInWithPassword");
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  console.log("signIn: Result", { success: !!data?.user, error: error?.message });
+  console.log("signIn: Supabase response", { data: !!data, user: !!data?.user, session: !!data?.session, error: error?.message });
+
+  if (error?.message?.toLowerCase().includes('invalid api key')) {
+    console.warn('signIn: Falling back to direct REST auth because Supabase client reported invalid API key');
+
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        console.log('signIn: Direct REST auth succeeded');
+        return { data: { user: result.user, session: result.session }, error: null };
+      }
+
+      console.warn('signIn: Direct REST auth failed', result);
+      return { data: null, error: new Error(result.msg || 'Unexpected Supabase auth error') };
+    } catch (fetchError) {
+      console.error('signIn: Direct REST auth exception', fetchError);
+      return { data: null, error: fetchError as Error };
+    }
+  }
 
   return { data, error };
 };

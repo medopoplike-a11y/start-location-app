@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import AppUpdater from "@/components/AppUpdater";
-import { requestAllPermissions } from "@/lib/native-utils";
 
 // Wrapper to ensure hydration and global error handling
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
@@ -11,7 +10,6 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   React.useEffect(() => {
     setIsHydrated(true);
     console.log("App: Root Layout Hydrated");
-    requestAllPermissions();
   }, []);
 
   if (!isHydrated) {

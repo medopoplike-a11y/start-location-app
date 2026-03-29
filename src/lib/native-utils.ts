@@ -9,30 +9,103 @@ export const isNative = () => {
 };
 
 /**
- * دالة لطلب كافة الأذونات المطلوبة من المستخدم عند بدء التطبيق بشكل شامل
+ * دالة لطلب إذن الموقع عند الحاجة.
  */
-export const requestAllPermissions = async () => {
+export const requestLocationPermission = async () => {
   if (!isNative()) return;
 
   try {
-    // 1. طلب إذن الموقع
     const { Geolocation } = await import('@capacitor/geolocation');
-    await Geolocation.requestPermissions();
+    return await Geolocation.requestPermissions();
+  } catch (e) {
+    console.warn('Native: Failed to request location permission', e);
+  }
+};
 
-    // 2. طلب إذن الكاميرا والوسائط
+/**
+ * دالة لطلب إذن الموقع في الخلفية عند بدء التتبع.
+ */
+export const requestBackgroundLocationPermission = async () => {
+  if (!isNative()) return;
+
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    return await Geolocation.requestPermissions();
+  } catch (e) {
+    console.warn('Native: Failed to request background location permission', e);
+  }
+};
+
+/**
+ * دالة لطلب إذن الكاميرا والوسائط عند الحاجة.
+ */
+export const requestCameraPermissions = async () => {
+  if (!isNative()) return;
+
+  try {
     const { Camera } = await import('@capacitor/camera');
-    await Camera.requestPermissions();
+    return await Camera.requestPermissions();
+  } catch (e) {
+    console.warn('Native: Failed to request camera permissions', e);
+  }
+};
 
-    // 3. طلب إذن التنبيهات
+/**
+ * دالة لطلب إذن التنبيهات عند الحاجة.
+ */
+export const requestPushNotificationPermissions = async () => {
+  if (!isNative()) return;
+
+  try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     const pushStatus = await PushNotifications.requestPermissions();
     if (pushStatus.receive === 'granted') {
       await PushNotifications.register();
     }
-
-    console.log('Native: Core permissions requested');
+    return pushStatus;
   } catch (e) {
-    console.warn('Native: Failed to request permissions', e);
+    console.warn('Native: Failed to request push notification permissions', e);
+  }
+};
+
+/**
+ * دالة طلب كافة الأذونات دفعة واحدة لا ينصح باستخدامها في بدء التطبيق.
+ * يفضل استدعاء الأذونات حسب الوظيفة المطلوبة في واجهة المستخدم.
+ */
+export const requestAllPermissions = async () => {
+  console.warn('Native: requestAllPermissions is deprecated. Request permissions on demand.');
+  await requestLocationPermission();
+  await requestCameraPermissions();
+  await requestPushNotificationPermissions();
+};
+
+const isValidUpdateUrl = async (url: string) => {
+  if (!url || !/^https?:\/\//i.test(url)) return false;
+
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) {
+      return false;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    return contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
+  } catch (headError) {
+    console.warn('Native: HEAD check failed for update URL, trying GET', headError);
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-0' }
+      });
+      if (!response.ok) return false;
+
+      const contentType = response.headers.get('content-type') || '';
+      return contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
+    } catch (getError) {
+      console.error('Native: Update URL validation failed', getError);
+      return false;
+    }
   }
 };
 
@@ -41,7 +114,7 @@ export const requestAllPermissions = async () => {
  * يقوم بالتحقق من جدول app_config في Supabase وتحميل التحديث فوراً
  */
 export const checkForAutoUpdate = async () => {
-  if (!isNative()) return;
+  if (!isNative()) return { available: false };
 
   try {
     const { data: config, error } = await supabase
@@ -49,31 +122,52 @@ export const checkForAutoUpdate = async () => {
       .select('*')
       .single();
 
-    if (error || !config) return;
+    if (error || !config) {
+      console.warn('Native: app_config not available', error);
+      return { available: false };
+    }
 
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
     const current = await CapacitorUpdater.getLatest();
+    const bundleUrl = String(config.bundle_url || '').trim();
 
-    // إذا كانت النسخة السحابية أحدث من الحالية
-    if (config.latest_version !== current.version && config.bundle_url) {
-      console.log('Native: New update found!', config.latest_version);
-
-      // تحميل التحديث
-      const bundle = await CapacitorUpdater.download({
-        url: config.bundle_url,
-        version: config.latest_version
-      });
-
-      // إذا كان التحديث إجبارياً أو النسخة جاهزة، نقوم بالتثبيت
-      if (config.force_update) {
-        await CapacitorUpdater.set({ id: bundle.id });
-      }
-
-      return { available: true, version: config.latest_version, bundleId: bundle.id };
+    if (!bundleUrl || !config.latest_version) {
+      console.warn('Native: Update config missing bundle_url or latest_version');
+      return { available: false };
     }
+
+    if (config.latest_version === current.version) {
+      return { available: false };
+    }
+
+    if (!(await isValidUpdateUrl(bundleUrl))) {
+      console.warn('Native: Update URL is not valid or not reachable', bundleUrl);
+      return { available: false };
+    }
+
+    console.log('Native: New update found!', config.latest_version);
+
+    const bundle = await CapacitorUpdater.download({
+      url: bundleUrl,
+      version: config.latest_version
+    });
+
+    if (config.force_update) {
+      await CapacitorUpdater.set({ id: bundle.id });
+    }
+
+    return {
+      available: true,
+      version: config.latest_version,
+      bundleId: bundle.id,
+      downloaded: true,
+      forceUpdate: !!config.force_update,
+      updateMessage: String(config.update_message || 'التحديث جاهز للتثبيت.')
+    };
   } catch (e) {
     console.error('Auto Update Check Failed:', e);
   }
+
   return { available: false };
 };
 

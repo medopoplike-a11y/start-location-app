@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ShieldCheck, Truck, Store, Settings, ArrowRight, Fingerprint, Wifi, MapPin as Pin, Activity } from "lucide-react";
 import { signIn, getUserProfile } from "@/lib/auth";
+import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import LocationMarker from "@/components/LocationMarker";
 
@@ -51,14 +52,13 @@ const DataNode = ({ reduceMotion }: DataNodeProps) => {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [role, setRole] = useState<LoginRole>("driver");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [reduceMotion, setReduceMotion] = useState(() => {
+  const [reduceMotion] = useState(() => {
     if (typeof window !== "undefined" && window.matchMedia) {
       return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     }
@@ -70,6 +70,8 @@ export default function LoginPage() {
     battery: "100%"
   }));
   const mounted = typeof window !== "undefined";
+  const router = useRouter();
+  const pathname = usePathname();
 
   const supabaseConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -89,19 +91,82 @@ export default function LoginPage() {
     }
   }, [mounted]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("LoginPage: handleSignUp called", { email, password, role });
     setLoading(true);
     setError("");
 
-    if (!supabaseConfigured) {
-      setError("نظام Supabase غير مهيئ بشكل كامل. الرجاء ضبط NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    try {
+      console.log("LoginPage: Calling supabase.auth.signUp");
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      console.log("LoginPage: signUp response", { data, error });
+
+      if (error) {
+        console.log("LoginPage: signUp error", error.message);
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        console.log("LoginPage: signUp successful, creating profile");
+        // إنشاء profile تلقائيًا
+        await supabase.from('profiles').insert([{
+          id: data.user.id,
+          email: data.user.email,
+          full_name: 'مستخدم جديد',
+          role: role, // من الاختيار في الواجهة
+          is_locked: false,
+          created_at: new Date().toISOString(),
+        }]);
+
+        console.log("LoginPage: Profile created, signing in");
+        // تسجيل دخول تلقائي
+        const { error: signInError } = await signIn(email, password);
+        if (signInError) {
+          console.log("LoginPage: Auto signIn failed", signInError.message);
+          setError("تم إنشاء الحساب، لكن فشل تسجيل الدخول: " + signInError.message);
+        } else {
+          console.log("LoginPage: Auto signIn successful");
+          // Ensure session is ready
+          await new Promise<void>((resolve) => {
+            const checkSession = async () => {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session) {
+                console.log("LoginPage: Session ready");
+                resolve();
+              } else {
+                setTimeout(checkSession, 100);
+              }
+            };
+            checkSession();
+          });
+          // AuthProvider سيحول تلقائيًا
+        }
+      }
+    } catch (err) {
+      console.error("LoginPage: signUp error", err);
+      setError("خطأ في إنشاء الحساب");
+    } finally {
       setLoading(false);
-      return;
     }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+
+    setLoading(true);
+    setError("");
 
     try {
       const { data, error: signInError } = await signIn(email, password);
+      console.log("LoginPage: signIn response", { data, signInError });
 
       if (signInError) {
         const msg = String(signInError.message || "").toLowerCase();
@@ -109,7 +174,7 @@ export default function LoginPage() {
         if (msg.includes("invalid login credentials")) {
           setError("خطأ في البريد الإلكتروني أو كلمة المرور");
         } else if (msg.includes("invalid api key") || msg.includes("api key")) {
-          setError("مفتاح API غير صالح أو مفقود. تأكد من إعداد NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY في المتغيرات البيئية.");
+          setError("مفتاح API غير صالح أو منتهي الصلاحية. افتح إعدادات Supabase > API، انسخ قيمة ANON PUBLIC API KEY ثم أعد تشغيل التطبيق.");
         } else if (msg.includes("jwt") || msg.includes("token")) {
           setError("حدث خطأ في المصادقة. حاول تسجيل الخروج ثم تسجيل الدخول مرة أخرى.");
         } else {
@@ -120,34 +185,64 @@ export default function LoginPage() {
         return;
       }
 
-      if (data?.user) {
+      if (!data?.user) {
+        setError("فشل تسجيل الدخول: يرجى التحقق من البريد الإلكتروني وكلمة المرور.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
         console.log("LoginPage: Login successful for user", data.user.id);
 
         // Wait for profile to be fetched to ensure we have the role
         const profile = await getUserProfile(data.user.id, data.user.email);
         console.log("LoginPage: Profile found:", profile);
 
-        if (profile?.role) {
-          const userRole = profile.role.toLowerCase();
-          // Check if user is trying to login with correct role selector
-          if (userRole !== role && userRole !== 'admin') {
-            setError(`هذا الحساب مخصص لـ ${profile.role} فقط`);
-            setLoading(false);
-            return;
-          }
+        const userRole = (profile?.role || data.user.user_metadata?.role || 'driver').toLowerCase();
+        console.log("LoginPage: Determined role", { userRole, selectedRole: role });
 
-          // Ensure Supabase session appears before navigation
-          await new Promise<void>((resolve) => setTimeout(resolve, 350));
-          console.log("LoginPage: Post-login stabilization", { userRole });
-
-          // Navigate to dashboard of role
-          console.log("LoginPage: Redirecting to", `/${userRole}`);
-          router.replace(`/${userRole}`);
-        } else {
-          const inferredRole = (data.user.user_metadata?.role || 'driver').toLowerCase();
-          setError(`لم يتم العثور على صلاحيات لهذا الحساب. تم التعرّف على الدور كـ ${inferredRole}، يرجى التأكد من أن الصفوف موجودة في جدول profiles.`);
-          setLoading(false);
+        if (profile?.role && userRole !== role && userRole !== 'admin') {
+          console.log("LoginPage: Role mismatch ignored for smoother experience", { profileRole: profile.role, selectedRole: role });
         }
+
+        // Ensure Supabase session is stable before relying on AuthProvider routing
+        await new Promise<void>((resolve) => {
+          const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              resolve();
+            } else {
+              setTimeout(checkSession, 100);
+            }
+          };
+          checkSession();
+        });
+
+        setLoading(false);
+
+        const targetPath = `/${userRole}`;
+        const currentPathname = pathname || (typeof window !== 'undefined' ? window.location.pathname : '/');
+        console.log("LoginPage: Redirect check", { currentPathname, targetPath });
+
+        if (currentPathname !== targetPath) {
+          console.log("LoginPage: Redirecting directly after successful signIn", { targetPath });
+          router.replace(targetPath);
+
+          setTimeout(() => {
+            const livePathname = typeof window !== 'undefined' ? window.location.pathname : currentPathname;
+            if (livePathname !== targetPath) {
+              console.warn("LoginPage: Router replace did not navigate, forcing full reload", { livePathname, targetPath });
+              if (typeof window !== 'undefined') {
+                window.location.href = targetPath;
+              }
+            }
+          }, 600);
+
+          return;
+        }
+
+        // رص الصفوف، ننتقل للخادم المعتمد بدل التوقّع
+        console.log("LoginPage: Delegating final redirect to AuthProvider", { userRole });
       }
     } catch (err: unknown) {
       console.error("LoginPage: Login error", err);
@@ -375,6 +470,21 @@ export default function LoginPage() {
                 
                 {/* Visual Feedback Effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSignUp}
+                disabled={loading}
+                className="w-full relative group h-[72px] flex items-center justify-center gap-3 overflow-hidden rounded-[28px] transition-all active:scale-95 disabled:opacity-50 bg-gray-600 hover:bg-gray-500"
+              >
+                <span className="relative z-10 text-xs font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                  {loading ? (
+                    <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    "إنشاء حساب جديد"
+                  )}
+                </span>
               </button>
             </form>
           </div>

@@ -23,6 +23,7 @@ import dynamic from 'next/dynamic';
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
+import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig } from "@/lib/adminApi";
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
@@ -70,12 +71,14 @@ export default function AdminPanel() {
   const [newDriverData, setNewDriverData] = useState({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
   const [newVendorData, setNewVendorData] = useState({ name: "", email: "", password: "", phone: "" });
   const [appConfig, setAppConfig] = useState({
-    latest_version: "0.2.0", 
-    min_version: "0.2.0", 
-    download_url: "/start-location-v0.2.0.apk", 
-    bundle_url: "", 
-    force_update: true, 
+    latest_version: "0.2.0",
+    min_version: "0.2.0",
+    download_url: "/start-location-v0.2.0.apk",
+    bundle_url: "",
+    force_update: true,
     update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة.",
+    maintenance_mode: false,
+    maintenance_message: "التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.",
     driver_commission: 15.0,
     vendor_commission: 20.0,
     vendor_fee: 1.0,
@@ -154,8 +157,7 @@ export default function AdminPanel() {
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_all_orders_admin');
-      if (error) throw error;
+      const data = await fetchAdminOrders();
       if (data) {
         setAllOrders(data);
         const typedData = data as AdminOrder[];
@@ -187,8 +189,7 @@ export default function AdminPanel() {
 
   const fetchProfiles = async () => {
     try {
-      const { data: profiles, error } = await supabase.rpc('get_all_profiles_admin');
-      if (error) throw error;
+      const profiles = await fetchAdminProfiles();
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
         const online = typedProfiles
@@ -243,8 +244,12 @@ export default function AdminPanel() {
   };
 
   const fetchAppConfig = async () => {
-    const { data } = await supabase.from('app_config').select('*').single();
-    if (data) setAppConfig(data);
+    try {
+      const data = await fetchAdminAppConfig();
+      if (data) setAppConfig(data);
+    } catch (err) {
+      console.error('Admin: Error fetching app config:', err);
+    }
   };
 
   const translateStatus = (status: string) => {
@@ -287,9 +292,12 @@ export default function AdminPanel() {
   const handleUpdateAppConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
-    const { error } = await supabase.from('app_config').update(appConfig).eq('id', 1);
-    if (!error) alert("تم تحديث إعدادات النظام بنجاح!");
-    else alert(`خطأ: ${getErrorMessage(error)}`);
+    try {
+      await updateAdminAppConfig(appConfig);
+      alert("تم تحديث إعدادات النظام بنجاح!");
+    } catch (error) {
+      alert(`خطأ: ${getErrorMessage(error)}`);
+    }
     setActionLoading(false);
   };
 
@@ -313,18 +321,28 @@ export default function AdminPanel() {
   const handleResetUser = async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
     setActionLoading(true);
-    const { error } = await supabase.rpc('reset_user_data_admin', { target_user_id: userId });
-    if (!error) { alert("تم التصفير!"); addActivity(`تم تصفير بيانات ${userName}`); fetchData(); }
-    else alert(`خطأ: ${getErrorMessage(error)}`);
+    try {
+      await resetUserDataAdmin(userId);
+      alert("تم التصفير!");
+      addActivity(`تم تصفير بيانات ${userName}`);
+      fetchData();
+    } catch (error) {
+      alert(`خطأ: ${getErrorMessage(error)}`);
+    }
     setActionLoading(false);
   };
 
   const handleGlobalReset = async () => {
     if (!confirm("تحذير: هل أنت متأكد من تصفير كافة بيانات النظام؟")) return;
     setActionLoading(true);
-    const { error } = await supabase.rpc('reset_all_system_data_admin');
-    if (!error) { alert("تم التصفير الشامل!"); addActivity("تم تنفيذ تصفير شامل للنظام"); fetchData(); }
-    else alert(`خطأ: ${getErrorMessage(error)}`);
+    try {
+      await resetAllSystemDataAdmin();
+      alert("تم التصفير الشامل!");
+      addActivity("تم تنفيذ تصفير شامل للنظام");
+      fetchData();
+    } catch (error) {
+      alert(`خطأ: ${getErrorMessage(error)}`);
+    }
     setActionLoading(false);
   };
 

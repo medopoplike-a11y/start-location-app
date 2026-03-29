@@ -46,6 +46,7 @@ export default function RootLayout({
         <AuthProvider>
           <AppWrapper>
             {children}
+            <AppUpdater />
           </AppWrapper>
         </AuthProvider>
       </body>

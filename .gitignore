@@ -32,8 +32,24 @@ android/**/build/
 android/app/google-services.json
 android/local.properties
 
+# local Android signing
+*.jks
+android/keystore.properties
+
 # misc generated artifacts
 dist/
 coverage/
 *.apk
 *.aab
+
+# temporary local files and test artifacts
+dev-server.log
+tmp-supabase-test.js
+.tmp-list.js
+.delete-badfile*.js
+.delete-badfile2.js
+.list-raw.js
+.names.txt
+.cleanup.js
+.cleanup.log
+using Centralized Auth Provider*

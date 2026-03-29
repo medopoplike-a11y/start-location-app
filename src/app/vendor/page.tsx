@@ -28,7 +28,7 @@ import VendorAccountModals from "./components/VendorAccountModals";
 
 export default function VendorApp() {
   const router = useRouter();
-  const { toasts, removeToast, success, error, info } = useToast();
+  const { toasts, removeToast, success, error } = useToast();
   
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);

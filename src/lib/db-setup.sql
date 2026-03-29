@@ -439,6 +439,8 @@ CREATE TABLE IF NOT EXISTS app_config (
   bundle_url TEXT,
   force_update BOOLEAN DEFAULT FALSE,
   update_message TEXT DEFAULT 'يتوفر إصدار جديد من التطبيق، يرجى التحديث للمتابعة.',
+  maintenance_mode BOOLEAN DEFAULT FALSE,
+  maintenance_message TEXT DEFAULT 'التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.',
   -- إعدادات النظام المالية
   driver_commission FLOAT DEFAULT 15.0,
   vendor_commission FLOAT DEFAULT 20.0, -- إضافة عمود عمولة المحل
@@ -461,6 +463,12 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='safe_ride_fee') THEN
     ALTER TABLE app_config ADD COLUMN safe_ride_fee FLOAT DEFAULT 1.0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='maintenance_mode') THEN
+    ALTER TABLE app_config ADD COLUMN maintenance_mode BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='maintenance_message') THEN
+    ALTER TABLE app_config ADD COLUMN maintenance_message TEXT DEFAULT 'التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.';
   END IF;
 END $$;
 

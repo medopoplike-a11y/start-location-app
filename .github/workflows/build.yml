@@ -40,17 +40,22 @@ jobs:
       run: npm install --legacy-peer-deps
 
     - name: Build Next.js with Supabase
-      run: npm run build
+      run: npm run build:mobile
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+    - name: Create OTA bundle
+      run: npm run build:ota
 
     - name: Sync to Capacitor
       run: npx cap sync android
     
     - name: Build APK (Debug)
       working-directory: ./android
-      run: ./gradlew assembleDebug
+      run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
     
     - name: Upload APK
       uses: actions/upload-artifact@v4.3.1

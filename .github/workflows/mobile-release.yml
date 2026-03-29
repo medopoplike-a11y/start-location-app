@@ -55,13 +55,13 @@ jobs:
 
       - name: Create keystore and Gradle signing config
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/keystore.jks
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > keystore.jks
           cat <<'EOF' > android/keystore.properties
-          RELEASE_STORE_FILE=../keystore.jks
-          RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD
-          RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS
-          RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD
-          EOF
+RELEASE_STORE_FILE=../keystore.jks
+RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD
+RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS
+RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD
+EOF
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -70,7 +70,9 @@ jobs:
 
       - name: Build APK release
         working-directory: ./android
-        run: ./gradlew assembleRelease
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -80,7 +82,7 @@ jobs:
           retention-days: 30
 
       - name: Build OTA bundle
-        run: npm run bundle:ota
+        run: npm run build:ota
 
       - name: Upload OTA artifact
         uses: actions/upload-artifact@v4
