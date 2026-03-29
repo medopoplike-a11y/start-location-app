@@ -131,4 +131,3 @@ EOF
             -H "Content-Type: application/json" \
             -H "Prefer: return=representation" \
             -d "{\"latest_version\":\"${VERSION}\",\"force_update\":${FORCE}}"
-
