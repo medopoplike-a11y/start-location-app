@@ -1,16 +1,6 @@
 name: Mobile Release + OTA
 
 on:
-  workflow_dispatch:
-    inputs:
-      app_version:
-        description: "Release version (example: 0.3.0)"
-        required: true
-        default: "0.3.0"
-      force_update:
-        description: "Force update flag for app_config"
-        required: true
-        default: "false"
   push:
     tags:
       - "v*"
