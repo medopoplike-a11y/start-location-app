@@ -1,5 +1,8 @@
 name: Build APK & Deploy Web
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ main ]
