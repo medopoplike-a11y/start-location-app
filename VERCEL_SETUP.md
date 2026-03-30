@@ -76,7 +76,12 @@ vercel link
    - Expiration: `No Expiration` أو `30 days`
 4. اضغط "Create Token"
 5. **انسخ الـ Token (يظهر مرة واحدة فقط!)**
-
+> تم ربط المشروع محلياً بالفعل. القيم التالية موجودة في `.vercel/project.json`:
+>
+> - `VERCEL_ORG_ID=team_h8cAsTEzj0nF90j8fRMmE69q`
+> - `VERCEL_PROJECT_ID=prj_wGb2CYQP6R6fsk192liuzMzMDn2C`
+>
+> استخدمهم مباشرة عند إضافة GitHub Secrets.
 ### **الخطوة 2: الحصول على VERCEL_ORG_ID و VERCEL_PROJECT_ID**
 
 **الطريقة A: من CLI (سهل)**
