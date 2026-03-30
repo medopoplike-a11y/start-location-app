@@ -53,3 +53,5 @@ tmp-supabase-test.js
 .cleanup.js
 .cleanup.log
 using Centralized Auth Provider*
+.vercel
+.env*.local
