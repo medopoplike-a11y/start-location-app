@@ -5,6 +5,7 @@ import AppUpdater from "@/components/AppUpdater";
 import { AuthProvider } from "@/components/AuthProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const cairo = Cairo({ 
   subsets: ["arabic", "latin"],
@@ -49,6 +50,7 @@ export default function RootLayout({
             <AppUpdater />
           </AppWrapper>
         </AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
