@@ -42,7 +42,7 @@
     "@types/react-dom": "^19",
     "archiver": "^5.3.1",
     "cross-env": "^7.0.3",
-    "eslint": "^10",
+    "eslint": "^9.16.0",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "5.9.3"
