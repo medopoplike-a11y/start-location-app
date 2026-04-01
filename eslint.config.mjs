@@ -31,6 +31,8 @@ const eslintConfig = defineConfig([
     "fix-paths.js",
     "prepare-android.js",
     "fix-gradle-proguard.js",
+    "tmp-*.js",
+    "tmp_*.js",
   ]),
 ]);
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/components/AuthProvider";
 import { 
   LayoutDashboard, 
   Map as MapIcon, 
@@ -16,8 +17,12 @@ import {
   LogOut, 
   Wallet,
   RefreshCw,
+  Bell,
+  Search,
+  ArrowUpRight,
+  ArrowDownRight,
+  MoreVertical
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
@@ -28,6 +33,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
+import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import DashboardView from "./components/DashboardView";
@@ -39,7 +45,7 @@ import AppConfigView from "./components/AppConfigView";
 import SettingsView from "./components/SettingsView";
 
 export default function AdminPanel() {
-  const router = useRouter();
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
   
   // UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -112,13 +118,44 @@ export default function AdminPanel() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
+
   useEffect(() => {
-    const init = async () => {
-      await fetchData();
+    const hardFallback = setTimeout(() => {
       setLoading(false);
+    }, 5000);
+
+    const init = async () => {
+      if (authLoading) return;
+
+      // Only run fetchData if we have a user and data is not already loaded
+      if (user && drivers.length === 0 && allOrders.length === 0) {
+        try {
+          await withTimeout('fetchData', fetchData(), 10000);
+        } catch (err) {
+          console.error("Admin: Init error:", err);
+        } finally {
+          clearTimeout(hardFallback);
+          setLoading(false);
+        }
+      } else if (!authLoading) {
+        clearTimeout(hardFallback);
+        setLoading(false);
+      }
     };
     init();
-  }, []);
+    return () => clearTimeout(hardFallback);
+  }, [authLoading]);
 
   useEffect(() => {
     if (allOrders.length > 0) {
@@ -346,21 +383,28 @@ export default function AdminPanel() {
     setActionLoading(false);
   };
 
-  const handleSignOut = async () => { await signOut(); router.push("/login"); };
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
 
   const stats = [
-    { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-blue-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب" },
-    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-green-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن" },
-    { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-red-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م" },
-    { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-purple-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م" },
-    { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <Wallet className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م" },
+    { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-sky-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب", color: "sky" },
+    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-emerald-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن", color: "emerald" },
+    { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
+    { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
+    { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
   ];
 
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
-      <div className="silver-live-bg" />
+    <AuthGuard allowedRoles={["admin"]}>
+      <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
+        <div className="silver-live-bg" />
 
       {/* Sidebar */}
       <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 backdrop-blur-xl border-l border-white/20 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
@@ -457,7 +501,7 @@ export default function AdminPanel() {
               <form onSubmit={handleAddDriver} className="space-y-6">
                 <input type="text" placeholder="الاسم بالكامل" required value={newDriverData.name} onChange={e => setNewDriverData({...newDriverData, name: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <input type="email" placeholder="البريد الإلكتروني" required value={newDriverData.email} onChange={e => setNewDriverData({...newDriverData, email: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
-                <input type="password" placeholder="كلمة السر" required value={newDriverData.password} onChange={e => setNewDriverData({...newDriverData, password: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
+                <input type="password" placeholder="كلمة السر" required value={newDriverData.password} onChange={e => setNewDriverData({...newDriverData, password: e.target.value})} autoComplete="new-password" className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <input type="tel" placeholder="رقم الهاتف" required value={newDriverData.phone} onChange={e => setNewDriverData({...newDriverData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <button type="submit" disabled={actionLoading} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-blue-200">{actionLoading ? "جاري الإنشاء..." : "إضافة الحساب الآن"}</button>
               </form>
@@ -472,7 +516,7 @@ export default function AdminPanel() {
               <form onSubmit={handleAddVendor} className="space-y-6">
                 <input type="text" placeholder="اسم المحل" required value={newVendorData.name} onChange={e => setNewVendorData({...newVendorData, name: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <input type="email" placeholder="البريد الإلكتروني" required value={newVendorData.email} onChange={e => setNewVendorData({...newVendorData, email: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
-                <input type="password" placeholder="كلمة السر" required value={newVendorData.password} onChange={e => setNewVendorData({...newVendorData, password: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
+                <input type="password" placeholder="كلمة السر" required value={newVendorData.password} onChange={e => setNewVendorData({...newVendorData, password: e.target.value})} autoComplete="new-password" className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <input type="tel" placeholder="رقم الهاتف" required value={newVendorData.phone} onChange={e => setNewVendorData({...newVendorData, phone: e.target.value})} className="w-full bg-gray-50 p-4 rounded-2xl outline-none text-gray-900 border border-gray-100" />
                 <button type="submit" disabled={actionLoading} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-blue-200">{actionLoading ? "جاري الإنشاء..." : "إضافة الحساب الآن"}</button>
               </form>
@@ -481,5 +525,6 @@ export default function AdminPanel() {
         )}
       </AnimatePresence>
     </div>
+    </AuthGuard>
   );
 }

@@ -1,5 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
-import { supabase } from './supabaseClient';
+﻿import { createClient } from '@supabase/supabase-js';
+import { supabase, supabaseLock } from './supabaseClient';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
 
 export type UserRole = 'admin' | 'driver' | 'vendor';
 
@@ -27,23 +30,23 @@ const isConfiguredAdminEmail = (email?: string | null): boolean => {
   return adminEmails.includes(email.toLowerCase());
 };
 
-/**
- * دالة للأدمن لإنشاء مستخدم جديد (طيار أو محل)
- * تستخدم عميل معزول تماماً لضمان عدم تداخل الجلسات
- */
 export const createUserByAdmin = async (
-  email: string, 
-  password: string, 
-  fullName: string, 
+  email: string,
+  password: string,
+  fullName: string,
   role: UserRole,
   extraData?: { phone?: string; area?: string; vehicle_type?: string; national_id?: string }
 ) => {
   try {
-    // 1. إنشاء الحساب في Supabase Auth
     const tempSupabase = createClient(
       (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co').trim(),
       (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key').trim(),
-      { auth: { persistSession: false } }
+      { 
+        auth: { 
+          persistSession: false,
+          lock: supabaseLock as any,
+        } 
+      }
     );
 
     const { data, error: signUpError } = await tempSupabase.auth.signUp({
@@ -53,325 +56,168 @@ export const createUserByAdmin = async (
         data: {
           full_name: fullName,
           role: role.toLowerCase(),
-          ...extraData
-        }
-      }
+          ...extraData,
+        },
+      },
     });
 
     if (signUpError) {
-      // If user already exists, signUp might return an error or a fake user depending on Supabase settings
       return { error: signUpError };
     }
 
     const newUser = data?.user;
+    if (!newUser) {
+      return { error: new Error('فشل إنشاء المستخدم') };
+    }
 
-    if (newUser) {
-      const userId = newUser.id;
-      
-      console.log("Auth user created, now attempting to sync profile:", userId);
+    const userId = newUser.id;
+    const { error: profileError } = await supabase.from('profiles').upsert([
+      {
+        id: userId,
+        email,
+        full_name: fullName,
+        role: role.toLowerCase() as UserRole,
+        is_locked: false,
+        ...extraData,
+      },
+    ]);
 
-      // 2. إنشاء أو تحديث الملف الشخصي (نستخدم upsert لضمان وجود السجل في حال فشل التريجر)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert([{
-          id: userId,
-          email: email,
-          full_name: fullName,
-          role: role.toLowerCase() as UserRole,
-          is_locked: false,
-          ...extraData
-        }]);
+    if (profileError) {
+      console.error('Profile sync error (non-blocking):', profileError);
+    }
 
-      if (profileError) {
-        console.error("Profile sync error (non-blocking):", profileError);
-        // لا نفشل العملية هنا لأن سجل الـ Auth موجود بالفعل
-      }
-
-      // 3. إنشاء المحفظة للطيار (إذا لم تكن موجودة بالفعل بفضل التريجر)
-      if (role.toLowerCase() === 'driver') {
-        const { error: walletError } = await supabase.from('wallets').upsert([{ 
+    if (role.toLowerCase() === 'driver') {
+      const { error: walletError } = await supabase.from('wallets').upsert(
+        [{
           user_id: userId,
           balance: 0,
           debt: 0,
-          debt_limit: 1000
-        }], { onConflict: 'user_id' });
-        
-        if (walletError) console.error("Wallet creation error (non-blocking):", walletError);
-      }
-      
-      return { data: { user: newUser }, error: null };
+          debt_limit: 1000,
+        }],
+        { onConflict: 'user_id' }
+      );
+      if (walletError) console.error('Wallet creation error (non-blocking):', walletError);
     }
 
-    return { error: signUpError || new Error("فشل إنشاء المستخدم") };
+    return { data: { user: newUser }, error: null };
   } catch (err: unknown) {
     return { error: err };
   }
 };
 
-/**
- * دالة للحصول على الملف الشخصي للمستخدم الحالي مع دعم البيانات الاحتياطية (Metadata)
- */
 export const getUserProfile = async (userId: string, email?: string): Promise<UserProfile | null> => {
-  console.log("getUserProfile: Called with", { userId, email });
-
-  // Try to use provided email or fetch it from session if missing
   let userEmail = email;
-  if (!userEmail) {
-    const { data: { user } } = await supabase.auth.getUser();
-    userEmail = user?.email || undefined;
-  }
-
-  console.log("getUserProfile: Using email", userEmail);
-
-  // Optional admin bootstrap via configured emails only.
+  
   if (isConfiguredAdminEmail(userEmail)) {
-    console.log("Auth: configured admin email detected");
     return {
       id: userId,
-      email: userEmail || "",
+      email: userEmail || '',
       full_name: 'مدير النظام',
       role: 'admin',
       is_locked: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
   }
 
   try {
-    console.log("getUserProfile: Fetching from database");
-    // 1. محاولة جلب الملف من قاعدة البيانات
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    console.log("getUserProfile: DB result", { data: !!data, error });
-
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (!error && data) {
-      console.log("getUserProfile: Returning DB profile", data.role);
       return data as UserProfile;
     }
   } catch (dbError) {
-    console.warn('Database error when fetching profile:', dbError);
+    console.warn('getUserProfile: Database error:', dbError);
   }
 
-  // 2. خطة بديلة: جلب بيانات المستخدم من نظام المصادقة (Auth)
-  try {
-    console.log("getUserProfile: Trying fallback from auth metadata");
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user && user.id === userId) {
-      const fullName = user.user_metadata?.full_name || 'مستخدم';
-      let role: UserRole = (user.user_metadata?.role || 'driver').toLowerCase() as UserRole;
-      if (isConfiguredAdminEmail(user.email)) {
-        role = 'admin';
-      }
-
-      const fallbackProfile: UserProfile = {
-        id: user.id,
-        email: user.email || '',
-        full_name: fullName,
-        role: role,
-        is_locked: false,
-        created_at: user.created_at || new Date().toISOString(),
-      };
-
-      console.log("getUserProfile: Using fallback profile", fallbackProfile.role);
-
-      // حاول إنشاء / تحديث الصف حتى يتم حماية المستخدم في المرة المقبلة
-      try {
-        const { error: upsertError } = await supabase.from('profiles').upsert([{
-          id: fallbackProfile.id,
-          email: fallbackProfile.email,
-          full_name: fallbackProfile.full_name,
-          role: fallbackProfile.role,
-          is_locked: fallbackProfile.is_locked,
-          created_at: fallbackProfile.created_at
-        }]);
-
-        if (upsertError) {
-          console.warn('Auth: Unable to upsert fallback profile:', upsertError);
-        } else {
-          console.log("getUserProfile: Fallback profile upserted successfully");
-        }
-      } catch (upsertEx) {
-        console.warn('Auth: Fallback profile upsert failed:', upsertEx);
-      }
-
-      return fallbackProfile;
-    } else {
-      console.log("getUserProfile: Auth user not found or ID mismatch");
-    }
-  } catch (authError) {
-    console.error('Auth: Error fetching profile:', authError);
-  }
-
-  console.log("getUserProfile: Returning null");
   return null;
 };
 
-/**
- * دالة لتسجيل الدخول بكلمة المرور
- */
-const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
-const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-
 export const signIn = async (email: string, password?: string) => {
-  console.log("signIn: Starting signIn for", email);
+  console.log("=== signIn START ===");
+  
   if (!password) {
     console.log("signIn: No password provided");
-    return { error: new Error("كلمة المرور مطلوبة") };
+    return { data: null, error: new Error('كلمة المرور مطلوبة') };
   }
 
-  console.log("signIn: Calling supabase.auth.signInWithPassword");
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  // Create fresh client for signIn to bypass any shared client issues
+  console.log("signIn: Creating fresh Supabase client...");
+
+  const freshClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      detectSessionInUrl: false,
+      persistSession: true,
+      autoRefreshToken: true,
+      lock: supabaseLock as any,
+    },
   });
 
-  console.log("signIn: Supabase response", { data: !!data, user: !!data?.user, session: !!data?.session, error: error?.message });
-
-  if (error?.message?.toLowerCase().includes('invalid api key')) {
-    console.warn('signIn: Falling back to direct REST auth because Supabase client reported invalid API key');
-
-    try {
-      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-        method: 'POST',
-        headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${supabaseAnonKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const result = await response.json();
-      if (response.ok) {
-        console.log('signIn: Direct REST auth succeeded');
-        return { data: { user: result.user, session: result.session }, error: null };
-      }
-
-      console.warn('signIn: Direct REST auth failed', result);
-      return { data: null, error: new Error(result.msg || 'Unexpected Supabase auth error') };
-    } catch (fetchError) {
-      console.error('signIn: Direct REST auth exception', fetchError);
-      return { data: null, error: fetchError as Error };
-    }
+  try {
+    console.log("signIn: Calling freshClient.auth.signInWithPassword...");
+    const result = await freshClient.auth.signInWithPassword({ email, password });
+    console.log("=== signIn RESULT ===");
+    return result;
+  } catch (error) {
+    console.error("=== signIn EXCEPTION ===");
+    console.error("signIn: Error:", error);
+    return { data: null, error: error as Error };
   }
-
-  return { data, error };
 };
 
-/**
- * دالة لتسجيل الخروج النهائي والآمن
- */
 export const signOut = async () => {
   try {
-    console.log('Auth: Starting signOut...');
-    await supabase.auth.signOut();
-    
-    if (typeof window !== 'undefined') {
-      // مسح كافة البيانات المخزنة محلياً لضمان عدم وجود جلسات معلقة
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // التوجيه لصفحة الدخول باستخدام مسار مطلق وتحديث كامل للصفحة لكسر أي حلقة
-      window.location.replace('/login/');
+    const signOutPromise = supabase.auth.signOut();
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('signOut timeout')), 5000);
+    });
+
+    const { error } = await Promise.race([signOutPromise, timeoutPromise]) as any;
+    if (error) {
+      console.warn('Auth: signOut returned error', error);
     }
   } catch (error) {
     console.error('Auth: Error during signOut:', error);
+  } finally {
     if (typeof window !== 'undefined') {
-      window.location.replace('/login/');
-    }
-  }
-};
-
-/**
- * دالة للأدمن لتحديث بيانات أي مستخدم (طيار أو محل)
- */
-export const adminUpdateUser = async (userId: string, updates: Partial<UserProfile>) => {
-  try {
-    // 1. تحديث البيانات في جدول profiles (كأدمن)
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId);
-
-    if (profileError) throw profileError;
-
-    // 2. تحديث كلمة المرور إذا طلبت (هذا يتطلب Service Role أو أن يكون المستخدم هو نفسه، 
-    // ولكن للأدمن في هذا النظام سنعتمد على تحديث البروفايل حالياً)
-    // ملاحظة: تحديث كلمة المرور لمستخدم آخر يتطلب Supabase Admin API (Service Role)
-    // سنكتفي حالياً بتحديث البيانات الأساسية.
-
-    return { error: null };
-  } catch (err: unknown) {
-    console.error('Error in adminUpdateUser:', err);
-    return { error: err };
-  }
-};
-
-/**
- * دالة لتحديث الملف الشخصي للمستخدم الحالي
- */
-export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
-  try {
-    // 1. تحديث البيانات في جدول profiles
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // 2. تحديث Metadata في Auth إذا كان متاحاً
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.id === userId) {
-      const authUpdates: Record<string, string> = {};
-      if (updates.full_name) authUpdates.full_name = updates.full_name;
-      if (updates.phone) authUpdates.phone = updates.phone;
-      if (updates.area) authUpdates.area = updates.area;
-      if (updates.vehicle_type) authUpdates.vehicle_type = updates.vehicle_type;
-      if (updates.national_id) authUpdates.national_id = updates.national_id;
-
-      if (Object.keys(authUpdates).length > 0) {
-        await supabase.auth.updateUser({
-          data: authUpdates
-        });
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          if (key.includes('auth-token') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch {
+        // ignore
       }
+      window.location.replace('/login');
     }
-
-    return { data, error: null };
-  } catch (err: unknown) {
-    console.error('Error updating user profile:', err);
-    return { error: err };
   }
 };
 
-/**
- * دالة للحصول على الجلسة الحالية بسرعة (أفضل للأداء في الواجهة)
- */
+export const updateUserProfile = async (userId: string, updates: Partial<Omit<UserProfile, 'id' | 'email' | 'role' | 'is_locked' | 'created_at'>>) => {
+  try {
+    const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
+    return { error };
+  } catch (error) {
+    return { error: error as Error };
+  }
+};
+
 export const getCurrentSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 };
 
-/**
- * دالة للحصول على المستخدم الحالي (أكثر أماناً)
- */
 export const getCurrentUser = async () => {
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) {
-      // إذا فشل getUser، نجرب getSession كخيار بديل سريع
-      const session = await getCurrentSession();
+      const { data: { session } } = await supabase.auth.getSession();
       return session?.user || null;
     }
     return user;
   } catch {
-    const session = await getCurrentSession();
+    const { data: { session } } = await supabase.auth.getSession();
     return session?.user || null;
   }
 };

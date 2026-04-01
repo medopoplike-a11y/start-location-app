@@ -1,13 +1,16 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Search, ChevronLeft, Filter, Store } from "lucide-react";
 import dynamic from "next/dynamic";
 import { PremiumCard } from "@/components/PremiumCard";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
 import { translateVendorOrderStatus } from "../utils";
 
-const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false });
+const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
+  ssr: false,
+  loading: () => <div className="h-64 w-full bg-slate-100 animate-pulse rounded-[32px] border border-slate-100/50" />
+});
 
 interface ActivityItem {
   id: string;
@@ -50,21 +53,45 @@ export default function StoreView({
     const search = searchQuery.toLowerCase();
     const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
     if (!match) return false;
-    if (activeTab === "active") return o.status !== "delivered" && o.status !== "cancelled";
+    if (activeTab === "نشط" || activeTab === "active") return o.status !== "delivered" && o.status !== "cancelled";
     return activeTab === "مكتمل" ? o.status === "delivered" : o.status === "cancelled";
   });
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'delivered': return "bg-green-500/10 text-green-600 border-green-100";
+      case 'cancelled': return "bg-red-500/10 text-red-600 border-red-100";
+      case 'pending': return "bg-sky-500/10 text-sky-600 border-sky-100";
+      case 'assigned': return "bg-amber-500/10 text-amber-600 border-amber-100";
+      case 'in_transit': return "bg-purple-500/10 text-purple-600 border-purple-100";
+      default: return "bg-slate-100 text-slate-500 border-slate-200";
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="space-y-4">
         {activityLog.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-[24px] p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 bottom-0 w-1 bg-brand-orange animate-pulse" />
+          <div className="bg-slate-900/5 backdrop-blur-xl border border-white/20 rounded-[28px] p-4 flex flex-col gap-2 shadow-sm relative overflow-hidden group">
+            <div className="absolute top-0 right-0 bottom-0 w-1 bg-sky-500/50 group-hover:bg-sky-500 transition-colors" />
+            <div className="flex items-center justify-between mb-1 px-1">
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">آخر النشاطات</span>
+               <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" />
+            </div>
             <AnimatePresence mode="popLayout">
               {activityLog.map((log) => (
-                <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, y: -10 }} className="flex justify-between items-center px-2">
-                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-brand-orange" /><span className="text-[10px] font-bold text-gray-600">{log.text}</span></div>
-                  <span className="text-[8px] font-bold text-gray-400">{log.time}</span>
+                <motion.div 
+                  key={log.id} 
+                  initial={{ opacity: 0, x: 10 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, y: -10 }} 
+                  className="flex justify-between items-center bg-white/40 p-2 rounded-xl border border-white/40"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                    <span className="text-[10px] font-bold text-slate-700">{log.text}</span>
+                  </div>
+                  <span className="text-[8px] font-black text-slate-400 bg-white/60 px-2 py-0.5 rounded-lg border border-slate-100">{log.time}</span>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -72,59 +99,180 @@ export default function StoreView({
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <PremiumCard title="مديونية الطيارين" value={balance.toLocaleString()} icon={<Wallet className="text-green-600 w-5 h-5" />} subtitle="ج.م" delay={0.1} />
-          <PremiumCard title="الطيارين المتصلين" value={onlineDrivers.length} icon={<MapPin className="text-brand-orange w-5 h-5" />} subtitle="طيار" delay={0.2} className={showLiveMap ? "ring-2 ring-brand-orange" : ""} />
+          <PremiumCard 
+            title="مديونية الطيارين" 
+            value={balance.toLocaleString()} 
+            icon={<div className="bg-green-500/10 p-2 rounded-xl"><Wallet className="text-green-600 w-5 h-5" /></div>} 
+            subtitle="ج.م" 
+            delay={0.1} 
+          />
+          <PremiumCard 
+            title="الطيارين المتصلين" 
+            value={onlineDrivers.length} 
+            icon={<div className="bg-sky-500/10 p-2 rounded-xl"><MapPin className="text-sky-600 w-5 h-5" /></div>} 
+            subtitle="طيار" 
+            delay={0.2} 
+            className={showLiveMap ? "ring-2 ring-sky-500 shadow-lg shadow-sky-100" : ""} 
+          />
         </div>
 
-        <PremiumCard title="عمولة الشركة المستحقة" value={companyCommission.toLocaleString()} icon={<ShieldCheck className="text-brand-red w-5 h-5" />} subtitle="ج.م" className="mt-4" delay={0.3} />
+        <PremiumCard 
+          title="عمولة الشركة المستحقة" 
+          value={companyCommission.toLocaleString()} 
+          icon={<div className="bg-red-500/10 p-2 rounded-xl"><ShieldCheck className="text-red-600 w-5 h-5" /></div>} 
+          subtitle="ج.م" 
+          className="mt-2" 
+          delay={0.3} 
+        />
       </div>
 
       <AnimatePresence>
         {showLiveMap && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <LiveMap drivers={onlineDrivers} vendors={vendorLocation ? [{ id: vendorId || "me", name: vendorName, lat: vendorLocation.lat, lng: vendorLocation.lng }] : []} center={vendorLocation ? [vendorLocation.lat, vendorLocation.lng] : undefined} className="h-64 w-full rounded-[32px] overflow-hidden shadow-sm border border-gray-100" />
+          <motion.div 
+            initial={{ height: 0, opacity: 0, scale: 0.95 }} 
+            animate={{ height: "auto", opacity: 1, scale: 1 }} 
+            exit={{ height: 0, opacity: 0, scale: 0.95 }} 
+            className="overflow-hidden"
+          >
+            <LiveMap 
+              drivers={onlineDrivers} 
+              vendors={vendorLocation ? [{ id: vendorId || "me", name: vendorName, lat: vendorLocation.lat, lng: vendorLocation.lng }] : []} 
+              center={vendorLocation ? [vendorLocation.lat, vendorLocation.lng] : undefined} 
+              className="h-64 w-full rounded-[40px] overflow-hidden shadow-xl border border-white/20" 
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="bg-white p-1 rounded-2xl flex border border-gray-100 items-center">
+      <div className="sticky top-20 z-30 bg-white/60 backdrop-blur-xl p-1.5 rounded-[28px] flex border border-white/40 shadow-sm">
         {["نشط", "مكتمل", "ملغي"].map((tab) => (
-          <button key={tab} onClick={() => onSetActiveTab(tab === "نشط" ? "active" : tab)} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${(activeTab === "active" && tab === "نشط") || activeTab === tab ? "bg-brand-orange text-white shadow-md" : "text-gray-400 hover:bg-gray-50"}`}>{tab}</button>
+          <motion.button 
+            key={tab} 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onSetActiveTab(tab === "نشط" ? "active" : tab)} 
+            className={`flex-1 py-3.5 rounded-[22px] text-[10px] font-black tracking-wider transition-all uppercase ${
+              (activeTab === "active" && tab === "نشط") || activeTab === tab 
+                ? "bg-slate-900 text-white shadow-lg shadow-slate-200" 
+                : "text-slate-400 hover:bg-slate-100/50"
+            }`}
+          >
+            {tab}
+          </motion.button>
         ))}
       </div>
 
-      <section className="space-y-4">
+      <section className="space-y-5 pb-10">
+        <div className="flex items-center justify-between px-2">
+           <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+             <Filter className="w-4 h-4 text-sky-500" />
+             الطلبات {activeTab === "active" ? "النشطة" : activeTab}
+           </h2>
+           <span className="text-[10px] font-black text-slate-400 bg-slate-100/50 px-3 py-1 rounded-full border border-slate-100">{filteredOrders.length}</span>
+        </div>
+
         {filteredOrders.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200"><Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" /><p className="text-sm text-gray-400 font-bold">لا توجد طلبات حالياً</p></div>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-24 bg-white/40 rounded-[40px] border border-dashed border-slate-200 backdrop-blur-sm"
+          >
+            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Truck className="w-10 h-10 text-slate-200" />
+            </div>
+            <p className="text-sm text-slate-400 font-bold">لا توجد طلبات في هذا القسم</p>
+          </motion.div>
         ) : (
           <AnimatePresence mode="popLayout">
-            {filteredOrders.map((order) => (
-              <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                <div className="flex justify-between items-start mb-4">
-                  <div><h3 className="font-bold text-gray-900">{order.customer}</h3><p className="text-[10px] text-gray-400 font-bold">#{order.id.slice(0, 8)}</p></div>
-                  <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${order.status === "delivered" ? "bg-green-50 text-green-600" : order.status === "cancelled" ? "bg-red-50 text-red-600" : "bg-orange-50 text-orange-600"}`}>{translateVendorOrderStatus(order.status)}</span>
+            {filteredOrders.map((order, index) => (
+              <motion.div 
+                key={order.id} 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white p-6 rounded-[36px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-1 h-full bg-slate-900 opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-all shrink-0">
+                      <Store className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 group-hover:text-sky-600 transition-colors">{order.customer}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 tracking-tighter">#{order.id.slice(0, 8)}</span>
+                        <span className={`text-[9px] px-3 py-1 rounded-full font-black border ${getStatusStyle(order.status)}`}>
+                          {translateVendorOrderStatus(order.status)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-slate-900">{order.amount}</p>
+                    <p className="text-[8px] font-black text-slate-400 tracking-widest uppercase">الإجمالي</p>
+                  </div>
                 </div>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-xs text-gray-500"><MapPin className="w-3 h-3 text-gray-400" /><span>{order.address}</span></div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500"><Clock className="w-3 h-3 text-brand-orange" /><span>{order.time}</span></div>
+
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="bg-slate-50/50 p-3.5 rounded-[22px] border border-slate-100/50 flex items-center gap-3">
+                    <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm"><MapPin className="w-3.5 h-3.5 text-red-500" /></div>
+                    <div className="overflow-hidden">
+                      <p className="text-[9px] font-bold text-slate-400 tracking-tight">العنوان</p>
+                      <p className="text-[10px] font-black text-slate-700 truncate">{order.address}</p>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50/50 p-3.5 rounded-[22px] border border-slate-100/50 flex items-center gap-3">
+                    <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm"><Clock className="w-3.5 h-3.5 text-sky-500" /></div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 tracking-tight">وقت الطلب</p>
+                      <p className="text-[10px] font-black text-slate-700">{order.time}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center pt-4 border-t border-gray-50">
-                  <div className="flex items-center gap-2"><div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">{order.driver ? <div className="bg-brand-orange w-full h-full flex items-center justify-center text-white text-[10px] font-bold">{order.driver.charAt(0)}</div> : <Truck className="w-4 h-4 text-gray-400" />}</div><span className="text-xs font-bold text-gray-700">{order.driver || "بانتظار طيار..."}</span></div>
-                  <span className="font-bold text-gray-900">{order.amount}</span>
+
+                <div className="flex justify-between items-center pt-5 border-t border-slate-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 relative group-hover:border-sky-200 transition-all overflow-hidden">
+                      {order.driver ? (
+                        <div className="bg-slate-900 w-full h-full flex items-center justify-center text-white text-xs font-black uppercase">
+                          {order.driver.charAt(0)}
+                        </div>
+                      ) : (
+                        <Truck className="w-5 h-5 text-slate-200 animate-pulse" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400">الطيار</p>
+                      <p className={`text-xs font-black ${order.driver ? "text-slate-800" : "text-sky-500 animate-pulse"}`}>
+                        {order.driver || "بانتظار الموافقة..."}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <button className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all active:scale-95 shadow-sm group/btn">
+                    <ChevronLeft className="w-4 h-4 group-hover/btn:-translate-x-1 transition-transform" />
+                  </button>
                 </div>
 
                 {!order.vendorCollectedAt && (
-                  <div className="mt-4 pt-4 border-t border-gray-50">
+                  <div className="mt-5">
                     {order.driverConfirmedAt ? (
-                      <button onClick={() => onCollectDebt(order.id)} className="w-full bg-green-500 text-white py-4 rounded-2xl text-[10px] font-black hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100">
-                        <CheckCircle className="w-4 h-4" />
-                        تأكيد استلام مبلغ المديونية ({order.amount})
-                      </button>
+                      <motion.button 
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => onCollectDebt(order.id)} 
+                        className="w-full bg-green-500 text-white py-4.5 rounded-[24px] text-[11px] font-black hover:bg-green-600 transition-all flex items-center justify-center gap-3 shadow-xl shadow-green-100"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                        تأكيد استلام المديونية ({order.amount})
+                      </motion.button>
                     ) : (
                       order.status === "delivered" && (
-                        <div className="w-full bg-gray-50 text-gray-400 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-dashed border-gray-200">
-                          <Clock className="w-4 h-4 text-gray-300" />
-                          بانتظار قيام الطيار بطلب تسوية الدفع
+                        <div className="w-full bg-slate-50/80 text-slate-400 py-4 rounded-[24px] text-[10px] font-black flex items-center justify-center gap-3 border border-dashed border-slate-200 backdrop-blur-sm">
+                          <Clock className="w-4.5 h-4.5 text-sky-400/50 animate-spin-slow" />
+                          بانتظار طلب التسوية من الطيار
                         </div>
                       )
                     )}

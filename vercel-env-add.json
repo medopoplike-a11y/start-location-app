@@ -1,0 +1,9 @@
+{
+  "key": "SUPABASE_SERVICE_ROLE_KEY",
+  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcGp2b3JldHRpdnBkdml5dHFvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzg4MjYwMiwiZXhwIjoyMDg5NDU4NjAyfQ.gXUmtkauzomPzB_jjkzwyPMUrfxI-ICBMBs4u1N6ONA",
+  "target": [
+    "preview"
+  ],
+  "sensitive": true,
+  "type": "encrypted"
+}

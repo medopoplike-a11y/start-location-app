@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { 
   Plus
 } from "lucide-react";
@@ -12,6 +13,7 @@ import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt } from "@/
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import { AppLoader } from "@/components/AppLoader";
+import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
@@ -30,6 +32,8 @@ export default function VendorApp() {
   const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
   
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
+
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [vendorName, setVendorName] = useState("محل");
@@ -86,15 +90,68 @@ export default function VendorApp() {
 
   const [appConfig, setAppConfig] = useState({ driver_commission: 15, vendor_commission: 20, vendor_fee: 1, safe_ride_fee: 1 });
 
+  const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
+
   // Initialization & Auth Check
   useEffect(() => {
+    const hardFallback = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     const init = async () => {
+      if (authLoading) return;
+
+      // Prevent redundant setup
+      if (vendorId === (user?.id || null) && vendorName !== "محل") {
+        return;
+      }
+
       try {
-        const user = await getCurrentUser();
-        if (user) {
-          const profile = await getUserProfile(user.id);
-          if (profile) {
+        if (user && authProfile) {
+          if (vendorId !== user.id || vendorName !== (authProfile.full_name || "محل")) {
             setVendorId(user.id);
+            setVendorName(authProfile.full_name || "محل");
+            setVendorLocation((authProfile.location as VendorLocation | undefined) || null);
+            setSettingsData({ 
+              name: authProfile.full_name || "", 
+              phone: authProfile.phone || "",
+              area: authProfile.area || ""
+            });
+            
+            void Promise.allSettled([
+              withTimeout('updateData', updateData(user.id), 10000),
+              withTimeout('fetchConfig', (async () => {
+                const { data: config } = await supabase.from('app_config').select('*').single();
+                if (config) {
+                  setAppConfig({
+                    driver_commission: config.driver_commission || 15,
+                    vendor_commission: config.vendor_commission || 20,
+                    vendor_fee: config.vendor_fee || 1,
+                    safe_ride_fee: config.safe_ride_fee || 1
+                  });
+                }
+              })(), 10000)
+            ]);
+          }
+          setLoading(false);
+          return;
+        }
+
+        const currentUser = await withTimeout('getCurrentUser', getCurrentUser(), 5000);
+        if (currentUser) {
+          const profile = await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000);
+          if (profile) {
+            setVendorId(currentUser.id);
             setVendorName(profile.full_name || "محل");
             setVendorLocation((profile.location as VendorLocation | undefined) || null);
             setSettingsData({ 
@@ -102,28 +159,20 @@ export default function VendorApp() {
               phone: profile.phone || "",
               area: profile.area || ""
             });
-          }
-          await updateData(user.id);
-
-          // Get system config
-          const { data: config } = await supabase.from('app_config').select('*').single();
-          if (config) {
-            setAppConfig({
-              driver_commission: config.driver_commission || 15,
-              vendor_commission: config.vendor_commission || 20,
-              vendor_fee: config.vendor_fee || 1,
-              safe_ride_fee: config.safe_ride_fee || 1
-            });
+            void updateData(currentUser.id);
           }
         }
-        setLoading(false);
       } catch (e) {
         console.error("VendorPage: Init error", e);
+      } finally {
+        clearTimeout(hardFallback);
+        setLoading(false);
       }
     };
 
     init();
-  }, [router]);
+    return () => clearTimeout(hardFallback);
+  }, [user, authProfile, authLoading]);
 
   useEffect(() => {
     const pendingCollection = orders.reduce((acc, order) => {
@@ -376,7 +425,13 @@ export default function VendorApp() {
     }
   };
 
-  const handleSignOut = async () => { await signOut(); router.push("/login"); };
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
 
   const addActivityLocal = (text: string) => {
     setActivityLog(prev => [{
@@ -407,8 +462,9 @@ export default function VendorApp() {
   if (loading) return <AppLoader />;
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
-      <div className="silver-live-bg" />
+    <AuthGuard allowedRoles={["vendor"]}>
+      <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
+        <div className="silver-live-bg" />
       <Toast toasts={toasts} onRemove={removeToast} />
       <PushNotificationManager userId={vendorId ?? null} />
       
@@ -509,5 +565,6 @@ export default function VendorApp() {
         onSignOut={handleSignOut}
       />
     </div>
+    </AuthGuard>
   );
 }

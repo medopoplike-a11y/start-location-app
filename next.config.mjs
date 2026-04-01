@@ -1,4 +1,8 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -9,11 +13,20 @@ const nextConfig = {
   },
   reactStrictMode: true,
   trailingSlash: false,
+  experimental: {
+    // allowedDevOrigins is for specific Next.js versions/features
+    // removing for now to avoid config errors unless specifically needed
+  },
   env: {
     IS_BUILDING: process.env.BUILD_TYPE === 'static' ? 'true' : 'false',
   },
-  turbopack: {},
+  turbopack: {
+    root: __dirname,
+  },
   webpack: (config) => {
+    config.watchOptions = {
+      ignored: ['**/android/**', '**/android/app/**'],
+    };
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       '@capacitor-community/background-geolocation': path.resolve(__dirname, 'src/lib/background-geolocation-mock.ts'),
