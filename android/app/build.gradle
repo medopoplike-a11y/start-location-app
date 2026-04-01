@@ -17,12 +17,10 @@ android {
 
     signingConfigs {
         release {
-            if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
-                storeFile rootProject.file(releaseStoreFile)
-                storePassword releaseStorePassword
-                keyAlias releaseKeyAlias
-                keyPassword releaseKeyPassword
-            }
+            storeFile rootProject.file('keystore.jks')
+            storePassword 'S7art#2026Key!Store'
+            keyAlias 'release-key'
+            keyPassword 'S7art#2026Key!Store'
         }
     }
 

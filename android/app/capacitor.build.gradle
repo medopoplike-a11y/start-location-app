@@ -12,7 +12,10 @@ dependencies {
     implementation project(':capacitor-community-background-geolocation')
     implementation project(':capacitor-camera')
     implementation project(':capacitor-geolocation')
+    implementation project(':capacitor-haptics')
+    implementation project(':capacitor-preferences')
     implementation project(':capacitor-push-notifications')
+    implementation project(':capacitor-toast')
     implementation project(':capgo-capacitor-updater')
 
 }

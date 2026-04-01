@@ -15,7 +15,8 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=200",
     "postinstall": "node fix-gradle-proguard.js",
-    "bundle:ota": "npm run build:mobile && npm run build:ota"
+    "bundle:ota": "npm run build:mobile && npm run build:ota",
+    "build:apk": "node scripts/generate-production-apk.js"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",
