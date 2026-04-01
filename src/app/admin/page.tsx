@@ -35,6 +35,7 @@ import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import DashboardView from "./components/DashboardView";
 import OrdersView from "./components/OrdersView";
@@ -399,7 +400,27 @@ export default function AdminPanel() {
     { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
   ];
 
-  if (loading) return <AppLoader />;
+  if (loading) return (
+    <div className="min-h-screen bg-[#f3f4f6] p-6 lg:p-8 space-y-8" dir="rtl">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <CardSkeleton className="w-12 h-12 rounded-2xl" />
+          <div className="space-y-2">
+            <CardSkeleton className="h-4 w-32" />
+            <CardSkeleton className="h-3 w-20" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+      <div className="bg-white/40 h-[400px] rounded-[40px] animate-pulse border border-slate-100" />
+    </div>
+  );
 
   return (
     <AuthGuard allowedRoles={["admin"]}>

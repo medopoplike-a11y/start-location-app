@@ -1,5 +1,34 @@
 import { Capacitor } from '@capacitor/core';
-import { supabase } from './supabaseClient';
+import { supabase, supabaseLock } from './supabaseClient';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Toast } from '@capacitor/toast';
+
+/**
+ * دالة للاهتزاز البسيط عند النقر أو حدوث إجراء
+ */
+export const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
+  if (!isNative()) return;
+  try {
+    await Haptics.impact({ style });
+  } catch (e) {
+    console.warn('Native: Haptics failed', e);
+  }
+};
+
+/**
+ * دالة لإظهار رسالة Native Toast
+ */
+export const showNativeToast = async (text: string) => {
+  if (!isNative()) {
+    console.log('Web Toast:', text);
+    return;
+  }
+  try {
+    await Toast.show({ text, duration: 'short', position: 'bottom' });
+  } catch (e) {
+    console.warn('Native: Toast failed', e);
+  }
+};
 
 /**
  * دالة للتحقق مما إذا كان التطبيق يعمل كـ Native (Android/iOS)
@@ -117,13 +146,18 @@ export const checkForAutoUpdate = async () => {
   if (!isNative()) return { available: false };
 
   try {
-    const { data: config, error } = await supabase
-      .from('app_config')
-      .select('*')
-      .single();
+    // استخدام القفل لضمان عدم حدوث تداخل مع عمليات أخرى
+    const config = await supabaseLock.runExclusive(async () => {
+      const { data, error } = await supabase
+        .from('app_config')
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data;
+    });
 
-    if (error || !config) {
-      console.warn('Native: app_config not available', error);
+    if (!config) {
+      console.warn('Native: app_config not available');
       return { available: false };
     }
 
@@ -228,20 +262,23 @@ export const startBackgroundTracking = async (userId: string) => {
         }
 
         if (location) {
-          await supabase
-            .from('profiles')
-            .update({
-              location: {
-                lat: location.latitude,
-                lng: location.longitude,
-                heading: location.bearing,
-                speed: location.speed,
-                accuracy: location.accuracy
-              },
-              is_online: true,
-              last_location_update: new Date().toISOString()
-            })
-            .eq('id', userId);
+          // استخدام القفل لضمان تسلسل تحديثات الموقع
+          await supabaseLock.runExclusive(async () => {
+            await supabase
+              .from('profiles')
+              .update({
+                location: {
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  heading: location.bearing,
+                  speed: location.speed,
+                  accuracy: location.accuracy
+                },
+                is_online: true,
+                last_location_update: new Date().toISOString()
+              })
+              .eq('id', userId);
+          });
         }
       }
     );
@@ -251,3 +288,4 @@ export const startBackgroundTracking = async (userId: string) => {
     console.error('Background Tracking Failed:', e);
   }
 };
+

@@ -7,6 +7,7 @@ import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { AppLoader } from "@/components/AppLoader";
+import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -227,7 +228,18 @@ export default function DriverApp() {
     }
   };
 
-  if (loading) return <AppLoader />;
+  if (loading) return (
+    <div className="min-h-screen bg-[#f3f4f6] p-6 space-y-8" dir="rtl">
+      <div className="grid grid-cols-2 gap-4">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+      <div className="space-y-4">
+        <OrderSkeleton />
+        <OrderSkeleton />
+      </div>
+    </div>
+  );
 
   return (
     <AuthGuard allowedRoles={["driver"]}>

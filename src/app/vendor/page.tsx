@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
   Plus
 } from "lucide-react";
@@ -459,7 +460,21 @@ export default function VendorApp() {
     }
   };
 
-  if (loading) return <AppLoader />;
+  if (loading) return (
+    <div className="min-h-screen bg-[#f3f4f6] p-6 space-y-8" dir="rtl">
+      <div className="bg-white/40 h-16 rounded-2xl animate-pulse mb-6" />
+      <div className="grid grid-cols-2 gap-4">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+      <CardSkeleton className="mt-4" />
+      <div className="space-y-4 mt-8">
+        <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
+        <OrderSkeleton />
+        <OrderSkeleton />
+      </div>
+    </div>
+  );
 
   return (
     <AuthGuard allowedRoles={["vendor"]}>
