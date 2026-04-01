@@ -17,10 +17,18 @@ android {
 
     signingConfigs {
         release {
-            storeFile rootProject.file('keystore.jks')
-            storePassword 'S7art#2026Key!Store'
-            keyAlias 'release-key'
-            keyPassword 'S7art#2026Key!Store'
+            if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            } else if (rootProject.file('keystore.jks').exists()) {
+                // Fallback for local builds where keystore.jks is present
+                storeFile rootProject.file('keystore.jks')
+                storePassword 'S7art#2026Key!Store'
+                keyAlias 'release-key'
+                keyPassword 'S7art#2026Key!Store'
+            }
         }
     }
 
