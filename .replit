@@ -44,3 +44,8 @@ NEXT_PUBLIC_AUTO_UPDATE_ENABLED = "true"
 NEXT_PUBLIC_UPDATE_CHECK_INTERVAL = "1800000"
 DEBUG_MODE = "false"
 VERBOSE_LOGGING = "false"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npm", "run", "start"]
+build = ["npm", "run", "build"]
