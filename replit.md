@@ -3,6 +3,12 @@
 ## Overview
 A Next.js 16 delivery tracking web app with Supabase backend, supporting admin and driver roles. Originally deployed on Vercel, migrated to Replit.
 
+## GitHub
+- Remote: `https://github.com/medopoplike-a11y/start-location-app`
+- To push: use `GIT_ASKPASS="" git push https://medopoplike-a11y:${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/medopoplike-a11y/start-location-app.git HEAD:main`
+- Secret stored as `GITHUB_PERSONAL_ACCESS_TOKEN` in Replit secrets
+- Note: GitHub integration (OAuth) was dismissed by user — using PAT via secret instead
+
 ## Tech Stack
 - **Framework**: Next.js 16.2.1 (App Router, Turbopack)
 - **Auth/DB**: Supabase (supabase-js v2)
