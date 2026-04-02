@@ -80,8 +80,8 @@ export default function DriverOrdersView({
     .sort((a, b) => a.priority - b.priority);
 
   const vendorMarkersForMap = activeOrders
-    .filter(o => (o.status === "assigned" || o.status === "in_transit") && o.coords?.lat && o.coords?.lng)
-    .map(o => ({ id: o.vendorId || o.id, name: o.vendor, lat: o.coords!.lat, lng: o.coords!.lng }));
+    .filter(o => (o.status === "assigned" || o.status === "in_transit") && o.vendorCoords?.lat && o.vendorCoords?.lng)
+    .map(o => ({ id: o.vendorId || o.id, name: o.vendor, lat: o.vendorCoords!.lat, lng: o.vendorCoords!.lng }));
 
   return (
     <>

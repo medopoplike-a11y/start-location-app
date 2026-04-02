@@ -119,9 +119,8 @@ export const deleteCanceledOrders = async (vendorId: string) => {
  * تحديث حالة الطلب
  */
 export const updateOrderStatus = async (orderId: string, status: Order['status'], driverId?: string) => {
-  const updates: Partial<Pick<Order, 'status' | 'driver_id' | 'driver_confirmed_at'>> = { status };
+  const updates: Partial<Pick<Order, 'status' | 'driver_id'>> = { status };
   if (driverId) updates.driver_id = driverId;
-  if (status === 'delivered') updates.driver_confirmed_at = new Date().toISOString();
 
   return await supabase
     .from('orders')

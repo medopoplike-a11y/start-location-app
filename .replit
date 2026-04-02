@@ -44,6 +44,7 @@ NEXT_PUBLIC_AUTO_UPDATE_ENABLED = "true"
 NEXT_PUBLIC_UPDATE_CHECK_INTERVAL = "1800000"
 DEBUG_MODE = "false"
 VERBOSE_LOGGING = "false"
+NEXT_PUBLIC_ADMIN_EMAILS = "medopoplike@gmail.com"
 
 [deployment]
 deploymentTarget = "autoscale"

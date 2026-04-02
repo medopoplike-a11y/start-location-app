@@ -40,6 +40,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [deliveredOrders, setDeliveredOrders] = useState<DBDriverOrder[]>([]);
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -91,7 +92,8 @@ const [vendorDebt, setVendorDebt] = useState(0);
             
             void Promise.allSettled([
               withTimeout('fetchOrders', fetchOrders(), 10000),
-              withTimeout('fetchStats', fetchStats(user.id), 10000)
+              withTimeout('fetchStats', fetchStats(user.id), 10000),
+              withTimeout('fetchDelivered', fetchDeliveredOrders(user.id), 10000),
             ]);
           }
           setLoading(false);
@@ -181,22 +183,50 @@ const [vendorDebt, setVendorDebt] = useState(0);
 
   async function fetchOrders(explicitDriverId?: string) {
     const activeDriverId = explicitDriverId ?? driverId;
-    const [pending, active] = await Promise.all([
-      getAvailableOrders(),
-      activeDriverId ? getDriverActiveOrders(activeDriverId) : Promise.resolve([]),
-    ]);
-    const seen = new Set<string>();
-    const merged = [...active, ...pending].filter((o) => {
-      if (seen.has(o.id)) return false;
-      seen.add(o.id);
-      return true;
-    });
-    setOrders(merged.map(mapDBOrderToUI));
+    try {
+      const params = activeDriverId ? `?driverId=${activeDriverId}` : '';
+      const res = await fetch(`/api/driver/orders${params}`);
+      if (!res.ok) throw new Error('fetch failed');
+      const { pending, active } = await res.json();
+      const seen = new Set<string>();
+      const merged = [...(active || []), ...(pending || [])].filter((o: any) => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      });
+      setOrders(merged.map(mapDBOrderToUI));
+    } catch {
+      // Fallback to direct Supabase calls
+      const [pending, active] = await Promise.all([
+        getAvailableOrders(),
+        activeDriverId ? getDriverActiveOrders(activeDriverId) : Promise.resolve([]),
+      ]);
+      const seen = new Set<string>();
+      const merged = [...active, ...pending].filter((o) => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      });
+      setOrders(merged.map(mapDBOrderToUI));
+    }
+  }
+
+  async function fetchDeliveredOrders(currentDriverId: string) {
+    try {
+      const res = await fetch(`/api/driver/delivered-orders?driverId=${currentDriverId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setDeliveredOrders(data || []);
+    } catch {
+      // ignore
+    }
   }
 
   function mapDBOrderToUI(db: DBDriverOrder): Order {
     const distanceValue = db.distance || 2.5;
     const vendorProfile = db.profiles || {};
+    const vendorCoords = vendorProfile.location || null;
+    const customerCoords = db.customer_details.coords || null;
     return {
       id: db.id,
       vendor: vendorProfile.full_name || "محل غير معروف",
@@ -209,12 +239,22 @@ const [vendorDebt, setVendorDebt] = useState(0);
       distance: `${distanceValue} كم`,
       fee: `${db.financials.delivery_fee} ج.م`,
       status: db.status,
-      coords: vendorProfile.location || { lat: 30.0444, lng: 31.2357 },
+      coords: vendorCoords,
+      vendorCoords,
+      customerCoords,
       prepTime: db.financials.prep_time,
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
       priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : 3),
       vendorCollectedAt: db.vendor_collected_at,
-      driverConfirmedAt: db.driver_confirmed_at
+      driverConfirmedAt: db.driver_confirmed_at,
+      orderValue: db.financials.order_value,
+      financials: {
+        order_value: db.financials.order_value,
+        delivery_fee: db.financials.delivery_fee,
+        system_commission: db.financials.system_commission,
+        driver_earnings: db.financials.driver_earnings,
+        prep_time: db.financials.prep_time,
+      },
     };
   }
 
@@ -223,7 +263,8 @@ const [vendorDebt, setVendorDebt] = useState(0);
     if (driverId) {
       void Promise.allSettled([
         withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
-        withTimeout('sync.fetchStats', fetchStats(driverId), 15000)
+        withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
+        withTimeout('sync.fetchDelivered', fetchDeliveredOrders(driverId), 15000),
       ]);
     }
   });
@@ -301,11 +342,28 @@ const [vendorDebt, setVendorDebt] = useState(0);
     setOrders(prev => prev.filter(o => o.id !== orderId));
     const { error } = await updateOrderStatus(orderId, 'delivered');
     if (!error) {
-      toastSuccess('تم التوصيل بنجاح!');
+      toastSuccess('تم التوصيل بنجاح! يمكنك الآن تأكيد تسليم المبلغ للمحل من محفظتك.');
     }
     if (driverId) {
       await fetchOrders(driverId);
       void fetchStats(driverId);
+      void fetchDeliveredOrders(driverId);
+    }
+  };
+
+  const handleConfirmPayment = async (orderId: string) => {
+    if (!driverId) return;
+    try {
+      const res = await fetch('/api/driver/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, driverId }),
+      });
+      if (!res.ok) throw new Error('failed');
+      toastSuccess('تم تأكيد تسليم المبلغ! بانتظار تأكيد المحل.');
+      void fetchDeliveredOrders(driverId);
+    } catch {
+      // ignore
     }
   };
 
@@ -378,6 +436,8 @@ const [vendorDebt, setVendorDebt] = useState(0);
                       todayDeliveryFees={todayDeliveryFees}
                       vendorDebt={vendorDebt}
                       orders={orders}
+                      deliveredOrders={deliveredOrders}
+                      onConfirmPayment={handleConfirmPayment}
                     />
                   ) : activeTab === "history" ? (
                     <DriverHistoryView orders={orders} />
