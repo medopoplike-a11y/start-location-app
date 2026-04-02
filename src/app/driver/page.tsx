@@ -220,7 +220,7 @@ export default function DriverApp() {
 
   const toggleActive = async () => {
     try {
-      await Haptics.impact({ style: 'light' });
+      Haptics.impact({ style: 'light' }).catch(() => {});
     } catch (e) {}
     const newStatus = !isActive;
     setIsActive(newStatus);

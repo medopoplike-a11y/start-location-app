@@ -106,7 +106,7 @@ export const createUserByAdmin = async (
 };
 
 export const getUserProfile = async (userId: string, email?: string): Promise<UserProfile | null> => {
-  let userEmail = email;
+  const userEmail = email;
   
   if (isConfiguredAdminEmail(userEmail)) {
     return {
