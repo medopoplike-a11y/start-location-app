@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { Haptics } from "@capacitor/haptics";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
-import { getAvailableOrders } from "@/lib/orders";
+import { getAvailableOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
@@ -21,7 +21,7 @@ import DriverWalletView from "./components/DriverWalletView";
 import DriverHistoryView from "./components/DriverHistoryView";
 
 export default function DriverApp() {
-  const { toasts, removeToast } = useToast();
+  const { toasts, removeToast, success: toastSuccess } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();
   
@@ -239,7 +239,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
           if (newOrders.length > 0) {
             const firstOrder = newOrders[0];
             await updateOrderStatus(firstOrder.id, 'assigned', driverId);
-            toast.success('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
+            toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
           }
         }
       }, 5000);
@@ -261,7 +261,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
         if (newOrders.length > 0) {
           const firstOrder = newOrders[0];
           await updateOrderStatus(firstOrder.id, 'assigned', driverId);
-          toast.success('تم القبول التلقائي');
+          toastSuccess('تم القبول التلقائي');
         }
       }, 5000);
       setPollInterval(interval);
