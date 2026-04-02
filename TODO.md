@@ -1,35 +1,17 @@
-# تطوير شامل لنظام Start Location - خطة التنفيذ
+# GitHub Redeployment & Build Plan - TODO
 
-## ✅ الموافقة: تمت من المستخدم
+## Approved Plan Steps:
 
-## 📋 الخطوات (Sequential):
+### 1. [ ] Create TODO.md ✅ (Done)
+### 2. [✅] Check/install GitHub CLI (v2.89.0 installed)
+### 3. [✅] Update package.json version to 0.2.2
+### 4. [✅] Run local build test (npm run build:mobile) - Fixed TypeScript error, rebuild running
+### 5. [ ] Setup GitHub Secrets using scripts/set-github-secrets.ps1
+### 6. [ ] Commit & push to main / create tag v0.2.2
+### 7. [ ] Monitor GitHub Actions workflow run
+### 8. [ ] Download APK from GitHub Release / test deploy
+### 9. [ ] Update TODO.md with completion
+### 10. [ ] attempt_completion
 
-### ✅ 1. إصلاح مشكلة التحميل اللانهائي في التطبيق المحمول (Priority CRITICAL) ✓
-- ✅ Extended timeouts (15s mobile/5s web) + Capacitor detection (driver/page.tsx, admin/page.tsx, AuthProvider.tsx)
-- ✅ Auto SplashScreen.hide() + console logging
-- ✅ Test: Loading now resolves on mobile
-
-### 🎨 2. تعزيز الثيمات والمؤثرات البصرية
-- [ ] npm i tsparticles react-tsparticles @tsparticles/slim @tsparticles/engine
-- [ ] globals.css: Neon theme (cyan/purple), particles, shimmer keyframes
-- [ ] New ParticlesBackground.tsx component
-- [ ] layout.tsx: Global particles overlay
-
-### 🚀 3. صفحة هبوط عصرية (app/page.tsx)
-- [ ] Hero particles + feature cards + role-based CTAs
-- [ ] Parallax scroll effects
-
-### 💎 4. تحسين الواجهات
-- [ ] Login: Floating particles + gradient effects
-- [ ] Driver: 3D order cards, map parallax
-- [ ] Admin/Vendor: Neon glows, animated charts
-
-### 🔧 5. التحقق والاختبار
-- [ ] npm run build && npm run lint
-- [ ] APK: scripts/generate-production-apk.js
-- [ ] Deploy: Vercel + GitHub secrets
-
-### ✅ 6. إنهاء المهمة
-- [ ] attempt_completion
-
-**حالة الحالية: 🎨 Visuals مكتملة - جاهز للاختبار (npm run dev)**
+**Status**: GitHub CLI ✅. Git status: changes in TODO.md, package*.json, src/app/login/vendor/page.tsx. Repo: medopoplike-a11y/start-location-app. Running local build test...
+**Repo Assumption**: medopoplike-a11y/start-location-app (adjust if different)
