@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
+import { Haptics } from "@capacitor/haptics";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
@@ -56,11 +57,19 @@ export default function DriverApp() {
       if (savedActive !== null) setIsActive(savedActive === "true");
     }
 
-    // Faster fallback: 5 seconds is enough to know if we should just show the UI
+    // Mobile-optimized fallback: Detect Capacitor, extend timeout
+    const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+    const fallbackMs = isCapacitor ? 15000 : 5000; // 15s mobile, 5s web
     const hardFallback = setTimeout(() => {
-      console.log("DriverPage: Hard fallback triggered (5s)");
+      console.log(`DriverPage: Hard fallback triggered (${fallbackMs/1000}s, Capacitor: ${isCapacitor})`);
+      
+      // Auto-hide splashscreen on mobile
+      if (isCapacitor) {
+        (window as any).Capacitor?.SplashScreen?.hide?.();
+      }
+      
       setLoading(false);
-    }, 5000);
+    }, fallbackMs);
 
     const setup = async () => {
       if (authLoading) return; // Wait for AuthProvider
@@ -89,9 +98,9 @@ export default function DriverApp() {
 
         // Only if AuthProvider failed or didn't provide data
         console.log("DriverPage: Falling back to manual fetch");
-        const currentUser = await withTimeout('getCurrentUser', getCurrentUser(), 5000);
+        const currentUser = await withTimeout('getCurrentUser', getCurrentUser(), isCapacitor ? 10000 : 5000);
         if (currentUser) {
-          const profile = await withTimeout('getUserProfile', getUserProfile(currentUser.id, currentUser.email), 5000);
+          const profile = await withTimeout('getUserProfile', getUserProfile(currentUser.id, currentUser.email), isCapacitor ? 10000 : 5000);
           if (profile) {
             setDriverId(currentUser.id);
             setDriverName(profile.full_name || "كابتن");
@@ -210,6 +219,9 @@ export default function DriverApp() {
   });
 
   const toggleActive = async () => {
+    try {
+      await Haptics.impact({ style: "light" });
+    } catch (e) {}
     const newStatus = !isActive;
     setIsActive(newStatus);
     if (typeof window !== "undefined") {
@@ -243,52 +255,87 @@ export default function DriverApp() {
 
   return (
     <AuthGuard allowedRoles={["driver"]}>
-      <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans" dir="rtl">
-        <div className="silver-live-bg" />
+      <div className="min-h-screen bg-[#0f172a] flex flex-col font-sans overflow-hidden relative" dir="rtl">
+        {/* Premium Background */}
+        <div className="fixed inset-0 z-0">
+          <div className="absolute inset-0 bg-[#0f172a]" />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.1, 0.15, 0.1],
+            }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+            className="absolute -top-1/4 -right-1/4 w-full h-full bg-blue-600/20 rounded-full blur-[120px]" 
+          />
+          <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay" />
+        </div>
+
         <Toast toasts={toasts} onRemove={removeToast} />
 
-      <DriverHeader
-        driverName={driverName}
-        lastSyncTime={lastSyncTime}
-        isRefreshing={isRefreshing}
-        isActive={isActive}
-        onOpenDrawer={() => setShowDrawer(true)}
-        onToggleActive={toggleActive}
-      />
+        <div className="relative z-10 flex flex-col h-full flex-1">
+          <DriverHeader
+            driverName={driverName}
+            lastSyncTime={lastSyncTime}
+            isRefreshing={isRefreshing}
+            isActive={isActive}
+            onOpenDrawer={() => {
+              try { Haptics.selection(); } catch(e) {}
+              setShowDrawer(true);
+            }}
+            onToggleActive={toggleActive}
+          />
 
-      <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
-        <Suspense fallback={<AppLoader />}>
-          {activeTab === "orders" ? (
-            <DriverOrdersView
-              todayDeliveryFees={todayDeliveryFees}
-              vendorDebt={vendorDebt}
-              isActive={isActive}
-              driverLocation={driverLocation}
-              driverId={driverId}
-              orders={orders}
-            />
-          ) : activeTab === "wallet" ? (
-            <DriverWalletView
-              todayDeliveryFees={todayDeliveryFees}
-              vendorDebt={vendorDebt}
-              orders={orders}
-            />
-          ) : activeTab === "history" ? (
-            <DriverHistoryView orders={orders} />
-          ) : (
-            <div className="text-center py-20"><p className="text-gray-400">جاري تحميل البيانات...</p></div>
-          )}
-        </Suspense>
-      </main>
+          <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Suspense fallback={<AppLoader />}>
+                  {activeTab === "orders" ? (
+                    <DriverOrdersView
+                      todayDeliveryFees={todayDeliveryFees}
+                      vendorDebt={vendorDebt}
+                      isActive={isActive}
+                      driverLocation={driverLocation}
+                      driverId={driverId}
+                      orders={orders}
+                    />
+                  ) : activeTab === "wallet" ? (
+                    <DriverWalletView
+                      todayDeliveryFees={todayDeliveryFees}
+                      vendorDebt={vendorDebt}
+                      orders={orders}
+                    />
+                  ) : activeTab === "history" ? (
+                    <DriverHistoryView orders={orders} />
+                  ) : (
+                    <div className="text-center py-20">
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full mx-auto mb-4"
+                      />
+                      <p className="text-slate-400 font-bold">جاري المزامنة...</p>
+                    </div>
+                  )}
+                </Suspense>
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
 
-      <DriverDrawer
-        showDrawer={showDrawer}
-        onClose={() => setShowDrawer(false)}
-        onSelectOrders={() => { setActiveTab("orders"); setShowDrawer(false); }}
-        onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
-        onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
-        onSignOut={handleSignOut}
-      />
+        <DriverDrawer
+          showDrawer={showDrawer}
+          onClose={() => setShowDrawer(false)}
+          onSelectOrders={() => { setActiveTab("orders"); setShowDrawer(false); }}
+          onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
+          onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
+          onSignOut={handleSignOut}
+        />
       </div>
     </AuthGuard>
   );

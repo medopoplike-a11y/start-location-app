@@ -29,6 +29,21 @@ const config: Config = {
       boxShadow: {
         'premium': '0 20px 50px rgba(0, 0, 0, 0.1)',
         'glow-primary': '0 0 20px rgba(59, 130, 246, 0.5)',
+        'neon': '0 0 20px #00f5ff, 0 0 40px #00f5ff',
+        'neon-purple': '0 0 20px #8b5cf6, 0 0 40px #8b5cf6',
+        'neon-orange': '0 0 20px #f97316, 0 0 40px #f97316',
+        'card-lift': '0 10px 30px rgba(0,0,0,0.1), 0 1px 8px rgba(0,0,0,0.06)',
+      },
+      animation: {
+        'float': 'float 6s ease-in-out infinite',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'shimmer': 'shimmer 1.5s infinite linear',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        }
       }
     },
   },

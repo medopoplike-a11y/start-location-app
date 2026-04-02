@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
+import ParticlesBackground from "@/components/ParticlesBackground";
 
 const cairo = Cairo({ 
   subsets: ["arabic", "latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
       <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
+        <ParticlesBackground theme="neon-blue" />
         <div className="silver-live-bg" />
         <Script id="kill-sw" strategy="beforeInteractive">
           {`

@@ -27,12 +27,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("AuthProvider: loadSession starting...");
       
       // Set a timeout to prevent infinite loading
+      // Dynamic timeout for mobile
+      const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+      const timeoutMs = isCapacitor ? 12000 : 5000;
       timeoutId = setTimeout(() => {
         if (active && loading) {
-          console.log("AuthProvider: Timeout reached, forcing loading to false");
+          console.log(`AuthProvider: Timeout reached (${timeoutMs/1000}s, Capacitor: ${isCapacitor})`);
           setLoading(false);
         }
-      }, 5000); // 5 seconds timeout
+      }, timeoutMs);
       
       try {
         const {

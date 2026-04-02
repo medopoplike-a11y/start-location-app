@@ -132,9 +132,16 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
+    // Mobile-optimized fallback
+    const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+    const fallbackMs = isCapacitor ? 15000 : 5000;
     const hardFallback = setTimeout(() => {
+      console.log(`AdminPage: Hard fallback (${fallbackMs/1000}s)`);
+      if (isCapacitor) {
+        (window as any).Capacitor?.SplashScreen?.hide?.();
+      }
       setLoading(false);
-    }, 5000);
+    }, fallbackMs);
 
     const init = async () => {
       if (authLoading) return;

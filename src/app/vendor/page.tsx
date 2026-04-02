@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Haptics } from "@capacitor/haptics";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
@@ -287,7 +289,7 @@ export default function VendorApp() {
     }, () => error("فشل تحديد الموقع. تأكد من تفعيل الـ GPS."));
   };
 
-  const handleOpenForm = (order: Order | null = null) => {
+  const handleOpenForm = async (order: Order | null = null) => {`n    try { await Haptics.impact({ style: "light" }); } catch(e) {}
     if (order) {
       setEditingOrder(order);
       setInvoiceUrl(order.invoiceUrl || null);

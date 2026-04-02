@@ -3,6 +3,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth";
+import { motion, AnimatePresence } from "framer-motion";
+import { StartLogo } from "@/components/StartLogo";
+import { Haptics } from "@capacitor/haptics";
 
 const isSupabaseConfigured = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -60,6 +63,9 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
+      try {
+        await Haptics.impact({ style: "medium" });
+      } catch (e) {}
       console.log("Calling signIn...");
       const { data, error: signInError } = await signIn(email.trim(), password);
       console.log("=== LOGIN RESULT ===");
@@ -113,94 +119,176 @@ const LoginPage = () => {
   };
 
   return (
-    <main className="min-h-screen bg-[#07111e] flex items-center justify-center p-6" dir="rtl">
-      <section className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 shadow-[0_32px_90px_-50px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-        <h1 className="text-3xl font-black text-white mb-2">تسجيل الدخول</h1>
-        <p className="text-sm text-slate-300 mb-6">أدخل بريدك الإلكتروني وكلمة المرور للدخول إلى النظام.</p>
+    <main className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 overflow-hidden relative" dir="rtl">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            opacity: [0.1, 0.2, 0.1],
+            rotate: [0, 90, 0]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-1/4 -right-1/4 w-full h-full bg-blue-500/10 rounded-full blur-[120px]" 
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.3, 1],
+            opacity: [0.05, 0.15, 0.05],
+            rotate: [0, -120, 0]
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute -bottom-1/4 -left-1/4 w-full h-full bg-indigo-500/10 rounded-full blur-[120px]" 
+        />
+      </div>
 
-        {!isSupabaseConfigured && (
-          <div className="mb-6 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Supabase غير مهيأ. أضف المتغيرين NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY ثم أعد تشغيل التطبيق.
+      <motion.section 
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="w-full max-w-md relative z-10 glass-morphism rounded-[2.5rem] p-8 md:p-10 premium-glow"
+      >
+        <div className="flex flex-col items-center mb-8">
+          <motion.div
+            initial={{ rotate: -10, scale: 0.8 }}
+            animate={{ rotate: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          >
+            <StartLogo className="w-24 h-24 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+          </motion.div>
+          <h1 className="text-4xl font-black text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white/70">
+            Start Location
+          </h1>
+          <p className="text-sm text-slate-400 font-medium text-center">النظام الذكي لإدارة التوصيل والمتاجر</p>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {!isSupabaseConfigured && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 backdrop-blur-md"
+            >
+              <div className="flex items-center gap-2 font-bold mb-1">
+                <span>⚠️</span>
+                <span>تنبيه النظام</span>
+              </div>
+              Supabase غير مهيأ. يرجى مراجعة إعدادات الاتصال.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">
+              البريد الإلكتروني
+            </label>
+            <div className="relative group">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="user@example.com"
+                autoComplete="email"
+                className="w-full bg-slate-900/40 border-white/5 px-5 py-4 text-white placeholder:text-slate-600 outline-none transition-all duration-300 focus:bg-slate-900/80 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-2xl"
+              />
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                📧
+              </div>
+            </div>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <label className="block text-sm font-semibold text-slate-100">
-            البريد الإلكتروني
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="user@example.com"
-              autoComplete="email"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/30"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-slate-100">
-            كلمة المرور
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder=""
-              autoComplete="current-password"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/30"
-            />
-          </label>
-
-          {error && (
-            <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">
+              كلمة المرور
+            </label>
+            <div className="relative group">
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full bg-slate-900/40 border-white/5 px-5 py-4 text-white placeholder:text-slate-600 outline-none transition-all duration-300 focus:bg-slate-900/80 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-2xl"
+              />
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                🔒
+              </div>
             </div>
-          )}
-          {status && !error && (
-            <div className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-700">
-              {status}
-            </div>
-          )}
+          </div>
 
-          <button
+          <AnimatePresence>
+            {(error || status) && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-2xl px-4 py-3 text-sm font-medium backdrop-blur-md ${
+                  error ? "bg-red-500/10 text-red-200 border border-red-500/20" : "bg-blue-500/10 text-blue-200 border border-blue-500/20"
+                }`}
+              >
+                {error || status}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={loading}
-            className={`w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition active:scale-95 ${
+            className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all duration-500 shadow-lg ${
               !isSupabaseConfigured 
-                ? "bg-red-500 hover:bg-red-400" 
-                : "bg-sky-500 hover:bg-sky-400"
-            } disabled:cursor-not-allowed disabled:opacity-60`}
+                ? "bg-gradient-to-r from-red-600 to-red-500 shadow-red-500/20" 
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/25 hover:shadow-blue-500/40"
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {loading ? "جارٍ تسجيل الدخول..." : !isSupabaseConfigured ? "⚠️ Supabase غير مهيأ - انقر للتفاصيل" : "تسجيل الدخول"}
-          </button>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                />
+                <span>جاري التحقق...</span>
+              </div>
+            ) : (
+              <span>تسجيل الدخول</span>
+            )}
+            
+            {/* Shimmer Effect */}
+            <motion.div
+              animate={{ x: ["-100%", "200%"] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12"
+            />
+          </motion.button>
         </form>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-300">
-          <p>سيتم إعادة توجيهك تلقائياً إلى الصفحة المناسبة بعد تسجيل الدخول.</p>
-          <p className="mt-3 text-xs text-slate-500">إذا استمرت المشكلة، امسح الكوكيز وذاكرة التخزين ثم أعد تحميل الصفحة.</p>
+        <div className="mt-10 pt-8 border-t border-white/5 space-y-4">
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <span>التشخيص الذكي</span>
+            <div className="flex items-center gap-2">
+              <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+              {isSupabaseConfigured ? "متصل" : "غير متصل"}
+            </div>
+          </div>
           
-          {/* Debug Info */}
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <p className="text-[10px] text-slate-500 mb-2">معلومات التشخيص:</p>
-            <div className="text-[10px] font-mono space-y-1">
-              <div className="flex items-center gap-2">
-                <span className={isSupabaseConfigured ? "text-green-400" : "text-red-400"}>
-                  {isSupabaseConfigured ? "✓" : "✗"}
-                </span>
-                <span>Supabase: {isSupabaseConfigured ? "مهيأ" : "غير مهيأ"}</span>
-              </div>
-              <div className="text-slate-600">
-                URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "موجود" : "غير موجود"}
-              </div>
-              <div className="text-slate-600">
-                Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "موجود" : "غير موجود"}
-              </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+            <div className="bg-white/5 rounded-lg p-2 border border-white/5 text-slate-400">
+              CORE: <span className="text-blue-400">v0.3.0-PREMIUM</span>
+            </div>
+            <div className="bg-white/5 rounded-lg p-2 border border-white/5 text-slate-400">
+              ENV: <span className="text-indigo-400">{isSupabaseConfigured ? "PRODUCTION" : "PENDING"}</span>
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
     </main>
   );
+};
 };
 
 export default LoginPage;
