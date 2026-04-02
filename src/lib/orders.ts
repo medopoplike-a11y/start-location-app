@@ -172,6 +172,83 @@ export const subscribeToSettlements = (userId: string, callback: () => void) => 
     .subscribe();
 };
 
+/**
+ * توزيع الطلبات تلقائياً على أقرب طيار متاح (الحد الأقصى 3 طلبات نشطة)
+ */
+const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+export const assignOrderToNearestDriver = async (
+  orderId: string,
+  vendorLocation?: { lat: number; lng: number }
+): Promise<{ success: boolean; driverName?: string; error?: string }> => {
+  // 1. Get all online drivers
+  const { data: onlineDrivers, error: driversError } = await supabase
+    .from('profiles')
+    .select('id, full_name, location')
+    .eq('role', 'driver')
+    .eq('is_online', true);
+
+  if (driversError || !onlineDrivers?.length) {
+    return { success: false, error: 'لا يوجد طيارين متاحين الآن' };
+  }
+
+  // 2. Count active orders per driver
+  const { data: activeOrders } = await supabase
+    .from('orders')
+    .select('driver_id')
+    .in('status', ['assigned', 'in_transit'])
+    .not('driver_id', 'is', null);
+
+  const orderCount: Record<string, number> = {};
+  (activeOrders || []).forEach((o) => {
+    if (o.driver_id) orderCount[o.driver_id] = (orderCount[o.driver_id] || 0) + 1;
+  });
+
+  // 3. Filter drivers under the max limit (3 active orders)
+  const MAX_ORDERS_PER_DRIVER = 3;
+  const available = onlineDrivers.filter((d) => (orderCount[d.id] || 0) < MAX_ORDERS_PER_DRIVER);
+
+  if (!available.length) {
+    return { success: false, error: 'جميع الطيارين مشغولون (الحد الأقصى 3 طلبات)' };
+  }
+
+  // 4. Sort by fewest orders first, then by nearest distance
+  const sorted = available.sort((a, b) => {
+    const aOrders = orderCount[a.id] || 0;
+    const bOrders = orderCount[b.id] || 0;
+    if (aOrders !== bOrders) return aOrders - bOrders;
+
+    if (vendorLocation && a.location && b.location) {
+      const aLoc = a.location as { lat: number; lng: number };
+      const bLoc = b.location as { lat: number; lng: number };
+      return haversineKm(vendorLocation, aLoc) - haversineKm(vendorLocation, bLoc);
+    }
+    return 0;
+  });
+
+  const best = sorted[0];
+
+  // 5. Assign the order
+  const { error: assignError } = await supabase
+    .from('orders')
+    .update({ status: 'assigned', driver_id: best.id })
+    .eq('id', orderId);
+
+  if (assignError) {
+    return { success: false, error: 'فشل تعيين الطيار' };
+  }
+
+  return { success: true, driverName: best.full_name };
+};
+
 export const subscribeToMessages = (orderId: string, onNewMessage: (msg: OrderMessage) => void) => {
   return supabase
     .channel(`chat-${orderId}`)

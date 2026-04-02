@@ -50,3 +50,15 @@ A Next.js 16 delivery tracking web app with Supabase backend, supporting admin, 
 - `SUPABASE_SERVICE_ROLE_KEY` is server-side only — never exposed to the client
 - Only `NEXT_PUBLIC_*` vars are sent to the browser
 - Admin API routes are in `src/app/api/admin/` and use the server-side Supabase admin client
+
+## Recent Enhancements (April 2026)
+- **Back button protection**: `AuthGuard.tsx` intercepts browser/hardware back to prevent accidental logout; only the drawer logout button triggers sign-out
+- **Re-sync button**: Added RefreshCw manual sync button to both `DriverHeader` and `VendorHeader`
+- **Debt shows at pickup**: `fetchStats` in driver/page.tsx now includes `assigned` + `in_transit` orders in `vendorDebt` calculation (not just `delivered`) so debt registers when the driver picks up the order
+- **Vendor history enhanced**: Expandable order cards with customer details, phone, driver info, financials, filter by day/7days/30days
+- **Driver history enhanced**: Expandable cards with commission breakdown (15% of delivery fee + 1 EGP/order), filter by today/15days/month
+- **Driver wallet**: Commission summary panel with period filter; vendor debt tab shows in_transit orders
+- **Vendor wallet**: Commission breakdown panel (15-day cycle) with period filter and settlement history filter
+- **StoreView**: Delivered/cancelled orders show "تفاصيل" (view-only) instead of "تعديل" (edit) button
+- **Order auto-distribution**: `assignOrderToNearestDriver` in lib/orders.ts — max 3 active orders per driver, assign to nearest with fewest orders
+- **Types updated**: `created_at` added to `DBDriverOrder`, `financials` added to vendor `Order` type

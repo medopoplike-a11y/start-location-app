@@ -158,7 +158,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
     setLastSyncTime(new Date());
     try {
       const { data: walletData } = await supabase.from('wallets').select('debt, system_balance').eq('user_id', currentDriverId).single();
-      const { data: ordersDebtData } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'delivered').is('vendor_collected_at', null);
+      const { data: ordersDebtData } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).in('status', ['assigned', 'in_transit', 'delivered']).is('vendor_collected_at', null);
       
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
@@ -271,8 +271,18 @@ const [vendorDebt, setVendorDebt] = useState(0);
     };
   }
 
+  const manualSync = async () => {
+    if (!driverId) return;
+    void Promise.allSettled([
+      withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
+      withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
+      withTimeout('sync.fetchDelivered', fetchDeliveredOrders(driverId), 15000),
+      withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
+    ]);
+  };
+
   // Sync with useSync hook
-  useSync(driverId || undefined, () => {
+  const { triggerUpdate } = useSync(driverId || undefined, () => {
     if (driverId) {
       void Promise.allSettled([
         withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
@@ -347,9 +357,12 @@ const [vendorDebt, setVendorDebt] = useState(0);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' as const, isPickedUp: true } : o));
     const { error } = await updateOrderStatus(orderId, 'in_transit');
     if (!error) {
-      toastSuccess('تم تأكيد الاستلام من المحل');
+      toastSuccess('تم تأكيد الاستلام من المحل — المديونية سُجّلت في محفظتك');
     }
-    if (driverId) await fetchOrders(driverId);
+    if (driverId) {
+      await fetchOrders(driverId);
+      void fetchStats(driverId);
+    }
   };
 
   const handleDeliverOrder = async (orderId: string) => {
@@ -420,6 +433,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
               setShowDrawer(true);
             }}
             onToggleActive={toggleActive}
+            onSync={manualSync}
           />
 
           <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
@@ -452,6 +466,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
                       vendorDebt={vendorDebt}
                       orders={orders}
                       deliveredOrders={deliveredOrders}
+                      allHistory={todayHistory}
                       onConfirmPayment={handleConfirmPayment}
                     />
                   ) : activeTab === "history" ? (

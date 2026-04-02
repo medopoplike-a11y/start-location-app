@@ -1,58 +1,139 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { History, CheckCircle, Clock, Banknote, Store, TrendingUp } from "lucide-react";
+import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import type { DBDriverOrder } from "../types";
 
 interface DriverHistoryViewProps {
   todayHistory: DBDriverOrder[];
 }
 
+type FilterPeriod = "today" | "15days" | "month";
+
 export default function DriverHistoryView({ todayHistory }: DriverHistoryViewProps) {
-  const totalEarnings = todayHistory.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
-  const totalValue = todayHistory.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
+  const [filter, setFilter] = useState<FilterPeriod>("today");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const now = new Date();
+
+  const filtered = todayHistory.filter((o) => {
+    if (!o.created_at) return filter === "today";
+    const d = new Date(o.created_at);
+    if (filter === "today") {
+      return d.toDateString() === now.toDateString();
+    } else if (filter === "15days") {
+      const ago = new Date(now);
+      ago.setDate(ago.getDate() - 15);
+      return d >= ago;
+    } else {
+      const ago = new Date(now);
+      ago.setDate(ago.getDate() - 30);
+      return d >= ago;
+    }
+  });
+
+  const totalEarnings = filtered.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
+  const totalDeliveryFees = filtered.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
+  const totalOrderValue = filtered.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
+
+  // Commission = 15% of delivery fee + 1 EGP per order
+  const commissionRate = 0.15;
+  const commissionPerOrder = 1;
+  const totalCommission = filtered.reduce(
+    (acc, o) => acc + (o.financials?.delivery_fee || 0) * commissionRate + commissionPerOrder,
+    0
+  );
+
+  const filterLabels: Record<FilterPeriod, string> = {
+    today: "اليوم",
+    "15days": "١٥ يوم",
+    month: "الشهر",
+  };
 
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
           <History className="w-5 h-5 text-sky-500" />
-          سجل اليوم
+          سجل التوصيلات
         </h2>
         <span className="bg-sky-100 text-sky-700 text-xs font-black px-3 py-1.5 rounded-full border border-sky-200">
-          {todayHistory.length} طلب
+          {filtered.length} طلب
         </span>
       </div>
 
-      {todayHistory.length === 0 ? (
+      {/* Filter Tabs */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+        {(["today", "15days", "month"] as FilterPeriod[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${
+              filter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
+            }`}
+          >
+            {filterLabels[f]}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="bg-white p-10 rounded-[40px] shadow-sm text-center border border-gray-100">
           <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Clock className="w-8 h-8 text-slate-200" />
           </div>
-          <p className="text-sm text-gray-400 font-bold">لا توجد توصيلات مكتملة اليوم بعد</p>
-          <p className="text-[10px] text-gray-300 mt-1">ستظهر هنا طلباتك المكتملة طوال اليوم</p>
+          <p className="text-sm text-gray-400 font-bold">لا توجد توصيلات في هذه الفترة</p>
         </div>
       ) : (
         <>
+          {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-green-50 border border-green-100 rounded-[24px] p-4 text-center">
               <TrendingUp className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <p className="text-[9px] font-bold text-green-600 uppercase">أرباحك اليوم</p>
-              <p className="text-lg font-black text-green-700">{totalEarnings.toLocaleString()} ج.م</p>
+              <p className="text-[9px] font-bold text-green-600 uppercase">صافي أرباحك</p>
+              <p className="text-lg font-black text-green-700">{totalEarnings.toFixed(2)} ج.م</p>
             </div>
             <div className="bg-sky-50 border border-sky-100 rounded-[24px] p-4 text-center">
               <Banknote className="w-5 h-5 text-sky-500 mx-auto mb-1" />
               <p className="text-[9px] font-bold text-sky-600 uppercase">إجمالي المبالغ</p>
-              <p className="text-lg font-black text-sky-700">{totalValue.toLocaleString()} ج.م</p>
+              <p className="text-lg font-black text-sky-700">{totalOrderValue.toLocaleString()} ج.م</p>
             </div>
           </div>
 
+          {/* Commission Summary */}
+          <div className="bg-orange-50 border border-orange-100 rounded-[24px] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-black text-orange-700">عمولة الشركة المستحقة (يومي)</p>
+              <span className="text-base font-black text-orange-600">{totalCommission.toFixed(2)} ج.م</span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[10px] text-orange-600 font-bold">
+                <span>نسبة على سعر التوصيل ({(commissionRate * 100).toFixed(0)}%)</span>
+                <span>{(totalDeliveryFees * commissionRate).toFixed(2)} ج.م</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-orange-600 font-bold">
+                <span>رسوم ثابتة ({filtered.length} × {commissionPerOrder} ج.م)</span>
+                <span>{(filtered.length * commissionPerOrder).toFixed(2)} ج.م</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-orange-800 font-black border-t border-orange-200 pt-1.5 mt-1">
+                <span>إجمالي رسوم التوصيل</span>
+                <span>{totalDeliveryFees.toFixed(2)} ج.م</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Order List */}
           <div className="space-y-3">
-            {todayHistory.map((order, idx) => {
-              const vendorName = order.profiles?.full_name || 'محل';
+            {filtered.map((order, idx) => {
+              const vendorName = order.profiles?.full_name || "محل";
+              const vendorPhone = order.profiles?.phone || "";
               const earnings = order.financials?.driver_earnings || 0;
               const orderValue = order.financials?.order_value || 0;
+              const deliveryFee = order.financials?.delivery_fee || 0;
+              const commission = deliveryFee * commissionRate + commissionPerOrder;
               const settled = !!order.vendor_collected_at;
+              const isExpanded = expandedId === order.id;
 
               return (
                 <motion.div
@@ -60,9 +141,12 @@ export default function DriverHistoryView({ todayHistory }: DriverHistoryViewPro
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.04 }}
-                  className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm"
+                  className="bg-white rounded-[28px] border border-gray-100 shadow-sm overflow-hidden"
                 >
-                  <div className="flex items-center justify-between mb-3">
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                    className="w-full p-5 flex items-center justify-between text-right"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-green-50 rounded-2xl flex items-center justify-center border border-green-100">
                         <CheckCircle className="w-5 h-5 text-green-500" />
@@ -72,23 +156,81 @@ export default function DriverHistoryView({ todayHistory }: DriverHistoryViewPro
                           <Store className="w-3 h-3 text-slate-400" />
                           <p className="text-sm font-black text-slate-900">{vendorName}</p>
                         </div>
-                        <p className="text-[9px] text-slate-400 font-bold">#{order.id.slice(0, 8)}</p>
+                        <p className="text-[9px] text-slate-400 font-bold">
+                          #{order.id.slice(0, 8)}
+                          {order.created_at && ` • ${new Date(order.created_at).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}`}
+                        </p>
                       </div>
                     </div>
-                    <span className={`text-[9px] font-black px-2.5 py-1 rounded-full border ${settled ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
-                      {settled ? 'تمت التسوية' : 'بانتظار المحل'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-50">
-                    <div className="text-center">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">عمولتك</p>
-                      <p className="text-sm font-black text-green-600">+{earnings.toLocaleString()} ج.م</p>
+                    <div className="flex items-center gap-2">
+                      <div className="text-left">
+                        <span
+                          className={`text-[9px] font-black px-2.5 py-1 rounded-full border ${
+                            settled
+                              ? "bg-green-50 text-green-700 border-green-100"
+                              : "bg-amber-50 text-amber-700 border-amber-100"
+                          }`}
+                        >
+                          {settled ? "تمت التسوية" : "بانتظار المحل"}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      )}
                     </div>
-                    <div className="text-center">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">قيمة الطلب</p>
-                      <p className="text-sm font-black text-slate-700">{orderValue.toLocaleString()} ج.م</p>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-5 pb-5 pt-1 border-t border-slate-50 space-y-3">
+                      {/* Customer info */}
+                      <div className="bg-slate-50 rounded-[16px] p-3 space-y-1.5">
+                        <p className="text-[10px] font-black text-slate-500 uppercase">العميل</p>
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                          <MapPin className="w-3.5 h-3.5 text-red-400" />
+                          {order.customer_details?.address}
+                        </div>
+                        {order.customer_details?.phone && (
+                          <a href={`tel:${order.customer_details.phone}`} className="flex items-center gap-2 text-xs text-sky-600 font-bold">
+                            <Phone className="w-3.5 h-3.5" />
+                            {order.customer_details.phone}
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Financials Breakdown */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-green-50 rounded-[14px] p-3 text-center">
+                          <p className="text-[9px] text-green-600 font-bold uppercase">صافي ربحك</p>
+                          <p className="text-sm font-black text-green-700">+{earnings.toFixed(2)} ج.م</p>
+                        </div>
+                        <div className="bg-orange-50 rounded-[14px] p-3 text-center">
+                          <p className="text-[9px] text-orange-600 font-bold uppercase">عمولة الشركة</p>
+                          <p className="text-sm font-black text-orange-700">-{commission.toFixed(2)} ج.م</p>
+                        </div>
+                        <div className="bg-sky-50 rounded-[14px] p-3 text-center">
+                          <p className="text-[9px] text-sky-600 font-bold uppercase">سعر التوصيل</p>
+                          <p className="text-sm font-black text-sky-700">{deliveryFee.toFixed(2)} ج.م</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-[14px] p-3 text-center">
+                          <p className="text-[9px] text-slate-500 font-bold uppercase">قيمة الطلب</p>
+                          <p className="text-sm font-black text-slate-700">{orderValue.toFixed(2)} ج.م</p>
+                        </div>
+                      </div>
+
+                      {/* Vendor contact */}
+                      {vendorPhone && (
+                        <a
+                          href={`tel:${vendorPhone}`}
+                          className="flex items-center justify-center gap-2 bg-slate-100 text-slate-700 py-2.5 rounded-xl text-xs font-bold"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          اتصال بالمحل
+                        </a>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               );
             })}

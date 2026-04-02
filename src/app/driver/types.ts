@@ -32,6 +32,7 @@ export interface DBDriverOrder {
   id: string;
   vendor_id: string;
   driver_id?: string | null;
+  created_at?: string | null;
   profiles?: {
     full_name?: string;
     phone?: string;

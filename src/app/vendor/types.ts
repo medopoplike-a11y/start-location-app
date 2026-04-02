@@ -18,6 +18,15 @@ export interface Order {
   invoiceUrl?: string;
   vendorCollectedAt?: string | null;
   driverConfirmedAt?: string | null;
+  financials?: {
+    order_value?: number;
+    delivery_fee?: number;
+    system_commission?: number;
+    vendor_commission?: number;
+    driver_earnings?: number;
+    insurance_fee?: number;
+    prep_time?: string;
+  };
 }
 
 export interface VendorLocation {

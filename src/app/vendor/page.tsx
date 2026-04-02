@@ -256,7 +256,16 @@ export default function VendorApp() {
     prepTime: db.financials?.prep_time || "15",
     invoiceUrl: db.invoice_url,
     vendorCollectedAt: db.vendor_collected_at,
-    driverConfirmedAt: db.driver_confirmed_at
+    driverConfirmedAt: db.driver_confirmed_at,
+    financials: db.financials ? {
+      order_value: db.financials.order_value,
+      delivery_fee: db.financials.delivery_fee,
+      system_commission: db.financials.system_commission,
+      vendor_commission: db.financials.vendor_commission,
+      driver_earnings: db.financials.driver_earnings,
+      insurance_fee: db.financials.insurance_fee,
+      prep_time: db.financials.prep_time,
+    } : undefined,
   });
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -508,6 +517,7 @@ export default function VendorApp() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenDrawer={() => setShowDrawer(true)}
+        onSync={() => vendorId && updateData(vendorId)}
       />
 
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
@@ -535,6 +545,12 @@ export default function VendorApp() {
             companyCommission={companyCommission}
             balance={balance}
             settlementHistory={settlementHistory}
+            commissionDetails={{
+              totalDeliveryFees: orders.filter(o => o.status === "delivered").reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
+              orderCount: orders.filter(o => o.status === "delivered").length,
+              commissionRate: appConfig.driver_commission / 100,
+              commissionPerOrder: appConfig.vendor_fee || 1,
+            }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />
         ) : activeView === "settings" ? (
