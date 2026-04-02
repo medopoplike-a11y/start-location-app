@@ -268,6 +268,32 @@ const [vendorDebt, setVendorDebt] = useState(0);
     }
   };
 
+  const handleAcceptOrder = async (orderId: string) => {
+    if (!driverId) return;
+    const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
+    if (!error) {
+      toastSuccess('تم قبول الطلب بنجاح!');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' as const } : o));
+    }
+  };
+
+  const handlePickupOrder = async (orderId: string) => {
+    const { error } = await updateOrderStatus(orderId, 'in_transit');
+    if (!error) {
+      toastSuccess('تم تأكيد الاستلام من المحل');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' as const, isPickedUp: true } : o));
+    }
+  };
+
+  const handleDeliverOrder = async (orderId: string) => {
+    const { error } = await updateOrderStatus(orderId, 'delivered');
+    if (!error) {
+      toastSuccess('تم التوصيل بنجاح! أحسنت العمل 🎉');
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      if (driverId) void fetchStats(driverId);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -326,6 +352,9 @@ const [vendorDebt, setVendorDebt] = useState(0);
                       driverLocation={driverLocation}
                       driverId={driverId}
                       orders={orders}
+                      onAcceptOrder={handleAcceptOrder}
+                      onPickupOrder={handlePickupOrder}
+                      onDeliverOrder={handleDeliverOrder}
                     />
                   ) : activeTab === "wallet" ? (
                     <DriverWalletView

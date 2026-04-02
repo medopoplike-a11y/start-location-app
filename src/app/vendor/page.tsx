@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Haptics } from "@capacitor/haptics";
 import { useAuth } from "@/components/AuthProvider";
