@@ -21,9 +21,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let active = true;
     let authSubscription: { unsubscribe: () => void } | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const loadSession = async () => {
       console.log("AuthProvider: loadSession starting...");
+      
+      // Set a timeout to prevent infinite loading
+      timeoutId = setTimeout(() => {
+        if (active && loading) {
+          console.log("AuthProvider: Timeout reached, forcing loading to false");
+          setLoading(false);
+        }
+      }, 5000); // 5 seconds timeout
+      
       try {
         const {
           data: { session },
@@ -43,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } finally {
         if (active) {
           console.log("AuthProvider: Setting loading to false");
+          if (timeoutId) clearTimeout(timeoutId);
           setLoading(false);
         }
       }
@@ -79,6 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       active = false;
+      if (timeoutId) clearTimeout(timeoutId);
       authSubscription?.unsubscribe();
     };
   }, []);
