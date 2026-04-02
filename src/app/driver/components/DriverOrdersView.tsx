@@ -54,10 +54,6 @@ export default function DriverOrdersView({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const activeOrders = orders
-    .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
-    .sort((a, b) => a.priority - b.priority);
-
   const handleAccept = async (orderId: string) => {
     setActionLoading(true);
     await onAcceptOrder(orderId);
@@ -78,6 +74,14 @@ export default function DriverOrdersView({
     setActionLoading(false);
     setSelectedOrder(null);
   };
+
+  const activeOrders = orders
+    .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
+    .sort((a, b) => a.priority - b.priority);
+
+  const vendorMarkersForMap = activeOrders
+    .filter(o => (o.status === "assigned" || o.status === "in_transit") && o.coords?.lat && o.coords?.lng)
+    .map(o => ({ id: o.vendorId || o.id, name: o.vendor, lat: o.coords!.lat, lng: o.coords!.lng }));
 
   return (
     <>
@@ -113,6 +117,7 @@ export default function DriverOrdersView({
               >
                 <LiveMap
                   drivers={[{ id: driverId || "me", name: "موقعي", ...driverLocation }]}
+                  vendors={vendorMarkersForMap}
                   center={[driverLocation.lat, driverLocation.lng]}
                   zoom={15}
                   className="h-44 w-full rounded-[32px] overflow-hidden shadow-sm border border-slate-100/50"

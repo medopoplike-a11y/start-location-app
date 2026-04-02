@@ -66,6 +66,7 @@ export default function VendorApp() {
   const [activityLog, setActivityLog] = useState<{id: string, text: string, time: string}[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [updatingLocation, setUpdatingLocation] = useState(false);
 
   const [formData, setFormData] = useState({
     customer: "",
@@ -409,6 +410,7 @@ export default function VendorApp() {
 
   const handleUpdateLocation = async () => {
     if (!vendorId) return;
+    setUpdatingLocation(true);
     const getLocation = (opt: PositionOptions) => new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, opt));
     try {
       let pos;
@@ -421,6 +423,8 @@ export default function VendorApp() {
       success("تم تحديث موقع المحل بنجاح!");
     } catch {
       error("فشل تحديد الموقع. تأكد من تفعيل الـ GPS.");
+    } finally {
+      setUpdatingLocation(false);
     }
   };
 
@@ -536,9 +540,12 @@ export default function VendorApp() {
           <VendorSettingsView
             settingsData={settingsData}
             savingSettings={savingSettings}
+            vendorLocation={vendorLocation}
+            updatingLocation={updatingLocation}
             onBack={() => setActiveView("store")}
             onSettingsDataChange={setSettingsData}
             onSave={handleUpdateProfile}
+            onUpdateLocation={handleUpdateLocation}
           />
         ) : (
           <HistoryView orders={orders} />

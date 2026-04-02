@@ -179,10 +179,11 @@ const [vendorDebt, setVendorDebt] = useState(0);
     }
   }
 
-  async function fetchOrders() {
+  async function fetchOrders(explicitDriverId?: string) {
+    const activeDriverId = explicitDriverId ?? driverId;
     const [pending, active] = await Promise.all([
       getAvailableOrders(),
-      driverId ? getDriverActiveOrders(driverId) : Promise.resolve([]),
+      activeDriverId ? getDriverActiveOrders(activeDriverId) : Promise.resolve([]),
     ]);
     const seen = new Set<string>();
     const merged = [...active, ...pending].filter((o) => {
@@ -221,7 +222,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
   useSync(driverId || undefined, () => {
     if (driverId) {
       void Promise.allSettled([
-        withTimeout('sync.fetchOrders', fetchOrders(), 15000),
+        withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
         withTimeout('sync.fetchStats', fetchStats(driverId), 15000)
       ]);
     }
@@ -277,27 +278,34 @@ const [vendorDebt, setVendorDebt] = useState(0);
 
   const handleAcceptOrder = async (orderId: string) => {
     if (!driverId) return;
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' as const } : o));
     const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
     if (!error) {
       toastSuccess('تم قبول الطلب بنجاح!');
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' as const } : o));
+      await fetchOrders(driverId);
+    } else {
+      await fetchOrders(driverId);
     }
   };
 
   const handlePickupOrder = async (orderId: string) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' as const, isPickedUp: true } : o));
     const { error } = await updateOrderStatus(orderId, 'in_transit');
     if (!error) {
       toastSuccess('تم تأكيد الاستلام من المحل');
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' as const, isPickedUp: true } : o));
     }
+    if (driverId) await fetchOrders(driverId);
   };
 
   const handleDeliverOrder = async (orderId: string) => {
+    setOrders(prev => prev.filter(o => o.id !== orderId));
     const { error } = await updateOrderStatus(orderId, 'delivered');
     if (!error) {
-      toastSuccess('تم التوصيل بنجاح! أحسنت العمل 🎉');
-      setOrders(prev => prev.filter(o => o.id !== orderId));
-      if (driverId) void fetchStats(driverId);
+      toastSuccess('تم التوصيل بنجاح!');
+    }
+    if (driverId) {
+      await fetchOrders(driverId);
+      void fetchStats(driverId);
     }
   };
 

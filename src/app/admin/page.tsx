@@ -403,6 +403,16 @@ export default function AdminPanel() {
     }
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    const { error } = await updateOrderStatus(orderId, 'cancelled');
+    if (!error) {
+      addActivity(`تم إلغاء الطلب #${orderId.slice(0,8)}`);
+      setLiveOrders(prev => prev.map(o =>
+        o.id_full === orderId ? { ...o, status: "ملغي" } : o
+      ));
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -501,7 +511,7 @@ export default function AdminPanel() {
             )}
 
             {activeView === "orders" && (
-              <OrdersView liveOrders={liveOrders} activities={activities} />
+              <OrdersView liveOrders={liveOrders} activities={activities} onCancelOrder={handleCancelOrder} />
             )}
 
             {activeView === "distribution" && (
