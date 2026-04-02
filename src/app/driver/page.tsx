@@ -253,13 +253,13 @@ export default function DriverApp() {
     </div>
   );
 
-  return (
-    <AuthGuard allowedRoles={["driver"]}>
-min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-col font-sans" dir="rtl">
+    return (
+      <AuthGuard allowedRoles={["driver"]}>
+      <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-col font-sans" dir="rtl">
         <Toast toasts={toasts} onRemove={removeToast} />
 
-
         <div className="relative z-10 flex flex-col h-full flex-1">
+
           <DriverHeader
             driverName={driverName}
             lastSyncTime={lastSyncTime}
@@ -327,3 +327,4 @@ min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-co
     </AuthGuard>
   );
 }
+

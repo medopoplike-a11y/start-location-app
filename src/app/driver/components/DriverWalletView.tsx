@@ -67,9 +67,10 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, orders
       </div>
 
       {/* Commission Wallet */}
-card-clean shadow-xl rounded-3xl p-8
+<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card-clean shadow-xl rounded-3xl p-8">
 
-        <div className=\"flex justify-between items-start mb-6\">
+        <div className="flex justify-between items-start mb-6">
+
           <div>
             <h3 className=\"text-lg font-black text-orange-900 mb-1\">عمولة الشركة</h3>
             <p className=\"text-sm text-orange-700\">مستحقة للسداد</p>
