@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",
     "build": "next build",
-    "export": "cross-env BUILD_TYPE=static next build",
+    "export": "node scripts/static-export.js",
     "build:mobile": "npm run export && node fix-paths.js && node prepare-android.js && npx cap sync android",
     "build:android-release": "npm run build:mobile && node -e \"const { execSync } = require('child_process'); const cmd = process.platform === 'win32' ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease'; execSync(cmd, { stdio: 'inherit' });\"",
     "build:android-release:win": "npm run build:mobile && node scripts/android-ensure-sdk.js && cd android && gradlew.bat assembleRelease",
