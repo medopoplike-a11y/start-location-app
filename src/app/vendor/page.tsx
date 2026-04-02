@@ -8,6 +8,7 @@ import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
   Plus
 } from "lucide-react";
+import ParticlesBackground from "@/components/ParticlesBackground";
 import { useRouter } from "next/navigation";
 
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
@@ -289,7 +290,8 @@ export default function VendorApp() {
     }, () => error("فشل تحديد الموقع. تأكد من تفعيل الـ GPS."));
   };
 
-  const handleOpenForm = async (order: Order | null = null) => {`n    try { await Haptics.impact({ style: "light" }); } catch(e) {}
+  const handleOpenForm = async (order: Order | null = null) => {
+    try { await Haptics.impact({ style: "light" }); } catch(e) {}
     if (order) {
       setEditingOrder(order);
       setInvoiceUrl(order.invoiceUrl || null);
@@ -349,7 +351,7 @@ export default function VendorApp() {
       const { data, error: dbError } = await action;
       if (dbError) {
         error(`خطأ: ${dbError.message}`);
-        return;
+        return; 
       }
       if (data) {
         const ui = mapDBOrderToUI(data as VendorDBOrder);
