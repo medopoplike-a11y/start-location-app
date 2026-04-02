@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { Haptics } from "@capacitor/haptics";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
-import { getAvailableOrders, updateOrderStatus } from "@/lib/orders";
+import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
@@ -180,10 +180,17 @@ const [vendorDebt, setVendorDebt] = useState(0);
   }
 
   async function fetchOrders() {
-    const data = await getAvailableOrders();
-    if (data) {
-      setOrders(data.map(mapDBOrderToUI));
-    }
+    const [pending, active] = await Promise.all([
+      getAvailableOrders(),
+      driverId ? getDriverActiveOrders(driverId) : Promise.resolve([]),
+    ]);
+    const seen = new Set<string>();
+    const merged = [...active, ...pending].filter((o) => {
+      if (seen.has(o.id)) return false;
+      seen.add(o.id);
+      return true;
+    });
+    setOrders(merged.map(mapDBOrderToUI));
   }
 
   function mapDBOrderToUI(db: DBDriverOrder): Order {

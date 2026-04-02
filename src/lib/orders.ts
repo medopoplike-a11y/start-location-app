@@ -48,6 +48,24 @@ export const getAvailableOrders = async () => {
 };
 
 /**
+ * جلب الطلبات النشطة للطيار (مقبولة أو في الطريق)
+ */
+export const getDriverActiveOrders = async (driverId: string) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, profiles:vendor_id(full_name, phone, location, area)')
+    .eq('driver_id', driverId)
+    .in('status', ['assigned', 'in_transit'])
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Orders: Fetch driver active failed", error);
+    return [];
+  }
+  return data || [];
+};
+
+/**
  * جلب طلبات مطعم معين
  */
 export const getVendorOrders = async (vendorId: string) => {

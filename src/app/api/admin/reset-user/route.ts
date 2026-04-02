@@ -13,7 +13,8 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
-    const { error } = await supabase.rpc('reset_user_data_admin', { target_user_id: targetUserId });
+    await supabase.from('orders').delete().eq('vendor_id', targetUserId);
+    const { error } = await supabase.from('wallets').update({ balance: 0, debt: 0, system_balance: 0 }).eq('user_id', targetUserId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

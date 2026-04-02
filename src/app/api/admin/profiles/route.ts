@@ -6,7 +6,10 @@ import { getSupabaseAdminClient } from '@/lib/server/supabaseAdminClient';
 export async function GET() {
   try {
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await supabase.rpc('get_all_profiles_admin');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

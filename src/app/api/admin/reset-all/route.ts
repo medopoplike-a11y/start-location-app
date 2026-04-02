@@ -6,7 +6,9 @@ import { getSupabaseAdminClient } from '@/lib/server/supabaseAdminClient';
 export async function POST() {
   try {
     const supabase = getSupabaseAdminClient();
-    const { error } = await supabase.rpc('reset_all_system_data_admin');
+    await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('settlements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error } = await supabase.from('wallets').update({ balance: 0, debt: 0, system_balance: 0 }).neq('user_id', '00000000-0000-0000-0000-000000000000');
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

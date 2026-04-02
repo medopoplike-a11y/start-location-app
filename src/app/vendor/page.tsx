@@ -229,8 +229,8 @@ export default function VendorApp() {
   // --- Logic Helpers ---
   const handleCancelOrder = async (orderId: string) => {
     if (!confirm('هل أنت متأكد من إلغاء الطلب؟')) return;
-    const { error } = await cancelOrder(orderId);
-    if (!error) {
+    const { error: cancelErr } = await cancelOrder(orderId);
+    if (!cancelErr) {
       success('تم إلغاء الطلب بنجاح');
       if (vendorId) updateData(vendorId);
     } else {
@@ -241,7 +241,7 @@ export default function VendorApp() {
   const mapDBOrderToUI = (db: VendorDBOrder): Order => ({
     id: db.id,
     customer: db.customer_details?.name || "عميل",
-    phone: db.customer_details?.name || "",
+    phone: db.customer_details?.phone || "",
     address: db.customer_details?.address || "عنوان غير محدد",
     status: db.status,
     driver: db.profiles?.full_name || (db.driver_id ? "كابتن (جاري الجلب...)" : null),
@@ -415,7 +415,7 @@ export default function VendorApp() {
       try { pos = await getLocation({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }); }
       catch { pos = await getLocation({ enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }); }
       const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      const { error: dbError } = await supabase.from('profiles').update({ location: loc, updated_at: new Date().toISOString() }).eq('id', vendorId);
+      const { error: dbError } = await supabase.from('profiles').update({ location: loc }).eq('id', vendorId);
       if (dbError) throw dbError;
       setVendorLocation(loc);
       success("تم تحديث موقع المحل بنجاح!");
@@ -565,6 +565,7 @@ export default function VendorApp() {
         invoiceUrl={invoiceUrl}
         uploadingInvoice={uploadingInvoice}
         isSaving={isSavingOrder}
+        hasVendorLocation={!!(vendorLocation?.lat && vendorLocation?.lng)}
         onClose={() => setShowOrderForm(false)}
         onFormDataChange={setFormData}
         onPickCustomerLocation={handlePickCustomerLocation}

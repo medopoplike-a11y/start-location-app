@@ -6,7 +6,15 @@ import { getSupabaseAdminClient } from '@/lib/server/supabaseAdminClient';
 export async function GET() {
   try {
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await supabase.rpc('get_all_orders_admin');
+    const { data: rawData, error } = await supabase
+      .from('orders')
+      .select('*, vendor:profiles!vendor_id(full_name)')
+      .order('created_at', { ascending: false });
+
+    const data = (rawData || []).map((o: any) => ({
+      ...o,
+      vendor_full_name: o.vendor?.full_name || null,
+    }));
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
