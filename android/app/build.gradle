@@ -23,7 +23,7 @@ android {
                 keyAlias releaseKeyAlias
                 keyPassword releaseKeyPassword
             } else if (rootProject.file('keystore.jks').exists()) {
-                // Fallback for local builds where keystore.jks is present
+                // Fallback for local builds where keystore.jks is in the android root
                 storeFile rootProject.file('keystore.jks')
                 storePassword 'S7art#2026Key!Store'
                 keyAlias 'release-key'

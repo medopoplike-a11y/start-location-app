@@ -3,15 +3,12 @@
   "appName": "Start Location",
   "webDir": "out",
   "bundledWebRuntime": false,
-  "server": {
-    "url": "https://traestartzlum.vercel.app",
-    "allowNavigation": [
-      "traestartzlum.vercel.app",
-      "*.supabase.co",
-      "*.firebaseio.com"
-    ],
-    "androidScheme": "https",
-    "cleartext": false
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "buildOptions": {
+      "releaseType": "APK"
+    }
   },
   "plugins": {
     "CapacitorUpdater": {
@@ -34,13 +31,6 @@
       "stopOnTerminate": false,
       "startOnBoot": true,
       "foregroundService": true
-    }
-  },
-  "android": {
-    "allowMixedContent": false,
-    "captureInput": true,
-    "buildOptions": {
-      "releaseType": "APK"
     }
   }
 }

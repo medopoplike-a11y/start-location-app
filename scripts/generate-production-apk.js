@@ -26,14 +26,13 @@ async function main() {
       fs.rmSync(path.join(buildDir, 'out'), { recursive: true, force: true });
     }
 
-    // 2. Build Web Assets (Production)
-    console.log('📦 Building Web Assets (Next.js)...');
-    run('npm run build');
+    // 2. Build Web Assets (Production Static Export)
+    console.log('📦 Building Web Assets (Next.js Static Export)...');
+    run('npm run export');
 
-    // 3. Export Static Files
-    // Note: ensure next.config.mjs has output: 'export' if using mobile
-    console.log('📤 Exporting static assets...');
-    run('npx next build'); // Next.js 15+ exports automatically if configured
+    // 3. Fix Paths and Routes for Capacitor
+    console.log('�️ Fixing paths and routes for mobile...');
+    run('node fix-paths.js');
 
     // 4. Sync Capacitor
     console.log('🔄 Syncing Capacitor with Native Android...');

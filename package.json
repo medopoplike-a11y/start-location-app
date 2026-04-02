@@ -3,9 +3,10 @@
   "version": "0.2.1",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname localhost --port 3000",
+    "dev": "next dev",
     "build": "next build",
-    "build:mobile": "node scripts/build-static-export.js && node fix-paths.js && node prepare-android.js && npx cap sync android",
+    "export": "cross-env BUILD_TYPE=static next build",
+    "build:mobile": "npm run export && node fix-paths.js && node prepare-android.js && npx cap sync android",
     "build:android-release": "npm run build:mobile && node -e \"const { execSync } = require('child_process'); const cmd = process.platform === 'win32' ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease'; execSync(cmd, { stdio: 'inherit' });\"",
     "build:android-release:win": "npm run build:mobile && node scripts/android-ensure-sdk.js && cd android && gradlew.bat assembleRelease",
     "build:android-debug:win": "npm run build:mobile && node scripts/android-ensure-sdk.js && cd android && gradlew.bat assembleDebug",
