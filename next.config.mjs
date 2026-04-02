@@ -6,11 +6,9 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: [process.env.REPLIT_DEV_DOMAIN].filter(Boolean),
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   // Only export statically if specifically requested (for mobile builds)
   output: process.env.BUILD_TYPE === 'static' ? 'export' : undefined,
