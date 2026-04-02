@@ -255,22 +255,9 @@ export default function DriverApp() {
 
   return (
     <AuthGuard allowedRoles={["driver"]}>
-      <div className="min-h-screen bg-[#0f172a] flex flex-col font-sans overflow-hidden relative" dir="rtl">
-        {/* Premium Background */}
-        <div className="fixed inset-0 z-0">
-          <div className="absolute inset-0 bg-[#0f172a]" />
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.2, 1],
-              opacity: [0.1, 0.15, 0.1],
-            }}
-            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-1/4 -right-1/4 w-full h-full bg-blue-600/20 rounded-full blur-[120px]" 
-          />
-          <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay" />
-        </div>
-
+min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-col font-sans" dir="rtl">
         <Toast toasts={toasts} onRemove={removeToast} />
+
 
         <div className="relative z-10 flex flex-col h-full flex-1">
           <DriverHeader
