@@ -33,6 +33,7 @@ interface StoreViewProps {
   onSetActiveTab: (tab: string) => void;
   onCollectDebt: (orderId: string) => void;
   onCancelOrder: (orderId: string) => void;
+  onEditOrder: (order: Order) => void;
 }
 
 
@@ -50,6 +51,8 @@ export default function StoreView({
   vendorName,
   onSetActiveTab,
   onCollectDebt,
+  onCancelOrder,
+  onEditOrder,
 }: StoreViewProps) {
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
@@ -255,15 +258,15 @@ export default function StoreView({
                   
                   <div className="flex gap-2">
                     <motion.button 
-                      onClick={() => {/* show details modal */}}
+                      onClick={() => onEditOrder(order)}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-2xl font-bold text-sm shadow-lg shadow-blue-100 transition-all">
-                      تفاصيل
+                      تفاصيل / تعديل
                     </motion.button>
                     {(order.status === 'pending' || order.status === 'assigned') && (
                       <motion.button 
-                        onClick={() => {/* confirm cancel */ onCancelOrder(order.id) }}
+                        onClick={() => onCancelOrder(order.id)}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className="bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-2xl font-bold text-sm shadow-lg shadow-red-100 transition-all"

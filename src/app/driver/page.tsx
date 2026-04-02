@@ -41,6 +41,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [deliveredOrders, setDeliveredOrders] = useState<DBDriverOrder[]>([]);
+  const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -94,6 +95,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
               withTimeout('fetchOrders', fetchOrders(), 10000),
               withTimeout('fetchStats', fetchStats(user.id), 10000),
               withTimeout('fetchDelivered', fetchDeliveredOrders(user.id), 10000),
+              withTimeout('fetchHistory', fetchTodayHistory(user.id), 10000),
             ]);
           }
           setLoading(false);
@@ -222,6 +224,17 @@ const [vendorDebt, setVendorDebt] = useState(0);
     }
   }
 
+  async function fetchTodayHistory(currentDriverId: string) {
+    try {
+      const res = await fetch(`/api/driver/history?driverId=${currentDriverId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setTodayHistory(data || []);
+    } catch {
+      // ignore
+    }
+  }
+
   function mapDBOrderToUI(db: DBDriverOrder): Order {
     const distanceValue = db.distance || 2.5;
     const vendorProfile = db.profiles || {};
@@ -265,6 +278,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
         withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
         withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
         withTimeout('sync.fetchDelivered', fetchDeliveredOrders(driverId), 15000),
+        withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
       ]);
     }
   });
@@ -348,6 +362,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
       await fetchOrders(driverId);
       void fetchStats(driverId);
       void fetchDeliveredOrders(driverId);
+      void fetchTodayHistory(driverId);
     }
   };
 
@@ -440,7 +455,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
                       onConfirmPayment={handleConfirmPayment}
                     />
                   ) : activeTab === "history" ? (
-                    <DriverHistoryView orders={orders} />
+                    <DriverHistoryView todayHistory={todayHistory} />
                   ) : (
                     <div className="text-center py-20">
                       <motion.div 

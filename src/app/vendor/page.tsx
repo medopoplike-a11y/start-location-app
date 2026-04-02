@@ -181,7 +181,7 @@ export default function VendorApp() {
 
   useEffect(() => {
     const pendingCollection = orders.reduce((acc, order) => {
-      if (order.status === "delivered" && !order.vendorCollectedAt) {
+      if ((order.status === "delivered" || order.status === "in_transit") && !order.vendorCollectedAt) {
         return acc + Number(order.amount.replace(/[^0-9.-]+/g, ""));
       }
       return acc;
@@ -245,8 +245,8 @@ export default function VendorApp() {
     phone: db.customer_details?.phone || "",
     address: db.customer_details?.address || "عنوان غير محدد",
     status: db.status,
-    driver: db.profiles?.full_name || (db.driver_id ? "كابتن (جاري الجلب...)" : null),
-    driverPhone: db.profiles?.phone || "",
+    driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
+    driverPhone: db.driver?.phone || "",
     amount: `${db.financials?.order_value || 0} ج.م`,
     deliveryFee: `${db.financials?.delivery_fee || 0} ج.م`,
     time: formatVendorTime(db.created_at || ""),
@@ -527,6 +527,7 @@ export default function VendorApp() {
             onSetActiveTab={setActiveTab}
             onCollectDebt={handleCollectDebt}
             onCancelOrder={handleCancelOrder}
+            onEditOrder={handleOpenForm}
 
           />
         ) : activeView === "wallet" ? (

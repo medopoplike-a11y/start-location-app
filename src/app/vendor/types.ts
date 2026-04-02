@@ -40,7 +40,7 @@ export interface SettlementHistoryItem {
 }
 
 export type VendorDBOrder = DBOrder & {
-  profiles?: {
+  driver?: {
     full_name?: string;
     phone?: string;
   } | null;

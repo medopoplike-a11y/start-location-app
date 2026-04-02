@@ -11,12 +11,15 @@ export async function GET(request: NextRequest) {
 
   const admin = getSupabaseAdminClient();
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const { data, error } = await admin
     .from('orders')
-    .select('*, profiles:vendor_id(full_name, phone, location)')
+    .select('*, profiles:vendor_id(full_name, phone)')
     .eq('driver_id', driverId)
-    .in('status', ['in_transit', 'delivered'])
-    .is('vendor_collected_at', null)
+    .eq('status', 'delivered')
+    .gte('created_at', todayStart.toISOString())
     .order('created_at', { ascending: false });
 
   if (error) {
