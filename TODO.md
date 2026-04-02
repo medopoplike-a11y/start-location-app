@@ -1,13 +1,16 @@
-# تنظيف وتبسيط المشروع - تحت التنفيذ
+يضاا# Vendor UI Improvements - Plan Approved
 
-## الخطوات:
-- [✅] خطة التنظيف
-- [ ] حذف src/app/page.tsx
-- [ ] تبسيط src/app/login/page.tsx
-- [ ] حذف ParticlesBackground
-- [ ] تنظيف globals.css
-- [ ] إصلاح Auth + functions
-- [ ] npm run build:mobile test
-- [ ] git push
+**Information Gathered:**
+- page.tsx: Floating + button bottom-left small
+- StoreView.tsx: Order cards no cancel, ChevronLeft details dummy
+- orders.ts: cancelOrder() ready, updateOrderStatus
 
-**الهدف:** login → 3 dashboards فقط (نظيف + سريع)
+**Plan:**
+1. page.tsx: + → big green 'إضافة طلب جديد' button center-bottom
+2. StoreView.tsx: Add cancel button per order (if pending/assigned)
+3. DriverOrdersView.tsx: Add accept/auto-accept toggle + details modal
+4. Test: npm run build:mobile
+
+**Followup:** npm install && npm run build:mobile
+
+✅ Plan approved & test build running

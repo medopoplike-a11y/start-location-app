@@ -512,6 +512,8 @@ export default function VendorApp() {
             vendorName={vendorName}
             onSetActiveTab={setActiveTab}
             onCollectDebt={handleCollectDebt}
+            onCancelOrder={handleCancelOrder}
+
           />
         ) : activeView === "wallet" ? (
           <WalletView
@@ -533,14 +535,18 @@ export default function VendorApp() {
         )}
       </main>
 
-      {activeView === "store" && (
-        <button 
-          onClick={() => handleOpenForm()} 
-          className="fixed bottom-8 left-6 bg-brand-orange text-white w-14 h-14 rounded-2xl shadow-xl shadow-orange-200 flex items-center justify-center active:scale-95 transition-all z-30"
+{activeView === "store" && (
+        <motion.button 
+          onClick={() => handleOpenForm()}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-green-500 hover:bg-green-600 text-white w-48 h-16 rounded-3xl shadow-2xl shadow-green-200 flex items-center justify-center gap-3 font-black text-lg active:scale-95 transition-all z-40"
         >
-          <Plus className="w-8 h-8" />
-        </button>
+          <Plus className="w-6 h-6" />
+          إضافة طلب جديد
+        </motion.button>
       )}
+
       
       <OrderFormModal
         show={showOrderForm}

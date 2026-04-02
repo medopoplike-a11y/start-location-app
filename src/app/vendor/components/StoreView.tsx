@@ -32,7 +32,9 @@ interface StoreViewProps {
   vendorName: string;
   onSetActiveTab: (tab: string) => void;
   onCollectDebt: (orderId: string) => void;
+  onCancelOrder: (orderId: string) => void;
 }
+
 
 export default function StoreView({
   orders,
@@ -251,9 +253,26 @@ export default function StoreView({
                     </div>
                   </div>
                   
-                  <button className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all active:scale-95 shadow-sm group/btn">
-                    <ChevronLeft className="w-4 h-4 group-hover/btn:-translate-x-1 transition-transform" />
-                  </button>
+                  <div className="flex gap-2">
+                    <motion.button 
+                      onClick={() => {/* show details modal */}}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-2xl font-bold text-sm shadow-lg shadow-blue-100 transition-all">
+                      تفاصيل
+                    </motion.button>
+                    {(order.status === 'pending' || order.status === 'assigned') && (
+                      <motion.button 
+                        onClick={() => {/* confirm cancel */ onCancelOrder(order.id) }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-2xl font-bold text-sm shadow-lg shadow-red-100 transition-all"
+                      >
+                        إلغاء
+                      </motion.button>
+                    )}
+                  </div>
+
                 </div>
 
                 {!order.vendorCollectedAt && (
