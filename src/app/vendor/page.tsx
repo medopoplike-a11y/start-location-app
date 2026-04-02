@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt } from "@/lib/orders";
+import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import { AppLoader } from "@/components/AppLoader";
@@ -227,11 +227,21 @@ export default function VendorApp() {
   };
 
   // --- Logic Helpers ---
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm('هل أنت متأكد من إلغاء الطلب؟')) return;
+    const { error } = await cancelOrder(orderId);
+    if (!error) {
+      success('تم إلغاء الطلب بنجاح');
+      if (vendorId) updateData(vendorId);
+    } else {
+      error('خطأ في الإلغاء');
+    }
+  };
 
   const mapDBOrderToUI = (db: VendorDBOrder): Order => ({
     id: db.id,
     customer: db.customer_details?.name || "عميل",
-    phone: db.customer_details?.phone || "",
+    phone: db.customer_details?.name || "",
     address: db.customer_details?.address || "عنوان غير محدد",
     status: db.status,
     driver: db.profiles?.full_name || (db.driver_id ? "كابتن (جاري الجلب...)" : null),
@@ -381,7 +391,7 @@ export default function VendorApp() {
     }
   };
 
-  const handleInvoiceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !vendorId) return;
     setUploadingInvoice(true);

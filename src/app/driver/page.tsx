@@ -35,7 +35,9 @@ export default function DriverApp() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "history">("orders");
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
-  const [vendorDebt, setVendorDebt] = useState(0);
+const [vendorDebt, setVendorDebt] = useState(0);
+  const [autoAccept, setAutoAccept] = useState(false);
+  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
@@ -229,6 +231,40 @@ export default function DriverApp() {
     }
     if (driverId) {
       await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
+    }
+    if (newStatus && autoAccept && pollInterval === null) {
+      const interval = setInterval(async () => {
+        if (driverId) {
+          const newOrders = await getAvailableOrders();
+          if (newOrders.length > 0) {
+            const firstOrder = newOrders[0];
+            await updateOrderStatus(firstOrder.id, 'assigned', driverId);
+            toast.success('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
+          }
+        }
+      }, 5000);
+      setPollInterval(interval);
+    } else if (!newStatus && pollInterval) {
+      clearInterval(pollInterval);
+      setPollInterval(null);
+    }
+  };
+
+  const toggleAutoAccept = () => {
+    const newAuto = !autoAccept;
+    setAutoAccept(newAuto);
+    localStorage.setItem('driver_auto_accept', newAuto.toString());
+    if (newAuto && isActive && driverId && pollInterval === null) {
+      // start poll
+      const interval = setInterval(async () => {
+        const newOrders = await getAvailableOrders();
+        if (newOrders.length > 0) {
+          const firstOrder = newOrders[0];
+          await updateOrderStatus(firstOrder.id, 'assigned', driverId);
+          toast.success('تم القبول التلقائي');
+        }
+      }, 5000);
+      setPollInterval(interval);
     }
   };
 
