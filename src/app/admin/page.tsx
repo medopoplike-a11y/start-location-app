@@ -29,6 +29,7 @@ const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig } from "@/lib/adminApi";
+import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
@@ -44,6 +45,7 @@ import VendorsView from "./components/VendorsView";
 import SettlementsView from "./components/SettlementsView";
 import AppConfigView from "./components/AppConfigView";
 import SettingsView from "./components/SettingsView";
+import OrderDistributionView from "./components/OrderDistributionView";
 
 export default function AdminPanel() {
   const { user, profile: authProfile, loading: authLoading } = useAuth();
@@ -391,6 +393,16 @@ export default function AdminPanel() {
     setActionLoading(false);
   };
 
+  const handleAssignOrder = async (orderId: string, driverId: string, driverName: string) => {
+    const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
+    if (!error) {
+      addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
+      setLiveOrders(prev => prev.map(o =>
+        o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o
+      ));
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -444,6 +456,7 @@ export default function AdminPanel() {
           {[
             { id: "dashboard", label: "لوحة التحكم", icon: <LayoutDashboard className="w-5 h-5" /> },
             { id: "orders", label: "المراقبة الحية", icon: <MapIcon className="w-5 h-5" /> },
+            { id: "distribution", label: "توزيع الطلبات", icon: <Truck className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || undefined },
             { id: "drivers", label: "المناديب", icon: <Users className="w-5 h-5" /> },
             { id: "vendors", label: "المحلات", icon: <Store className="w-5 h-5" /> },
             { id: "accounts", label: "الحسابات", icon: <ShieldCheck className="w-5 h-5" /> },
@@ -489,6 +502,14 @@ export default function AdminPanel() {
 
             {activeView === "orders" && (
               <OrdersView liveOrders={liveOrders} activities={activities} />
+            )}
+
+            {activeView === "distribution" && (
+              <OrderDistributionView
+                liveOrders={liveOrders}
+                drivers={drivers}
+                onAssign={handleAssignOrder}
+              />
             )}
 
             {activeView === "drivers" && (

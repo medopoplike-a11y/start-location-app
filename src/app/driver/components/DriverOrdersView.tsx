@@ -24,6 +24,8 @@ interface DriverOrdersViewProps {
   driverLocation: { lat: number; lng: number } | null;
   driverId: string | null;
   orders: Order[];
+  autoAccept: boolean;
+  onToggleAutoAccept: () => void;
   onAcceptOrder: (orderId: string) => Promise<void>;
   onPickupOrder: (orderId: string) => Promise<void>;
   onDeliverOrder: (orderId: string) => Promise<void>;
@@ -43,6 +45,8 @@ export default function DriverOrdersView({
   driverLocation,
   driverId,
   orders,
+  autoAccept,
+  onToggleAutoAccept,
   onAcceptOrder,
   onPickupOrder,
   onDeliverOrder,
@@ -157,6 +161,47 @@ export default function DriverOrdersView({
             </span>
           </div>
 
+          {/* Auto-Accept Toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`flex items-center justify-between px-5 py-4 rounded-[24px] border transition-all ${
+              autoAccept
+                ? "bg-emerald-50 border-emerald-200"
+                : "bg-white border-slate-100"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                autoAccept ? "bg-emerald-500" : "bg-slate-100"
+              }`}>
+                <Truck className={`w-4 h-4 ${autoAccept ? "text-white" : "text-slate-400"}`} />
+              </div>
+              <div>
+                <p className={`text-[11px] font-black ${autoAccept ? "text-emerald-800" : "text-slate-700"}`}>
+                  القبول التلقائي
+                </p>
+                <p className={`text-[9px] font-bold ${autoAccept ? "text-emerald-500" : "text-slate-400"}`}>
+                  {autoAccept ? "مفعّل — يُقبل أول طلب تلقائياً" : "معطّل — قبول يدوي فقط"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onToggleAutoAccept}
+              className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                autoAccept ? "bg-emerald-500" : "bg-slate-200"
+              }`}
+            >
+              <motion.span
+                layout
+                transition={{ type: "spring", stiffness: 700, damping: 30 }}
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md ${
+                  autoAccept ? "right-0.5" : "left-0.5"
+                }`}
+              />
+            </button>
+          </motion.div>
+
           {activeOrders.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -234,33 +279,36 @@ export default function DriverOrdersView({
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setSelectedOrder(order)}
                       >
-                        عرض التفاصيل
+                        التفاصيل
                       </motion.button>
                       {order.status === "pending" && (
                         <motion.button
-                          className="bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-4 rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 transition-all active:scale-95"
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-5 rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 transition-all active:scale-95 disabled:opacity-50"
                           whileTap={{ scale: 0.97 }}
-                          onClick={() => { setSelectedOrder(order); }}
+                          disabled={actionLoading}
+                          onClick={() => handleAccept(order.id)}
                         >
-                          قبول
+                          ✓ قبول
                         </motion.button>
                       )}
                       {order.status === "assigned" && (
                         <motion.button
-                          className="bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-3 rounded-2xl font-black text-[10px] shadow-lg shadow-sky-100 transition-all active:scale-95"
+                          className="bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-3 rounded-2xl font-black text-[10px] shadow-lg shadow-sky-100 transition-all active:scale-95 disabled:opacity-50"
                           whileTap={{ scale: 0.97 }}
-                          onClick={() => { setSelectedOrder(order); }}
+                          disabled={actionLoading}
+                          onClick={() => handlePickup(order.id)}
                         >
-                          تأكيد الاستلام
+                          استلمت
                         </motion.button>
                       )}
                       {order.status === "in_transit" && (
                         <motion.button
-                          className="bg-indigo-500 hover:bg-indigo-600 text-white py-3.5 px-3 rounded-2xl font-black text-[10px] shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                          className="bg-indigo-500 hover:bg-indigo-600 text-white py-3.5 px-3 rounded-2xl font-black text-[10px] shadow-lg shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50"
                           whileTap={{ scale: 0.97 }}
-                          onClick={() => { setSelectedOrder(order); }}
+                          disabled={actionLoading}
+                          onClick={() => handleDeliver(order.id)}
                         >
-                          تأكيد التوصيل
+                          وصّلت
                         </motion.button>
                       )}
                     </div>
