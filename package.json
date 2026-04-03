@@ -25,7 +25,7 @@
     "@capacitor/camera": "^8.0.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
-    "@capacitor/geolocation": "^8.0.0",
+    "@capacitor/geolocation": "^8.2.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.0.2",
