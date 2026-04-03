@@ -200,8 +200,15 @@ export default function VendorApp() {
         supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true)
       ]);
 
-      if (dbOrders) setOrders(dbOrders.map(mapDBOrderToUI));
-      if (walletRes.data) setCompanyCommission(walletRes.data.system_balance);
+      if (dbOrders) {
+        setOrders(dbOrders.map(mapDBOrderToUI));
+        const deliveredCommission = dbOrders
+          .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
+          .reduce((sum: number, o: any) => sum + (o.financials?.system_commission || 0), 0);
+        setCompanyCommission(deliveredCommission);
+      } else if (walletRes.data) {
+        setCompanyCommission(walletRes.data.system_balance || 0);
+      }
       if (settlementsRes.data) {
         setSettlementHistory(settlementsRes.data.map(s => ({
           id: s.id,

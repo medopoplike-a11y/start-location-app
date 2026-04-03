@@ -21,14 +21,15 @@ import {
   Search,
   ArrowUpRight,
   ArrowDownRight,
-  MoreVertical
+  MoreVertical,
+  Zap
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
-import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig } from "@/lib/adminApi";
+import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { StartLogo } from "@/components/StartLogo";
@@ -43,9 +44,9 @@ import OrdersView from "./components/OrdersView";
 import DriversView from "./components/DriversView";
 import VendorsView from "./components/VendorsView";
 import SettlementsView from "./components/SettlementsView";
-import AppConfigView from "./components/AppConfigView";
 import SettingsView from "./components/SettingsView";
 import OrderDistributionView from "./components/OrderDistributionView";
+import SystemControlView from "./components/SystemControlView";
 
 export default function AdminPanel() {
   const { user, profile: authProfile, loading: authLoading } = useAuth();
@@ -56,6 +57,7 @@ export default function AdminPanel() {
   const [activeView, setActiveView] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
   const { lastSync, isSyncing } = useSync(undefined, () => fetchData(), true);
 
   // Data State
@@ -357,13 +359,6 @@ export default function AdminPanel() {
     }
   };
 
-  const toggleShiftLock = async (driverId: string, currentStatus: boolean) => {
-    const { error } = await supabase.from('profiles').update({ is_locked: !currentStatus }).eq('id', driverId);
-    if (!error) {
-      addActivity(`تم ${!currentStatus ? "حظر" : "فتح"} شيفت المندوب`);
-      setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
-    }
-  };
 
   const handleResetUser = async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
@@ -391,6 +386,46 @@ export default function AdminPanel() {
       alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
+  };
+
+  const handleToggleShiftLock = async (driverId: string, currentStatus: boolean) => {
+    setActionLoading(true);
+    try {
+      await toggleDriverLock(driverId, !currentStatus);
+      setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
+      addActivity(`تم ${!currentStatus ? "قفل" : "فتح"} شيفت الطيار`);
+    } catch (e) { console.error(e); }
+    setActionLoading(false);
+  };
+
+  const handleLockAllDrivers = async () => {
+    if (!confirm("هل تريد قفل شيفت جميع المناديب؟")) return;
+    setActionLoading(true);
+    for (const d of drivers.filter(d => !d.isShiftLocked)) {
+      await toggleDriverLock(d.id_full, true).catch(() => {});
+    }
+    setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: true, status: "محظور" })));
+    addActivity("تم قفل شيفت جميع المناديب");
+    setActionLoading(false);
+  };
+
+  const handleUnlockAllDrivers = async () => {
+    if (!confirm("هل تريد فتح شيفت جميع المناديب؟")) return;
+    setActionLoading(true);
+    for (const d of drivers.filter(d => d.isShiftLocked)) {
+      await toggleDriverLock(d.id_full, false).catch(() => {});
+    }
+    setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: false, status: "نشط" })));
+    addActivity("تم فتح شيفت جميع المناديب");
+    setActionLoading(false);
+  };
+
+  const handleToggleMaintenance = async (val: boolean) => {
+    setAppConfig(prev => ({ ...prev, maintenance_mode: val }));
+    try {
+      await updateAdminAppConfig({ ...appConfig, maintenance_mode: val });
+      addActivity(`تم ${val ? "تفعيل" : "إيقاف"} وضع الصيانة`);
+    } catch (e) { console.error(e); }
   };
 
   const handleAssignOrder = async (orderId: string, driverId: string, driverName: string) => {
@@ -471,7 +506,7 @@ export default function AdminPanel() {
             { id: "vendors", label: "المحلات", icon: <Store className="w-5 h-5" /> },
             { id: "accounts", label: "الحسابات", icon: <ShieldCheck className="w-5 h-5" /> },
             { id: "settlements", label: "التسويات", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
-            { id: "app_config", label: "التحديثات", icon: <RefreshCw className="w-5 h-5" /> },
+            { id: "system", label: "التحكم اليدوي", icon: <RefreshCw className="w-5 h-5" />, badge: manualMode ? "يدوي" : undefined },
             { id: "settings", label: "الإعدادات", icon: <Settings className="w-5 h-5" /> }
           ].map(item => (
             <button key={item.id} onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${activeView === item.id ? "bg-blue-600/10 text-blue-600 font-bold" : "text-gray-500 hover:bg-gray-100"}`}>
@@ -490,7 +525,22 @@ export default function AdminPanel() {
               <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {manualMode && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-2xl">
+                <Zap className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-[10px] font-black text-amber-700 uppercase">وضع يدوي</span>
+              </div>
+            )}
+            {appConfig.maintenance_mode && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-2xl">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[10px] font-black text-red-600 uppercase">صيانة</span>
+              </div>
+            )}
+            <button onClick={() => setActiveView("system")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
+              <Zap className="w-4 h-4" />
+            </button>
             <div className="flex items-center gap-3 p-1.5 pr-4 bg-white rounded-2xl border border-gray-100">
               <div className="text-left hidden sm:block"><p className="text-xs font-black text-gray-900">أدمن ستارت</p><p className="text-[10px] font-bold text-blue-600">Control Center</p></div>
               <div className="w-10 h-10 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-1"><StartLogo className="w-8 h-8" /></div>
@@ -526,7 +576,7 @@ export default function AdminPanel() {
               <DriversView
                 drivers={drivers}
                 onAddDriver={() => setShowAddDriver(true)}
-                onToggleShiftLock={toggleShiftLock}
+                onToggleShiftLock={handleToggleShiftLock}
                 onResetUser={handleResetUser}
               />
             )}
@@ -539,12 +589,30 @@ export default function AdminPanel() {
               <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
             )}
 
-            {activeView === "app_config" && (
-              <AppConfigView appConfig={appConfig} actionLoading={actionLoading} setAppConfig={setAppConfig} onSubmit={handleUpdateAppConfig} />
+            {activeView === "system" && (
+              <SystemControlView
+                manualMode={manualMode}
+                maintenanceMode={appConfig.maintenance_mode}
+                drivers={drivers}
+                actionLoading={actionLoading}
+                onToggleManualMode={setManualMode}
+                onToggleMaintenance={handleToggleMaintenance}
+                onToggleShiftLock={handleToggleShiftLock}
+                onLockAllDrivers={handleLockAllDrivers}
+                onUnlockAllDrivers={handleUnlockAllDrivers}
+                onGlobalReset={handleGlobalReset}
+                onRefresh={fetchData}
+              />
             )}
 
             {activeView === "settings" && (
-              <SettingsView actionLoading={actionLoading} onGlobalReset={handleGlobalReset} />
+              <SettingsView
+                appConfig={appConfig}
+                actionLoading={actionLoading}
+                setAppConfig={setAppConfig}
+                onSubmit={handleUpdateAppConfig}
+                onGlobalReset={handleGlobalReset}
+              />
             )}
           </Suspense>
         </div>

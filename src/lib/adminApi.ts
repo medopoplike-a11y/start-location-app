@@ -21,6 +21,30 @@ export const fetchAdminProfiles = async () => {
   return await handleResponse(await fetch('/api/admin/profiles'));
 };
 
+export const fetchAdminWallets = async () => {
+  return await handleResponse(await fetch('/api/admin/wallets'));
+};
+
+export const updateAdminWallet = async (userId: string, updates: { balance?: number; debt?: number; system_balance?: number }) => {
+  return await handleResponse(
+    await fetch('/api/admin/wallets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, ...updates })
+    })
+  );
+};
+
+export const toggleDriverLock = async (driverId: string, isLocked: boolean) => {
+  return await handleResponse(
+    await fetch('/api/admin/drivers/toggle-lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driver_id: driverId, is_locked: isLocked })
+    })
+  );
+};
+
 export const resetUserDataAdmin = async (targetUserId: string) => {
   return await handleResponse(
     await fetch('/api/admin/reset-user', {
