@@ -1,22 +1,19 @@
 "use client";
 
 import { useState, useEffect, type ChangeEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Haptics } from "@capacitor/haptics";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
   Plus
 } from "lucide-react";
-import ParticlesBackground from "@/components/ParticlesBackground";
-import { useRouter } from "next/navigation";
 
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import PushNotificationManager from "@/components/PushNotificationManager";
-import { AppLoader } from "@/components/AppLoader";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -33,7 +30,6 @@ import OrderFormModal from "./components/OrderFormModal";
 import VendorAccountModals from "./components/VendorAccountModals";
 
 export default function VendorApp() {
-  const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();

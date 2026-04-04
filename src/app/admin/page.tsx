@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { 
@@ -17,11 +17,6 @@ import {
   LogOut, 
   Wallet,
   RefreshCw,
-  Bell,
-  Search,
-  ArrowUpRight,
-  ArrowDownRight,
-  MoreVertical,
   Zap
 } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -49,7 +44,7 @@ import OrderDistributionView from "./components/OrderDistributionView";
 import SystemControlView from "./components/SystemControlView";
 
 export default function AdminPanel() {
-  const { user, profile: authProfile, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   // UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -96,21 +91,21 @@ export default function AdminPanel() {
     safe_ride_fee: 1.0
   });
 
-  const addActivity = (text: string) => {
+  const addActivity = useCallback((text: string) => {
     setActivityLog(prev => [{
       id: Math.random().toString(36).substring(2, 11),
       text,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
     }, ...prev].slice(0, 5));
-  };
+  }, []);
 
-  const getErrorMessage = (error: unknown): string => {
+  const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
     if (typeof error === "object" && error !== null && "message" in error) {
       return String((error as { message?: unknown }).message || "حدث خطأ");
     }
     return "حدث خطأ";
-  };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -123,7 +118,7 @@ export default function AdminPanel() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
+  const withTimeout = useCallback(async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
@@ -133,78 +128,14 @@ export default function AdminPanel() {
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    // Mobile-optimized fallback
-    const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-    const fallbackMs = isCapacitor ? 15000 : 5000;
-    const hardFallback = setTimeout(() => {
-      console.log(`AdminPage: Hard fallback (${fallbackMs/1000}s)`);
-      if (isCapacitor) {
-        (window as any).Capacitor?.SplashScreen?.hide?.();
-      }
-      setLoading(false);
-    }, fallbackMs);
+  const translateStatus = useCallback((status: string) => {
+    const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    return statuses[status] || status;
+  }, []);
 
-    const init = async () => {
-      if (authLoading) return;
-
-      // Only run fetchData if we have a user and data is not already loaded
-      if (user && drivers.length === 0 && allOrders.length === 0) {
-        try {
-          await withTimeout('fetchData', fetchData(), 10000);
-        } catch (err) {
-          console.error("Admin: Init error:", err);
-        } finally {
-          clearTimeout(hardFallback);
-          setLoading(false);
-        }
-      } else if (!authLoading) {
-        clearTimeout(hardFallback);
-        setLoading(false);
-      }
-    };
-    init();
-    return () => clearTimeout(hardFallback);
-  }, [authLoading]);
-
-  useEffect(() => {
-    if (allOrders.length > 0) {
-      const profits = allOrders.reduce((acc, order) => {
-        if (order.status === "delivered") {
-          const financials = order.financials || {};
-          const deliveryFee = financials.delivery_fee ?? 0;
-          const driverComm = financials.system_commission ?? (deliveryFee * (appConfig.driver_commission / 100));
-          const vendorComm = financials.vendor_commission ?? (deliveryFee * (appConfig.vendor_commission / 100));
-          const insurance = financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee);
-          return acc + driverComm + vendorComm + insurance;
-        }
-        return acc;
-      }, 0);
-
-      const fund = allOrders.reduce((acc, order) => {
-        if (order.status === "delivered") {
-          const financials = order.financials || {};
-          return acc + (financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee));
-        }
-        return acc;
-      }, 0);
-
-      setTotalProfits(profits);
-      setInsuranceFund(fund);
-    }
-  }, [allOrders, appConfig]);
-
-  const fetchData = async () => {
-    try {
-      await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
-    } catch (err) {
-      console.error("Admin: Global fetch error:", err);
-    }
-  };
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const data = await fetchAdminOrders();
       if (data) {
@@ -234,9 +165,9 @@ export default function AdminPanel() {
     } catch (err) {
       console.error("Admin: Error fetching orders:", err);
     }
-  };
+  }, [translateStatus]);
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = useCallback(async () => {
     try {
       const profiles = await fetchAdminProfiles();
       if (profiles) {
@@ -285,28 +216,92 @@ export default function AdminPanel() {
     } catch (err) {
       console.error("Admin: Error fetching profiles:", err);
     }
-  };
+  }, []);
 
-  const fetchSettlements = async () => {
+  const fetchSettlements = useCallback(async () => {
     const { data } = await supabase.from('settlements').select('*, profiles!user_id(full_name, role)').eq('status', 'pending').order('created_at', { ascending: true });
     if (data) setSettlements(data);
-  };
+  }, []);
 
-  const fetchAppConfig = async () => {
+  const fetchAppConfig = useCallback(async () => {
     try {
       const data = await fetchAdminAppConfig();
       if (data) setAppConfig(data);
     } catch (err) {
       console.error('Admin: Error fetching app config:', err);
     }
-  };
+  }, []);
 
-  const translateStatus = (status: string) => {
-    const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
-    return statuses[status] || status;
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
+    } catch (err) {
+      console.error("Admin: Global fetch error:", err);
+    }
+  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig]);
 
-  const handleAddDriver = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Mobile-optimized fallback
+    const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+    const fallbackMs = isCapacitor ? 15000 : 5000;
+    const hardFallback = setTimeout(() => {
+      console.log(`AdminPage: Hard fallback (${fallbackMs/1000}s)`);
+      if (isCapacitor) {
+        (window as any).Capacitor?.SplashScreen?.hide?.();
+      }
+      setLoading(false);
+    }, fallbackMs);
+
+    const init = async () => {
+      if (authLoading) return;
+
+      // Only run fetchData if we have a user and data is not already loaded
+      if (user && drivers.length === 0 && allOrders.length === 0) {
+        try {
+          await withTimeout('fetchData', fetchData(), 10000);
+        } catch (err) {
+          console.error("Admin: Init error:", err);
+        } finally {
+          clearTimeout(hardFallback);
+          setLoading(false);
+        }
+      } else if (!authLoading) {
+        clearTimeout(hardFallback);
+        setLoading(false);
+      }
+    };
+    init();
+    return () => clearTimeout(hardFallback);
+  }, [authLoading, user, drivers.length, allOrders.length, withTimeout, fetchData]);
+
+  useEffect(() => {
+    if (allOrders.length > 0) {
+      const profits = allOrders.reduce((acc, order) => {
+        if (order.status === "delivered") {
+          const financials = order.financials || {};
+          const deliveryFee = financials.delivery_fee ?? 0;
+          const driverComm = financials.system_commission ?? (deliveryFee * (appConfig.driver_commission / 100));
+          const vendorComm = financials.vendor_commission ?? (deliveryFee * (appConfig.vendor_commission / 100));
+          const insurance = financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee);
+          return acc + driverComm + vendorComm + insurance;
+        }
+        return acc;
+      }, 0);
+
+      const fund = allOrders.reduce((acc, order) => {
+        if (order.status === "delivered") {
+          const financials = order.financials || {};
+          return acc + (financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee));
+        }
+        return acc;
+      }, 0);
+
+      setTotalProfits(profits);
+      setInsuranceFund(fund);
+    }
+  }, [allOrders, appConfig]);
+
+  const handleAddDriver = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     const { error } = await createUserByAdmin(newDriverData.email, newDriverData.password, newDriverData.name, 'driver', { phone: newDriverData.phone, area: newDriverData.area, vehicle_type: newDriverData.vehicle_type, national_id: newDriverData.national_id });
@@ -320,9 +315,9 @@ export default function AdminPanel() {
       alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
-  };
+  }, [newDriverData, addActivity, fetchData, getErrorMessage]);
 
-  const handleAddVendor = async (e: React.FormEvent) => {
+  const handleAddVendor = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     const { error } = await createUserByAdmin(newVendorData.email, newVendorData.password, newVendorData.name, 'vendor', { phone: newVendorData.phone });
@@ -336,9 +331,9 @@ export default function AdminPanel() {
       alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
-  };
+  }, [newVendorData, addActivity, fetchData, getErrorMessage]);
 
-  const handleUpdateAppConfig = async (e: React.FormEvent) => {
+  const handleUpdateAppConfig = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     try {
@@ -348,19 +343,18 @@ export default function AdminPanel() {
       alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
-  };
+  }, [appConfig, getErrorMessage]);
 
-  const handleSettlementAction = async (settlementId: string, newStatus: 'approved' | 'rejected') => {
+  const handleSettlementAction = useCallback(async (settlementId: string, newStatus: 'approved' | 'rejected') => {
     const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
     if (!error) {
       alert("تم التحديث!");
       addActivity(`تم ${newStatus === "approved" ? "اعتماد" : "رفض"} تسوية`);
       setSettlements(prev => prev.filter(s => s.id !== settlementId));
     }
-  };
+  }, [addActivity]);
 
-
-  const handleResetUser = async (userId: string, userName: string) => {
+  const handleResetUser = useCallback(async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
     setActionLoading(true);
     try {
@@ -372,9 +366,9 @@ export default function AdminPanel() {
       alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
-  };
+  }, [addActivity, fetchData, getErrorMessage]);
 
-  const handleGlobalReset = async () => {
+  const handleGlobalReset = useCallback(async () => {
     if (!confirm("تحذير: هل أنت متأكد من تصفير كافة بيانات النظام؟")) return;
     setActionLoading(true);
     try {
@@ -386,9 +380,9 @@ export default function AdminPanel() {
       alert(`خطأ: ${getErrorMessage(error)}`);
     }
     setActionLoading(false);
-  };
+  }, [addActivity, fetchData, getErrorMessage]);
 
-  const handleToggleShiftLock = async (driverId: string, currentStatus: boolean) => {
+  const handleToggleShiftLock = useCallback(async (driverId: string, currentStatus: boolean) => {
     setActionLoading(true);
     try {
       await toggleDriverLock(driverId, !currentStatus);
@@ -396,9 +390,9 @@ export default function AdminPanel() {
       addActivity(`تم ${!currentStatus ? "قفل" : "فتح"} شيفت الطيار`);
     } catch (e) { console.error(e); }
     setActionLoading(false);
-  };
+  }, [addActivity]);
 
-  const handleLockAllDrivers = async () => {
+  const handleLockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد قفل شيفت جميع المناديب؟")) return;
     setActionLoading(true);
     for (const d of drivers.filter(d => !d.isShiftLocked)) {
@@ -407,9 +401,9 @@ export default function AdminPanel() {
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: true, status: "محظور" })));
     addActivity("تم قفل شيفت جميع المناديب");
     setActionLoading(false);
-  };
+  }, [drivers, addActivity]);
 
-  const handleUnlockAllDrivers = async () => {
+  const handleUnlockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد فتح شيفت جميع المناديب؟")) return;
     setActionLoading(true);
     for (const d of drivers.filter(d => d.isShiftLocked)) {
@@ -418,17 +412,17 @@ export default function AdminPanel() {
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: false, status: "نشط" })));
     addActivity("تم فتح شيفت جميع المناديب");
     setActionLoading(false);
-  };
+  }, [drivers, addActivity]);
 
-  const handleToggleMaintenance = async (val: boolean) => {
+  const handleToggleMaintenance = useCallback(async (val: boolean) => {
     setAppConfig(prev => ({ ...prev, maintenance_mode: val }));
     try {
       await updateAdminAppConfig({ ...appConfig, maintenance_mode: val });
       addActivity(`تم ${val ? "تفعيل" : "إيقاف"} وضع الصيانة`);
     } catch (e) { console.error(e); }
-  };
+  }, [appConfig, addActivity]);
 
-  const handleAssignOrder = async (orderId: string, driverId: string, driverName: string) => {
+  const handleAssignOrder = useCallback(async (orderId: string, driverId: string, driverName: string) => {
     const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
     if (!error) {
       addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
@@ -436,9 +430,9 @@ export default function AdminPanel() {
         o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o
       ));
     }
-  };
+  }, [addActivity]);
 
-  const handleCancelOrder = async (orderId: string) => {
+  const handleCancelOrder = useCallback(async (orderId: string) => {
     const { error } = await updateOrderStatus(orderId, 'cancelled');
     if (!error) {
       addActivity(`تم إلغاء الطلب #${orderId.slice(0,8)}`);
@@ -446,23 +440,23 @@ export default function AdminPanel() {
         o.id_full === orderId ? { ...o, status: "ملغي" } : o
       ));
     }
-  };
+  }, [addActivity]);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut();
     } catch (error) {
       console.error('Sign out failed:', error);
     }
-  };
+  }, []);
 
-  const stats = [
+  const stats = useMemo(() => [
     { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-sky-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب", color: "sky" },
     { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-emerald-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن", color: "emerald" },
     { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
     { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
     { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
-  ];
+  ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#f3f4f6] p-6 lg:p-8 space-y-8" dir="rtl">

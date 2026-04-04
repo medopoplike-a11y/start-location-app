@@ -5,19 +5,19 @@
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",
     "build": "next build",
-    "export": "node scripts/static-export.js",
+    "export": "node scripts/static-export.mjs",
     "build:mobile": "npm run export && node fix-paths.js && node prepare-android.js && npx cap sync android",
     "build:android-release": "npm run build:mobile && node -e \"const { execSync } = require('child_process'); const cmd = process.platform === 'win32' ? 'cd android && gradlew.bat assembleRelease' : 'cd android && ./gradlew assembleRelease'; execSync(cmd, { stdio: 'inherit' });\"",
-    "build:android-release:win": "npm run build:mobile && node scripts/android-ensure-sdk.js && cd android && gradlew.bat assembleRelease",
-    "build:android-debug:win": "npm run build:mobile && node scripts/android-ensure-sdk.js && cd android && gradlew.bat assembleDebug",
-    "build:win": "node scripts/build-static-export.js && node fix-paths.js && node prepare-android.js && npx cap sync android",
+    "build:android-release:win": "npm run build:mobile && node scripts/android-ensure-sdk.mjs && cd android && gradlew.bat assembleRelease",
+    "build:android-debug:win": "npm run build:mobile && node scripts/android-ensure-sdk.mjs && cd android && gradlew.bat assembleDebug",
+    "build:win": "node scripts/build-static-export.mjs && node fix-paths.js && node prepare-android.js && npx cap sync android",
     "build:ota": "node scripts/create-ota-bundle.js",
     "prepare-android": "node prepare-android.js",
     "start": "next start",
     "lint": "eslint . --max-warnings=200",
     "postinstall": "node fix-gradle-proguard.js",
     "bundle:ota": "npm run build:mobile && npm run build:ota",
-    "build:apk": "node scripts/generate-production-apk.js"
+    "build:apk": "node scripts/generate-production-apk.mjs"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",

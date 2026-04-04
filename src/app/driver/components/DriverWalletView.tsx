@@ -193,7 +193,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, orders
               <>
                 <div className="bg-orange-50 border border-orange-100 rounded-[24px] p-4">
                   <p className="text-xs font-black text-orange-800">
-                    يجب عليك تسليم مبلغ المديونية للمحل ثم الضغط على "تأكيد التسليم" حتى يتمكن المحل من تأكيد الاستلام.
+                    يجب عليك تسليم مبلغ المديونية للمحل ثم الضغط على &quot;تأكيد التسليم&quot; حتى يتمكن المحل من تأكيد الاستلام.
                   </p>
                 </div>
                 {deliveredOrders.map((order, idx) => {

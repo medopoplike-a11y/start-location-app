@@ -3,16 +3,12 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth";
+import { config } from "@/lib/config";
 import { motion, AnimatePresence } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
-import { Haptics } from "@capacitor/haptics";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
-const isSupabaseConfigured = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
-  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes("placeholder")
-);
+const isSupabaseConfigured = config.isConfigured();
 
 const getRedirectPath = (role?: string) => {
   if (!role) return "/driver";
@@ -64,7 +60,7 @@ const LoginPage = () => {
 
     try {
       try {
-        await Haptics.impact({ style: "medium" });
+        await Haptics.impact({ style: ImpactStyle.Medium });
       } catch (e) {}
       console.log("Calling signIn...");
       const { data, error: signInError } = await signIn(email.trim(), password);
@@ -179,7 +175,94 @@ const LoginPage = () => {
           )}
         </AnimatePresence>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+
+          console.log("=== BUTTON CLICKED ===");
+
+          if (loading) {
+            console.log("Login blocked: already loading");
+            return;
+          }
+
+          console.log("=== LOGIN ATTEMPT START ===");
+          console.log("Email:", email);
+          console.log("Supabase configured:", isSupabaseConfigured);
+          console.log("Supabase URL exists:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+          console.log("Supabase Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+          if (!isSupabaseConfigured) {
+            console.error("Supabase NOT configured!");
+            setError(
+              "⚠️ Supabase غير مهيأ!\n\n" +
+              "المتغيرات المطلوبة غير موجودة:\n" +
+              "- NEXT_PUBLIC_SUPABASE_URL\n" +
+              "- NEXT_PUBLIC_SUPABASE_ANON_KEY\n\n" +
+              "يرجى التحقق من ملف .env.local"
+            );
+            setStatus("");
+            return;
+          }
+
+          setError("");
+          setStatus("جاري الاتصال بالخادم...");
+          setLoading(true);
+
+          try {
+            try {
+              await Haptics.impact({ style: ImpactStyle.Medium });
+            } catch (e) { }
+            console.log("Calling signIn...");
+            const { data, error: signInError } = await signIn(email.trim(), password);
+            console.log("=== LOGIN RESULT ===");
+            console.log("Data:", data);
+            console.log("Error:", signInError);
+            console.log("User:", data?.user);
+            console.log("Session:", data?.session);
+
+            if (signInError) {
+              console.error("SignIn error:", signInError);
+              const message = String(signInError.message || "").toLowerCase();
+              if (message.includes("invalid login credentials") || message.includes("invalid email")) {
+                setError("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+              } else if (message.includes("invalid api key") || message.includes("api key")) {
+                setError("مفتاح Supabase خاطئ أو غير موجود. تحقق من الإعدادات.");
+              } else {
+                setError(signInError.message || "حدث خطأ أثناء تسجيل الدخول.");
+              }
+              setStatus("");
+              return;
+            }
+
+            if (!data?.user) {
+              console.error("No user returned from signIn");
+              setError("تعذر تسجيل الدخول. تأكد من صحة البيانات.");
+              setStatus("");
+              return;
+            }
+
+            const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
+            const target = getRedirectPath(role);
+            console.log("=== LOGIN SUCCESS ===");
+            console.log("Role:", role);
+            console.log("Target:", target);
+            setStatus(`تم تسجيل الدخول كـ ${role}. جاري الانتقال...`);
+
+            // Add delay before redirect to show success message
+            setTimeout(() => {
+              console.log("Redirecting to:", target);
+              window.location.href = target;
+            }, 1000);
+
+          } catch (unknownError) {
+            console.error("=== LOGIN EXCEPTION ===");
+            console.error("Error:", unknownError);
+            setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع. حاول مجدداً.");
+            setStatus("");
+          } finally {
+            setLoading(false);
+          }
+        }} className="space-y-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">
               البريد الإلكتروني

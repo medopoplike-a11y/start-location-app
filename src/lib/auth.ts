@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseLock } from './supabaseClient';
+import { config } from './config';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
+const supabaseUrl = config.supabase.url || '';
+const supabaseAnonKey = config.supabase.anonKey || '';
 
 export type UserRole = 'admin' | 'driver' | 'vendor';
 
@@ -20,14 +21,9 @@ export interface UserProfile {
   created_at: string;
 }
 
-const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
-  .split(',')
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
-
 const isConfiguredAdminEmail = (email?: string | null): boolean => {
   if (!email) return false;
-  return adminEmails.includes(email.toLowerCase());
+  return config.admin.emails.includes(email.toLowerCase());
 };
 
 export const createUserByAdmin = async (
@@ -39,8 +35,8 @@ export const createUserByAdmin = async (
 ) => {
   try {
     const tempSupabase = createClient(
-      (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co').trim(),
-      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key').trim(),
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder-key',
       { 
         auth: { 
           persistSession: false,

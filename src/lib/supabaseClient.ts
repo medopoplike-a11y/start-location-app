@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { config } from './config';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || 'placeholder-anon-key';
+const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
+const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 // Simple storage that works in both browser and server
 const simpleStorage = {

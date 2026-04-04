@@ -1,43 +1,14 @@
 apply plugin: 'com.android.application'
 
-def keystorePropertiesFile = rootProject.file('keystore.properties')
-def keystoreProperties = new Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-def releaseStoreFile = project.hasProperty('RELEASE_STORE_FILE') ? project.RELEASE_STORE_FILE : keystoreProperties.getProperty('RELEASE_STORE_FILE')
-def releaseStorePassword = project.hasProperty('RELEASE_STORE_PASSWORD') ? project.RELEASE_STORE_PASSWORD : keystoreProperties.getProperty('RELEASE_STORE_PASSWORD')
-def releaseKeyAlias = project.hasProperty('RELEASE_KEY_ALIAS') ? project.RELEASE_KEY_ALIAS : keystoreProperties.getProperty('RELEASE_KEY_ALIAS')
-def releaseKeyPassword = project.hasProperty('RELEASE_KEY_PASSWORD') ? project.RELEASE_KEY_PASSWORD : keystoreProperties.getProperty('RELEASE_KEY_PASSWORD')
-
 android {
     namespace = "com.start.location"
     compileSdk = rootProject.ext.compileSdkVersion
-
-    signingConfigs {
-        release {
-            if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
-                storeFile rootProject.file(releaseStoreFile)
-                storePassword releaseStorePassword
-                keyAlias releaseKeyAlias
-                keyPassword releaseKeyPassword
-            } else if (rootProject.file('keystore.jks').exists()) {
-                // Fallback for local builds where keystore.jks is in the android root
-                storeFile rootProject.file('keystore.jks')
-                storePassword 'S7art#2026Key!Store'
-                keyAlias 'release-key'
-                keyPassword 'S7art#2026Key!Store'
-            }
-        }
-    }
-
     defaultConfig {
         applicationId "com.start.location"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.5"
+        versionCode 1
+        versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -47,11 +18,8 @@ android {
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            // تم تعطيل Minify لحل مشكلة R8 وضمان نجاح البناء فوراً
             minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -72,16 +40,15 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
-
-    // Firebase Core & Messaging
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-common'
-    implementation 'com.google.firebase:firebase-messaging'
 }
 
 apply from: 'capacitor.build.gradle'
 
-// تطبيق إضافات جوجل (Firebase) بشكل ذكي
-if (file('google-services.json').exists()) {
-    apply plugin: 'com.google.gms.google-services'
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
