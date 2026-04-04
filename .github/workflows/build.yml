@@ -48,13 +48,12 @@ jobs:
       run: npm install --legacy-peer-deps
 
     - name: Build Next.js with Supabase
-      run: npm run build:mobile
+      run: |
+        npm run export
+        node fix-paths.js
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-
-    - name: Create OTA bundle
-      run: npm run build:ota
 
     - name: Sync to Capacitor
       run: npx cap sync android
