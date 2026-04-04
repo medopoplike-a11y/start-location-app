@@ -32,12 +32,23 @@ const LoginPage = () => {
   // Simple session check to avoid loop
   useEffect(() => {
     const checkSession = async () => {
-      // @ts-ignore - supabase is used in handleLogin but not imported in provided snippet
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         console.log("LoginPage: Session exists, checking role...");
-        const role = session.user.user_metadata?.role || "driver";
-        router.replace(getRedirectPath(role));
+        
+        let role = session.user.user_metadata?.role;
+        
+        if (!role) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          role = profile?.role;
+        }
+
+        const finalRole = role || "driver";
+        router.replace(getRedirectPath(finalRole));
       }
     };
     checkSession();

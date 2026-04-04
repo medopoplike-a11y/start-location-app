@@ -62,17 +62,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setupAuthListener = () => {
       try {
         const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log(`AuthProvider: onAuthStateChange event: ${event}`, session?.user?.id);
           if (!active) return;
 
           setUser(session?.user ?? null);
           if (session?.user) {
             const userProfile = await getUserProfile(session.user.id, session.user.email);
-            if (active) setProfile(userProfile);
+            if (active) {
+              setProfile(userProfile);
+              setLoading(false);
+            }
           } else {
-            setProfile(null);
+            if (active) {
+              setProfile(null);
+              setLoading(false);
+            }
           }
-          
-          setLoading(false);
         });
 
         if (data && data.subscription) {

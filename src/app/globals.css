@@ -86,3 +86,11 @@
   background: rgba(16, 185, 129, 0.7);
 }
 
+.silver-live-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 50%, rgba(226, 232, 240, 0.4) 0%, rgba(241, 245, 249, 0.1) 100%);
+  pointer-events: none;
+}
+
