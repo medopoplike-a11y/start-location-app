@@ -26,7 +26,7 @@ export default function VendorDrawer({
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        await Haptics.impact({ style }).catch(() => {});
+        await Haptics.impact({ style });
       }
     } catch (e) {}
   };

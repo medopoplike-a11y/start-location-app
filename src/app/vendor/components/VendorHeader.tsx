@@ -3,6 +3,7 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { motion } from "framer-motion";
+import { Menu, RefreshCw, Search } from "lucide-react";
 
 interface VendorHeaderProps {
   vendorName: string;

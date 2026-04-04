@@ -2,6 +2,7 @@
 
 import { signIn } from "@/lib/auth";
 import { config } from "@/lib/config";
+import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";

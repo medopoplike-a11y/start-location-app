@@ -49,7 +49,7 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
           console.error("AuthGuard: Role not found after timeout, redirecting to login");
           router.replace("/login");
         }
-      }, isNative ? 5000 : 3000);
+      }, isNative ? 10000 : 8000);
       return () => clearTimeout(timeoutId);
     }
   }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);

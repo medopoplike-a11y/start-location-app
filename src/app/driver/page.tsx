@@ -297,7 +297,9 @@ const [vendorDebt, setVendorDebt] = useState(0);
 
   const toggleActive = async () => {
     try {
-      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      }
     } catch (e) {}
     const newStatus = !isActive;
     setIsActive(newStatus);

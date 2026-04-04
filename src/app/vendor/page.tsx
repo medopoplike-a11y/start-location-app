@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type ChangeEvent } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
@@ -345,8 +346,7 @@ export default function VendorApp() {
 
   const handleOpenForm = async (order: Order | null = null) => {
     try {
-      // @ts-ignore
-      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
       }
@@ -543,7 +543,7 @@ export default function VendorApp() {
   );
 
   return (
-    <AuthGuard allowedRoles={["vendor"]}>
+    <AuthGuard allowedRoles={["vendor", "admin"]}>
       <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
         <div className="silver-live-bg" />
       <Toast toasts={toasts} onRemove={removeToast} />
