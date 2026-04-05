@@ -15,7 +15,7 @@ const getRedirectPath = (role?: string) => {
   if (!role) return "/driver";
   const normalized = role.toLowerCase();
   if (normalized === "admin") return "/admin";
-  if (normalized === "vendor") return "/vendor";
+  if (normalized === "vendor") return "/store";
   return "/driver";
 };
 
@@ -162,8 +162,9 @@ const LoginPage = () => {
           
           console.log(`LoginPage: Final Role identified as ${finalRole}, Redirecting to ${target}`);
           
-          // Use router.replace for smoother SPA transition
-          router.replace(target);
+          // Use window.location as fallback for router issues
+          if (router) router.replace(target);
+          else window.location.assign(target);
         } catch (redirErr) {
           console.error("LoginPage: Redirection failed", redirErr);
           window.location.assign("/driver"); 
