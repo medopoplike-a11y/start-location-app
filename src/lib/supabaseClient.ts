@@ -8,30 +8,26 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
-// Highly stable Capacitor storage that ensures async consistency
+// Balanced storage approach: Reliable for both Web and Mobile
 const appStorage: SupportedStorage = {
-  getItem: async (key: string): Promise<string | null> => {
+  getItem: (key: string): string | null => {
     if (typeof window === 'undefined') return null;
-    if (isNative) {
-      const { value } = await Preferences.get({ key });
-      return value;
-    }
     return localStorage.getItem(key);
   },
-  setItem: async (key: string, value: string): Promise<void> => {
+  setItem: (key: string, value: string): void => {
     if (typeof window === 'undefined') return;
+    localStorage.setItem(key, value);
+    
+    // On native, also mirror to Preferences for extra persistence if needed
     if (isNative) {
-      await Preferences.set({ key, value });
-    } else {
-      localStorage.setItem(key, value);
+      Preferences.set({ key, value }).catch(() => {});
     }
   },
-  removeItem: async (key: string): Promise<void> => {
+  removeItem: (key: string): void => {
     if (typeof window === 'undefined') return;
+    localStorage.removeItem(key);
     if (isNative) {
-      await Preferences.remove({ key });
-    } else {
-      localStorage.removeItem(key);
+      Preferences.remove({ key }).catch(() => {});
     }
   }
 };
@@ -87,8 +83,7 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     storage: appStorage,
-    storageKey: 'start-auth-session', // Consistent key for all platforms
-    flowType: 'pkce',
+    storageKey: 'sb-auth-token', // Reverting to standard key for stability
     lock: supabaseLock as any,
   },
 });

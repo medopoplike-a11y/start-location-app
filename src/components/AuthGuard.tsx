@@ -24,41 +24,27 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
   const authorized = allowedRoles.map(normalizeRole).includes(userRole);
 
-  // Use a ref to track if we've already initiated a redirect to prevent loops
-  const isRedirecting = React.useRef(false);
-
   useEffect(() => {
-    // If we're already redirecting or still loading, do nothing
-    if (loading || isRedirecting.current) return;
+    if (loading) return;
 
     const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
 
     if (!user) {
-      // On native, give it a tiny bit more time to potentially recover a session
-      // before bouncing back to login
+      // On native, give it 2 seconds to recover a session
       if (isNative) {
-        console.log("AuthGuard: No user on native, waiting for session recovery...");
         const timeoutId = setTimeout(() => {
-          if (!user && !isRedirecting.current) {
-            console.log("AuthGuard: Session recovery failed after 4s, redirecting to login");
-            isRedirecting.current = true;
-            router.replace("/login");
-          }
-        }, 4000);
+          if (!user) router.replace("/login");
+        }, 2000);
         return () => clearTimeout(timeoutId);
       } else {
-        isRedirecting.current = true;
         router.replace("/login");
       }
     } else if (!authorized) {
-      // If user is present but not authorized, wait before redirecting on native
-      // This gives AuthProvider time to fetch the profile if it was slow
-      const waitTime = isNative ? 5000 : 1500;
-      console.log(`AuthGuard: User [${user.id}] found but not authorized yet, waiting ${waitTime}ms...`);
+      // Give it 3 seconds for profile to load on native
+      const waitTime = isNative ? 3000 : 1000;
       const timeoutId = setTimeout(() => {
-        if (!authorized && !isRedirecting.current) {
-          console.warn("AuthGuard: Access denied. Required one of:", allowedRoles, "User role:", userRole);
-          isRedirecting.current = true;
+        if (!authorized) {
+          console.warn("AuthGuard: Access denied", { userRole, allowedRoles });
           router.replace("/login");
         }
       }, waitTime);

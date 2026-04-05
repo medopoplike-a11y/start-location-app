@@ -24,21 +24,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const loadSession = async () => {
       try {
-        // Root-level debug log
-        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-        console.log(`AuthProvider: Loading session (Native: ${isCapacitor})`);
-
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!active) return;
 
         if (session?.user) {
-          console.log("AuthProvider: Session found for", session.user.id);
           setUser(session.user);
           const userProfile = await getUserProfile(session.user.id, session.user.email);
           if (active) setProfile(userProfile);
         } else {
-          console.log("AuthProvider: No session found initially");
           setUser(null);
           setProfile(null);
         }
@@ -56,8 +50,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (!active) return;
 
-          console.log(`AuthProvider: Auth event [${event}] for user:`, session?.user?.id);
-          
           setUser(session?.user ?? null);
           if (session?.user) {
             const userProfile = await getUserProfile(session.user.id, session.user.email);
@@ -66,7 +58,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setProfile(null);
           }
           
-          // Force stop loading if an event occurs
           setLoading(false);
         });
 

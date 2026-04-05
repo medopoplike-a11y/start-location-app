@@ -1,14 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { useAuth } from "@/components/AuthProvider";
-import { useEffect, useCallback } from "react";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 const isSupabaseConfigured = config.isConfigured();
 
@@ -22,40 +20,16 @@ const getRedirectPath = (role?: string) => {
 
 const LoginPage = () => {
   const router = useRouter();
-  const { user, profile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
-  const performRedirect = useCallback((target: string) => {
-    if (isRedirecting) return;
-    setIsRedirecting(true);
-    setStatus("تم التحقق من الجلسة. جاري الدخول...");
-    
-    // Smooth transition
-    setTimeout(() => {
-      window.location.href = target;
-    }, 800);
-  }, [isRedirecting]);
-
-  // Watch for auth changes and redirect automatically when user is loaded
-  useEffect(() => {
-    // Only redirect if we have a valid user and we're not already in the middle of a redirect
-    if (user && !isRedirecting) {
-      console.log("LoginPage: Logged in user detected via observer, redirecting...");
-      const role = String(profile?.role || user.user_metadata?.role || "driver").toLowerCase();
-      const target = getRedirectPath(role);
-      performRedirect(target);
-    }
-  }, [user, profile, isRedirecting, performRedirect]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    if (loading || isRedirecting) return;
+    if (loading) return;
 
     if (!isSupabaseConfigured) {
       setError("⚠️ Supabase غير مهيأ! يرجى التحقق من الإعدادات.");
@@ -94,10 +68,12 @@ const LoginPage = () => {
 
       setStatus("تم تسجيل الدخول بنجاح! جاري الانتقال...");
       
-      // Direct redirect instead of waiting for observer to trigger
-      const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
-      const target = getRedirectPath(role);
-      performRedirect(target);
+      // Essential delay for storage persistence before redirect
+      setTimeout(() => {
+        const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
+        const target = getRedirectPath(role);
+        window.location.href = target;
+      }, 1500);
       
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");
@@ -174,14 +150,14 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            disabled={loading || isRedirecting}
+            disabled={loading}
             className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
               !isSupabaseConfigured 
                 ? "bg-red-600" 
-                : (isRedirecting ? "bg-green-600" : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25")
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25"
             } disabled:opacity-50`}
           >
-            {isRedirecting ? "جاري الدخول..." : (loading ? "جاري التحقق..." : "تسجيل الدخول")}
+            {loading ? "جاري التحقق..." : "تسجيل الدخول"}
           </button>
         </form>
 
