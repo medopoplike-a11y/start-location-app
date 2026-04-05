@@ -25,10 +25,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const loadSession = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        // First attempt
+        let { data: { session } } = await supabase.auth.getSession();
         
+        // If no session, try one more time after a short delay (mobile storage can be slow)
+        if (!session && active) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+        }
+
         if (!active) return;
 
         if (session?.user) {

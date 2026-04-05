@@ -1,34 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupportedStorage } from '@supabase/supabase-js';
 import { config } from './config';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 
 const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
-// Simple storage that works in both browser and server
-const simpleStorage = {
-  getItem: (key: string): string | null => {
+const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+
+// Unified storage that uses Preferences on mobile and localStorage on web
+const appStorage: SupportedStorage = {
+  getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
+    if (isNative) {
+      return Preferences.get({ key }).then(res => res.value);
     }
+    return localStorage.getItem(key);
   },
-  setItem: (key: string, value: string): void => {
+  setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      // Ignore storage errors
+    if (isNative) {
+      return Preferences.set({ key, value });
     }
+    localStorage.setItem(key, value);
   },
-  removeItem: (key: string): void => {
+  removeItem: (key: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // Ignore storage errors
+    if (isNative) {
+      return Preferences.remove({ key });
     }
+    localStorage.removeItem(key);
   }
 };
 
@@ -82,7 +83,7 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
     persistSession: true,
     autoRefreshToken: true,
-    storage: simpleStorage,
+    storage: appStorage,
     lock: supabaseLock as any,
   },
 });
