@@ -75,7 +75,22 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 </div>
               </div>
               <div className="flex gap-4">
-                <button type="button" disabled={isSaving} onClick={onPickCustomerLocation} className={`flex-1 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60 ${formData.customerCoords ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`}><MapPin size={20} />{formData.customerCoords ? "✓ موقع العميل محدد" : "تحديد موقع العميل"}</button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      // @ts-ignore
+                      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+                        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+                      }
+                    } catch (e) {}
+                    onPickCustomerLocation();
+                  }}
+                  disabled={isSaving} 
+                  className={`flex-1 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60 ${formData.customerCoords ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                >
+                  <MapPin size={20} />{formData.customerCoords ? "✓ موقع العميل محدد" : "تحديد موقع العميل"}
+                </button>
                 <label className={`flex-1 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"}`}><input type="file" className="hidden" accept="image/*" disabled={isSaving} onChange={onInvoiceUpload} /><Camera className="w-6 h-6" /><span className="text-xs">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم الرفع" : "رفع الفاتورة"}</span></label>
               </div>
               <button onClick={onSave} disabled={!formData.customer || !formData.orderValue || uploadingInvoice || isSaving} className="w-full bg-orange-500 text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{isSaving ? <><Loader2 className="w-5 h-5 animate-spin" /> {editingOrder ? "جاري الحفظ..." : "جاري الإرسال..."}</> : (editingOrder ? "حفظ التعديلات" : "إرسال الطلب الآن")}</button>

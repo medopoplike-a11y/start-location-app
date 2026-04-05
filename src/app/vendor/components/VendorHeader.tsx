@@ -18,7 +18,19 @@ export default function VendorHeader({ vendorName, lastSync, isSyncing, searchQu
   return (
     <header className="bg-white/80 backdrop-blur-xl p-4 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
       <div className="flex items-center gap-3">
-        <button onClick={onOpenDrawer} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100">
+        <button 
+          onClick={async () => {
+            try {
+              // @ts-ignore
+              if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+                await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+              }
+            } catch (e) {}
+            onOpenDrawer();
+          }}
+          className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100"
+        >
           <Menu className="w-5 h-5 text-gray-900" />
         </button>
         <div>
@@ -31,7 +43,16 @@ export default function VendorHeader({ vendorName, lastSync, isSyncing, searchQu
 
         <motion.button
           whileTap={{ scale: 0.9, rotate: 180 }}
-          onClick={onSync}
+          onClick={async () => {
+            try {
+              // @ts-ignore
+              if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+                await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+              }
+            } catch (e) {}
+            onSync();
+          }}
           disabled={isSyncing}
           title="إعادة التزامن"
           className="p-2 bg-sky-50 hover:bg-sky-100 rounded-xl transition-all border border-sky-100 text-sky-600 disabled:opacity-40"

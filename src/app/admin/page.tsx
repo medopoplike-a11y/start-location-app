@@ -450,27 +450,16 @@ export default function AdminPanel() {
     { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
   ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits]);
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#f3f4f6] p-6 lg:p-8 space-y-8" dir="rtl">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <CardSkeleton className="w-12 h-12 rounded-2xl" />
-          <div className="space-y-2">
-            <CardSkeleton className="h-4 w-32" />
-            <CardSkeleton className="h-3 w-20" />
-          </div>
-        </div>
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-6 text-center">
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" />
+        <h2 className="text-xl font-bold text-white mb-2">جاري تحميل لوحة الإدارة...</h2>
+        <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
+        <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-xl transition-all border border-white/10">إعادة تحميل يدوية</button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <CardSkeleton />
-        <CardSkeleton />
-        <CardSkeleton />
-        <CardSkeleton />
-        <CardSkeleton />
-      </div>
-      <div className="bg-white/40 h-[400px] rounded-[40px] animate-pulse border border-slate-100" />
-    </div>
-  );
+    );
+  }
 
   return (
     <AuthGuard allowedRoles={["admin"]}>

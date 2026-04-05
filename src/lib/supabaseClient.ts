@@ -8,41 +8,34 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
-// Balanced storage approach: Reliable for both Web and Mobile
+// Standard storage for maximum compatibility with all browsers and Capacitor
 const appStorage: SupportedStorage = {
-  getItem: (key: string): string | null | Promise<string | null> => {
+  getItem: (key: string): string | null => {
     if (typeof window === 'undefined') return null;
-    
-    // Check localStorage first
-    const localValue = localStorage.getItem(key);
-    if (localValue) return localValue;
-
-    // On native, fall back to Preferences if localStorage is empty
-    if (isNative) {
-      return Preferences.get({ key }).then(res => res.value);
-    }
-    
-    return null;
+    return localStorage.getItem(key);
   },
-  setItem: (key: string, value: string): void | Promise<void> => {
+  setItem: (key: string, value: string): void => {
     if (typeof window === 'undefined') return;
-    
     localStorage.setItem(key, value);
-    
+    // Mirror to Preferences for extra durability on native
     if (isNative) {
-      return Preferences.set({ key, value });
+      Preferences.set({ key, value }).catch(() => {});
     }
   },
-  removeItem: (key: string): void | Promise<void> => {
+  removeItem: (key: string): void => {
     if (typeof window === 'undefined') return;
-    
     localStorage.removeItem(key);
-    
     if (isNative) {
-      return Preferences.remove({ key });
+      Preferences.remove({ key }).catch(() => {});
     }
   }
 };
+
+// Advanced lock interface compatible with standard patterns
+export interface SupabaseLock {
+  (name: string, acquireTimeout: number, callback: () => Promise<any>): Promise<any>;
+  runExclusive: <T>(callback: () => Promise<T>) => Promise<T>;
+}
 
 // Internal implementation of the lock
 const createSupabaseLock = (): SupabaseLock => {
@@ -89,7 +82,7 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: false,
     storage: appStorage,
-    storageKey: 'start-auth-v1',
+    storageKey: 'sb-auth-token', // Back to standard key for best browser compatibility
     flowType: 'pkce',
     lock: supabaseLock as any,
   },
