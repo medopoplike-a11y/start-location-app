@@ -12,18 +12,33 @@ export default function PushNotificationManager({ userId }: { userId: string | n
     }
 
     const registerPush = async () => {
-      let permStatus = await PushNotifications.checkPermissions();
-
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
-      }
-
-      if (permStatus.receive !== 'granted') {
-        console.warn('Push notification permissions not granted');
+      // Check if we should skip registration to prevent crashes on non-configured devices
+      const skipPush = localStorage.getItem('skip_push_registration') === 'true';
+      if (skipPush) {
+        console.log('PushNotificationManager: Registration skipped by user/system flag');
         return;
       }
 
-      await PushNotifications.register();
+      try {
+        let permStatus = await PushNotifications.checkPermissions();
+
+        if (permStatus.receive === 'prompt') {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+
+        if (permStatus.receive !== 'granted') {
+          console.warn('Push notification permissions not granted');
+          return;
+        }
+
+        console.log('PushNotificationManager: Attempting to register with native service...');
+        // Note: This might still crash if Firebase is not initialized on Android
+        // despite the try-catch, as it's a native exception.
+        await PushNotifications.register();
+      } catch (e) {
+        console.error('PushNotificationManager: Native registration exception', e);
+        localStorage.setItem('skip_push_registration', 'true');
+      }
     };
 
     PushNotifications.addListener('registration', async (token) => {
@@ -40,8 +55,12 @@ export default function PushNotificationManager({ userId }: { userId: string | n
       }
     });
 
-    PushNotifications.addListener('registrationError', (error: unknown) => {
-      console.error('Push registration error: ' + JSON.stringify(error));
+    const registrationErrorListener = PushNotifications.addListener('registrationError', (error: any) => {
+      console.error('Push registration error listener:', error);
+      // If we get a specific error, we might want to disable future attempts
+      if (error?.error?.includes('Firebase') || error?.error?.includes('initializ')) {
+        localStorage.setItem('skip_push_registration', 'true');
+      }
     });
 
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
@@ -54,9 +73,13 @@ export default function PushNotificationManager({ userId }: { userId: string | n
       // هنا يمكنك توجيه المستخدم لصفحة الطلبات مثلاً
     });
 
-    registerPush();
+    // Delay registration slightly to ensure native bridge is fully ready
+    const timeoutId = setTimeout(() => {
+      registerPush();
+    }, 2000);
 
     return () => {
+      clearTimeout(timeoutId);
       PushNotifications.removeAllListeners();
     };
   }, [userId]);
