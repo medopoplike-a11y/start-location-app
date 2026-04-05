@@ -28,8 +28,6 @@ export const viewport: Viewport = {
   themeColor: "#0ea5e9",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -41,12 +39,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className="bg-[#f3f4f6]" data-scroll-behavior="smooth">
       <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Start Location" />
-        <meta name="theme-color" content="#0ea5e9" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        {/* Next.js automatically handles metadata and viewport exports */}
       </head>
       <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
 
