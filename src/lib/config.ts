@@ -2,22 +2,17 @@
  * Centralized configuration and environment variable validation.
  */
 
-const getEnv = (key: string, required = true): string => {
-  const value = process.env[key];
-  if (required && (!value || value.includes('placeholder'))) {
-    console.error(`❌ Error: Missing required environment variable: ${key}`);
-    return '';
-  }
-  return value?.trim() || '';
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
 
 export const config = {
   supabase: {
-    url: getEnv('NEXT_PUBLIC_SUPABASE_URL'),
-    anonKey: getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+    url: supabaseUrl.trim(),
+    anonKey: supabaseAnonKey.trim(),
   },
   admin: {
-    emails: getEnv('NEXT_PUBLIC_ADMIN_EMAILS', false).split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
+    emails: adminEmails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
   },
   isProduction: process.env.NODE_ENV === 'production',
   isConfigured: () => {
