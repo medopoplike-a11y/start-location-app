@@ -17,6 +17,7 @@
     "lint": "eslint . --max-warnings=200",
     "postinstall": "node fix-gradle-proguard.js",
     "bundle:ota": "npm run build:mobile && npm run build:ota",
+    "deep-clean": "node scripts/deep-clean.mjs && npm install",
     "build:apk": "node scripts/generate-production-apk.mjs"
   },
   "dependencies": {

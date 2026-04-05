@@ -31,6 +31,14 @@ import OrderFormModal from "./components/OrderFormModal";
 import VendorAccountModals from "./components/VendorAccountModals";
 
 export default function VendorApp() {
+  return (
+    <AuthGuard allowedRoles={["vendor", "admin"]}>
+      <VendorContent />
+    </AuthGuard>
+  );
+}
+
+function VendorContent() {
   const { toasts, removeToast, success, error } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();
@@ -552,10 +560,9 @@ export default function VendorApp() {
   );
 
   return (
-    <AuthGuard allowedRoles={["vendor", "admin"]}>
-      <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
-        <div className="silver-live-bg" />
-      <Toast toasts={toasts} onRemove={removeToast} />
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
+      <div className="silver-live-bg" />
+    <Toast toasts={toasts} onRemove={removeToast} />
       <PushNotificationManager userId={vendorId ?? null} />
       
       <VendorHeader
@@ -673,6 +680,5 @@ export default function VendorApp() {
         onSignOut={handleSignOut}
       />
     </div>
-    </AuthGuard>
   );
 }

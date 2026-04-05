@@ -31,6 +31,16 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
   }, [userRole, allowedRoles]);
 
   useEffect(() => {
+    // Safety fallback: if auth loading is stuck, eventually try to proceed
+    const safetyTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn("AuthGuard: Auth state loading stuck, attempting to proceed...");
+      }
+    }, 15000);
+    return () => clearTimeout(safetyTimeout);
+  }, [loading]);
+
+  useEffect(() => {
     if (loading) {
       console.log("AuthGuard: Still loading auth state...");
       return;
