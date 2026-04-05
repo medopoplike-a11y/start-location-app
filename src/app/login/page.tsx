@@ -118,7 +118,10 @@ const LoginPage = () => {
           
           // Use window.location for a "hard" redirect on mobile to clear any stuck states
           if (typeof window !== 'undefined') {
-            window.location.assign(target);
+            console.log("LoginPage: Performing hard redirect to", target);
+            // Ensure session is synced before hard redirect
+            await new Promise(resolve => setTimeout(resolve, 500));
+            window.location.href = target;
           } else {
             router.replace(target);
           }

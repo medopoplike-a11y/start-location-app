@@ -14,23 +14,28 @@ const appStorage: SupportedStorage = {
   getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
     
-    // Standard localStorage for browser and initial native state
+    // 1. Direct check in localStorage (fastest for web)
     const value = localStorage.getItem(key);
     if (value) return value;
 
-    // Fallback for native only if localStorage is empty
+    // 2. Fallback for native Capacitor persistence
     if (isNative) {
-      return Preferences.get({ key }).then(res => res.value || null);
+      return Preferences.get({ key }).then(res => {
+        if (res.value) {
+          // Sync back to localStorage for instant access next time
+          localStorage.setItem(key, res.value);
+          return res.value;
+        }
+        return null;
+      });
     }
     return null;
   },
   setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
     
-    // Set localStorage first
     localStorage.setItem(key, value);
     
-    // Mirror to Preferences for deep persistence on native
     if (isNative) {
       return Preferences.set({ key, value });
     }
