@@ -24,15 +24,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const loadSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+        console.log(`AuthProvider: loadSession started (Native: ${isNative})`);
+
+        // First attempt
+        let { data: { session } } = await supabase.auth.getSession();
+        
+        // If no session on native, try a small retry because storage can be slow
+        if (!session && isNative && active) {
+          console.log("AuthProvider: No session found on native, retrying in 500ms...");
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+        }
         
         if (!active) return;
 
         if (session?.user) {
+          console.log("AuthProvider: User session found:", session.user.id);
           setUser(session.user);
           const userProfile = await getUserProfile(session.user.id, session.user.email);
           if (active) setProfile(userProfile);
         } else {
+          console.log("AuthProvider: No user session found");
           setUser(null);
           setProfile(null);
         }

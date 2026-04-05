@@ -69,14 +69,17 @@ const LoginPage = () => {
       const { data, error: signInError } = await signIn(email.trim(), password);
 
       if (signInError) {
+        console.error("Login Error Details:", signInError);
         const message = String(signInError.message || "").toLowerCase();
+        const techDetails = `Code: ${signInError.name || 'N/A'} | Status: ${(signInError as any).status || 'N/A'}`;
+        
         if (message.includes("invalid login credentials") || message.includes("invalid email")) {
           setError("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
         } else if (message.includes("failed to fetch") || message.includes("network error")) {
-          setError("خطأ في الاتصال بالسيرفر. تأكد من توفر الإنترنت.");
-          checkConnection(); // Auto-trigger diagnostics
+          setError(`خطأ في الاتصال بالسيرفر. تأكد من توفر الإنترنت.\n(${techDetails})`);
+          checkConnection();
         } else {
-          setError(signInError.message || "حدث خطأ أثناء تسجيل الدخول.");
+          setError(`${signInError.message || "حدث خطأ أثناء تسجيل الدخول."}\n(${techDetails})`);
         }
         setLoading(false);
         setStatus("");
@@ -94,10 +97,17 @@ const LoginPage = () => {
       
       // Essential delay for storage persistence before redirect
       setTimeout(() => {
-        const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
-        const target = getRedirectPath(role);
-        window.location.href = target;
-      }, 1500);
+        try {
+          const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
+          const target = getRedirectPath(role);
+          console.log(`LoginPage: Redirecting to ${target} via router.push`);
+          router.push(target);
+        } catch (redirErr) {
+          console.error("LoginPage: router.push failed, falling back to window.location.href", redirErr);
+          const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
+          window.location.href = getRedirectPath(role);
+        }
+      }, 1000);
       
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");

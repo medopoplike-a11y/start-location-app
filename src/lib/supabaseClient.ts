@@ -13,11 +13,11 @@ const appStorage: SupportedStorage = {
   getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
     
-    // First try localStorage (standard web)
+    // Check localStorage first
     const localValue = localStorage.getItem(key);
     if (localValue) return localValue;
 
-    // On native, try Preferences if localStorage is empty
+    // On native, fall back to Preferences if localStorage is empty
     if (isNative) {
       return Preferences.get({ key }).then(res => res.value);
     }
@@ -27,10 +27,8 @@ const appStorage: SupportedStorage = {
   setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
     
-    // Always set localStorage
     localStorage.setItem(key, value);
     
-    // On native, mirror to Preferences for deep persistence
     if (isNative) {
       return Preferences.set({ key, value });
     }
@@ -45,12 +43,6 @@ const appStorage: SupportedStorage = {
     }
   }
 };
-
-// Advanced lock interface compatible with standard patterns
-export interface SupabaseLock {
-  (name: string, acquireTimeout: number, callback: () => Promise<any>): Promise<any>;
-  runExclusive: <T>(callback: () => Promise<T>) => Promise<T>;
-}
 
 // Internal implementation of the lock
 const createSupabaseLock = (): SupabaseLock => {
@@ -93,11 +85,12 @@ export const supabaseLock = createSupabaseLock();
 
 const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    detectSessionInUrl: false,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: false,
     storage: appStorage,
-    storageKey: 'sb-auth-token', // Reverting to standard key for stability
+    storageKey: 'start-auth-v1',
+    flowType: 'pkce',
     lock: supabaseLock as any,
   },
 });

@@ -4,9 +4,11 @@
   "webDir": "out",
   "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "http",
+    "androidScheme": "https",
     "hostname": "localhost",
-    "cleartext": true
+    "allowNavigation": [
+      "sdpjvorettivpdviytqo.supabase.co"
+    ]
   },
   "android": {
     "allowMixedContent": false,
