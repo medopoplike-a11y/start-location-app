@@ -243,36 +243,28 @@ export default function AdminPanel() {
   useEffect(() => {
     // Mobile-optimized fallback
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-    const fallbackMs = isCapacitor ? 15000 : 5000;
+    const fallbackMs = isCapacitor ? 10000 : 5000;
     const hardFallback = setTimeout(() => {
       console.log(`AdminPage: Hard fallback (${fallbackMs/1000}s)`);
-      if (isCapacitor) {
-        (window as any).Capacitor?.SplashScreen?.hide?.();
-      }
       setLoading(false);
     }, fallbackMs);
 
     const init = async () => {
       if (authLoading) return;
-
-      // Only run fetchData if we have a user and data is not already loaded
-      if (user && drivers.length === 0 && allOrders.length === 0) {
-        try {
-          await withTimeout('fetchData', fetchData(), 10000);
-        } catch (err) {
-          console.error("Admin: Init error:", err);
-        } finally {
-          clearTimeout(hardFallback);
-          setLoading(false);
-        }
-      } else if (!authLoading) {
+      
+      try {
+        await fetchData();
+      } catch (e) {
+        console.error("AdminPage: Init error", e);
+      } finally {
         clearTimeout(hardFallback);
         setLoading(false);
       }
     };
+
     init();
     return () => clearTimeout(hardFallback);
-  }, [authLoading, user, drivers.length, allOrders.length, withTimeout, fetchData]);
+  }, [authLoading, fetchData]);
 
   useEffect(() => {
     if (allOrders.length > 0) {

@@ -15,11 +15,11 @@ const cairo = Cairo({
 
 export const metadata: Metadata = {
   title: "Start Location",
-  description: "Start Location Delivery System",
+  description: "Smart Delivery Management System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Start Location",
   },
 };
@@ -30,6 +30,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

@@ -232,6 +232,10 @@ export default function VendorApp() {
 
   // --- Logic Helpers ---
   const handleCancelOrder = async (orderId: string) => {
+    try {
+      Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+    } catch (e) {}
+    
     if (!confirm('هل أنت متأكد من إلغاء الطلب؟')) return;
     const { error: cancelErr } = await cancelOrder(orderId);
     if (!cancelErr) {

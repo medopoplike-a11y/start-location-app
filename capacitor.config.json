@@ -13,6 +13,7 @@
   "android": {
     "allowMixedContent": false,
     "captureInput": true,
+    "backgroundColor": "#0f172a",
     "buildOptions": {
       "releaseType": "APK"
     }
