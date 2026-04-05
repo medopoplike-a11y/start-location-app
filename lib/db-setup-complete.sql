@@ -355,6 +355,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_create_wallet_for_driver ON profiles;
 CREATE TRIGGER trigger_create_wallet_for_driver
 AFTER INSERT ON profiles
 FOR EACH ROW
@@ -373,6 +374,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_wallet_on_delivery ON orders;
 CREATE TRIGGER trigger_update_wallet_on_delivery
 AFTER UPDATE ON orders
 FOR EACH ROW
