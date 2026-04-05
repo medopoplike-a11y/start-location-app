@@ -47,49 +47,29 @@ const LoginPage = () => {
     setTimeout(() => setDiagInfo(null), 5000);
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    
-    if (loading) return;
-
-    if (!isSupabaseConfigured) {
-      setError("⚠️ Supabase غير مهيأ! يرجى التحقق من الإعدادات.");
-      return;
-    }
-
-    setError("");
-    setStatus("جاري الاتصال بالخادم...");
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setLoading(true);
+    setStatus("جاري تسجيل الدخول...");
+    
+    try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+      }
+    } catch (e) {}
 
     try {
-      try {
-        await Haptics.impact({ style: ImpactStyle.Medium });
-      } catch (e) {}
-      
-      const { data, error: signInError } = await signIn(email.trim(), password);
+      const { data, error: loginError } = await signIn(email.trim(), password);
 
-      if (signInError) {
-        console.error("Login Error Details:", signInError);
-        const message = String(signInError.message || "").toLowerCase();
-        const techDetails = `Code: ${signInError.name || 'N/A'} | Status: ${(signInError as any).status || 'N/A'}`;
-        
-        if (message.includes("invalid login credentials") || message.includes("invalid email")) {
-          setError("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
-        } else if (message.includes("failed to fetch") || message.includes("network error")) {
-          setError(`خطأ في الاتصال بالسيرفر. تأكد من توفر الإنترنت.\n(${techDetails})`);
-          checkConnection();
-        } else {
-          setError(`${signInError.message || "حدث خطأ أثناء تسجيل الدخول."}\n(${techDetails})`);
-        }
+      if (loginError) {
+        setStatus(`خطأ: ${loginError.message}`);
         setLoading(false);
-        setStatus("");
         return;
       }
 
-      if (!data?.user || !data?.session) {
-        setError("تعذر تسجيل الدخول. تأكد من صحة البيانات.");
+      if (!data?.user) {
+        setStatus("فشل تسجيل الدخول: لم يتم العثور على بيانات المستخدم");
         setLoading(false);
-        setStatus("");
         return;
       }
 
@@ -98,30 +78,59 @@ const LoginPage = () => {
       // Essential delay for storage persistence before redirect
       setTimeout(async () => {
         try {
-          // Check metadata first
-          let role = String(data.user.user_metadata?.role || "").toLowerCase();
+          let role = "";
           
-          // If no metadata role, fetch profile directly as backup
-          if (!role) {
-            console.log("LoginPage: No role in metadata, fetching profile...");
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
-            if (profile?.role) role = profile.role.toLowerCase();
+          // 1. Check metadata first (fastest)
+          const metadataRole = data.user.user_metadata?.role;
+          if (metadataRole) {
+            role = String(metadataRole).toLowerCase();
           }
           
-          const target = getRedirectPath(role || "driver");
-          console.log(`LoginPage: Redirecting to ${target} via router.replace`);
-          router.replace(target);
+          // 2. Fallback to profile fetch (most reliable)
+          if (!role) {
+            console.log("LoginPage: No role in metadata, fetching profile...");
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            
+            if (profile?.role) {
+              role = profile.role.toLowerCase();
+            } else if (profileError) {
+              console.error("LoginPage: Profile fetch error", profileError);
+            }
+          }
+          
+          // 3. Admin email check as ultimate fallback
+          if (!role && email) {
+            const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").toLowerCase().split(",");
+            if (adminEmails.includes(email.toLowerCase())) {
+              role = "admin";
+            }
+          }
+
+          // Default to driver if absolutely nothing found
+          const finalRole = role || "driver";
+          const target = getRedirectPath(finalRole);
+          
+          console.log(`LoginPage: Role identified as ${finalRole}, Redirecting to ${target}`);
+          
+          // Use window.location for a "hard" redirect on mobile to clear any stuck states
+          if (typeof window !== 'undefined') {
+            window.location.assign(target);
+          } else {
+            router.replace(target);
+          }
         } catch (redirErr) {
           console.error("LoginPage: Redirection failed", redirErr);
-          window.location.assign("/driver"); // Hard fallback
+          window.location.assign("/driver"); 
         }
-      }, 1000);
-      
-    } catch (unknownError) {
-      setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");
+      }, 800);
+    } catch (err: any) {
+      console.error("LoginPage: Unexpected error", err);
+      setStatus(`حدث خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
       setLoading(false);
-      setStatus("");
-      checkConnection(); // Auto-trigger diagnostics
     }
   };
 
@@ -156,7 +165,7 @@ const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">
               البريد الإلكتروني

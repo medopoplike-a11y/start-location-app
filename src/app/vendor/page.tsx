@@ -105,32 +105,33 @@ export default function VendorApp() {
 
   // Initialization & Auth Check
   useEffect(() => {
+    let isMounted = true;
     const hardFallback = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
+      if (isMounted) setLoading(false);
+    }, 6000);
 
     const init = async () => {
       if (authLoading) return;
 
       try {
         const currentUser = user || await withTimeout('getCurrentUser', getCurrentUser(), 5000);
-        if (!currentUser) {
-          setLoading(false);
+        if (!currentUser || !isMounted) {
+          if (isMounted) setLoading(false);
           return;
         }
 
         const profile = authProfile || await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000);
-        if (profile) {
-          // Safety check: only proceed if user is indeed a vendor
+        if (profile && isMounted) {
+          // Safety check: only proceed if user is indeed a vendor or admin
           if (profile.role !== 'vendor' && profile.role !== 'admin') {
-            setLoading(false);
+            console.warn("VendorPage: Unauthorized role", profile.role);
+            router.replace("/login");
             return;
           }
 
           setVendorId(currentUser.id);
           setVendorName(profile.full_name || "محل");
           
-          // Safer location parsing
           let loc = profile.location;
           if (typeof loc === 'string') {
             try { loc = JSON.parse(loc); } catch { loc = null; }
@@ -143,30 +144,40 @@ export default function VendorApp() {
             area: profile.area || ""
           });
           
-          void updateData(currentUser.id);
+          // Data fetching with error isolation
+          await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
 
           // Fetch config
-          const { data: config } = await supabase.from('app_config').select('*').single();
-          if (config) {
-            setAppConfig({
-              driver_commission: config.driver_commission || 15,
-              vendor_commission: config.vendor_commission || 20,
-              vendor_fee: config.vendor_fee || 1,
-              safe_ride_fee: config.safe_ride_fee || 1
-            });
+          try {
+            const { data: config } = await supabase.from('app_config').select('*').maybeSingle();
+            if (config && isMounted) {
+              setAppConfig({
+                driver_commission: config.driver_commission || 15,
+                vendor_commission: config.vendor_commission || 20,
+                vendor_fee: config.vendor_fee || 1,
+                safe_ride_fee: config.safe_ride_fee || 1
+              });
+            }
+          } catch (configErr) {
+            console.error("Fetch config failed", configErr);
           }
         }
       } catch (e) {
         console.error("VendorPage: Init error", e);
       } finally {
-        clearTimeout(hardFallback);
-        setLoading(false);
+        if (isMounted) {
+          clearTimeout(hardFallback);
+          setLoading(false);
+        }
       }
     };
 
     init();
-    return () => clearTimeout(hardFallback);
-  }, [user, authProfile, authLoading]);
+    return () => {
+      isMounted = false;
+      clearTimeout(hardFallback);
+    };
+  }, [user, authProfile, authLoading, router]);
 
   useEffect(() => {
     if (!orders || !Array.isArray(orders)) return;
