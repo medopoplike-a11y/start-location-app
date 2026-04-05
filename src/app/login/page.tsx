@@ -43,15 +43,14 @@ const LoginPage = () => {
 
   // Watch for auth changes and redirect automatically when user is loaded
   useEffect(() => {
-    // Only redirect if we ARE NOT in the middle of a manual login process
-    // and we have a valid user. This prevents conflicts.
-    if (user && !loading && !isRedirecting) {
-      console.log("LoginPage: Logged in user detected, redirecting...");
+    // Only redirect if we have a valid user and we're not already in the middle of a redirect
+    if (user && !isRedirecting) {
+      console.log("LoginPage: Logged in user detected via observer, redirecting...");
       const role = String(profile?.role || user.user_metadata?.role || "driver").toLowerCase();
       const target = getRedirectPath(role);
       performRedirect(target);
     }
-  }, [user, profile, isRedirecting, loading, performRedirect]);
+  }, [user, profile, isRedirecting, performRedirect]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -93,9 +92,12 @@ const LoginPage = () => {
         return;
       }
 
-      setStatus("تم تسجيل الدخول. جاري مزامنة الجلسة...");
-      // We don't redirect here manually; the useEffect above will handle it
-      // once AuthProvider updates the global user state.
+      setStatus("تم تسجيل الدخول بنجاح! جاري الانتقال...");
+      
+      // Direct redirect instead of waiting for observer to trigger
+      const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
+      const target = getRedirectPath(role);
+      performRedirect(target);
       
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");
