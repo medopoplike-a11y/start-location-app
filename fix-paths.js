@@ -23,30 +23,10 @@ function walk(dir) {
   });
 }
 
-function fixRoutes() {
-  if (!fs.existsSync(outDir)) return;
-  const routes = ['admin', 'driver', 'vendor', 'login'];
-  routes.forEach(route => {
-    const routeDir = path.join(outDir, route);
-    if (!fs.existsSync(routeDir)) {
-      fs.mkdirSync(routeDir, { recursive: true });
-    }
-    const htmlFile = path.join(outDir, `${route}.html`);
-    if (fs.existsSync(htmlFile)) {
-      fs.copyFileSync(htmlFile, path.join(routeDir, 'index.html'));
-    }
-  });
-  const indexHtml = path.join(outDir, 'index.html');
-  if (fs.existsSync(indexHtml)) {
-    fs.copyFileSync(indexHtml, path.join(outDir, '404.html'));
-  }
-}
-
 if (fs.existsSync(outDir)) {
   console.log('Fixing paths for Capacitor build...');
   walk(outDir);
-  fixRoutes();
-  console.log('Paths and routes fixed successfully!');
+  console.log('Paths fixed successfully!');
 } else {
   console.error('Out directory not found.');
 }

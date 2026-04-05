@@ -1,8 +1,16 @@
 "use client";
 
-import { redirect } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function HomeRedirect() {
-  redirect('/login');
+  const router = useRouter();
+
+  useEffect(() => {
+    // Standard Next.js router replacement
+    router.replace('/login');
+  }, [router]);
+
+  return null;
 }
 

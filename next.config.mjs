@@ -16,7 +16,7 @@ const nextConfig = {
     unoptimized: true,
   },
   reactStrictMode: true,
-  trailingSlash: false,
+  trailingSlash: true,
   env: {
     IS_BUILDING: process.env.BUILD_TYPE === 'static' ? 'true' : 'false',
   },

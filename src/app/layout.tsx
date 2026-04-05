@@ -51,26 +51,24 @@ export default function RootLayout({
 
         {/* Removed heavy backgrounds */}
 
-        <Script id="kill-sw" strategy="beforeInteractive">
+        <Script id="kill-sw" strategy="afterInteractive">
           {`
-            // Force clear old Service Workers and Caches
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                  registration.unregister();
-                }
-              });
-            }
-            if ('caches' in window) {
-              caches.keys().then(function(names) {
-                for (let name of names) caches.delete(name);
-              });
-            }
-            // Mark that cleanup has run once, but preserve existing session tokens
-            if (typeof localStorage !== 'undefined') {
-              if (!localStorage.getItem('start_v3_clean')) {
-                localStorage.setItem('start_v3_clean', 'true');
+            // Safer cleanup for Capacitor
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for(let registration of registrations) {
+                    registration.unregister();
+                  }
+                });
               }
+              if (typeof window !== 'undefined' && 'caches' in window) {
+                caches.keys().then(function(names) {
+                  for (let name of names) caches.delete(name);
+                });
+              }
+            } catch (e) {
+              console.warn('SW Cleanup failed:', e);
             }
           `}
         </Script>
