@@ -51,10 +51,13 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
     if (!user) {
       console.log("AuthGuard: No user session, redirecting to login");
-      router.replace("/login");
+      // Use window.location as fallback for router issues
+      if (router) router.replace("/login");
+      else window.location.assign("/login");
     } else if (userRole && !authorized) {
       console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
-      router.replace("/login");
+      if (router) router.replace("/login");
+      else window.location.assign("/login");
     } else if (!userRole) {
       console.log("AuthGuard: User logged in but role not found yet, waiting...");
       const timeoutId = setTimeout(() => {

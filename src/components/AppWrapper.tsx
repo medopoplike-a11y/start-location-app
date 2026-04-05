@@ -37,7 +37,8 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
   return (
     <>
-      <AppUpdater />
+      {/* AppUpdater disabled temporarily to prevent redirect loops and stick splash issues */}
+      {/* <AppUpdater /> */}
       {children}
     </>
   );
