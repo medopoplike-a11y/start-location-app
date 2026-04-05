@@ -4,9 +4,11 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth";
 import { config } from "@/lib/config";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { useAuth } from "@/components/AuthProvider";
+import { useEffect, useCallback } from "react";
 
 const isSupabaseConfigured = config.isConfigured();
 
@@ -20,16 +22,38 @@ const getRedirectPath = (role?: string) => {
 
 const LoginPage = () => {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const performRedirect = useCallback((target: string) => {
+    if (isRedirecting) return;
+    setIsRedirecting(true);
+    setStatus("تم التحقق من الجلسة. جاري الدخول...");
+    
+    // Smooth transition
+    setTimeout(() => {
+      window.location.href = target;
+    }, 800);
+  }, [isRedirecting]);
+
+  // Watch for auth changes and redirect automatically when user is loaded
+  useEffect(() => {
+    if (user && !isRedirecting) {
+      const role = String(profile?.role || user.user_metadata?.role || "driver").toLowerCase();
+      const target = getRedirectPath(role);
+      performRedirect(target);
+    }
+  }, [user, profile, isRedirecting, performRedirect]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    if (loading) return;
+    if (loading || isRedirecting) return;
 
     if (!isSupabaseConfigured) {
       setError("⚠️ Supabase غير مهيأ! يرجى التحقق من الإعدادات.");
@@ -54,37 +78,26 @@ const LoginPage = () => {
         } else {
           setError(signInError.message || "حدث خطأ أثناء تسجيل الدخول.");
         }
+        setLoading(false);
         setStatus("");
         return;
       }
 
       if (!data?.user || !data?.session) {
         setError("تعذر تسجيل الدخول. تأكد من صحة البيانات.");
+        setLoading(false);
         setStatus("");
         return;
       }
 
-      // Explicitly check for session on native
-      const cap = (window as any).Capacitor;
-      if (cap?.isNativePlatform?.()) {
-        setStatus("جاري حفظ الجلسة على الهاتف...");
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
-
-      const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
-      const target = getRedirectPath(role);
-      setStatus(`تم تسجيل الدخول بنجاح! جاري تحويلك...`);
-      
-      // Use window.location.href to ensure a clean session state on the next page
-      setTimeout(() => {
-        window.location.href = target;
-      }, 1000);
+      setStatus("تم تسجيل الدخول. جاري مزامنة الجلسة...");
+      // We don't redirect here manually; the useEffect above will handle it
+      // once AuthProvider updates the global user state.
       
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");
-      setStatus("");
-    } finally {
       setLoading(false);
+      setStatus("");
     }
   };
 
@@ -156,14 +169,14 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isRedirecting}
             className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
               !isSupabaseConfigured 
                 ? "bg-red-600" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25"
+                : (isRedirecting ? "bg-green-600" : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25")
             } disabled:opacity-50`}
           >
-            {loading ? "جاري التحقق..." : "تسجيل الدخول"}
+            {isRedirecting ? "جاري الدخول..." : (loading ? "جاري التحقق..." : "تسجيل الدخول")}
           </button>
         </form>
 

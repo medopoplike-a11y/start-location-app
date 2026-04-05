@@ -21,27 +21,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let active = true;
     let authSubscription: { unsubscribe: () => void } | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const loadSession = async () => {
       try {
-        // First attempt
-        let { data: { session } } = await supabase.auth.getSession();
-        
-        // If no session, try one more time after a short delay (mobile storage can be slow)
-        if (!session && active) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const retry = await supabase.auth.getSession();
-          session = retry.data.session;
-        }
+        // Root-level debug log
+        const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+        console.log(`AuthProvider: Loading session (Native: ${isCapacitor})`);
 
+        const { data: { session } } = await supabase.auth.getSession();
+        
         if (!active) return;
 
         if (session?.user) {
+          console.log("AuthProvider: Session found for", session.user.id);
           setUser(session.user);
           const userProfile = await getUserProfile(session.user.id, session.user.email);
           if (active) setProfile(userProfile);
         } else {
+          console.log("AuthProvider: No session found initially");
           setUser(null);
           setProfile(null);
         }
@@ -56,17 +53,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const setupAuthListener = () => {
       try {
-        const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (!active) return;
 
+          console.log(`AuthProvider: Auth event [${event}] for user:`, session?.user?.id);
+          
           setUser(session?.user ?? null);
           if (session?.user) {
-            // Only fetch profile if user has changed or profile is missing
             const userProfile = await getUserProfile(session.user.id, session.user.email);
             if (active) setProfile(userProfile);
           } else {
             setProfile(null);
           }
+          
+          // Force stop loading if an event occurs
+          setLoading(false);
         });
 
         if (data && data.subscription) {
@@ -77,15 +78,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    loadSession().then(() => {
-      if (active) {
-        setupAuthListener();
-      }
-    });
+    loadSession();
+    setupAuthListener();
 
     return () => {
       active = false;
-      if (timeoutId) clearTimeout(timeoutId);
       authSubscription?.unsubscribe();
     };
   }, []);
