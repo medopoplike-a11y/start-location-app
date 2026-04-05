@@ -313,6 +313,12 @@ ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settlements ENABLE ROW LEVEL SECURITY;
 
+-- Clean up existing policies to avoid conflicts
+DROP POLICY IF EXISTS "profiles_read_policy" ON profiles;
+DROP POLICY IF EXISTS "profiles_update_policy" ON profiles;
+DROP POLICY IF EXISTS "wallets_read_policy" ON wallets;
+DROP POLICY IF EXISTS "orders_read_policy" ON orders;
+
 -- Profiles: Users can read their own and admin can read all
 CREATE POLICY "profiles_read_policy" ON profiles FOR SELECT
   USING (auth.uid() = id OR (auth.jwt() ->> 'role') = 'admin');
