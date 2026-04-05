@@ -68,7 +68,7 @@ npm install --legacy-peer-deps && npm run build:mobile && npx cap sync android &
 
 ### 🌐 **الويب:**
 ```
-URL: https://traestartzlum.vercel.app
+URL: https://start-location-app.vercel.app
 Status: ✅ مباشر عبر Vercel
 الواجهات: Admin, Driver, Vendor
 استخدام: أي متصفح، من أي جهاز
@@ -156,7 +156,7 @@ npm run build:mobile
 ### بعد 30 دقيقة:
 
 ✅ **الويب يعمل على:**
-- https://traestartzlum.vercel.app
+- https://start-location-app.vercel.app
 - جميع الواجهات تعمل
 - قاعدة البيانات متصلة
 
@@ -191,7 +191,7 @@ adb logcat | grep "Start Location"
 
 ```
 ✅ أرسل الملف: dist/start-location-v0.2.2.apk
-✅ أو شارك الرابط: https://traestartzlum.vercel.app
+✅ أو شارك الرابط: https://start-location-app.vercel.app
 ✅ كلا الطريقتين تعمل الآن!
 ```
 

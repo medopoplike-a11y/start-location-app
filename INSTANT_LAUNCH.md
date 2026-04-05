@@ -89,7 +89,7 @@ git push origin main
 
 # Vercel سينشّر تلقائياً!
 # ⏰ الانتظار 2-3 دقائق
-# ✅ https://traestartzlum.vercel.app
+# ✅ https://start-location-app.vercel.app
 ```
 
 ---

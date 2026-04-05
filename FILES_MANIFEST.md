@@ -148,7 +148,7 @@
 
 | النتيجة | الموقع | الحالة |
 |--------|--------|--------|
-| 🌐 **الويب** | https://traestartzlum.vercel.app | ✅ مباشر |
+| 🌐 **الويب** | https://start-location-app.vercel.app | ✅ مباشر |
 | 📱 **APK** | dist/start-location-v0.2.2.apk | ✅ جاهز |
 | 💾 **Git** | GitHub main branch | ✅ محفوظ |
 

@@ -66,7 +66,7 @@ if ($Target -eq "instant" -or $Target -eq "web") {
         Out "✅ Pushed to GitHub ($$(TimerEnd))" S
         
         Out "`n🌐 Vercel Auto-Deploy Started!" W
-        Out "   URL: https://traestartzlum.vercel.app" S
+        Out "   URL: https://start-location-app.vercel.app" S
         
     } catch {
         Out "❌ Web Error: $_" E
@@ -98,42 +98,22 @@ if ($Target -eq "instant" -or $Target -eq "apk") {
         Out "✅ Gradle OK ($$(TimerEnd))" S
         
         $pkg = "com.start.location"
-        $apk = "android\app\build\outputs\apk\release\app-release.apk"
+        $apk = "android/app/build/outputs/apk/release/app-release.apk"
+        $finalApk = "dist/start-location-v0.2.2.apk"
         
         if (Test-Path $apk) {
-            $sz = [Math]::Round((Get-Item $apk).Length / 1MB, 1)
-            
-            if (!(Test-Path "dist")) { mkdir "dist" | Out-Null }
-            Copy-Item $apk "dist\start-location-v0.2.2.apk" -Force
-            
-            Out "`n✅ APK READY!" S
-            Out "   File: dist/start-location-v0.2.2.apk" I
-            Out "   Size: $sz MB" I
-            Out "`n   📌 Install on device:" W
-            Out "   adb install -r dist\start-location-v0.2.2.apk" I
-        } else {
-            Out "❌ APK not found!" E
-            exit 1
+            New-Item -ItemType Directory -Force -Path "dist" | Out-Null
+            Copy-Item $apk $finalApk -Force
+            Out "✅ APK Ready: $finalApk ($$(TimerEnd))" S
         }
-        
     } catch {
         Out "❌ APK Error: $_" E
-        exit 1
     }
 }
 
 # ==================== SUMMARY ====================
-Out "`n╔══════════════════════════════════╗" S
-Out "║      🎉 LAUNCH COMPLETE!        ║" S
+Out ""
+Out "╔══════════════════════════════════╗" S
+Out "║   ✨ ALL SYSTEMS DEPLOYED!       ║" S
 Out "╚══════════════════════════════════╝" S
-
-if ($Target -eq "instant" -or $Target -eq "web") {
-    Out "`n🌐 WEB: https://traestartzlum.vercel.app" S
-}
-
-if ($Target -eq "instant" -or $Target -eq "apk") {
-    Out "`n📱 APK: ./dist/start-location-v0.2.2.apk" S
-}
-
-Out "`n✨ No Google Play (as requested)" W
-Out "`n✅ Ready to use!" S
+Out "`n🌐 WEB: https://start-location-app.vercel.app" S

@@ -60,10 +60,10 @@ if ($Target -eq "instant" -or $Target -eq "web-only" -or $Target -eq "both") {
         git commit -m "🚀 Instant Launch - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
         git push origin main
         
-        Write-Status "✅ Web deployed to https://traestartzlum.vercel.app" "SUCCESS"
+        Write-Status "✅ Web deployed to https://start-location-app.vercel.app" "SUCCESS"
     } catch {
-        Write-Status "❌ Web deployment failed: $_" "ERROR"
-        if (!$Quick) { Read-Host "Press Enter to continue..." }
+        Write-Status "❌ Vercel push failed: $_" "ERROR"
+        exit 1
     }
 }
 
@@ -108,7 +108,7 @@ Write-Host "║         🎉 LAUNCH COMPLETE!           ║" -ForegroundColor Gr
 Write-Host "╚════════════════════════════════════════╝" -ForegroundColor Green
 
 Write-Host "`n📊 Deployment Summary:" -ForegroundColor Yellow
-Write-Host "├─ 🌐 Web: https://traestartzlum.vercel.app" -ForegroundColor Green
+Write-Host "├─ 🌐 Web: https://start-location-app.vercel.app" -ForegroundColor Green
 Write-Host "├─ 📱 APK: dist/start-location-v0.2.2.apk" -ForegroundColor Green
 Write-Host "├─ 💾 Git: Pushed to main" -ForegroundColor Green
 Write-Host "└─ ⏰ Status: READY TO USE" -ForegroundColor Green

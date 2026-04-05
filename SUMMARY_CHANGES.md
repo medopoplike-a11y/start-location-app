@@ -109,7 +109,7 @@ cd android && ./gradlew assembleRelease
 
 ### ✅ هذا يعمل الآن:
 ```
-- ✅ تطبيق الويب (https://traestartzlum.vercel.app)
+- ✅ تطبيق الويب (https://start-location-app.vercel.app)
 - ✅ APK للموبايل (./dist/start-location-v0.2.2.apk)
 - ✅ كل الواجهات الثلاث (Admin, Driver, Vendor)
 - ✅ قاعدة البيانات (Supabase)

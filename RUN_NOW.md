@@ -30,7 +30,7 @@ cd c:\Users\Admin\Documents\trae_projects\start
 
 | العنصر | الحالة | الرابط/الموقع |
 |--------|--------|------------|
-| 🌐 **الويب** | ✅ مباشر | https://traestartzlum.vercel.app |
+| 🌐 **الويب** | ✅ مباشر | https://start-location-app.vercel.app |
 | 📱 **APK** | ✅ جاهز | `./dist/start-location-v0.2.2.apk` |
 | 💾 **Git** | ✅ محفوظ | GitHub main branch |
 

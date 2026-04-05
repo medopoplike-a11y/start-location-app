@@ -129,7 +129,7 @@ npm run dev
 
 ### 3. **Production** (Live)
 ```bash
-# URL: https://traestartzlum.vercel.app
+# URL: https://start-location-app.vercel.app
 # Database: Supabase Production
 # APK: Play Store + OTA Updates
 # Logging: في Supabase (secured)

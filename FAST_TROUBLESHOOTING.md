@@ -233,7 +233,7 @@ Restart-Computer
 ## 🎯 النتائج النهائية (متى تعرف أن النجاح حدث):
 
 ### ✅ الويب يعمل:
-- افتح: https://traestartzlum.vercel.app
+- افتح: https://start-location-app.vercel.app
 - تسجيل الدخول يعمل
 - الثلاث واجهات تظهر
 

@@ -17,7 +17,7 @@ cd c:\Users\Admin\Documents\trae_projects\start && npm install --legacy-peer-dep
 
 ## النتائج (20-30 دقيقة):
 
-✅ **الويب:** https://traestartzlum.vercel.app  
+✅ **الويب:** https://start-location-app.vercel.app  
 ✅ **APK:** `dist/start-location-v0.2.2.apk`  
 ✅ **Git:** محفوظ على GitHub  
 
