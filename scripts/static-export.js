@@ -6,6 +6,7 @@
  * needed in the static mobile build — the app talks directly to Supabase).
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');

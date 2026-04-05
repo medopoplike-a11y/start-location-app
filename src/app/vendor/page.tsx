@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type ChangeEvent } from "react";
 import { motion } from "framer-motion";
-import { Haptics } from "@capacitor/haptics";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
@@ -314,7 +314,7 @@ export default function VendorApp() {
   };
 
   const handleOpenForm = async (order: Order | null = null) => {
-    try { await Haptics.impact({ style: "light" }); } catch(e) {}
+    try { await Haptics.impact({ style: ImpactStyle.Light }); } catch(e) {}
     if (order) {
       setEditingOrder(order);
       setInvoiceUrl(order.invoiceUrl || null);

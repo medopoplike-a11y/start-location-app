@@ -10,11 +10,11 @@ interface ParticlesBackgroundProps {
 }
 
 export default function ParticlesBackground({ theme = 'neon-blue' }: ParticlesBackgroundProps) {
-  const particlesInit = useCallback(async (engine: Engine) => {
+  const particlesInit = useCallback(async (engine: any) => {
     await loadSlim(engine);
   }, []);
 
-  const neonOptions = {
+  const neonOptions: any = {
     background: {
       color: {
         value: 'transparent',

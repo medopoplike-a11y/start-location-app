@@ -610,7 +610,7 @@ export default function AdminPanel() {
             )}
           </Suspense>
         </div>
-      </main>
+      </div>
 
       {/* Modals */}
       <AnimatePresence>

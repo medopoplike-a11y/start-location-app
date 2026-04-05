@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
-import { Haptics } from "@capacitor/haptics";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
@@ -295,7 +295,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
 
   const toggleActive = async () => {
     try {
-      Haptics.impact({ style: 'light' }).catch(() => {});
+      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
     } catch (e) {}
     const newStatus = !isActive;
     setIsActive(newStatus);
@@ -429,7 +429,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
             isRefreshing={isRefreshing}
             isActive={isActive}
             onOpenDrawer={() => {
-              try { Haptics.selection(); } catch(e) {}
+              try { Haptics.selectionChanged(); } catch(e) {}
               setShowDrawer(true);
             }}
             onToggleActive={toggleActive}
