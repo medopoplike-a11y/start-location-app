@@ -13,39 +13,21 @@ const isNative = typeof window !== 'undefined' &&
 const appStorage: SupportedStorage = {
   getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
-    
-    // 1. Direct check in localStorage (fastest for web)
-    const value = localStorage.getItem(key);
-    if (value) return value;
-
-    // 2. Fallback for native Capacitor persistence
-    if (isNative) {
-      return Preferences.get({ key }).then(res => {
-        if (res.value) {
-          // Sync back to localStorage for instant access next time
-          localStorage.setItem(key, res.value);
-          return res.value;
-        }
-        return null;
-      });
-    }
-    return null;
+    return localStorage.getItem(key);
   },
   setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
-    
     localStorage.setItem(key, value);
-    
+    // Mirror to Preferences for native persistence (handled by Capacitor automatically in many cases, but we do it manually to be sure)
     if (isNative) {
-      return Preferences.set({ key, value });
+      Preferences.set({ key, value }).catch(() => {});
     }
   },
   removeItem: (key: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
-    
     localStorage.removeItem(key);
     if (isNative) {
-      return Preferences.remove({ key });
+      Preferences.remove({ key }).catch(() => {});
     }
   }
 };

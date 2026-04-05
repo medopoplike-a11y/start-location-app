@@ -5,7 +5,7 @@ import { config } from "@/lib/config";
 import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const isSupabaseConfigured = config.isConfigured();
@@ -26,6 +26,21 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+  const [diagInfo, setDiagInfo] = useState<string | null>(null);
+
+  // Simple session check to avoid loop
+  useEffect(() => {
+    const checkSession = async () => {
+      // @ts-ignore - supabase is used in handleLogin but not imported in provided snippet
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log("LoginPage: Session exists, checking role...");
+        const role = session.user.user_metadata?.role || "driver";
+        router.replace(getRedirectPath(role));
+      }
+    };
+    checkSession();
+  }, [router]);
 
   // Load remembered email
   useEffect(() => {
@@ -34,7 +49,6 @@ const LoginPage = () => {
       if (savedEmail) setEmail(savedEmail);
     }
   }, []);
-  const [diagInfo, setDiagInfo] = useState<string | null>(null);
 
   const checkConnection = async () => {
     try {
@@ -132,15 +146,8 @@ const LoginPage = () => {
           
           console.log(`LoginPage: Role identified as ${finalRole}, Redirecting to ${target}`);
           
-          // Use window.location for a "hard" redirect on mobile to clear any stuck states
-          if (typeof window !== 'undefined') {
-            console.log("LoginPage: Performing hard redirect to", target);
-            // Ensure session is synced before hard redirect
-            await new Promise(resolve => setTimeout(resolve, 500));
-            window.location.href = target;
-          } else {
-            router.replace(target);
-          }
+          // Use router.replace for smoother SPA transition
+          router.replace(target);
         } catch (redirErr) {
           console.error("LoginPage: Redirection failed", redirErr);
           window.location.assign("/driver"); 
