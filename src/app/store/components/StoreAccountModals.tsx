@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
-interface VendorAccountModalsProps {
+interface StoreAccountModalsProps {
   showPasswordModal: boolean;
   showSettlementModal: boolean;
   newPassword: string;
@@ -21,7 +21,7 @@ interface VendorAccountModalsProps {
   onRequestSettlement: () => void;
 }
 
-export default function VendorAccountModals({
+export default function StoreAccountModals({
   showPasswordModal,
   showSettlementModal,
   newPassword,
@@ -37,7 +37,7 @@ export default function VendorAccountModals({
   onSettlementAmountChange,
   onChangePassword,
   onRequestSettlement,
-}: VendorAccountModalsProps) {
+}: StoreAccountModalsProps) {
   return (
     <AnimatePresence>
       {(showPasswordModal || showSettlementModal) && (

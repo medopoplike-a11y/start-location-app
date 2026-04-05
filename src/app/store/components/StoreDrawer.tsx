@@ -4,7 +4,7 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { History, LogOut, MapPin, Settings, Store, Wallet, X } from "lucide-react";
 
-interface VendorDrawerProps {
+interface StoreDrawerProps {
   showDrawer: boolean;
   vendorName: string;
   activeView: "store" | "wallet" | "history" | "settings";
@@ -14,7 +14,7 @@ interface VendorDrawerProps {
   onSignOut: () => void;
 }
 
-export default function VendorDrawer({
+export default function StoreDrawer({
   showDrawer,
   vendorName,
   activeView,
@@ -22,7 +22,7 @@ export default function VendorDrawer({
   onChangeView,
   onUpdateLocation,
   onSignOut,
-}: VendorDrawerProps) {
+}: StoreDrawerProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {

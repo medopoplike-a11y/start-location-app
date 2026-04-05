@@ -21,14 +21,14 @@ import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
 import { formatVendorTime } from "./utils";
-import VendorHeader from "./components/VendorHeader";
+import StoreHeader from "./components/StoreHeader";
 import StoreView from "./components/StoreView";
 import WalletView from "./components/WalletView";
-import VendorSettingsView from "./components/SettingsView";
+import StoreSettingsView from "./components/SettingsView";
 import HistoryView from "./components/HistoryView";
-import VendorDrawer from "./components/VendorDrawer";
+import StoreDrawer from "./components/StoreDrawer";
 import OrderFormModal from "./components/OrderFormModal";
-import VendorAccountModals from "./components/VendorAccountModals";
+import StoreAccountModals from "./components/StoreAccountModals";
 
 export default function StoreApp() {
   return (
@@ -301,7 +301,7 @@ function StoreContent() {
     return {
       id: db.id,
       customer: customer.name || "عميل",
-      phone: customer.phone || "",
+      phone: (customer as any).phone || "",
       address: customer.address || "عنوان غير محدد",
       status: db.status || 'pending',
       driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
@@ -574,7 +574,7 @@ function StoreContent() {
     <Toast toasts={toasts} onRemove={removeToast} />
       <PushNotificationManager userId={vendorId ?? null} />
       
-      <VendorHeader
+      <StoreHeader
         vendorName={vendorName}
         lastSync={lastSync}
         isSyncing={isSyncing}
@@ -618,7 +618,7 @@ function StoreContent() {
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />
         ) : activeView === "settings" ? (
-          <VendorSettingsView
+          <StoreSettingsView
             settingsData={settingsData}
             savingSettings={savingSettings}
             vendorLocation={vendorLocation}
@@ -661,7 +661,7 @@ function StoreContent() {
         onSave={handleSaveOrder}
       />
 
-      <VendorAccountModals
+      <StoreAccountModals
         showPasswordModal={showPasswordModal}
         showSettlementModal={showSettlementModal}
         newPassword={newPassword}
@@ -679,7 +679,7 @@ function StoreContent() {
         onRequestSettlement={handleRequestSettlement}
       />
 
-      <VendorDrawer
+      <StoreDrawer
         showDrawer={showDrawer}
         vendorName={vendorName}
         activeView={activeView}

@@ -8,7 +8,7 @@ interface SettingsData {
   area: string;
 }
 
-interface VendorSettingsViewProps {
+interface StoreSettingsViewProps {
   settingsData: SettingsData;
   savingSettings: boolean;
   vendorLocation?: { lat: number; lng: number } | null;
@@ -19,7 +19,7 @@ interface VendorSettingsViewProps {
   onUpdateLocation?: () => void;
 }
 
-export default function VendorSettingsView({
+export default function StoreSettingsView({
   settingsData,
   savingSettings,
   vendorLocation,
@@ -28,7 +28,7 @@ export default function VendorSettingsView({
   onSettingsDataChange,
   onSave,
   onUpdateLocation,
-}: VendorSettingsViewProps) {
+}: StoreSettingsViewProps) {
   const hasLocation = !!(vendorLocation?.lat && vendorLocation?.lng);
 
   return (

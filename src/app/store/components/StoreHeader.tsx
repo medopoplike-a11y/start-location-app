@@ -5,7 +5,7 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 import { motion } from "framer-motion";
 import { Menu, RefreshCw, Search } from "lucide-react";
 
-interface VendorHeaderProps {
+interface StoreHeaderProps {
   vendorName: string;
   lastSync: Date;
   isSyncing: boolean;
@@ -15,7 +15,7 @@ interface VendorHeaderProps {
   onSync: () => void;
 }
 
-export default function VendorHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync }: VendorHeaderProps) {
+export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync }: StoreHeaderProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
