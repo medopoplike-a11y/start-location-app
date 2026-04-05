@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   UNIQUE(email)
 );
 
--- Indexes for profiles
-CREATE INDEX idx_profiles_role ON profiles(role);
-CREATE INDEX idx_profiles_email ON profiles(email);
-CREATE INDEX idx_profiles_area ON profiles(area);
-CREATE INDEX idx_profiles_created_at ON profiles(created_at DESC);
+-- Indexes for profiles (Idempotent)
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_area ON profiles(area);
+CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC);
 
 -- ============================================================
 -- SECTION 2: Wallets & Financial
@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS wallets (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_wallets_user_id ON wallets(user_id);
-CREATE INDEX idx_wallets_balance ON wallets(balance);
+CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
+CREATE INDEX IF NOT EXISTS idx_wallets_balance ON wallets(balance);
 
 -- ============================================================
 -- SECTION 3: Orders & Deliveries
@@ -82,11 +82,11 @@ CREATE TABLE IF NOT EXISTS orders (
   deleted_at TIMESTAMP
 );
 
-CREATE INDEX idx_orders_vendor_id ON orders(vendor_id);
-CREATE INDEX idx_orders_driver_id ON orders(driver_id);
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
-CREATE INDEX idx_orders_distance ON orders(distance);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON orders(driver_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_distance ON orders(distance);
 
 -- ============================================================
 -- SECTION 4: Payments & Settlements
@@ -105,9 +105,9 @@ CREATE TABLE IF NOT EXISTS settlements (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_settlements_user_id ON settlements(user_id);
-CREATE INDEX idx_settlements_status ON settlements(status);
-CREATE INDEX idx_settlements_created_at ON settlements(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_settlements_user_id ON settlements(user_id);
+CREATE INDEX IF NOT EXISTS idx_settlements_status ON settlements(status);
+CREATE INDEX IF NOT EXISTS idx_settlements_created_at ON settlements(created_at DESC);
 
 -- ============================================================
 -- SECTION 5: Transactions & Audit
@@ -125,10 +125,10 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX idx_transactions_order_id ON transactions(order_id);
-CREATE INDEX idx_transactions_type ON transactions(type);
-CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_order_id ON transactions(order_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
 
 -- Audit logs
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -144,9 +144,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
 
 -- ============================================================
 -- SECTION 6: Configuration & Settings
@@ -196,9 +196,9 @@ CREATE TABLE IF NOT EXISTS driver_availability (
   total_earnings_today DECIMAL(10, 2) DEFAULT 0
 );
 
-CREATE INDEX idx_driver_availability_driver_id ON driver_availability(driver_id);
-CREATE INDEX idx_driver_availability_is_online ON driver_availability(is_online);
-CREATE INDEX idx_driver_availability_last_updated ON driver_availability(last_updated DESC);
+CREATE INDEX IF NOT EXISTS idx_driver_availability_driver_id ON driver_availability(driver_id);
+CREATE INDEX IF NOT EXISTS idx_driver_availability_is_online ON driver_availability(is_online);
+CREATE INDEX IF NOT EXISTS idx_driver_availability_last_updated ON driver_availability(last_updated DESC);
 
 -- ============================================================
 -- SECTION 7: Notifications & Messages
@@ -216,9 +216,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   read_at TIMESTAMP
 );
 
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_is_read ON notifications(is_read);
-CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
 
 -- ============================================================
 -- SECTION 8: Insurance & Risk Management
@@ -249,8 +249,8 @@ CREATE TABLE IF NOT EXISTS insurance_claims (
   processed_by UUID REFERENCES profiles(id)
 );
 
-CREATE INDEX idx_insurance_claims_user_id ON insurance_claims(user_id);
-CREATE INDEX idx_insurance_claims_status ON insurance_claims(status);
+CREATE INDEX IF NOT EXISTS idx_insurance_claims_user_id ON insurance_claims(user_id);
+CREATE INDEX IF NOT EXISTS idx_insurance_claims_status ON insurance_claims(status);
 
 -- ============================================================
 -- SECTION 9: Views for Complex Queries
