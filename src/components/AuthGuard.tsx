@@ -26,10 +26,28 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
   useEffect(() => {
     if (loading) return;
-    if (!user || !authorized) {
+
+    // If we have a user but not authorized, wait a moment to see if the profile/metadata syncs
+    // This handles cases where profile is still being fetched by AuthProvider
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    if (!user) {
       router.replace("/login");
+    } else if (!authorized) {
+      // If user is present but not authorized, wait 1.5 seconds before redirecting
+      // This gives AuthProvider time to fetch the profile if it was slow
+      timeoutId = setTimeout(() => {
+        if (!authorized) {
+          console.warn("AuthGuard: Access denied for role:", userRole);
+          router.replace("/login");
+        }
+      }, 1500);
     }
-  }, [loading, user, authorized, router]);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [loading, user, authorized, router, userRole]);
 
   // Prevent hardware/browser back button from navigating away from the app
   useEffect(() => {

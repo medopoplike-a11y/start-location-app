@@ -135,21 +135,9 @@ export const signIn = async (email: string, password?: string) => {
     return { data: null, error: new Error('كلمة المرور مطلوبة') };
   }
 
-  // Create fresh client for signIn to bypass any shared client issues
-  console.log("signIn: Creating fresh Supabase client...");
-
-  const freshClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      detectSessionInUrl: false,
-      persistSession: true,
-      autoRefreshToken: true,
-      lock: supabaseLock as any,
-    },
-  });
-
   try {
-    console.log("signIn: Calling freshClient.auth.signInWithPassword...");
-    const result = await freshClient.auth.signInWithPassword({ email, password });
+    console.log("signIn: Calling supabase.auth.signInWithPassword...");
+    const result = await supabase.auth.signInWithPassword({ email, password });
     console.log("=== signIn RESULT ===");
     return result;
   } catch (error) {

@@ -26,13 +26,12 @@ export function StartLogo({ className = "w-32 h-32" }: { className?: string }) {
         </filter>
       </defs>
 
-      <g filter="url(#futuristic-glow)">
+      <g>
         {/* Modern Fluid Pin Shape */}
         {/* Layer 1 - Outer Blue */}
         <path 
           d="M50 5C30.67 5 15 20.67 15 40C15 55 50 120 50 120C50 120 85 55 85 40C85 20.67 69.33 5 50 5Z" 
           fill="url(#grad-blue)" 
-          className="drop-shadow-2xl"
         />
         
         {/* Layer 2 - Inner Red Accent */}
@@ -48,7 +47,7 @@ export function StartLogo({ className = "w-32 h-32" }: { className?: string }) {
         />
 
         {/* Center Point - White Glow */}
-        <circle cx="50" cy="40" r="5" fill="white" className="animate-pulse shadow-white/50" />
+        <circle cx="50" cy="40" r="5" fill="white" />
       </g>
     </svg>
   );

@@ -511,9 +511,9 @@ export default function AdminPanel() {
         <div className="p-4 border-t border-gray-100"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 hover:text-red-500 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-bold flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
       </motion.aside>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 h-20 px-8 border-b border-gray-100 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-6">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
+          <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-gray-50 text-gray-900 rounded-xl border border-gray-200">{sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
             <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
               <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />

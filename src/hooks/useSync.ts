@@ -15,11 +15,25 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const triggerUpdate = useCallback(() => {
-    setIsSyncing(true);
-    if (onUpdateRef.current) onUpdateRef.current();
-    setLastSync(new Date());
-    setTimeout(() => setIsSyncing(false), 800);
+    // Debounce to prevent rapid multiple updates
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    
+    syncTimeoutRef.current = setTimeout(() => {
+      setIsSyncing(true);
+      if (onUpdateRef.current) onUpdateRef.current();
+      setLastSync(new Date());
+      setTimeout(() => setIsSyncing(false), 800);
+      syncTimeoutRef.current = null;
+    }, 300); // 300ms debounce
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {

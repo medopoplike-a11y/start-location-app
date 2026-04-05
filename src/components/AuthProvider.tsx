@@ -24,39 +24,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const loadSession = async () => {
-      console.log("AuthProvider: loadSession starting...");
-      
-      // Set a timeout to prevent infinite loading
-      // Dynamic timeout for mobile
-      const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-      const timeoutMs = isCapacitor ? 12000 : 5000;
-      timeoutId = setTimeout(() => {
-        if (active && loading) {
-          console.log(`AuthProvider: Timeout reached (${timeoutMs/1000}s, Capacitor: ${isCapacitor})`);
-          setLoading(false);
-        }
-      }, timeoutMs);
-      
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        console.log("AuthProvider: getSession returned:", session ? "session exists" : "no session");
+        
         if (!active) return;
 
-        setUser(session?.user ?? null);
         if (session?.user) {
-          console.log("AuthProvider: fetching profile for", session.user.id);
+          setUser(session.user);
           const userProfile = await getUserProfile(session.user.id, session.user.email);
-          console.log("AuthProvider: profile result:", userProfile ? "success" : "null");
           if (active) setProfile(userProfile);
+        } else {
+          setUser(null);
+          setProfile(null);
         }
       } catch (error) {
         console.error("AuthProvider: loadSession error:", error);
       } finally {
         if (active) {
-          console.log("AuthProvider: Setting loading to false");
-          if (timeoutId) clearTimeout(timeoutId);
           setLoading(false);
         }
       }
@@ -67,9 +53,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
           if (!active) return;
 
-          console.log("AuthProvider: Auth state changed:", _event);
           setUser(session?.user ?? null);
           if (session?.user) {
+            // Only fetch profile if user has changed or profile is missing
             const userProfile = await getUserProfile(session.user.id, session.user.email);
             if (active) setProfile(userProfile);
           } else {

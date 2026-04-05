@@ -146,21 +146,16 @@ export const checkForAutoUpdate = async () => {
   if (!isNative()) return { available: false };
 
   try {
-    // استخدام القفل لضمان عدم حدوث تداخل مع عمليات أخرى
-    const config = await Promise.race([
-      supabaseLock.runExclusive(async () => {
-        const { data, error } = await supabase
-          .from('app_config')
-          .select('*')
-          .single();
-        if (error) throw error;
-        return data;
-      }),
-      new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Fetch app_config timeout')), 5000))
-    ]).catch(err => {
-      console.warn('Native: checkForAutoUpdate skip due to:', err.message);
-      return null;
-    });
+    // التحقق من الإعدادات بدون قفل لتجنب أي تعارض أو بطء
+    const { data: config, error: configError } = await supabase
+      .from('app_config')
+      .select('*')
+      .single();
+
+    if (configError) {
+      console.warn('Native: checkForAutoUpdate skip due to config error:', configError.message);
+      return { available: false };
+    }
 
     if (!config) {
       return { available: false };
