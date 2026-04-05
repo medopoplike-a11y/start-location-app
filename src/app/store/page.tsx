@@ -87,12 +87,35 @@ function StoreContent() {
 
   const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "" });
 
+  const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
+
   // useSync hook for real-time updates
   useSync(vendorId || undefined, () => {
     if (vendorId) {
       updateData(vendorId);
     }
   });
+
+  // Sound notification logic
+  useEffect(() => {
+    if (lastOrderCount !== null && orders.length > lastOrderCount) {
+      const activeNewOrders = orders.filter(o => o.status === 'pending').length;
+      const lastActiveNewOrders = orders.slice(0, lastOrderCount).filter(o => o.status === 'pending').length;
+      
+      if (activeNewOrders > lastActiveNewOrders) {
+        console.log("StorePage: New order detected, playing sound...");
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+        audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
+        
+        if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+          import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
+            Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+          });
+        }
+      }
+    }
+    setLastOrderCount(orders.length);
+  }, [orders]);
 
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
