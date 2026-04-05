@@ -186,10 +186,9 @@ export const checkForAutoUpdate = async () => {
       version: config.latest_version
     });
 
-    if (config.force_update) {
-      await CapacitorUpdater.set({ id: bundle.id });
-    }
-
+    // Never force update automatically to prevent infinite reload loops
+    // Let the UI handle the update by showing a button
+    
     return {
       available: true,
       version: config.latest_version,

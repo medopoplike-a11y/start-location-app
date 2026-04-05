@@ -43,12 +43,15 @@ const LoginPage = () => {
 
   // Watch for auth changes and redirect automatically when user is loaded
   useEffect(() => {
-    if (user && !isRedirecting) {
+    // Only redirect if we ARE NOT in the middle of a manual login process
+    // and we have a valid user. This prevents conflicts.
+    if (user && !loading && !isRedirecting) {
+      console.log("LoginPage: Logged in user detected, redirecting...");
       const role = String(profile?.role || user.user_metadata?.role || "driver").toLowerCase();
       const target = getRedirectPath(role);
       performRedirect(target);
     }
-  }, [user, profile, isRedirecting, performRedirect]);
+  }, [user, profile, isRedirecting, loading, performRedirect]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

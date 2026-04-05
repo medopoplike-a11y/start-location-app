@@ -24,12 +24,12 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
   const authorized = allowedRoles.map(normalizeRole).includes(userRole);
 
-  useEffect(() => {
-    if (loading) return;
+  // Use a ref to track if we've already initiated a redirect to prevent loops
+  const isRedirecting = React.useRef(false);
 
-    // If we have a user but not authorized, wait a moment to see if the profile/metadata syncs
-    // This handles cases where profile is still being fetched by AuthProvider
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  useEffect(() => {
+    // If we're already redirecting or still loading, do nothing
+    if (loading || isRedirecting.current) return;
 
     const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
 
@@ -38,32 +38,33 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       // before bouncing back to login
       if (isNative) {
         console.log("AuthGuard: No user on native, waiting for session recovery...");
-        timeoutId = setTimeout(() => {
-          if (!user) {
+        const timeoutId = setTimeout(() => {
+          if (!user && !isRedirecting.current) {
             console.log("AuthGuard: Session recovery failed after 4s, redirecting to login");
+            isRedirecting.current = true;
             router.replace("/login");
           }
-        }, 4000); // Increased to 4 seconds for slower devices
+        }, 4000);
+        return () => clearTimeout(timeoutId);
       } else {
+        isRedirecting.current = true;
         router.replace("/login");
       }
     } else if (!authorized) {
       // If user is present but not authorized, wait before redirecting on native
       // This gives AuthProvider time to fetch the profile if it was slow
-      const waitTime = isNative ? 5000 : 1500; // Increased to 5 seconds for native
+      const waitTime = isNative ? 5000 : 1500;
       console.log(`AuthGuard: User [${user.id}] found but not authorized yet, waiting ${waitTime}ms...`);
-      timeoutId = setTimeout(() => {
-        if (!authorized) {
+      const timeoutId = setTimeout(() => {
+        if (!authorized && !isRedirecting.current) {
           console.warn("AuthGuard: Access denied. Required one of:", allowedRoles, "User role:", userRole);
+          isRedirecting.current = true;
           router.replace("/login");
         }
       }, waitTime);
+      return () => clearTimeout(timeoutId);
     }
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [loading, user, authorized, router, userRole]);
+  }, [loading, user, authorized, router, userRole, allowedRoles]);
 
   // Prevent hardware/browser back button from navigating away from the app
   useEffect(() => {
