@@ -37,16 +37,21 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       // On native, give it a tiny bit more time to potentially recover a session
       // before bouncing back to login
       if (isNative) {
+        console.log("AuthGuard: No user on native, waiting...");
         timeoutId = setTimeout(() => {
-          if (!user) router.replace("/login");
-        }, 1000);
+          if (!user) {
+            console.log("AuthGuard: Still no user after wait, redirecting to login");
+            router.replace("/login");
+          }
+        }, 3000); // Increased to 3 seconds for slower devices
       } else {
         router.replace("/login");
       }
     } else if (!authorized) {
       // If user is present but not authorized, wait 2 seconds before redirecting on native
       // This gives AuthProvider time to fetch the profile if it was slow
-      const waitTime = isNative ? 2500 : 1500;
+      const waitTime = isNative ? 4000 : 1500; // Increased to 4 seconds for native
+      console.log(`AuthGuard: User present but not authorized, waiting ${waitTime}ms...`);
       timeoutId = setTimeout(() => {
         if (!authorized) {
           console.warn("AuthGuard: Access denied for role:", userRole);

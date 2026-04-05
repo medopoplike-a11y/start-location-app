@@ -84,6 +84,8 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     storage: appStorage,
+    storageKey: 'start-location-auth',
+    flowType: 'pkce',
     lock: supabaseLock as any,
   },
 });

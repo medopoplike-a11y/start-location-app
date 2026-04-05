@@ -58,10 +58,17 @@ const LoginPage = () => {
         return;
       }
 
-      if (!data?.user) {
+      if (!data?.user || !data?.session) {
         setError("تعذر تسجيل الدخول. تأكد من صحة البيانات.");
         setStatus("");
         return;
+      }
+
+      // Explicitly check for session on native
+      const cap = (window as any).Capacitor;
+      if (cap?.isNativePlatform?.()) {
+        setStatus("جاري حفظ الجلسة على الهاتف...");
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
 
       const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
@@ -69,10 +76,9 @@ const LoginPage = () => {
       setStatus(`تم تسجيل الدخول بنجاح! جاري تحويلك...`);
       
       // Use window.location.href to ensure a clean session state on the next page
-      // This helps avoid issues where AuthProvider/AuthGuard haven't synced yet
       setTimeout(() => {
         window.location.href = target;
-      }, 500);
+      }, 1000);
       
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");
