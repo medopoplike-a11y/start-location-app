@@ -30,15 +30,16 @@ import VendorDrawer from "./components/VendorDrawer";
 import OrderFormModal from "./components/OrderFormModal";
 import VendorAccountModals from "./components/VendorAccountModals";
 
-export default function VendorApp() {
+export default function StoreApp() {
   return (
     <AuthGuard allowedRoles={["vendor", "admin"]}>
-      <VendorContent />
+      <StoreContent />
     </AuthGuard>
   );
 }
 
-function VendorContent() {
+function StoreContent() {
+  const router = useRouter();
   const { toasts, removeToast, success, error } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();
