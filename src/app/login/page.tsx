@@ -120,17 +120,19 @@ const LoginPage = () => {
       // Essential delay for storage persistence before redirect
       setTimeout(async () => {
         try {
+          console.log("LoginPage: Auth delay finished, fetching role...");
           let role = "";
           
           // 1. Check metadata first (fastest)
           const metadataRole = data.user.user_metadata?.role;
           if (metadataRole) {
             role = String(metadataRole).toLowerCase();
+            console.log("LoginPage: Role from metadata:", role);
           }
           
           // 2. Fallback to profile fetch (most reliable)
           if (!role) {
-            console.log("LoginPage: No role in metadata, fetching profile...");
+            console.log("LoginPage: No role in metadata, fetching profile from DB...");
             const { data: profile, error: profileError } = await supabase
               .from('profiles')
               .select('role')
@@ -139,6 +141,7 @@ const LoginPage = () => {
             
             if (profile?.role) {
               role = profile.role.toLowerCase();
+              console.log("LoginPage: Role from DB:", role);
             } else if (profileError) {
               console.error("LoginPage: Profile fetch error", profileError);
             }
@@ -149,6 +152,7 @@ const LoginPage = () => {
             const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").toLowerCase().split(",");
             if (adminEmails.includes(email.toLowerCase())) {
               role = "admin";
+              console.log("LoginPage: Role identified as Admin via email");
             }
           }
 
@@ -156,7 +160,7 @@ const LoginPage = () => {
           const finalRole = role || "driver";
           const target = getRedirectPath(finalRole);
           
-          console.log(`LoginPage: Role identified as ${finalRole}, Redirecting to ${target}`);
+          console.log(`LoginPage: Final Role identified as ${finalRole}, Redirecting to ${target}`);
           
           // Use router.replace for smoother SPA transition
           router.replace(target);
@@ -164,7 +168,7 @@ const LoginPage = () => {
           console.error("LoginPage: Redirection failed", redirErr);
           window.location.assign("/driver"); 
         }
-      }, 800);
+      }, 1500);
     } catch (err: any) {
       console.error("LoginPage: Unexpected error", err);
       setStatus(`حدث خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);

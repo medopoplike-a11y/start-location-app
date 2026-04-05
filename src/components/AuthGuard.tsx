@@ -31,25 +31,28 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
   }, [userRole, allowedRoles]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      console.log("AuthGuard: Still loading auth state...");
+      return;
+    }
 
     const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+    console.log("AuthGuard: State Check", { user: !!user, userRole, authorized, pathname });
 
     if (!user) {
-      console.log("AuthGuard: No user, redirecting to login");
+      console.log("AuthGuard: No user session, redirecting to login");
       router.replace("/login");
     } else if (userRole && !authorized) {
-      console.warn("AuthGuard: Access denied", { userRole, allowedRoles, pathname });
+      console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
       router.replace("/login");
     } else if (!userRole) {
-      // User is logged in but profile/metadata hasn't loaded role yet
-      // Give it a bit more time before deciding they are unauthorized
+      console.log("AuthGuard: User logged in but role not found yet, waiting...");
       const timeoutId = setTimeout(() => {
         if (!userRole) {
-          console.error("AuthGuard: Role not found after timeout, redirecting to login");
+          console.error("AuthGuard: Role discovery timeout, forcing login");
           router.replace("/login");
         }
-      }, isNative ? 10000 : 8000);
+      }, isNative ? 15000 : 10000);
       return () => clearTimeout(timeoutId);
     }
   }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);

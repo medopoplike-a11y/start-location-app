@@ -106,10 +106,14 @@ export default function VendorApp() {
 
   // Initialization & Auth Check
   useEffect(() => {
+    console.log("VendorPage: Init effect started", { authLoading, hasUser: !!user, hasProfile: !!authProfile });
     let isMounted = true;
     const hardFallback = setTimeout(() => {
-      if (isMounted) setLoading(false);
-    }, 6000);
+      if (isMounted && loading) {
+        console.warn("VendorPage: Hard fallback triggered (timeout)");
+        setLoading(false);
+      }
+    }, 10000);
 
     const init = async () => {
       if (authLoading) return;
@@ -117,15 +121,18 @@ export default function VendorApp() {
       try {
         const currentUser = user || await withTimeout('getCurrentUser', getCurrentUser(), 5000);
         if (!currentUser || !isMounted) {
+          console.log("VendorPage: No user found in init");
           if (isMounted) setLoading(false);
           return;
         }
 
         const profile = authProfile || await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000);
+        console.log("VendorPage: Profile fetched", { role: profile?.role });
+
         if (profile && isMounted) {
-          // Safety check: only proceed if user is indeed a vendor or admin
-          if (profile.role !== 'vendor' && profile.role !== 'admin') {
-            console.warn("VendorPage: Unauthorized role", profile.role);
+          const role = (profile.role || '').toLowerCase();
+          if (role !== 'vendor' && role !== 'admin') {
+            console.warn("VendorPage: Unauthorized role", role);
             router.replace("/login");
             return;
           }
@@ -145,23 +152,25 @@ export default function VendorApp() {
             area: profile.area || ""
           });
           
-          // Data fetching with error isolation
+          console.log("VendorPage: Fetching dashboard data...");
           await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
 
           // Fetch config
           try {
-            const { data: config } = await supabase.from('app_config').select('*').maybeSingle();
-            if (config && isMounted) {
+            const { data: configData } = await supabase.from('app_config').select('*').maybeSingle();
+            if (configData && isMounted) {
               setAppConfig({
-                driver_commission: config.driver_commission || 15,
-                vendor_commission: config.vendor_commission || 20,
-                vendor_fee: config.vendor_fee || 1,
-                safe_ride_fee: config.safe_ride_fee || 1
+                driver_commission: configData.driver_commission || 15,
+                vendor_commission: configData.vendor_commission || 20,
+                vendor_fee: configData.vendor_fee || 1,
+                safe_ride_fee: configData.safe_ride_fee || 1
               });
             }
           } catch (configErr) {
             console.error("Fetch config failed", configErr);
           }
+        } else {
+          console.error("VendorPage: No profile found for user", currentUser.id);
         }
       } catch (e) {
         console.error("VendorPage: Init error", e);
