@@ -96,16 +96,24 @@ const LoginPage = () => {
       setStatus("تم تسجيل الدخول بنجاح! جاري الانتقال...");
       
       // Essential delay for storage persistence before redirect
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
-          const target = getRedirectPath(role);
-          console.log(`LoginPage: Redirecting to ${target} via router.push`);
-          router.push(target);
+          // Check metadata first
+          let role = String(data.user.user_metadata?.role || "").toLowerCase();
+          
+          // If no metadata role, fetch profile directly as backup
+          if (!role) {
+            console.log("LoginPage: No role in metadata, fetching profile...");
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+            if (profile?.role) role = profile.role.toLowerCase();
+          }
+          
+          const target = getRedirectPath(role || "driver");
+          console.log(`LoginPage: Redirecting to ${target} via router.replace`);
+          router.replace(target);
         } catch (redirErr) {
-          console.error("LoginPage: router.push failed, falling back to window.location.href", redirErr);
-          const role = String(data.user.user_metadata?.role || "driver").toLowerCase();
-          window.location.href = getRedirectPath(role);
+          console.error("LoginPage: Redirection failed", redirErr);
+          window.location.assign("/driver"); // Hard fallback
         }
       }, 1000);
       

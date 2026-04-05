@@ -6,27 +6,41 @@ import { Preferences } from '@capacitor/preferences';
 const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
-const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+const isNative = typeof window !== 'undefined' && 
+  (window as any).Capacitor?.isNativePlatform?.() === true;
 
 // Standard storage for maximum compatibility with all browsers and Capacitor
 const appStorage: SupportedStorage = {
-  getItem: (key: string): string | null => {
+  getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(key);
-  },
-  setItem: (key: string, value: string): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(key, value);
-    // Mirror to Preferences for extra durability on native
+    
+    // Standard localStorage for browser and initial native state
+    const value = localStorage.getItem(key);
+    if (value) return value;
+
+    // Fallback for native only if localStorage is empty
     if (isNative) {
-      Preferences.set({ key, value }).catch(() => {});
+      return Preferences.get({ key }).then(res => res.value || null);
+    }
+    return null;
+  },
+  setItem: (key: string, value: string): void | Promise<void> => {
+    if (typeof window === 'undefined') return;
+    
+    // Set localStorage first
+    localStorage.setItem(key, value);
+    
+    // Mirror to Preferences for deep persistence on native
+    if (isNative) {
+      return Preferences.set({ key, value });
     }
   },
-  removeItem: (key: string): void => {
+  removeItem: (key: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
+    
     localStorage.removeItem(key);
     if (isNative) {
-      Preferences.remove({ key }).catch(() => {});
+      return Preferences.remove({ key });
     }
   }
 };
@@ -80,9 +94,9 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: !isNative, // Only detect on web
     storage: appStorage,
-    storageKey: 'sb-auth-token', // Back to standard key for best browser compatibility
+    storageKey: 'start-location-v1-session',
     flowType: 'pkce',
     lock: supabaseLock as any,
   },

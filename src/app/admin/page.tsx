@@ -53,7 +53,9 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
-  const { lastSync, isSyncing } = useSync(undefined, () => fetchData(), true);
+  const { lastSync, isSyncing } = useSync(undefined, () => {
+    if (!authLoading && user) fetchData();
+  }, true);
 
   // Data State
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
@@ -251,6 +253,12 @@ export default function AdminPanel() {
 
     const init = async () => {
       if (authLoading) return;
+      
+      // If no user after auth loading, let AuthGuard handle it
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       
       try {
         await fetchData();

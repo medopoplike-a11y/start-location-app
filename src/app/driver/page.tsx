@@ -186,19 +186,6 @@ const [vendorDebt, setVendorDebt] = useState(0);
   async function fetchOrders(explicitDriverId?: string) {
     const activeDriverId = explicitDriverId ?? driverId;
     try {
-      const params = activeDriverId ? `?driverId=${activeDriverId}` : '';
-      const res = await fetch(`/api/driver/orders${params}`);
-      if (!res.ok) throw new Error('fetch failed');
-      const { pending, active } = await res.json();
-      const seen = new Set<string>();
-      const merged = [...(active || []), ...(pending || [])].filter((o: any) => {
-        if (seen.has(o.id)) return false;
-        seen.add(o.id);
-        return true;
-      });
-      setOrders(merged.map(mapDBOrderToUI));
-    } catch {
-      // Fallback to direct Supabase calls
       const [pending, active] = await Promise.all([
         getAvailableOrders(),
         activeDriverId ? getDriverActiveOrders(activeDriverId) : Promise.resolve([]),
@@ -210,28 +197,43 @@ const [vendorDebt, setVendorDebt] = useState(0);
         return true;
       });
       setOrders(merged.map(mapDBOrderToUI));
+    } catch (err) {
+      console.error("fetchOrders error:", err);
     }
   }
 
   async function fetchDeliveredOrders(currentDriverId: string) {
     try {
-      const res = await fetch(`/api/driver/delivered-orders?driverId=${currentDriverId}`);
-      if (!res.ok) return;
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, profiles:vendor_id(full_name, phone, location, area)')
+        .eq('driver_id', currentDriverId)
+        .eq('status', 'delivered')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       setDeliveredOrders(data || []);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("fetchDeliveredOrders error:", err);
     }
   }
 
   async function fetchTodayHistory(currentDriverId: string) {
     try {
-      const res = await fetch(`/api/driver/history?driverId=${currentDriverId}`);
-      if (!res.ok) return;
-      const data = await res.json();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, profiles:vendor_id(full_name, phone, location, area)')
+        .eq('driver_id', currentDriverId)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       setTodayHistory(data || []);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("fetchTodayHistory error:", err);
     }
   }
 
@@ -382,16 +384,19 @@ const [vendorDebt, setVendorDebt] = useState(0);
   const handleConfirmPayment = async (orderId: string) => {
     if (!driverId) return;
     try {
-      const res = await fetch('/api/driver/confirm-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, driverId }),
-      });
-      if (!res.ok) throw new Error('failed');
+      const { error } = await supabase
+        .from('orders')
+        .update({ driver_confirmed_at: new Date().toISOString() })
+        .eq('id', orderId)
+        .eq('driver_id', driverId)
+        .eq('status', 'delivered');
+      
+      if (error) throw error;
+      
       toastSuccess('تم تأكيد تسليم المبلغ! بانتظار تأكيد المحل.');
       void fetchDeliveredOrders(driverId);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Confirm Payment failed:', err);
     }
   };
 

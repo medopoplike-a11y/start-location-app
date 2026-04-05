@@ -19,38 +19,40 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
   const userRole = useMemo(() => {
     if (profile?.role) return normalizeRole(profile.role);
-    return normalizeRole(user?.user_metadata?.role as string | undefined) || "driver";
+    // If no profile yet, check user metadata as backup
+    const metadataRole = user?.user_metadata?.role;
+    if (metadataRole) return normalizeRole(metadataRole);
+    return ""; // Don't default to driver yet, wait for profile
   }, [profile, user]);
 
-  const authorized = allowedRoles.map(normalizeRole).includes(userRole);
+  const authorized = useMemo(() => {
+    if (!userRole) return false;
+    return allowedRoles.map(normalizeRole).includes(userRole);
+  }, [userRole, allowedRoles]);
 
   useEffect(() => {
     if (loading) return;
 
-    const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+    const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
 
     if (!user) {
-      // On native, give it 2 seconds to recover a session
-      if (isNative) {
-        const timeoutId = setTimeout(() => {
-          if (!user) router.replace("/login");
-        }, 2000);
-        return () => clearTimeout(timeoutId);
-      } else {
-        router.replace("/login");
-      }
-    } else if (!authorized) {
-      // Give it 3 seconds for profile to load on native
-      const waitTime = isNative ? 3000 : 1000;
+      console.log("AuthGuard: No user, redirecting to login");
+      router.replace("/login");
+    } else if (userRole && !authorized) {
+      console.warn("AuthGuard: Access denied", { userRole, allowedRoles, pathname });
+      router.replace("/login");
+    } else if (!userRole) {
+      // User is logged in but profile/metadata hasn't loaded role yet
+      // Give it a bit more time before deciding they are unauthorized
       const timeoutId = setTimeout(() => {
-        if (!authorized) {
-          console.warn("AuthGuard: Access denied", { userRole, allowedRoles });
+        if (!userRole) {
+          console.error("AuthGuard: Role not found after timeout, redirecting to login");
           router.replace("/login");
         }
-      }, waitTime);
+      }, isNative ? 5000 : 3000);
       return () => clearTimeout(timeoutId);
     }
-  }, [loading, user, authorized, router, userRole, allowedRoles]);
+  }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);
 
   // Prevent hardware/browser back button from navigating away from the app
   useEffect(() => {

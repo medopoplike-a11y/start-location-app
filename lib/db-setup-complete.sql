@@ -312,31 +312,65 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+
+-- Helper function to check if user is admin
+CREATE OR REPLACE FUNCTION is_admin() 
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Clean up existing policies to avoid conflicts
 DROP POLICY IF EXISTS "profiles_read_policy" ON profiles;
 DROP POLICY IF EXISTS "profiles_update_policy" ON profiles;
 DROP POLICY IF EXISTS "wallets_read_policy" ON wallets;
 DROP POLICY IF EXISTS "orders_read_policy" ON orders;
+DROP POLICY IF EXISTS "app_config_read_policy" ON app_config;
+DROP POLICY IF EXISTS "app_config_admin_policy" ON app_config;
 
 -- Profiles: Users can read their own and admin can read all
 CREATE POLICY "profiles_read_policy" ON profiles FOR SELECT
-  USING (auth.uid() = id OR (auth.jwt() ->> 'role') = 'admin');
+  USING (auth.uid() = id OR is_admin());
 
 CREATE POLICY "profiles_update_policy" ON profiles FOR UPDATE
-  USING (auth.uid() = id OR (auth.jwt() ->> 'role') = 'admin');
+  USING (auth.uid() = id OR is_admin());
 
--- Wallets: Users can only read their own
+-- Wallets: Users can only read their own, admin reads all
 CREATE POLICY "wallets_read_policy" ON wallets FOR SELECT
-  USING (auth.uid() = user_id OR (auth.jwt() ->> 'role') = 'admin');
+  USING (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "wallets_admin_update" ON wallets FOR UPDATE
+  USING (is_admin());
 
 -- Orders: Vendors see their own, Drivers see assigned, Admin sees all
 CREATE POLICY "orders_read_policy" ON orders FOR SELECT
   USING (
     auth.uid() = vendor_id OR
     auth.uid() = driver_id OR
-    (auth.jwt() ->> 'role') = 'admin'
+    is_admin()
   );
+
+CREATE POLICY "orders_admin_policy" ON orders FOR ALL
+  USING (is_admin());
+
+-- App Config: Everyone can read, only admin can update
+CREATE POLICY "app_config_read_policy" ON app_config FOR SELECT
+  USING (true);
+
+CREATE POLICY "app_config_admin_policy" ON app_config FOR ALL
+  USING (is_admin());
+
+-- Settlements: Users see own, Admin sees all
+CREATE POLICY "settlements_read_policy" ON settlements FOR SELECT
+  USING (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "settlements_admin_policy" ON settlements FOR ALL
+  USING (is_admin());
 
 -- ============================================================
 -- SECTION 11: Triggers & Functions

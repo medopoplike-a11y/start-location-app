@@ -8,6 +8,7 @@ import {
   Plus
 } from "lucide-react";
 
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
