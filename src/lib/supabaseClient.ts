@@ -10,24 +10,38 @@ const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
 // Balanced storage approach: Reliable for both Web and Mobile
 const appStorage: SupportedStorage = {
-  getItem: (key: string): string | null => {
+  getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(key);
+    
+    // First try localStorage (standard web)
+    const localValue = localStorage.getItem(key);
+    if (localValue) return localValue;
+
+    // On native, try Preferences if localStorage is empty
+    if (isNative) {
+      return Preferences.get({ key }).then(res => res.value);
+    }
+    
+    return null;
   },
-  setItem: (key: string, value: string): void => {
+  setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
+    
+    // Always set localStorage
     localStorage.setItem(key, value);
     
-    // On native, also mirror to Preferences for extra persistence if needed
+    // On native, mirror to Preferences for deep persistence
     if (isNative) {
-      Preferences.set({ key, value }).catch(() => {});
+      return Preferences.set({ key, value });
     }
   },
-  removeItem: (key: string): void => {
+  removeItem: (key: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
+    
     localStorage.removeItem(key);
+    
     if (isNative) {
-      Preferences.remove({ key }).catch(() => {});
+      return Preferences.remove({ key });
     }
   }
 };

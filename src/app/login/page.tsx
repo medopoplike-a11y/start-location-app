@@ -25,6 +25,27 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [diagInfo, setDiagInfo] = useState<string | null>(null);
+
+  const checkConnection = async () => {
+    try {
+      const start = Date.now();
+      const response = await fetch(`${config.supabase.url}/auth/v1/health`, {
+        headers: { apikey: config.supabase.anonKey }
+      });
+      const end = Date.now();
+      if (response.ok) {
+        setDiagInfo(`✅ تم الاتصال بالسيرفر (${end - start}ms)`);
+      } else {
+        setDiagInfo(`❌ فشل الاتصال: ${response.status} ${response.statusText}`);
+      }
+    } catch (err) {
+      setDiagInfo(`❌ خطأ في الشبكة: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
+    
+    // Auto-hide diagnostic info after 5 seconds
+    setTimeout(() => setDiagInfo(null), 5000);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,6 +72,9 @@ const LoginPage = () => {
         const message = String(signInError.message || "").toLowerCase();
         if (message.includes("invalid login credentials") || message.includes("invalid email")) {
           setError("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+        } else if (message.includes("failed to fetch") || message.includes("network error")) {
+          setError("خطأ في الاتصال بالسيرفر. تأكد من توفر الإنترنت.");
+          checkConnection(); // Auto-trigger diagnostics
         } else {
           setError(signInError.message || "حدث خطأ أثناء تسجيل الدخول.");
         }
@@ -79,6 +103,7 @@ const LoginPage = () => {
       setError(unknownError instanceof Error ? unknownError.message : "حدث خطأ غير متوقع.");
       setLoading(false);
       setStatus("");
+      checkConnection(); // Auto-trigger diagnostics
     }
   };
 
@@ -93,13 +118,19 @@ const LoginPage = () => {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md relative z-10 glass-morphism rounded-[2.5rem] p-8 md:p-10 premium-glow"
       >
-        <div className="flex flex-col items-center mb-8">
-          <StartLogo className="w-20 h-20 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]" />
+        <div className="flex flex-col items-center mb-8" onClick={checkConnection}>
+          <StartLogo className="w-20 h-20 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer" />
           <h1 className="text-3xl font-black text-white mb-1">
             Start Location
           </h1>
           <p className="text-xs text-slate-400 font-medium">النظام الذكي لإدارة التوصيل والمتاجر</p>
         </div>
+
+        {diagInfo && (
+          <div className="mb-4 p-3 bg-black/40 border border-blue-500/30 rounded-xl text-[10px] font-mono text-blue-300 text-center animate-pulse">
+            {diagInfo}
+          </div>
+        )}
 
         {!isSupabaseConfigured && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200 backdrop-blur-md">
