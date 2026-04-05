@@ -41,24 +41,27 @@ async function main() {
     console.log('🔄 Syncing Capacitor with Native Android...');
     run('npx cap sync android');
 
-    // 5. Build Android APK (Release)
-    console.log('🤖 Compiling Android APK (Release mode)...');
+    // 5. Build Android APK (Release & Debug for signing)
+    console.log('🤖 Compiling Android APK...');
     const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
-    run(`cd android && ${gradlew} assembleRelease`);
+    
+    // We build Debug version because it is auto-signed by Android Studio/Gradle
+    // making it installable immediately without manual signing.
+    run(`cd android && ${gradlew} assembleDebug`);
 
-    const apkPath = path.join(buildDir, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
+    const debugApkPath = path.join(buildDir, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
     
     // Read version from package.json
     const pkg = JSON.parse(fs.readFileSync(path.join(buildDir, 'package.json'), 'utf8'));
-    const finalApkName = `Start-Location-v${pkg.version}.apk`;
+    const finalApkName = `Start-Location-v${pkg.version}-ready.apk`;
     const finalPath = path.join(buildDir, finalApkName);
 
-    if (fs.existsSync(apkPath)) {
-      fs.copyFileSync(apkPath, finalPath);
-      console.log(`\n✅ SUCCESS! Your production APK is ready: ${finalApkName}`);
+    if (fs.existsSync(debugApkPath)) {
+      fs.copyFileSync(debugApkPath, finalPath);
+      console.log(`\n✅ SUCCESS! Your installable APK is ready: ${finalApkName}`);
       console.log(`📍 Location: ${finalPath}`);
-      console.log('\n📣 NOTE: Since you are not using Google Play, users can install this file directly (Side-loading).');
-      console.log('✨ Future updates will be pushed automatically via OTA (Capgo) without needing a new APK.');
+      console.log('\n📣 NOTE: This version is auto-signed and will install on any Android phone.');
+      console.log('✨ Future updates will still be pushed automatically via OTA (Capgo).');
     } else {
       throw new Error('APK build failed - file not found.');
     }

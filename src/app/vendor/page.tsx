@@ -112,55 +112,48 @@ export default function VendorApp() {
     const init = async () => {
       if (authLoading) return;
 
-      // Prevent redundant setup
-      if (vendorId === (user?.id || null) && vendorName !== "محل") {
-        return;
-      }
-
       try {
-        if (user && authProfile) {
-          if (vendorId !== user.id || vendorName !== (authProfile.full_name || "محل")) {
-            setVendorId(user.id);
-            setVendorName(authProfile.full_name || "محل");
-            setVendorLocation((authProfile.location as VendorLocation | undefined) || null);
-            setSettingsData({ 
-              name: authProfile.full_name || "", 
-              phone: authProfile.phone || "",
-              area: authProfile.area || ""
-            });
-            
-            void Promise.allSettled([
-              withTimeout('updateData', updateData(user.id), 10000),
-              withTimeout('fetchConfig', (async () => {
-                const { data: config } = await supabase.from('app_config').select('*').single();
-                if (config) {
-                  setAppConfig({
-                    driver_commission: config.driver_commission || 15,
-                    vendor_commission: config.vendor_commission || 20,
-                    vendor_fee: config.vendor_fee || 1,
-                    safe_ride_fee: config.safe_ride_fee || 1
-                  });
-                }
-              })(), 10000)
-            ]);
-          }
+        const currentUser = user || await withTimeout('getCurrentUser', getCurrentUser(), 5000);
+        if (!currentUser) {
           setLoading(false);
           return;
         }
 
-        const currentUser = await withTimeout('getCurrentUser', getCurrentUser(), 5000);
-        if (currentUser) {
-          const profile = await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000);
-          if (profile) {
-            setVendorId(currentUser.id);
-            setVendorName(profile.full_name || "محل");
-            setVendorLocation((profile.location as VendorLocation | undefined) || null);
-            setSettingsData({ 
-              name: profile.full_name || "", 
-              phone: profile.phone || "",
-              area: profile.area || ""
+        const profile = authProfile || await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000);
+        if (profile) {
+          // Safety check: only proceed if user is indeed a vendor
+          if (profile.role !== 'vendor' && profile.role !== 'admin') {
+            setLoading(false);
+            return;
+          }
+
+          setVendorId(currentUser.id);
+          setVendorName(profile.full_name || "محل");
+          
+          // Safer location parsing
+          let loc = profile.location;
+          if (typeof loc === 'string') {
+            try { loc = JSON.parse(loc); } catch { loc = null; }
+          }
+          setVendorLocation((loc as VendorLocation | undefined) || null);
+          
+          setSettingsData({ 
+            name: profile.full_name || "", 
+            phone: profile.phone || "",
+            area: profile.area || ""
+          });
+          
+          void updateData(currentUser.id);
+
+          // Fetch config
+          const { data: config } = await supabase.from('app_config').select('*').single();
+          if (config) {
+            setAppConfig({
+              driver_commission: config.driver_commission || 15,
+              vendor_commission: config.vendor_commission || 20,
+              vendor_fee: config.vendor_fee || 1,
+              safe_ride_fee: config.safe_ride_fee || 1
             });
-            void updateData(currentUser.id);
           }
         }
       } catch (e) {
@@ -176,9 +169,11 @@ export default function VendorApp() {
   }, [user, authProfile, authLoading]);
 
   useEffect(() => {
+    if (!orders || !Array.isArray(orders)) return;
     const pendingCollection = orders.reduce((acc, order) => {
       if ((order.status === "delivered" || order.status === "in_transit") && !order.vendorCollectedAt) {
-        return acc + Number(order.amount.replace(/[^0-9.-]+/g, ""));
+        const amount = Number(order.amount?.replace(/[^0-9.-]+/g, "") || 0);
+        return acc + (isNaN(amount) ? 0 : amount);
       }
       return acc;
     }, 0);
@@ -186,41 +181,52 @@ export default function VendorApp() {
   }, [orders]);
 
   const updateData = async (uid: string) => {
+    if (!uid) return;
     setIsSyncing(true);
     setLastSync(new Date());
     try {
-      const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.all([
+      const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.allSettled([
         getVendorOrders(uid),
         supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
         supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true)
       ]);
 
-      if (dbOrders) {
-        setOrders(dbOrders.map(mapDBOrderToUI));
-        const deliveredCommission = dbOrders
+      if (dbOrders.status === 'fulfilled' && dbOrders.value) {
+        setOrders(dbOrders.value.map(mapDBOrderToUI));
+        const deliveredCommission = dbOrders.value
           .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
           .reduce((sum: number, o: any) => sum + (o.financials?.system_commission || 0), 0);
         setCompanyCommission(deliveredCommission);
-      } else if (walletRes.data) {
-        setCompanyCommission(walletRes.data.system_balance || 0);
       }
-      if (settlementsRes.data) {
-        setSettlementHistory(settlementsRes.data.map(s => ({
+
+      if (walletRes.status === 'fulfilled' && walletRes.value.data) {
+        setCompanyCommission(walletRes.value.data.system_balance || 0);
+      }
+
+      if (settlementsRes.status === 'fulfilled' && settlementsRes.value.data) {
+        setSettlementHistory(settlementsRes.value.data.map(s => ({
           id: s.id,
           amount: s.amount,
           status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
-          date: new Date(s.created_at).toLocaleDateString('ar-EG')
+          date: s.created_at ? new Date(s.created_at).toLocaleDateString('ar-EG') : "تاريخ غير معروف"
         })));
       }
-      if (driversRes.data) {
-        const drivers = driversRes.data
-          .map((d) => ({
-            id: d.id,
-            name: d.full_name,
-            lat: d.location?.lat,
-            lng: d.location?.lng
-          }))
+
+      if (driversRes.status === 'fulfilled' && driversRes.value.data) {
+        const drivers = driversRes.value.data
+          .map((d) => {
+            let loc = d.location;
+            if (typeof loc === 'string') {
+              try { loc = JSON.parse(loc); } catch { loc = null; }
+            }
+            return {
+              id: d.id,
+              name: d.full_name || "سائق",
+              lat: (loc as any)?.lat,
+              lng: (loc as any)?.lng
+            };
+          })
           .filter((d): d is OnlineDriver => typeof d.lat === "number" && typeof d.lng === "number");
         setOnlineDrivers(drivers);
       }
@@ -236,7 +242,10 @@ export default function VendorApp() {
       Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
     } catch (e) {}
     
-    if (!confirm('هل أنت متأكد من إلغاء الطلب؟')) return;
+    // Safety check for confirm on native
+    const shouldCancel = typeof window !== 'undefined' && window.confirm ? window.confirm('هل أنت متأكد من إلغاء الطلب؟') : true;
+    if (!shouldCancel) return;
+
     const { error: cancelErr } = await cancelOrder(orderId);
     if (!cancelErr) {
       success('تم إلغاء الطلب بنجاح');
@@ -246,34 +255,40 @@ export default function VendorApp() {
     }
   };
 
-  const mapDBOrderToUI = (db: VendorDBOrder): Order => ({
-    id: db.id,
-    customer: db.customer_details?.name || "عميل",
-    phone: db.customer_details?.phone || "",
-    address: db.customer_details?.address || "عنوان غير محدد",
-    status: db.status,
-    driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
-    driverPhone: db.driver?.phone || "",
-    amount: `${db.financials?.order_value || 0} ج.م`,
-    deliveryFee: `${db.financials?.delivery_fee || 0} ج.م`,
-    time: formatVendorTime(db.created_at || ""),
-    createdAt: db.created_at || new Date().toISOString(),
-    isPickedUp: db.status !== 'pending' && db.status !== 'assigned',
-    notes: db.customer_details?.notes || "",
-    prepTime: db.financials?.prep_time || "15",
-    invoiceUrl: db.invoice_url,
-    vendorCollectedAt: db.vendor_collected_at,
-    driverConfirmedAt: db.driver_confirmed_at,
-    financials: db.financials ? {
-      order_value: db.financials.order_value,
-      delivery_fee: db.financials.delivery_fee,
-      system_commission: db.financials.system_commission,
-      vendor_commission: db.financials.vendor_commission,
-      driver_earnings: db.financials.driver_earnings,
-      insurance_fee: db.financials.insurance_fee,
-      prep_time: db.financials.prep_time,
-    } : undefined,
-  });
+  const mapDBOrderToUI = (db: VendorDBOrder): Order => {
+    // Robust mapping with safety checks
+    const financials = db.financials || { order_value: 0, delivery_fee: 0 };
+    const customer = db.customer_details || { name: "عميل", address: "عنوان غير محدد" };
+
+    return {
+      id: db.id,
+      customer: customer.name || "عميل",
+      phone: customer.phone || "",
+      address: customer.address || "عنوان غير محدد",
+      status: db.status || 'pending',
+      driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
+      driverPhone: db.driver?.phone || "",
+      amount: `${financials.order_value || 0} ج.م`,
+      deliveryFee: `${financials.delivery_fee || 0} ج.م`,
+      time: formatVendorTime(db.created_at || ""),
+      createdAt: db.created_at || new Date().toISOString(),
+      isPickedUp: db.status !== 'pending' && db.status !== 'assigned',
+      notes: customer.notes || "",
+      prepTime: financials.prep_time || "15",
+      invoiceUrl: db.invoice_url,
+      vendorCollectedAt: db.vendor_collected_at,
+      driverConfirmedAt: db.driver_confirmed_at,
+      financials: db.financials ? {
+        order_value: financials.order_value,
+        delivery_fee: financials.delivery_fee,
+        system_commission: financials.system_commission,
+        vendor_commission: financials.vendor_commission,
+        driver_earnings: financials.driver_earnings,
+        insurance_fee: financials.insurance_fee,
+        prep_time: financials.prep_time,
+      } : undefined,
+    };
+  };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;

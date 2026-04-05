@@ -1,5 +1,6 @@
 "use client";
 
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { Camera, MapPin, X, Loader2, AlertTriangle } from "lucide-react";
 import type { ChangeEvent } from "react";
@@ -44,6 +45,14 @@ export default function OrderFormModal({ hasVendorLocation = true,
   onInvoiceUpload,
   onSave,
 }: OrderFormModalProps) {
+  const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        await Haptics.impact({ style }).catch(() => {});
+      }
+    } catch (e) {}
+  };
+
   return (
     <AnimatePresence>
       {show && (
@@ -76,14 +85,8 @@ export default function OrderFormModal({ hasVendorLocation = true,
               </div>
               <div className="flex gap-4">
                 <button 
-                  onClick={async () => {
-                    try {
-                      // @ts-ignore
-                      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-                        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-                      }
-                    } catch (e) {}
+                  onClick={() => {
+                    triggerHaptic();
                     onPickCustomerLocation();
                   }}
                   disabled={isSaving} 

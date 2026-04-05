@@ -1,5 +1,6 @@
 "use client";
 
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { History, LogOut, MapPin, Settings, Store, Wallet, X } from "lucide-react";
 
@@ -22,14 +23,16 @@ export default function VendorDrawer({
   onUpdateLocation,
   onSignOut,
 }: VendorDrawerProps) {
-  const handleNavClick = async (view: "store" | "wallet" | "history" | "settings") => {
+  const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
-      // @ts-ignore
-      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        await Haptics.impact({ style }).catch(() => {});
       }
     } catch (e) {}
+  };
+
+  const handleNavClick = async (view: "store" | "wallet" | "history" | "settings") => {
+    triggerHaptic();
     onChangeView(view);
     onClose();
   };
@@ -47,26 +50,14 @@ export default function VendorDrawer({
               <button onClick={() => handleNavClick("history")} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "history" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><History className="w-5 h-5" /><span className="text-sm font-bold">سجل العمليات</span></button>
               <button onClick={() => handleNavClick("settings")} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "settings" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Settings className="w-5 h-5" /><span className="text-sm font-bold">إعدادات الحساب</span></button>
               <div className="h-px bg-gray-100 my-4" />
-              <button onClick={async () => { 
-                try {
-                  // @ts-ignore
-                  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                    const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-                    await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-                  }
-                } catch (e) {}
+              <button onClick={() => { 
+                triggerHaptic();
                 onClose(); 
                 onUpdateLocation(); 
               }} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 rounded-2xl transition-colors"><MapPin className="w-5 h-5 text-gray-400" /><span className="text-sm font-bold text-gray-700">تحديث موقع المحل</span></button>
             </div>
-            <div className="p-4 border-t border-gray-100"><button onClick={async () => {
-              try {
-                // @ts-ignore
-                if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                  const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-                  await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
-                }
-              } catch (e) {}
+            <div className="p-4 border-t border-gray-100"><button onClick={() => {
+              triggerHaptic(ImpactStyle.Medium);
               onSignOut();
             }} className="w-full flex items-center gap-3 p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-colors"><LogOut className="w-5 h-5" /><span className="text-sm font-bold">تسجيل الخروج</span></button></div>
           </motion.div>

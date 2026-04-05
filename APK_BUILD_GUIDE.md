@@ -61,8 +61,9 @@ npm install --legacy-peer-deps
 ```bash
 # تعيين متغيرات البيئة
 $env:BUILD_TYPE = 'static'
-$env:NEXT_PUBLIC_SUPABASE_URL = 'https://your-project-ref.supabase.co'
+$env:NEXT_PUBLIC_SUPABASE_URL = 'https://sdpjvorettivpdviytqo.supabase.co'
 $env:NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+$env:NEXT_PUBLIC_APP_URL = 'https://start-location-app.vercel.app'
 
 # بناء المشروع
 npm run build:mobile

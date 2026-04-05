@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, RefreshCw } from "lucide-react";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { motion } from "framer-motion";
 
@@ -15,18 +15,20 @@ interface VendorHeaderProps {
 }
 
 export default function VendorHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync }: VendorHeaderProps) {
+  const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        await Haptics.impact({ style }).catch(() => {});
+      }
+    } catch (e) {}
+  };
+
   return (
     <header className="bg-white/80 backdrop-blur-xl p-4 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
       <div className="flex items-center gap-3">
         <button 
-          onClick={async () => {
-            try {
-              // @ts-ignore
-              if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-                await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
-              }
-            } catch (e) {}
+          onClick={() => {
+            triggerHaptic();
             onOpenDrawer();
           }}
           className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all border border-gray-100"
@@ -43,14 +45,8 @@ export default function VendorHeader({ vendorName, lastSync, isSyncing, searchQu
 
         <motion.button
           whileTap={{ scale: 0.9, rotate: 180 }}
-          onClick={async () => {
-            try {
-              // @ts-ignore
-              if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-                await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
-              }
-            } catch (e) {}
+          onClick={() => {
+            triggerHaptic();
             onSync();
           }}
           disabled={isSyncing}
