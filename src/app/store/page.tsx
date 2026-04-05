@@ -114,34 +114,40 @@ function VendorContent() {
 
   // Initialization & Auth Check
   useEffect(() => {
-    console.log("VendorPage: Init effect started", { authLoading, hasUser: !!user, hasProfile: !!authProfile });
+    console.log("StorePage: Init effect started", { authLoading, hasUser: !!user, hasProfile: !!authProfile });
     let isMounted = true;
+    
+    // Radical Fix: Automatic rescue if stuck in loading for too long
     const hardFallback = setTimeout(() => {
       if (isMounted && loading) {
-        console.warn("VendorPage: Hard fallback triggered (timeout)");
+        console.warn("StorePage: Hard fallback triggered (timeout) - Forcing stop loading");
         setLoading(false);
       }
-    }, 10000);
+    }, 15000);
 
     const init = async () => {
       if (authLoading) return;
 
       try {
-        const currentUser = user || await withTimeout('getCurrentUser', getCurrentUser(), 5000);
+        const currentUser = user || await withTimeout('getCurrentUser', getCurrentUser(), 5000).catch(() => null);
         if (!currentUser || !isMounted) {
-          console.log("VendorPage: No user found in init");
+          console.log("StorePage: No user found in init, letting AuthGuard handle it");
           if (isMounted) setLoading(false);
           return;
         }
 
-        const profile = authProfile || await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000);
-        console.log("VendorPage: Profile fetched", { role: profile?.role });
+        const profile = authProfile || await withTimeout('getUserProfile', getUserProfile(currentUser.id), 5000).catch(() => null);
+        console.log("StorePage: Profile fetched", { role: profile?.role });
 
         if (profile && isMounted) {
           const role = (profile.role || '').toLowerCase();
           if (role !== 'vendor' && role !== 'admin') {
-            console.warn("VendorPage: Unauthorized role", role);
-            router.replace("/login");
+            console.warn("StorePage: Unauthorized role", role);
+            if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+              window.location.assign("/login/");
+            } else {
+              router.replace("/login/");
+            }
             return;
           }
 
@@ -160,7 +166,7 @@ function VendorContent() {
             area: profile.area || ""
           });
           
-          console.log("VendorPage: Fetching dashboard data...");
+          console.log("StorePage: Fetching dashboard data...");
           await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
 
           // Fetch config
@@ -178,10 +184,12 @@ function VendorContent() {
             console.error("Fetch config failed", configErr);
           }
         } else {
-          console.error("VendorPage: No profile found for user", currentUser.id);
+          console.error("StorePage: No profile found for user", currentUser.id);
+          // Don't hang forever if profile missing
+          if (isMounted) setLoading(false);
         }
       } catch (e) {
-        console.error("VendorPage: Init error", e);
+        console.error("StorePage: Init error", e);
       } finally {
         if (isMounted) {
           clearTimeout(hardFallback);

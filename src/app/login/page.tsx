@@ -12,11 +12,11 @@ import { useRouter } from "next/navigation";
 const isSupabaseConfigured = config.isConfigured();
 
 const getRedirectPath = (role?: string) => {
-  if (!role) return "/driver";
+  if (!role) return "/driver/";
   const normalized = role.toLowerCase();
-  if (normalized === "admin") return "/admin";
-  if (normalized === "vendor") return "/store";
-  return "/driver";
+  if (normalized === "admin") return "/admin/";
+  if (normalized === "vendor") return "/store/";
+  return "/driver/";
 };
 
 const LoginPage = () => {
