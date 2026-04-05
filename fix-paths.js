@@ -4,23 +4,9 @@ const path = require('path');
 const outDir = path.join(__dirname, 'out');
 
 function walk(dir) {
-  if (!fs.existsSync(dir)) return;
-  const files = fs.readdirSync(dir);
-  files.forEach(file => {
-    const filePath = path.join(dir, file);
-    if (fs.statSync(filePath).isDirectory()) {
-      walk(filePath);
-    } else if (file.endsWith('.html') || file.endsWith('.js') || file.endsWith('.css')) {
-      let content = fs.readFileSync(filePath, 'utf8');
-
-      // تحويل المسارات المطلقة إلى نسبية لتعمل داخل Capacitor
-      content = content.replace(/(?<=href="|src=")\/_next\//g, '_next/');
-      content = content.replace(/(?<=href="|src=")\/images\//g, 'images/');
-      content = content.replace(/url\(\/_next\//g, 'url(_next/');
-
-      fs.writeFileSync(filePath, content);
-    }
-  });
+  // تم تعطيل تعديل المسارات هنا لأن استخدام androidScheme: "https" و hostname: "localhost"
+  // يجعل المسارات المطلقة (/_next/...) تعمل بشكل مثالي وبدون أخطاء الشاشة البيضاء.
+  console.log('Skipping path rewrite, using native absolute paths for safety.');
 }
 
 if (fs.existsSync(outDir)) {

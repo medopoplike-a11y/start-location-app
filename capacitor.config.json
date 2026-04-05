@@ -4,7 +4,8 @@
   "webDir": "out",
   "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "hostname": "localhost"
   },
   "android": {
     "allowMixedContent": false,
