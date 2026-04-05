@@ -22,9 +22,18 @@ const LoginPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+
+  // Load remembered email
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('remembered_email');
+      if (savedEmail) setEmail(savedEmail);
+    }
+  }, []);
   const [diagInfo, setDiagInfo] = useState<string | null>(null);
 
   const checkConnection = async () => {
@@ -75,6 +84,13 @@ const LoginPage = () => {
 
       setStatus("تم تسجيل الدخول بنجاح! جاري الانتقال...");
       
+      // Save email for next time
+      if (typeof window !== 'undefined' && rememberMe) {
+        localStorage.setItem('remembered_email', email.trim());
+      } else if (typeof window !== 'undefined') {
+        localStorage.removeItem('remembered_email');
+      }
+
       // Essential delay for storage persistence before redirect
       setTimeout(async () => {
         try {
@@ -199,6 +215,19 @@ const LoginPage = () => {
                 className="w-full bg-slate-900/40 border border-white/5 px-5 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-2">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-700 bg-slate-900/40 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="rememberMe" className="text-xs font-bold text-slate-400">
+              تذكر البريد الإلكتروني
+            </label>
           </div>
 
           {(error || status) && (
