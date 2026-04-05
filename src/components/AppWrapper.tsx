@@ -21,12 +21,13 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
   // Timeout fallback - force hydration after 3 seconds
   React.useEffect(() => {
-    if (isHydrated) return;
+    const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+    const hydrationTimeout = isCapacitor ? 10000 : 3000;
     
     const timeout = setTimeout(() => {
-      console.warn("AppWrapper: Forced hydration after 3s timeout");
+      console.warn(`AppWrapper: Forced hydration after ${hydrationTimeout/1000}s timeout`);
       setIsHydrated(true);
-    }, 3000);
+    }, hydrationTimeout);
     return () => clearTimeout(timeout);
   }, [isHydrated]);
 
