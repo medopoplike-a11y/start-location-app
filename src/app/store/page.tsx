@@ -98,19 +98,25 @@ function StoreContent() {
 
   // Sound notification logic
   useEffect(() => {
+    // Only proceed if we have a previous count and new orders were actually added
     if (lastOrderCount !== null && orders.length > lastOrderCount) {
-      const activeNewOrders = orders.filter(o => o.status === 'pending').length;
-      const lastActiveNewOrders = orders.slice(0, lastOrderCount).filter(o => o.status === 'pending').length;
+      // Since orders are sorted by created_at DESC, new orders are at the beginning
+      const newOrders = orders.slice(0, orders.length - lastOrderCount);
+      const hasNewPending = newOrders.some(o => o.status === 'pending');
       
-      if (activeNewOrders > lastActiveNewOrders) {
-        console.log("StorePage: New order detected, playing sound...");
-        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
-        audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
-        
-        if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-          import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
-            Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-          });
+      if (hasNewPending) {
+        console.log("StorePage: New pending order detected, playing sound...");
+        try {
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+          audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
+          
+          if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+            import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
+              Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+            }).catch(() => {});
+          }
+        } catch (audioErr) {
+          console.error("StorePage: Audio playback error", audioErr);
         }
       }
     }
@@ -257,7 +263,7 @@ function StoreContent() {
         setOrders(dbOrders.value.map(mapDBOrderToUI));
         const deliveredCommission = dbOrders.value
           .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
-          .reduce((sum: number, o: any) => sum + (o.financials?.system_commission || 0), 0);
+          .reduce((sum: number, o: any) => sum + (o.financials?.vendor_commission || 0), 0);
         setCompanyCommission(deliveredCommission);
       }
 
@@ -635,7 +641,7 @@ function StoreContent() {
             commissionDetails={{
               totalDeliveryFees: orders.filter(o => o.status === "delivered").reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
               orderCount: orders.filter(o => o.status === "delivered").length,
-              commissionRate: appConfig.driver_commission / 100,
+              commissionRate: appConfig.vendor_commission / 100,
               commissionPerOrder: appConfig.vendor_fee || 1,
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
