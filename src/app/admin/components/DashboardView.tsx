@@ -27,6 +27,8 @@ interface DashboardViewProps {
   stats: StatItem[];
   onlineDrivers: OnlineDriver[];
   vendors: VendorCard[];
+  liveOrders: LiveOrderItem[];
+  allOrders: AdminOrder[];
   systemHealth: {
     activeOrdersCount: number;
     onlineDriversCount: number;
@@ -35,7 +37,7 @@ interface DashboardViewProps {
   };
 }
 
-export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, systemHealth }: DashboardViewProps) {
+export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, liveOrders, allOrders, systemHealth }: DashboardViewProps) {
   return (
     <div className="space-y-8">
       {/* Upper Section: Stats & Activity */}
@@ -174,8 +176,23 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
         
         <div className="h-[450px] relative">
           <LiveMap
-            drivers={onlineDrivers}
-            vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng }] : [])}
+            drivers={onlineDrivers.map(d => ({
+              ...d,
+              status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
+              details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
+            }))}
+            vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
+            orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned') && vendors.find(v => v.id_full === o.vendor_id)?.location).map(o => {
+              const v = vendors.find(v => v.id_full === o.vendor_id)!;
+              return {
+                id: o.id,
+                name: o.vendor_full_name || "محل",
+                lat: v.location!.lat!,
+                lng: v.location!.lng!,
+                status: o.status === 'pending' ? 'جاري البحث عن طيار' : 'تم التعيين - بانتظار التحصيل',
+                details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
+              };
+            })}
             zoom={13}
             className="h-full w-full"
           />

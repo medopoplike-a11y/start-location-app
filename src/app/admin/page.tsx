@@ -560,14 +560,16 @@ function AdminContent() {
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
           <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
-              <DashboardView
-                activityLog={activityLog}
-                stats={stats}
-                onlineDrivers={onlineDrivers}
-                vendors={vendors}
-                systemHealth={systemHealth}
-              />
-            )}
+        <DashboardView 
+          activityLog={activityLog} 
+          stats={stats} 
+          onlineDrivers={onlineDrivers} 
+          vendors={vendors}
+          liveOrders={liveOrders}
+          allOrders={allOrders}
+          systemHealth={systemHealth}
+        />
+      )}
 
             {activeView === "operations" && (
               <OperationsCenter

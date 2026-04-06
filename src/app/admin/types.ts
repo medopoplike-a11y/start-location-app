@@ -62,6 +62,7 @@ export interface OnlineDriver {
   lat: number;
   lng: number;
   lastSeen: string;
+  status?: 'available' | 'busy';
 }
 
 export interface SettlementItem {
