@@ -41,12 +41,13 @@ jobs:
           
       - name: Update App Version in DB
         run: |
-          # Update the version in app_config table automatically
+          # Update the version in app_config table using UPSERT to ensure it works even if id=1 is missing
           NEW_VERSION=$(node -p "require('./package.json').version")
-          # Use SERVICE_ROLE_KEY for both headers to bypass RLS
-          curl -X PATCH "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/app_config?id=eq.1" \
+          BUNDLE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip"
+          
+          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/app_config" \
           -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
           -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
           -H "Content-Type: application/json" \
-          -H "Prefer: return=minimal" \
-          -d "{\"latest_version\": \"$NEW_VERSION\", \"bundle_url\": \"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip\", \"force_update\": true}"
+          -H "Prefer: resolution=merge-duplicates" \
+          -d "{\"id\": 1, \"latest_version\": \"$NEW_VERSION\", \"bundle_url\": \"$BUNDLE_URL\", \"force_update\": true}"

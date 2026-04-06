@@ -288,7 +288,7 @@ const LoginPage = () => {
             className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
               !isSupabaseConfigured 
                 ? "bg-red-600" 
-                : "bg-slate-900 hover:bg-slate-800 shadow-slate-500/25"
+                : "bg-gradient-to-r from-blue-700 to-indigo-800 hover:shadow-blue-500/25"
             } disabled:opacity-50`}
           >
             {loading ? "جاري التحقق..." : "تسجيل الدخول"}
@@ -298,7 +298,7 @@ const LoginPage = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.0-STABLE</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.1-STABLE</span>
               <div className="flex items-center gap-1">
                 <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
                 <span className="text-[7px] font-black text-emerald-500/80 uppercase">نظام التحديث التلقائي: نشط</span>
@@ -321,7 +321,7 @@ const LoginPage = () => {
                     if (res.available) {
                       setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
                     } else {
-                      setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"})`);
+                      setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
                     }
                   } catch (e: any) {
                     setOtaStatus(`فشل الفحص: ${e.message}`);

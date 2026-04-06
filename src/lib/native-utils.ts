@@ -140,10 +140,9 @@ const isValidUpdateUrl = async (url: string) => {
  * يقوم بالتحقق من جدول app_config في Supabase وتحميل التحديث فوراً
  */
 export const checkForAutoUpdate = async () => {
-  if (!isNative()) return { available: false };
+  if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
 
   try {
-    // التحقق من الإعدادات بدون قفل لتجنب أي تعارض أو بطء
     const { data: config, error: configError } = await supabase
       .from('app_config')
       .select('*')
@@ -151,7 +150,7 @@ export const checkForAutoUpdate = async () => {
 
     if (configError) {
       console.warn('Native: checkForAutoUpdate skip due to config error:', configError.message);
-      return { available: false };
+      return { available: false, reason: 'DB_ERROR', error: configError.message };
     }
 
     if (!config) {
@@ -162,18 +161,18 @@ export const checkForAutoUpdate = async () => {
     const current = await CapacitorUpdater.getLatest();
     const bundleUrl = String(config.bundle_url || '').trim();
 
-    console.log(`Native OTA: Current version on phone: ${current.version}`);
-    console.log(`Native OTA: Latest version in DB: ${config.latest_version}`);
+    console.log(`Native OTA: Phone version: ${current.version}`);
+    console.log(`Native OTA: DB version: ${config.latest_version}`);
     console.log(`Native OTA: Bundle URL: ${bundleUrl}`);
 
     if (config.latest_version === current.version) {
-      console.log('Native: Version is up to date:', current.version);
-      return { available: false, version: config.latest_version };
+      console.log('Native: Version is exactly the same:', current.version);
+      return { available: false, version: config.latest_version, reason: 'SAME_VERSION' };
     }
 
     if (!bundleUrl || !config.latest_version) {
       console.warn('Native: Update URL or version not found in DB');
-      return { available: false, version: config.latest_version };
+      return { available: false, version: config.latest_version, reason: 'MISSING_CONFIG' };
     }
 
     if (!(await isValidUpdateUrl(bundleUrl))) {
