@@ -166,14 +166,14 @@ export const checkForAutoUpdate = async () => {
     console.log(`Native OTA: Latest version in DB: ${config.latest_version}`);
     console.log(`Native OTA: Bundle URL: ${bundleUrl}`);
 
-    if (!bundleUrl || !config.latest_version) {
-      console.warn('Native: Update config missing bundle_url or latest_version');
-      return { available: false };
-    }
-
     if (config.latest_version === current.version) {
       console.log('Native: Version is up to date:', current.version);
-      return { available: false };
+      return { available: false, version: config.latest_version };
+    }
+
+    if (!bundleUrl || !config.latest_version) {
+      console.warn('Native: Update URL or version not found in DB');
+      return { available: false, version: config.latest_version };
     }
 
     if (!(await isValidUpdateUrl(bundleUrl))) {
