@@ -54,20 +54,20 @@ export const calculateOrderFinancials = (distance: number, surgeFee: number = 0,
   const insuranceFundTotal = driverInsurance + vendorInsurance;
   
   // System Commission (Driver side)
-  const systemCommission = deliveryFee * driverCommPct;
+  const systemCommission = Math.round(deliveryFee * driverCommPct * 100) / 100;
 
   // System Commission (Vendor side)
-  const vendorCommission = deliveryFee * vendorCommPct;
+  const vendorCommission = Math.round(deliveryFee * vendorCommPct * 100) / 100;
   
   // Driver Earnings: The delivery fee minus the system commission and their insurance contribution
-  const driverEarnings = deliveryFee - systemCommission - driverInsurance;
+  const driverEarnings = Math.round((deliveryFee - systemCommission - driverInsurance) * 100) / 100;
 
   // Vendor Fee: Fixed contribution to insurance
   const vendorFee = vendorInsurance;
 
   return {
-    totalFee: deliveryFee,
-    insuranceFundTotal,
+    totalFee: Math.round(deliveryFee * 100) / 100,
+    insuranceFundTotal: Math.round(insuranceFundTotal * 100) / 100,
     systemCommission,
     vendorCommission,
     driverEarnings,
