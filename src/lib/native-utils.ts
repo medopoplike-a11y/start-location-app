@@ -174,6 +174,7 @@ export const checkForAutoUpdate = async () => {
     }
 
     if (config.latest_version === current.version) {
+      console.log('Native: Version is up to date:', current.version);
       return { available: false };
     }
 

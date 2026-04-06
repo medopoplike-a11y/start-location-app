@@ -28,6 +28,7 @@ const LoginPage = () => {
   const [status, setStatus] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [diagInfo, setDiagInfo] = useState<string | null>(null);
+  const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
 
   // Simple session check to avoid loop
   useEffect(() => {
@@ -59,6 +60,26 @@ const LoginPage = () => {
     if (typeof window !== 'undefined') {
       const savedEmail = localStorage.getItem('remembered_email');
       if (savedEmail) setEmail(savedEmail);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+      const checkOta = async () => {
+        try {
+          const { checkForAutoUpdate } = await import("@/lib/native-utils");
+          setOtaStatus("بدء فحص التحديث...");
+          const res = await checkForAutoUpdate();
+          if (res.available) {
+            setOtaStatus(`تحديث متاح: v${res.version}`);
+          } else {
+            setOtaStatus("لا يوجد تحديث متاح");
+          }
+        } catch (e: any) {
+          setOtaStatus(`خطأ في الفحص: ${e.message}`);
+        }
+      };
+      checkOta();
     }
   }, []);
 
@@ -274,11 +295,17 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
-          <span className="text-[9px] font-bold text-slate-500">v0.3.5-LITE</span>
-          <div className="flex items-center gap-2">
-            <span className={`w-1 h-1 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
-            <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
+        <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-bold text-slate-500">v0.3.5-LITE</span>
+            <div className="flex items-center gap-2">
+              <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
+              <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
+            </div>
+          </div>
+          <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+            <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">حالة التحديث OTA</p>
+            <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
           </div>
         </div>
       </motion.section>
