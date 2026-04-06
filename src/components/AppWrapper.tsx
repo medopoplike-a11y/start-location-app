@@ -40,10 +40,6 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             setProgress(percent);
             if (percent >= 100) {
               setUpdateStatus("ready");
-              // Force immediate reload on 100% download if needed
-              setTimeout(() => {
-                window.location.reload();
-              }, 2000);
             }
           });
 
