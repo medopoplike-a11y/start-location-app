@@ -5,15 +5,15 @@ const archiver = require('archiver');
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'out');
-const distDir = path.join(root, 'dist');
-const zipPath = path.join(distDir, 'update.zip');
+const publicDir = path.join(root, 'public');
+const zipPath = path.join(publicDir, 'update.zip');
 
 if (!fs.existsSync(outDir)) {
   console.error('Error: out directory not found. Run the build first.');
   process.exit(1);
 }
 
-fs.mkdirSync(distDir, { recursive: true });
+fs.mkdirSync(publicDir, { recursive: true });
 
 const output = fs.createWriteStream(zipPath);
 const archive = archiver('zip', { zlib: { level: 9 } });
