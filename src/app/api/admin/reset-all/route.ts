@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/server/supabaseAdminClient';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST() {
   try {
     const supabase = getSupabaseAdminClient();
