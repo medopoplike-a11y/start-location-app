@@ -193,7 +193,10 @@ const LoginPage = () => {
           <h1 className="text-3xl font-black text-white mb-1">
             Start Location
           </h1>
-          <p className="text-xs text-slate-400 font-medium">النظام الذكي لإدارة التوصيل والمتاجر</p>
+          <div className="mt-2 px-4 py-1 bg-orange-500 text-white text-[10px] font-black rounded-full animate-bounce shadow-lg shadow-orange-200">
+            نظام التوزيع الذكي - الإصدار 0.2.5
+          </div>
+          <p className="text-xs text-slate-400 font-medium mt-2">النظام الذكي لإدارة التوصيل والمتاجر</p>
         </div>
 
         {diagInfo && (
