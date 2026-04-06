@@ -37,7 +37,13 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             const percent = data.percent ?? 0;
             setUpdateStatus("downloading");
             setProgress(percent);
-            if (percent >= 100) setUpdateStatus("ready");
+            if (percent >= 100) {
+              setUpdateStatus("ready");
+              // Force immediate reload on 100% download if needed
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+            }
           });
 
           const updateInfo = await checkForAutoUpdate();
@@ -104,7 +110,14 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
             {updateStatus === "ready" && (
               <button
-                onClick={() => window.location.reload()}
+                onClick={async () => {
+                  try {
+                    const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                    await CapacitorUpdater.reload();
+                  } catch (e) {
+                    window.location.reload();
+                  }
+                }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[11px] font-black shadow-lg shadow-blue-100 active:scale-95 transition-all"
               >
                 تحديث الآن

@@ -190,8 +190,14 @@ export const checkForAutoUpdate = async () => {
       version: config.latest_version
     });
 
-    // Never force update automatically to prevent infinite reload loops
-    // Let the UI handle the update by showing a button
+    console.log('Native: Download complete, bundle ID:', bundle.id);
+
+    // If it's a force update, apply and reload immediately
+    if (config.force_update) {
+      console.log('Native: Force update active, applying and reloading...');
+      await CapacitorUpdater.set({ id: bundle.id });
+      await CapacitorUpdater.reload();
+    }
     
     return {
       available: true,
