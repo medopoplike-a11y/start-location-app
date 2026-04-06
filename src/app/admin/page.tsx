@@ -53,9 +53,21 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
-  const { lastSync, isSyncing } = useSync(undefined, () => {
+  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, () => {
     if (!authLoading && user) fetchData();
   }, true);
+
+  const handleBroadcast = useCallback(async (msg: string) => {
+    try {
+      setActionLoading(true);
+      await broadcastAlert(msg);
+      addActivity(`تم إرسال تنبيه عام: ${msg.slice(0, 20)}...`);
+    } catch (e) {
+      console.error("Broadcast failed", e);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [broadcastAlert, addActivity]);
 
   // Data State
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
@@ -72,6 +84,19 @@ export default function AdminPanel() {
   const [totalProfits, setTotalProfits] = useState(0);
   const [insuranceFund, setInsuranceFund] = useState(0);
   const [totalSystemDebt, setTotalSystemDebt] = useState(0);
+
+  // System Health Metrics
+  const systemHealth = useMemo(() => {
+    const activeOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').length;
+    const onlineDriversCount = onlineDrivers.length;
+    const ratio = onlineDriversCount > 0 ? activeOrdersCount / onlineDriversCount : activeOrdersCount;
+    
+    let status: "optimal" | "busy" | "congested" = "optimal";
+    if (ratio > 2) status = "congested";
+    else if (ratio > 1) status = "busy";
+
+    return { activeOrdersCount, onlineDriversCount, ratio, status };
+  }, [allOrders, onlineDrivers]);
 
   // Form State
   const [showAddDriver, setShowAddDriver] = useState(false);
@@ -90,7 +115,9 @@ export default function AdminPanel() {
     driver_commission: 15.0,
     vendor_commission: 20.0,
     vendor_fee: 1.0,
-    safe_ride_fee: 1.0
+    safe_ride_fee: 1.0,
+    surge_pricing_active: false,
+    surge_pricing_multiplier: 1.0
   });
 
   const addActivity = useCallback((text: string) => {
@@ -534,7 +561,13 @@ export default function AdminPanel() {
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
           <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
-              <DashboardView activityLog={activityLog} stats={stats} onlineDrivers={onlineDrivers} vendors={vendors} />
+              <DashboardView
+                activityLog={activityLog}
+                stats={stats}
+                onlineDrivers={onlineDrivers}
+                vendors={vendors}
+                systemHealth={systemHealth}
+              />
             )}
 
             {activeView === "accounts" && (
@@ -585,6 +618,7 @@ export default function AdminPanel() {
                 onUnlockAllDrivers={handleUnlockAllDrivers}
                 onGlobalReset={handleGlobalReset}
                 onRefresh={fetchData}
+                onBroadcastMessage={handleBroadcast}
               />
             )}
 

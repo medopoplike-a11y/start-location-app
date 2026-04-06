@@ -127,7 +127,14 @@ function StoreContent() {
   const [requestingSettlement, setRequestingSettlement] = useState(false);
   const [settlementHistory, setSettlementHistory] = useState<SettlementHistoryItem[]>([]);
 
-  const [appConfig, setAppConfig] = useState({ driver_commission: 15, vendor_commission: 20, vendor_fee: 1, safe_ride_fee: 1 });
+  const [appConfig, setAppConfig] = useState({ 
+    driver_commission: 15, 
+    vendor_commission: 20, 
+    vendor_fee: 1, 
+    safe_ride_fee: 1,
+    surge_pricing_active: false,
+    surge_pricing_multiplier: 1.0
+  });
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -206,7 +213,9 @@ function StoreContent() {
                 driver_commission: configData.driver_commission || 15,
                 vendor_commission: configData.vendor_commission || 20,
                 vendor_fee: configData.vendor_fee || 1,
-                safe_ride_fee: configData.safe_ride_fee || 1
+                safe_ride_fee: configData.safe_ride_fee || 1,
+                surge_pricing_active: !!configData.surge_pricing_active,
+                surge_pricing_multiplier: configData.surge_pricing_multiplier || 1.0
               });
             }
           } catch (configErr) {
@@ -440,7 +449,9 @@ function StoreContent() {
         driverCommissionPct: appConfig.driver_commission,
         vendorCommissionPct: appConfig.vendor_commission,
         driverInsuranceFee: appConfig.safe_ride_fee,
-        vendorInsuranceFee: appConfig.vendor_fee
+        vendorInsuranceFee: appConfig.vendor_fee,
+        surgePricingActive: appConfig.surge_pricing_active,
+        surgePricingMultiplier: appConfig.surge_pricing_multiplier
       });
       const orderData = {
         vendor_id: vendorId,
@@ -609,6 +620,7 @@ function StoreContent() {
         onSearchChange={setSearchQuery}
         onOpenDrawer={() => setShowDrawer(true)}
         onSync={() => vendorId && updateData(vendorId)}
+        isSurgeActive={appConfig.surge_pricing_active}
       />
 
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
@@ -686,6 +698,7 @@ function StoreContent() {
         onPickCustomerLocation={handlePickCustomerLocation}
         onInvoiceUpload={handleInvoiceUpload}
         onSave={handleSaveOrder}
+        onlineDriversCount={onlineDrivers.length}
       />
 
       <StoreAccountModals

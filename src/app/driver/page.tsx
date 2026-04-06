@@ -42,6 +42,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [deliveredOrders, setDeliveredOrders] = useState<DBDriverOrder[]>([]);
   const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
+  const [isSurgeActive, setIsSurgeActive] = useState(false);
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -164,7 +165,8 @@ const [vendorDebt, setVendorDebt] = useState(0);
       startOfToday.setHours(0, 0, 0, 0);
       const { data: todayOrders } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'delivered').gte('created_at', startOfToday.toISOString());
       
-      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
+      const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
+      if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
       if (walletData) void walletData.system_balance;
       if (ordersDebtData) setVendorDebt(ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0));
@@ -435,6 +437,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
             lastSyncTime={lastSyncTime}
             isRefreshing={isRefreshing}
             isActive={isActive}
+            isSurgeActive={isSurgeActive}
             onOpenDrawer={() => {
               try { Haptics.selectionChanged(); } catch(e) {}
               setShowDrawer(true);

@@ -30,6 +30,7 @@ interface OrderFormModalProps {
   onPickCustomerLocation: () => void;
   onInvoiceUpload: (e: ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
+  onlineDriversCount?: number;
 }
 
 export default function OrderFormModal({ hasVendorLocation = true,
@@ -44,6 +45,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
   onPickCustomerLocation,
   onInvoiceUpload,
   onSave,
+  onlineDriversCount = 0,
 }: OrderFormModalProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
@@ -58,7 +60,18 @@ export default function OrderFormModal({ hasVendorLocation = true,
       {show && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-end">
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-w-md mx-auto rounded-t-[40px] border-t border-gray-100 p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-900">{editingOrder ? "تعديل الطلب" : "طلب طيار جديد"}</h2><button onClick={onClose} className="bg-gray-100 p-2 rounded-full text-gray-400"><X className="w-5 h-5" /></button></div>
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">{editingOrder ? "تعديل الطلب" : "طلب طيار جديد"}</h2>
+              <div className="flex items-center gap-2">
+                {!editingOrder && (
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5 ${onlineDriversCount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${onlineDriversCount > 0 ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+                    {onlineDriversCount} طيار متاح
+                  </div>
+                )}
+                <button onClick={onClose} className="bg-gray-100 p-2 rounded-full text-gray-400"><X className="w-5 h-5" /></button>
+              </div>
+            </div>
             <div className="space-y-4">
               {!hasVendorLocation && !editingOrder && (
                 <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-2">

@@ -41,10 +41,17 @@ export interface PricingConfig {
   vendorCommissionPct: number; // e.g., 20
   driverInsuranceFee: number; // e.g., 1
   vendorInsuranceFee: number; // e.g., 1
+  surgePricingActive?: boolean;
+  surgePricingMultiplier?: number;
 }
 
 export const calculateOrderFinancials = (distance: number, surgeFee: number = 0, manualFee?: number, config?: PricingConfig): OrderFinancials => {
-  const deliveryFee = manualFee !== undefined ? manualFee : calculateDeliveryFee(distance, surgeFee);
+  let deliveryFee = manualFee !== undefined ? manualFee : calculateDeliveryFee(distance, surgeFee);
+  
+  // Apply Surge Pricing if active
+  if (config?.surgePricingActive && config.surgePricingMultiplier && config.surgePricingMultiplier > 1) {
+    deliveryFee = deliveryFee * config.surgePricingMultiplier;
+  }
   
   const driverCommPct = (config?.driverCommissionPct ?? 15) / 100;
   const vendorCommPct = (config?.vendorCommissionPct ?? 20) / 100;

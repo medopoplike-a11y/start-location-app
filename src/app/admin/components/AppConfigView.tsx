@@ -15,6 +15,8 @@ interface AppConfigState {
   vendor_commission: number;
   vendor_fee: number;
   safe_ride_fee: number;
+  surge_pricing_active: boolean;
+  surge_pricing_multiplier: number;
 }
 
 interface AppConfigViewProps {
@@ -133,7 +135,7 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
         </label>
 
         <label className="space-y-2">
-          <span className="text-xs text-gray-500">رسوم الرحلة الآمنة</span>
+          <span className="text-xs text-gray-500">رسوم الأمان (طيار)</span>
           <input
             value={appConfig.safe_ride_fee}
             onChange={(e) => setAppConfig({ ...appConfig, safe_ride_fee: Number(e.target.value) || 0 })}
@@ -142,6 +144,36 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             type="number"
           />
         </label>
+
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-6 mt-2">
+          <h4 className="md:col-span-2 font-bold text-orange-600 flex items-center gap-2">
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+            نظام أسعار الذروة (Surge Pricing)
+          </h4>
+          
+          <label className="flex items-center gap-3 p-4 rounded-2xl border border-orange-100 bg-orange-50">
+            <input
+              type="checkbox"
+              checked={appConfig.surge_pricing_active}
+              onChange={(e) => setAppConfig({ ...appConfig, surge_pricing_active: e.target.checked })}
+              className="h-4 w-4 text-orange-600"
+            />
+            <span className="text-sm text-orange-900 font-black">تفعيل زيادة الأسعار وقت الذروة</span>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-xs text-orange-500 font-bold">مضاعف السعر (مثلاً 1.5 لزيادة 50%)</span>
+            <input
+              value={appConfig.surge_pricing_multiplier}
+              onChange={(e) => setAppConfig({ ...appConfig, surge_pricing_multiplier: Number(e.target.value) || 1.0 })}
+              className="w-full bg-white p-3 rounded-xl border border-orange-200 outline-none focus:ring-2 ring-orange-200 font-black text-orange-900"
+              placeholder="1.5"
+              type="number"
+              step="0.1"
+              min="1"
+            />
+          </label>
+        </div>
 
         <button type="submit" disabled={actionLoading} className="md:col-span-2 px-4 py-3 rounded-xl bg-blue-600 text-white font-bold">
           {actionLoading ? "جاري الحفظ..." : "حفظ الإعدادات"}

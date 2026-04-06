@@ -75,6 +75,13 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
           triggerUpdate();
         }
       })
+      .on('broadcast', { event: 'system_alert' }, ({ payload }) => {
+        if (payload.target === 'all' || payload.target === userId) {
+          if (typeof window !== 'undefined' && (window as any).showSystemAlert) {
+            (window as any).showSystemAlert(payload.message);
+          }
+        }
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED' && userId) {
           await syncChannel.track({
@@ -101,5 +108,13 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
     });
   };
 
-  return { lastSync, isSyncing, triggerUpdate, presenceData, broadcastRefresh };
+  const broadcastAlert = async (message: string, target: string = 'all') => {
+    await supabase.channel('system_sync').send({
+      type: 'broadcast',
+      event: 'system_alert',
+      payload: { message, target, sender: userId }
+    });
+  };
+
+  return { lastSync, isSyncing, triggerUpdate, presenceData, broadcastRefresh, broadcastAlert };
 };
