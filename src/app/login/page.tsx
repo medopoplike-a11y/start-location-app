@@ -211,7 +211,7 @@ const LoginPage = () => {
       >
         <div className="flex flex-col items-center mb-8" onClick={checkConnection}>
           <StartLogo className="w-20 h-20 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer" />
-          <h1 className="text-3xl font-black text-white mb-1">
+          <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 text-transparent bg-clip-text drop-shadow-sm">
             Start Location
           </h1>
         </div>
@@ -297,7 +297,7 @@ const LoginPage = () => {
 
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold text-slate-500">v0.3.5-LITE</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.3.9-TEST</span>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
               <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
