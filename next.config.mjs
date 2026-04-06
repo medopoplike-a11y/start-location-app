@@ -10,8 +10,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Only export statically if specifically requested (for mobile builds)
-  output: process.env.BUILD_TYPE === 'static' ? 'export' : undefined,
+  // Explicitly check for Vercel to disable static output
+  output: (process.env.BUILD_TYPE === 'static' && !process.env.VERCEL) ? 'export' : undefined,
   images: {
     unoptimized: true,
   },
