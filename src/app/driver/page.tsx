@@ -158,7 +158,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
     setLastSyncTime(new Date());
     try {
       const { data: walletData } = await supabase.from('wallets').select('debt, system_balance').eq('user_id', currentDriverId).single();
-      const { data: ordersDebtData } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).in('status', ['assigned', 'in_transit', 'delivered']).is('vendor_collected_at', null);
+      const { data: ordersDebtData } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'in_transit').is('vendor_collected_at', null);
       
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);

@@ -336,11 +336,11 @@ BEGIN
 
     -- 1. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
-        -- تحديث محفظة الطيار: زيادة الأرباح، زيادة مديونية المحل (قيمة الطلب)، زيادة مديونية الشركة (العمولة + نصيب التأمين)
+        -- تحديث محفظة الطيار: زيادة الأرباح، زيادة مديونية الشركة (العمولة + نصيب التأمين)
         UPDATE public.wallets 
         SET 
             balance = balance + drv_earnings,
-            debt = debt + order_val, -- مديونية للمحل (قيمة الطلب فقط)
+            -- ملاحظة: مديونية المحل (debt) تمت معالجتها بالفعل عند الاستلام (in_transit)
             system_balance = system_balance + sys_comm + (ins_fee / 2)
         WHERE user_id = new.driver_id;
 
@@ -351,7 +351,14 @@ BEGIN
         WHERE user_id = new.vendor_id;
     END IF;
 
-    -- 2. عند تحصيل المحل للمبلغ من الطيار (Vendor Collected): خصم قيمة الطلب فقط من مديونية الطيار
+    -- 2. جديد: عند استلام الطلب من المحل (In Transit) - تسجيل المديونية على الطيار للمحل
+    IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
+        UPDATE public.wallets 
+        SET debt = debt + order_val
+        WHERE user_id = new.driver_id;
+    END IF;
+
+    -- 3. عند تحصيل المحل للمبلغ من الطيار (Vendor Collected): خصم قيمة الطلب فقط من مديونية الطيار
     IF (new.vendor_collected_at IS NOT NULL AND old.vendor_collected_at IS NULL) THEN
         UPDATE public.wallets 
         SET debt = debt - order_val
