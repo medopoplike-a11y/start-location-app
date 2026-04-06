@@ -47,4 +47,4 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
           -H "Content-Type: application/json" \
           -H "Prefer: return=minimal" \
-          -d "{\"latest_version\": \"$NEW_VERSION\", \"update_url\": \"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip\"}"
+          -d "{\"latest_version\": \"$NEW_VERSION\", \"bundle_url\": \"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip\"}"

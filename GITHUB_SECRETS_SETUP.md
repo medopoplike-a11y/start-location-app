@@ -13,6 +13,7 @@
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
 ```
 
 **من أين تأخذها:**
@@ -22,6 +23,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 4. انسخ:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - anon/public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - service_role/secret key → `SUPABASE_SERVICE_ROLE_KEY` (⚠️ هام جداً للنشر)
 
 ---
 
@@ -59,7 +61,7 @@ vercel link      # سيعطيك ORG ID و PROJECT ID
    - Value: (URL من Supabase)
    - اضغط "Add secret"
 
-4. كرر لـ جميع الـ 5 secrets
+4. كرر لـ جميع الـ 6 secrets
 
 ---
 
@@ -69,6 +71,7 @@ vercel link      # سيعطيك ORG ID و PROJECT ID
 |------------|--------|----------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Settings → API | ⭐⭐⭐ |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Settings → API | ⭐⭐⭐ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Settings → API | ⭐⭐⭐ (لـ OTA) |
 | `VERCEL_TOKEN` | Vercel Account → Tokens | ⭐⭐ |
 | `VERCEL_ORG_ID` | Vercel via CLI | ⭐⭐ |
 | `VERCEL_PROJECT_ID` | Vercel via CLI | ⭐⭐ |
