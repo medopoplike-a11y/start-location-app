@@ -298,7 +298,7 @@ const LoginPage = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.4.6-STABLE</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.4.7-STABLE</span>
               <div className="flex items-center gap-1">
                 <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
                 <span className="text-[7px] font-black text-emerald-500/80 uppercase">نظام التحديث التلقائي: نشط</span>
@@ -310,7 +310,28 @@ const LoginPage = () => {
             </div>
           </div>
           <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-            <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">حالة التحديث OTA</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
+              <button 
+                onClick={async () => {
+                  setOtaStatus("جاري الفحص الإجباري...");
+                  try {
+                    const { checkForAutoUpdate } = await import("@/lib/native-utils");
+                    const res = await checkForAutoUpdate();
+                    if (res.available) {
+                      setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
+                    } else {
+                      setOtaStatus("النظام محدث بالفعل (لا توجد نسخ جديدة)");
+                    }
+                  } catch (e: any) {
+                    setOtaStatus(`فشل الفحص: ${e.message}`);
+                  }
+                }}
+                className="text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95"
+              >
+                فحص إجباري الآن
+              </button>
+            </div>
             <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
           </div>
         </div>

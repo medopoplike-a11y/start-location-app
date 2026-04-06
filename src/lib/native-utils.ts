@@ -164,6 +164,7 @@ export const checkForAutoUpdate = async () => {
 
     console.log(`Native OTA: Current version on phone: ${current.version}`);
     console.log(`Native OTA: Latest version in DB: ${config.latest_version}`);
+    console.log(`Native OTA: Bundle URL: ${bundleUrl}`);
 
     if (!bundleUrl || !config.latest_version) {
       console.warn('Native: Update config missing bundle_url or latest_version');
