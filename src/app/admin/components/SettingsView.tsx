@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { motion } from "framer-motion";
-import { Save, Smartphone, DollarSign, Package, Bell, Loader2 } from "lucide-react";
+import { Save, Smartphone, DollarSign, Package, Bell, Loader2, Zap } from "lucide-react";
 
 interface AppConfigState {
   latest_version: string;
@@ -107,10 +107,26 @@ export default function SettingsView({ appConfig, actionLoading, setAppConfig, o
             placeholder="0.2.0"
           />
           <InputField
-            label="رابط التحميل المباشر (APK)"
-            value={appConfig.download_url}
-            onChange={v => setAppConfig({ ...appConfig, download_url: v })}
-            placeholder="https://example.com/app.apk"
+            label="رابط حزمة التحديث (OTA Bundle)"
+            value={appConfig.bundle_url}
+            onChange={v => setAppConfig({ ...appConfig, bundle_url: v })}
+            placeholder="https://example.com/update.zip"
+          />
+          <div className="md:col-span-2">
+            <InputField
+              label="رابط التحميل المباشر (APK)"
+              value={appConfig.download_url}
+              onChange={v => setAppConfig({ ...appConfig, download_url: v })}
+              placeholder="https://example.com/app.apk"
+            />
+          </div>
+        </div>
+        <div className="pt-4 border-t border-slate-50">
+          <ToggleField
+            label="تحديث إجباري"
+            description="إجبار المستخدمين على التحديث فوراً"
+            checked={appConfig.force_update}
+            onChange={v => setAppConfig({ ...appConfig, force_update: v })}
           />
         </div>
       </SectionCard>
