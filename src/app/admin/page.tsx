@@ -35,13 +35,10 @@ import { useSync } from "@/hooks/useSync";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import DashboardView from "./components/DashboardView";
-import OrdersView from "./components/OrdersView";
-import DriversView from "./components/DriversView";
-import VendorsView from "./components/VendorsView";
 import SettlementsView from "./components/SettlementsView";
 import SettingsView from "./components/SettingsView";
-import OrderDistributionView from "./components/OrderDistributionView";
-import SystemControlView from "./components/SystemControlView";
+import UserManagementView from "./components/UserManagementView";
+import OperationsCenter from "./components/OperationsCenter";
 
 export default function AdminPanel() {
   const { user, loading: authLoading } = useAuth();
@@ -510,14 +507,10 @@ export default function AdminPanel() {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {[
             { id: "dashboard", label: "لوحة التحكم", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { id: "orders", label: "المراقبة الحية", icon: <MapIcon className="w-5 h-5" /> },
-            { id: "distribution", label: "توزيع الطلبات", icon: <Truck className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || undefined },
-            { id: "drivers", label: "المناديب", icon: <Users className="w-5 h-5" /> },
-            { id: "vendors", label: "المحلات", icon: <Store className="w-5 h-5" /> },
-            { id: "accounts", label: "الحسابات", icon: <ShieldCheck className="w-5 h-5" /> },
-            { id: "settlements", label: "التسويات", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
-            { id: "system", label: "التحكم اليدوي", icon: <RefreshCw className="w-5 h-5" />, badge: manualMode ? "يدوي" : undefined },
-            { id: "settings", label: "الإعدادات", icon: <Settings className="w-5 h-5" /> }
+            { id: "operations", label: "مركز العمليات", icon: <Zap className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || (manualMode ? "!" : undefined) },
+            { id: "users", label: "إدارة المستخدمين", icon: <Users className="w-5 h-5" /> },
+            { id: "settlements", label: "التسويات المالية", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
+            { id: "settings", label: "إعدادات النظام", icon: <Settings className="w-5 h-5" /> }
           ].map(item => (
             <button key={item.id} onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${activeView === item.id ? "bg-blue-600/10 text-blue-600 font-bold" : "text-gray-500 hover:bg-gray-100"}`}>
               {item.icon}{sidebarOpen && <span className="text-sm flex-1 text-right">{item.label}</span>}{item.badge ? <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span> : null}
@@ -570,46 +563,13 @@ export default function AdminPanel() {
               />
             )}
 
-            {activeView === "accounts" && (
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-100 rounded-[40px] p-6 shadow-sm"><AccountsView users={allUsers} /></div>
-              </div>
-            )}
-
-            {activeView === "orders" && (
-              <OrdersView liveOrders={liveOrders} activities={activities} onCancelOrder={handleCancelOrder} />
-            )}
-
-            {activeView === "distribution" && (
-              <OrderDistributionView
+            {activeView === "operations" && (
+              <OperationsCenter
                 liveOrders={liveOrders}
                 drivers={drivers}
-                onAssign={handleAssignOrder}
-              />
-            )}
-
-            {activeView === "drivers" && (
-              <DriversView
-                drivers={drivers}
-                onAddDriver={() => setShowAddDriver(true)}
-                onToggleShiftLock={handleToggleShiftLock}
-                onResetUser={handleResetUser}
-              />
-            )}
-
-            {activeView === "vendors" && (
-              <VendorsView vendors={vendors} onAddVendor={() => setShowAddVendor(true)} onResetUser={handleResetUser} />
-            )}
-
-            {activeView === "settlements" && (
-              <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
-            )}
-
-            {activeView === "system" && (
-              <SystemControlView
+                activities={activities}
                 manualMode={manualMode}
                 maintenanceMode={appConfig.maintenance_mode}
-                drivers={drivers}
                 actionLoading={actionLoading}
                 onToggleManualMode={setManualMode}
                 onToggleMaintenance={handleToggleMaintenance}
@@ -619,7 +579,25 @@ export default function AdminPanel() {
                 onGlobalReset={handleGlobalReset}
                 onRefresh={fetchData}
                 onBroadcastMessage={handleBroadcast}
+                onAssign={handleAssignOrder}
+                onCancelOrder={handleCancelOrder}
               />
+            )}
+
+            {activeView === "users" && (
+              <UserManagementView
+                drivers={drivers}
+                vendors={vendors}
+                users={allUsers}
+                onAddDriver={() => setShowAddDriver(true)}
+                onAddVendor={() => setShowAddVendor(true)}
+                onToggleShiftLock={handleToggleShiftLock}
+                onResetUser={handleResetUser}
+              />
+            )}
+
+            {activeView === "settlements" && (
+              <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
             )}
 
             {activeView === "settings" && (

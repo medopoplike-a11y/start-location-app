@@ -17,6 +17,8 @@ interface AppConfigState {
   vendor_commission: number;
   vendor_fee: number;
   safe_ride_fee: number;
+  surge_pricing_active: boolean;
+  surge_pricing_multiplier: number;
 }
 
 interface SettingsViewProps {
@@ -191,6 +193,30 @@ export default function SettingsView({ appConfig, actionLoading, setAppConfig, o
             />
           </div>
         </div>
+
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-6 mt-2">
+          <div className="md:col-span-2">
+            <h4 className="font-black text-orange-600 flex items-center gap-2 text-sm">
+              <Zap className="w-4 h-4" />
+              نظام أسعار الذروة (Surge Pricing)
+            </h4>
+          </div>
+          
+          <ToggleField
+            label="تفعيل زيادة الأسعار"
+            description="تطبيق مضاعف السعر تلقائياً"
+            checked={appConfig.surge_pricing_active}
+            onChange={v => setAppConfig({ ...appConfig, surge_pricing_active: v })}
+          />
+
+          <InputField
+            label="مضاعف السعر (مثلاً 1.5)"
+            value={appConfig.surge_pricing_multiplier}
+            onChange={v => setAppConfig({ ...appConfig, surge_pricing_multiplier: Number(v) || 1 })}
+            type="number"
+          />
+        </div>
+
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
           <p className="text-[11px] font-black text-slate-400 mb-3">ملخص العمولات الحالية</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">

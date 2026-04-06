@@ -15,10 +15,9 @@ import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import type { Order, DBDriverOrder } from "./types";
 import DriverHeader from "./components/DriverHeader";
-import DriverOrdersView from "./components/DriverOrdersView";
+import DriverOperationsHub from "./components/DriverOperationsHub";
 import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
-import DriverHistoryView from "./components/DriverHistoryView";
 
 export default function DriverApp() {
   const { toasts, removeToast, success: toastSuccess } = useToast();
@@ -33,7 +32,7 @@ export default function DriverApp() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "history">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "wallet">("orders");
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
 const [vendorDebt, setVendorDebt] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
@@ -457,13 +456,14 @@ const [vendorDebt, setVendorDebt] = useState(0);
               >
                 <Suspense fallback={<AppLoader />}>
                   {activeTab === "orders" ? (
-                    <DriverOrdersView
+                    <DriverOperationsHub
                       todayDeliveryFees={todayDeliveryFees}
                       vendorDebt={vendorDebt}
                       isActive={isActive}
                       driverLocation={driverLocation}
                       driverId={driverId}
                       orders={orders}
+                      todayHistory={todayHistory}
                       autoAccept={autoAccept}
                       onToggleAutoAccept={toggleAutoAccept}
                       onAcceptOrder={handleAcceptOrder}
@@ -479,8 +479,6 @@ const [vendorDebt, setVendorDebt] = useState(0);
                       allHistory={todayHistory}
                       onConfirmPayment={handleConfirmPayment}
                     />
-                  ) : activeTab === "history" ? (
-                    <DriverHistoryView todayHistory={todayHistory} />
                   ) : (
                     <div className="text-center py-20">
                       <motion.div 

@@ -21,10 +21,9 @@ import { useToast } from "@/hooks/useToast";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
 import { formatVendorTime } from "./utils";
 import StoreHeader from "./components/StoreHeader";
-import StoreView from "./components/StoreView";
+import StoreOrdersHub from "./components/StoreOrdersHub";
 import WalletView from "./components/WalletView";
 import StoreSettingsView from "./components/SettingsView";
-import HistoryView from "./components/HistoryView";
 import StoreDrawer from "./components/StoreDrawer";
 import OrderFormModal from "./components/OrderFormModal";
 import StoreAccountModals from "./components/StoreAccountModals";
@@ -47,7 +46,7 @@ function StoreContent() {
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
-  const [activeView, setActiveView] = useState<"store" | "wallet" | "history" | "settings">("store");
+  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -625,7 +624,7 @@ function StoreContent() {
 
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
         {activeView === "store" ? (
-          <StoreView
+          <StoreOrdersHub
             orders={orders}
             searchQuery={searchQuery}
             activeTab={activeTab}
@@ -641,7 +640,6 @@ function StoreContent() {
             onCollectDebt={handleCollectDebt}
             onCancelOrder={handleCancelOrder}
             onEditOrder={handleOpenForm}
-
           />
         ) : activeView === "wallet" ? (
           <WalletView
@@ -656,7 +654,7 @@ function StoreContent() {
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />
-        ) : activeView === "settings" ? (
+        ) : (
           <StoreSettingsView
             settingsData={settingsData}
             savingSettings={savingSettings}
@@ -667,8 +665,6 @@ function StoreContent() {
             onSave={handleUpdateProfile}
             onUpdateLocation={handleUpdateLocation}
           />
-        ) : (
-          <HistoryView orders={orders} />
         )}
       </main>
 
