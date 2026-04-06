@@ -88,9 +88,12 @@ export const requestPushNotificationPermissions = async () => {
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     const pushStatus = await PushNotifications.requestPermissions();
+    // Removed automatic registration to prevent native crash when Firebase is missing
+    /*
     if (pushStatus.receive === 'granted') {
       await PushNotifications.register();
     }
+    */
     return pushStatus;
   } catch (e) {
     console.warn('Native: Failed to request push notification permissions', e);

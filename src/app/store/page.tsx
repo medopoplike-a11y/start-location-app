@@ -14,7 +14,6 @@ import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import PushNotificationManager from "@/components/PushNotificationManager";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -601,7 +600,6 @@ function StoreContent() {
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
       <div className="silver-live-bg" />
     <Toast toasts={toasts} onRemove={removeToast} />
-      <PushNotificationManager userId={vendorId ?? null} />
       
       <StoreHeader
         vendorName={vendorName}
