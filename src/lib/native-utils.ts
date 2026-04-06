@@ -115,29 +115,23 @@ const isValidUpdateUrl = async (url: string) => {
   if (!url || !/^https?:\/\//i.test(url)) return false;
 
   try {
-    const response = await fetch(url, { method: 'HEAD' });
+    const response = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
     if (!response.ok) {
+      console.warn(`Native OTA: URL ${url} returned status ${response.status}`);
       return false;
     }
 
     const contentType = response.headers.get('content-type') || '';
-    return contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
-  } catch (headError) {
-    console.warn('Native: HEAD check failed for update URL, trying GET', headError);
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-0' }
-      });
-      if (!response.ok) return false;
-
-      const contentType = response.headers.get('content-type') || '';
-      return contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
-    } catch (getError) {
-      console.error('Native: Update URL validation failed', getError);
-      return false;
+    const isValid = contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
+    
+    if (!isValid) {
+      console.warn(`Native OTA: URL ${url} has invalid content-type: ${contentType}`);
     }
+    
+    return isValid;
+  } catch (err) {
+    console.error(`Native OTA: Failed to validate URL ${url}`, err);
+    return false;
   }
 };
 
@@ -167,6 +161,9 @@ export const checkForAutoUpdate = async () => {
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
     const current = await CapacitorUpdater.getLatest();
     const bundleUrl = String(config.bundle_url || '').trim();
+
+    console.log(`Native OTA: Current version on phone: ${current.version}`);
+    console.log(`Native OTA: Latest version in DB: ${config.latest_version}`);
 
     if (!bundleUrl || !config.latest_version) {
       console.warn('Native: Update config missing bundle_url or latest_version');

@@ -32,9 +32,9 @@ jobs:
       - name: Upload to Supabase Storage
         run: |
           # We use curl to upload directly to Supabase Storage (public bucket)
-          # Replace BUCKET_NAME with your bucket (e.g., 'app-updates')
           curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
           -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          -H "apikey: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
           -H "Content-Type: application/zip" \
           -H "x-upsert: true" \
           --data-binary "@dist/update.zip"
@@ -45,6 +45,7 @@ jobs:
           NEW_VERSION=$(node -p "require('./package.json').version")
           curl -X PATCH "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/app_config?id=eq.1" \
           -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          -H "apikey: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
           -H "Content-Type: application/json" \
           -H "Prefer: return=minimal" \
           -d "{\"latest_version\": \"$NEW_VERSION\", \"bundle_url\": \"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip\", \"force_update\": true}"
