@@ -288,7 +288,7 @@ const LoginPage = () => {
             className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
               !isSupabaseConfigured 
                 ? "bg-red-600" 
-                : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:shadow-emerald-500/25"
+                : "bg-gradient-to-r from-violet-600 to-indigo-700 hover:shadow-violet-500/25"
             } disabled:opacity-50`}
           >
             {loading ? "جاري التحقق..." : "تسجيل الدخول"}
@@ -297,8 +297,14 @@ const LoginPage = () => {
 
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.4.4-STABLE</span>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.4.5-STABLE</span>
+              <div className="flex items-center gap-1">
+                <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-[7px] font-black text-emerald-500/80 uppercase">نظام التحديث التلقائي: نشط</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
               <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
             </div>
