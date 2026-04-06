@@ -15,6 +15,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   const [updateStatus, setUpdateStatus] = React.useState<"idle" | "checking" | "downloading" | "ready" | "error">("idle");
   const [progress, setProgress] = React.useState(0);
   const [version, setVersion] = React.useState("");
+  const [bundleId, setBundleId] = React.useState("");
 
   React.useEffect(() => {
     setMounted(true);
@@ -50,6 +51,9 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
           if (updateInfo?.available) {
             setVersion(updateInfo.version || "");
+            if (updateInfo.bundleId) {
+              setBundleId(updateInfo.bundleId);
+            }
             if (updateInfo.downloaded) {
               setUpdateStatus("ready");
               setProgress(100);
@@ -113,6 +117,9 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
                 onClick={async () => {
                   try {
                     const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                    if (bundleId) {
+                      await CapacitorUpdater.set({ id: bundleId });
+                    }
                     await CapacitorUpdater.reload();
                   } catch (e) {
                     window.location.reload();
