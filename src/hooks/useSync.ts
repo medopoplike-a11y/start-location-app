@@ -75,6 +75,7 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
           triggerUpdate();
         }
       })
+      /* 
       .on('broadcast', { event: 'system_alert' }, ({ payload }) => {
         if (payload.target === 'all' || payload.target === userId) {
           if (typeof window !== 'undefined' && (window as any).showSystemAlert) {
@@ -82,6 +83,7 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
           }
         }
       })
+      */
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED' && userId) {
           await syncChannel.track({
@@ -109,11 +111,8 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
   };
 
   const broadcastAlert = async (message: string, target: string = 'all') => {
-    await supabase.channel('system_sync').send({
-      type: 'broadcast',
-      event: 'system_alert',
-      payload: { message, target, sender: userId }
-    });
+    // Disabled as per user request
+    console.log('Broadcast Alert Suppressed:', message, target);
   };
 
   return { lastSync, isSyncing, triggerUpdate, presenceData, broadcastRefresh, broadcastAlert };

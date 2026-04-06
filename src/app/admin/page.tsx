@@ -17,10 +17,19 @@ import {
   LogOut, 
   Wallet,
   RefreshCw,
-  Zap
+  Zap,
+  AlertTriangle
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
+const DashboardView = dynamic(() => import("./components/DashboardView"), { 
+  ssr: false,
+  loading: () => <AppLoader />
+});
+const SettlementsView = dynamic(() => import("./components/SettlementsView"), { ssr: false });
+const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: false });
+const UserManagementView = dynamic(() => import("./components/UserManagementView"), { ssr: false });
+const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), { ssr: false });
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
@@ -32,41 +41,31 @@ import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
-import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
-import DashboardView from "./components/DashboardView";
-import SettlementsView from "./components/SettlementsView";
-import SettingsView from "./components/SettingsView";
-import UserManagementView from "./components/UserManagementView";
-import OperationsCenter from "./components/OperationsCenter";
 
 export default function AdminPanel() {
+  return (
+    <AuthGuard allowedRoles={["admin"]}>
+      <AdminContent />
+    </AuthGuard>
+  );
+}
+
+function AdminContent() {
+  // 1. Core State
   const { user, loading: authLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // UI State
+  // 2. UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
-  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, () => {
-    if (!authLoading && user) fetchData();
-  }, true);
 
-  const handleBroadcast = useCallback(async (msg: string) => {
-    try {
-      setActionLoading(true);
-      await broadcastAlert(msg);
-      addActivity(`تم إرسال تنبيه عام: ${msg.slice(0, 20)}...`);
-    } catch (e) {
-      console.error("Broadcast failed", e);
-    } finally {
-      setActionLoading(false);
-    }
-  }, [broadcastAlert, addActivity]);
-
-  // Data State
+  // 3. Data State
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
   const [liveOrders, setLiveOrders] = useState<LiveOrderItem[]>([]);
   const [allOrders, setAllOrders] = useState<AdminOrder[]>([]);
@@ -77,33 +76,20 @@ export default function AdminPanel() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
   
-  // Financial State
+  // 4. Financial State
   const [totalProfits, setTotalProfits] = useState(0);
   const [insuranceFund, setInsuranceFund] = useState(0);
   const [totalSystemDebt, setTotalSystemDebt] = useState(0);
 
-  // System Health Metrics
-  const systemHealth = useMemo(() => {
-    const activeOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').length;
-    const onlineDriversCount = onlineDrivers.length;
-    const ratio = onlineDriversCount > 0 ? activeOrdersCount / onlineDriversCount : activeOrdersCount;
-    
-    let status: "optimal" | "busy" | "congested" = "optimal";
-    if (ratio > 2) status = "congested";
-    else if (ratio > 1) status = "busy";
-
-    return { activeOrdersCount, onlineDriversCount, ratio, status };
-  }, [allOrders, onlineDrivers]);
-
-  // Form State
+  // 5. Form & Config State
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [showAddVendor, setShowAddVendor] = useState(false);
   const [newDriverData, setNewDriverData] = useState({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
   const [newVendorData, setNewVendorData] = useState({ name: "", email: "", password: "", phone: "" });
   const [appConfig, setAppConfig] = useState({
-    latest_version: "0.2.0",
+    latest_version: "0.2.6",
     min_version: "0.2.0",
-    download_url: "/start-location-v0.2.0.apk",
+    download_url: "/start-location-v0.2.6-ready.apk",
     bundle_url: "",
     force_update: true,
     update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة.",
@@ -117,14 +103,7 @@ export default function AdminPanel() {
     surge_pricing_multiplier: 1.0
   });
 
-  const addActivity = useCallback((text: string) => {
-    setActivityLog(prev => [{
-      id: Math.random().toString(36).substring(2, 11),
-      text,
-      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-    }, ...prev].slice(0, 5));
-  }, []);
-
+  // 6. Utility Functions (Defined EARLY to avoid TDZ)
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
     if (typeof error === "object" && error !== null && "message" in error) {
@@ -133,39 +112,33 @@ export default function AdminPanel() {
     return "حدث خطأ";
   }, []);
 
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const withTimeout = useCallback(async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
-    });
-    try {
-      return await Promise.race([promise, timeoutPromise]);
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-    }
-  }, []);
-
   const translateStatus = useCallback((status: string) => {
     const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
     return statuses[status] || status;
   }, []);
 
+  const addActivity = useCallback((text: string) => {
+    setActivityLog(prev => [{
+      id: Math.random().toString(36).substring(2, 11),
+      text,
+      time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+    }, ...prev].slice(0, 5));
+  }, []);
+
+  const formatCurrency = useCallback((value: number) => {
+    try {
+      if (isNaN(value) || value === null || value === undefined) return "0";
+      return value.toLocaleString('ar-EG');
+    } catch (e) {
+      return String(value || 0);
+    }
+  }, []);
+
+  // 7. Data Fetching Functions
   const fetchOrders = useCallback(async () => {
     try {
       const data = await fetchAdminOrders();
       if (data) {
-        setAllOrders(data);
         const typedData = data as AdminOrder[];
         setAllOrders(typedData);
         const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => ({
@@ -203,11 +176,7 @@ export default function AdminPanel() {
           .map((p) => {
           let loc = p.location;
           if (typeof loc === 'string') {
-            try {
-              loc = JSON.parse(loc) as { lat?: number; lng?: number };
-            } catch {
-              loc = null;
-            }
+            try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; }
           }
           const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
           return {
@@ -260,43 +229,66 @@ export default function AdminPanel() {
 
   const fetchData = useCallback(async () => {
     try {
-      await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
+      setError(null);
+      
+      const fetchWithTimeout = async (promise: Promise<any>, label: string) => {
+        const timeout = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 10000)
+        );
+        return Promise.race([promise, timeout]);
+      };
+
+      await Promise.allSettled([
+        fetchWithTimeout(fetchProfiles(), "بيانات المستخدمين"),
+        fetchWithTimeout(fetchOrders(), "بيانات الطلبات"),
+        fetchWithTimeout(fetchSettlements(), "بيانات التسويات"),
+        fetchWithTimeout(fetchAppConfig(), "إعدادات النظام")
+      ]);
     } catch (err) {
       console.error("Admin: Global fetch error:", err);
+      setError(getErrorMessage(err));
     }
-  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig]);
+  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
+
+  // 8. Lifecycle & Sync Hooks
+  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, () => {
+    if (mounted && !authLoading && user) fetchData();
+  }, true);
 
   useEffect(() => {
-    // Mobile-optimized fallback
+    setMounted(true);
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-    const fallbackMs = isCapacitor ? 10000 : 5000;
-    const hardFallback = setTimeout(() => {
-      console.log(`AdminPage: Hard fallback (${fallbackMs/1000}s)`);
-      setLoading(false);
-    }, fallbackMs);
+    const fallbackMs = isCapacitor ? 20000 : 10000;
+    const hardFallback = setTimeout(() => { setLoading(false); }, fallbackMs);
 
     const init = async () => {
       if (authLoading) return;
-      
-      // If no user after auth loading, let AuthGuard handle it
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
+      if (!user) { setLoading(false); return; }
       try {
+        setLoading(true);
         await fetchData();
       } catch (e) {
-        console.error("AdminPage: Init error", e);
+        setError(`فشل في تهيئة النظام: ${getErrorMessage(e)}`);
       } finally {
         clearTimeout(hardFallback);
         setLoading(false);
       }
     };
-
     init();
     return () => clearTimeout(hardFallback);
-  }, [authLoading, fetchData]);
+  }, [mounted, authLoading, fetchData, user, getErrorMessage]);
 
   useEffect(() => {
     if (allOrders.length > 0) {
@@ -311,7 +303,6 @@ export default function AdminPanel() {
         }
         return acc;
       }, 0);
-
       const fund = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
@@ -319,11 +310,19 @@ export default function AdminPanel() {
         }
         return acc;
       }, 0);
-
       setTotalProfits(profits);
       setInsuranceFund(fund);
     }
   }, [allOrders, appConfig]);
+
+  // 9. UI Handlers
+  const handleBroadcast = useCallback(async (msg: string) => {
+    try {
+      setActionLoading(true);
+      await broadcastAlert(msg);
+      addActivity(`تم إرسال تنبيه عام: ${msg.slice(0, 20)}...`);
+    } catch (e) { console.error("Broadcast failed", e); } finally { setActionLoading(false); }
+  }, [broadcastAlert, addActivity]);
 
   const handleAddDriver = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -335,9 +334,7 @@ export default function AdminPanel() {
       setShowAddDriver(false);
       setNewDriverData({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
       fetchData();
-    } else {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } else { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [newDriverData, addActivity, fetchData, getErrorMessage]);
 
@@ -351,9 +348,7 @@ export default function AdminPanel() {
       setShowAddVendor(false);
       setNewVendorData({ name: "", email: "", password: "", phone: "" });
       fetchData();
-    } else {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } else { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [newVendorData, addActivity, fetchData, getErrorMessage]);
 
@@ -363,9 +358,7 @@ export default function AdminPanel() {
     try {
       await updateAdminAppConfig(appConfig);
       alert("تم تحديث إعدادات النظام بنجاح!");
-    } catch (error) {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [appConfig, getErrorMessage]);
 
@@ -386,9 +379,7 @@ export default function AdminPanel() {
       alert("تم التصفير!");
       addActivity(`تم تصفير بيانات ${userName}`);
       fetchData();
-    } catch (error) {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage]);
 
@@ -400,9 +391,7 @@ export default function AdminPanel() {
       alert("تم التصفير الشامل!");
       addActivity("تم تنفيذ تصفير شامل للنظام");
       fetchData();
-    } catch (error) {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage]);
 
@@ -419,9 +408,7 @@ export default function AdminPanel() {
   const handleLockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد قفل شيفت جميع المناديب؟")) return;
     setActionLoading(true);
-    for (const d of drivers.filter(d => !d.isShiftLocked)) {
-      await toggleDriverLock(d.id_full, true).catch(() => {});
-    }
+    for (const d of drivers.filter(d => !d.isShiftLocked)) { await toggleDriverLock(d.id_full, true).catch(() => {}); }
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: true, status: "محظور" })));
     addActivity("تم قفل شيفت جميع المناديب");
     setActionLoading(false);
@@ -430,9 +417,7 @@ export default function AdminPanel() {
   const handleUnlockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد فتح شيفت جميع المناديب؟")) return;
     setActionLoading(true);
-    for (const d of drivers.filter(d => d.isShiftLocked)) {
-      await toggleDriverLock(d.id_full, false).catch(() => {});
-    }
+    for (const d of drivers.filter(d => d.isShiftLocked)) { await toggleDriverLock(d.id_full, false).catch(() => {}); }
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: false, status: "نشط" })));
     addActivity("تم فتح شيفت جميع المناديب");
     setActionLoading(false);
@@ -450,9 +435,7 @@ export default function AdminPanel() {
     const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
     if (!error) {
       addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
-      setLiveOrders(prev => prev.map(o =>
-        o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o
-      ));
+      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o ));
     }
   }, [addActivity]);
 
@@ -460,43 +443,66 @@ export default function AdminPanel() {
     const { error } = await updateOrderStatus(orderId, 'cancelled');
     if (!error) {
       addActivity(`تم إلغاء الطلب #${orderId.slice(0,8)}`);
-      setLiveOrders(prev => prev.map(o =>
-        o.id_full === orderId ? { ...o, status: "ملغي" } : o
-      ));
+      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: "ملغي" } : o ));
     }
   }, [addActivity]);
 
   const handleSignOut = useCallback(async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Sign out failed:', error);
-    }
+    try { await signOut(); } catch (error) { console.error('Sign out failed:', error); }
   }, []);
+
+  // 10. Derived State
+  const systemHealth = useMemo(() => {
+    const activeOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').length;
+    const onlineDriversCount = onlineDrivers.length;
+    const ratio = onlineDriversCount > 0 ? activeOrdersCount / onlineDriversCount : activeOrdersCount;
+    let status: "optimal" | "busy" | "congested" = "optimal";
+    if (ratio > 2) status = "congested";
+    else if (ratio > 1) status = "busy";
+    return { activeOrdersCount, onlineDriversCount, ratio, status };
+  }, [allOrders, onlineDrivers]);
 
   const stats = useMemo(() => [
     { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-sky-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب", color: "sky" },
     { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-emerald-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن", color: "emerald" },
-    { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
-    { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
-    { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
-  ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits]);
+    { title: "صندوق التأمين", value: formatCurrency(insuranceFund), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
+    { title: "عمولات مستحقة", value: formatCurrency(totalSystemDebt), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
+    { title: "أرباح النظام", value: formatCurrency(totalProfits), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
+  ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits, formatCurrency]);
 
-  if (loading || authLoading) {
+  // 11. Render Helpers
+  if (!mounted || loading || authLoading || error) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-6 text-center">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" />
-        <h2 className="text-xl font-bold text-white mb-2">جاري تحميل لوحة الإدارة...</h2>
-        <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
-        <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-xl transition-all border border-white/10">إعادة تحميل يدوية</button>
+        {error ? (
+          <div className="bg-white/10 p-8 rounded-[40px] border border-red-500/30 backdrop-blur-xl max-w-sm">
+            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">فشل تحميل النظام</h2>
+            <p className="text-slate-400 text-sm mb-6">{error}</p>
+            <button 
+              onClick={() => { setError(null); fetchData(); }} 
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black transition-all shadow-lg shadow-blue-500/20"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        ) : (
+          <>
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" />
+            <h2 className="text-xl font-bold text-white mb-2">جاري تحميل لوحة الإدارة...</h2>
+            <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
+            <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-xl transition-all border border-white/10">إعادة تحميل يدوية</button>
+          </>
+        )}
       </div>
     );
   }
 
   return (
-    <AuthGuard allowedRoles={["admin"]}>
-      <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
-        <div className="silver-live-bg" />
+    <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
+      <div className="silver-live-bg" />
 
       {/* Sidebar */}
       <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 backdrop-blur-xl border-l border-white/20 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
@@ -541,7 +547,7 @@ export default function AdminPanel() {
                 <span className="text-[10px] font-black text-red-600 uppercase">صيانة</span>
               </div>
             )}
-            <button onClick={() => setActiveView("system")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
+            <button onClick={() => setActiveView("operations")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
               <Zap className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-3 p-1.5 pr-4 bg-white rounded-2xl border border-gray-100">
@@ -647,6 +653,5 @@ export default function AdminPanel() {
         )}
       </AnimatePresence>
     </div>
-    </AuthGuard>
   );
 }

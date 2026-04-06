@@ -143,41 +143,6 @@ export default function SystemControlView({
             </div>
           )}
         </motion.div>
-
-        {/* Emergency Broadcast */}
-        <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm flex flex-col gap-4 md:col-span-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
-              <Activity className="w-5 h-5 text-red-500" />
-            </div>
-            <div>
-              <p className="font-black text-slate-900 text-sm">إرسال تنبيه عاجل (Broadcast)</p>
-              <p className="text-[10px] text-slate-400 font-bold">يظهر لجميع الطيارين والمطاعم فوراً</p>
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <input 
-              type="text"
-              value={broadcastText}
-              onChange={(e) => setBroadcastText(e.target.value)}
-              placeholder="اكتب رسالة التنبيه هنا..."
-              className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 ring-red-100"
-            />
-            <button 
-              onClick={() => {
-                if (broadcastText.trim()) {
-                  onBroadcastMessage(broadcastText);
-                  setBroadcastText("");
-                }
-              }}
-              disabled={!broadcastText.trim() || actionLoading}
-              className="bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-black hover:bg-red-600 disabled:opacity-50 transition-all shadow-lg shadow-red-100"
-            >
-              إرسال
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Driver Shift Controls */}

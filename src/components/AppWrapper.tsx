@@ -1,39 +1,72 @@
 "use client";
 
 import * as React from "react";
-import AppUpdater from "@/components/AppUpdater";
-import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle } from "lucide-react";
+import { isNative, checkForAutoUpdate } from "@/lib/native-utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { RefreshCw, Download, CheckCircle, AlertTriangle } from "lucide-react";
 
+/**
+ * AppWrapper: A simple container to ensure the application is mounted
+ * and ready before rendering children. Handles background OTA updates
+ * silently for a smooth experience.
+ */
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [globalAlert, setGlobalAlert] = React.useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = React.useState<"idle" | "checking" | "downloading" | "ready" | "error">("idle");
+  const [progress, setProgress] = React.useState(0);
+  const [version, setVersion] = React.useState("");
 
   React.useEffect(() => {
-    try {
-      setMounted(true);
-      if (typeof window !== 'undefined') {
-        (window as any).showSystemAlert = (msg: string) => {
-          setGlobalAlert(msg);
-          setTimeout(() => setGlobalAlert(null), 10000);
-        };
-      }
-    } catch (e) {
-      console.error('AppWrapper catch:', e);
-      setError(e instanceof Error ? e.message : 'Unknown hydration error');
+    setMounted(true);
+    
+    // Polyfill for showSystemAlert
+    if (typeof window !== 'undefined') {
+      (window as any).showSystemAlert = (msg: string) => {
+        console.log('System Alert:', msg);
+      };
+    }
+
+    // OTA Update Check Logic (Silent)
+    if (isNative()) {
+      const runUpdateCheck = async () => {
+        try {
+          const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+          
+          // Add listener for download progress
+          const downloadListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
+            const percent = data.percent ?? 0;
+            setUpdateStatus("downloading");
+            setProgress(percent);
+            if (percent >= 100) setUpdateStatus("ready");
+          });
+
+          const updateInfo = await checkForAutoUpdate();
+
+          if (updateInfo?.available) {
+            setVersion(updateInfo.version || "");
+            if (updateInfo.downloaded) {
+              setUpdateStatus("ready");
+              setProgress(100);
+            } else {
+              setUpdateStatus("downloading");
+            }
+          } else {
+            setUpdateStatus("idle");
+          }
+
+          return () => downloadListener.remove();
+        } catch (e) {
+          console.error("OTA Update Check Failed:", e);
+          setUpdateStatus("error");
+        }
+      };
+
+      runUpdateCheck();
+      // Check every 30 minutes
+      const interval = setInterval(runUpdateCheck, 1000 * 60 * 30);
+      return () => clearInterval(interval);
     }
   }, []);
-
-  if (error) {
-    return (
-      <div style={{ padding: '20px', color: 'red', textAlign: 'center' }}>
-        <h2>حدث خطأ أثناء تحميل التطبيق</h2>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>إعادة المحاولة</button>
-      </div>
-    );
-  }
 
   if (!mounted) {
     return (
@@ -47,32 +80,39 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   return (
     <>
       <AnimatePresence>
-        {globalAlert && (
+        {updateStatus !== "idle" && updateStatus !== "error" && (
           <motion.div
-            initial={{ y: -100, opacity: 0 }}
+            initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            className="fixed top-6 left-6 right-6 z-[9999] flex justify-center pointer-events-none"
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-6 left-6 right-6 z-[9999] bg-white/90 backdrop-blur-2xl p-4 rounded-[28px] shadow-2xl border border-blue-100 flex items-center gap-4"
+            dir="rtl"
           >
-            <div className="bg-red-600 text-white px-6 py-4 rounded-[28px] shadow-2xl shadow-red-200 border border-red-500/50 flex items-center gap-4 max-w-lg w-full pointer-events-auto backdrop-blur-md">
-              <div className="bg-white/20 p-2 rounded-xl">
-                <AlertCircle className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-0.5">تنبيه من إدارة النظام</p>
-                <p className="text-sm font-black leading-tight">{globalAlert}</p>
-              </div>
-              <button 
-                onClick={() => setGlobalAlert(null)}
-                className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors"
-              >
-                <span className="text-xs font-black">إغلاق</span>
-              </button>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              updateStatus === "ready" ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"
+            }`}>
+              {updateStatus === "downloading" && <Download className="w-5 h-5 animate-bounce" />}
+              {updateStatus === "ready" && <CheckCircle className="w-5 h-5" />}
             </div>
+            
+            <div className="flex-1">
+              <p className="text-xs font-black text-gray-900">
+                {updateStatus === "downloading" ? `جاري تحديث النظام (${progress}%)` : "تم تحميل تحديث جديد"}
+              </p>
+              <p className="text-[10px] font-bold text-gray-400">إصدار {version || "جديد"}</p>
+            </div>
+
+            {updateStatus === "ready" && (
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[11px] font-black shadow-lg shadow-blue-100 active:scale-95 transition-all"
+              >
+                تحديث الآن
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
-      <AppUpdater />
       {children}
     </>
   );

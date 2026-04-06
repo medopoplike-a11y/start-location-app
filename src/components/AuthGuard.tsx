@@ -65,9 +65,10 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       const timeoutId = setTimeout(() => {
         if (!userRole) {
           console.error("AuthGuard: Role discovery timeout, forcing login");
-          router.replace("/login");
+          if (isNative) window.location.assign("/login/");
+          else router.replace("/login");
         }
-      }, isNative ? 15000 : 10000);
+      }, isNative ? 30000 : 15000);
       return () => clearTimeout(timeoutId);
     }
   }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);

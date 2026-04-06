@@ -98,42 +98,21 @@ export default function SettingsView({ appConfig, actionLoading, setAppConfig, o
         </button>
       </div>
 
-      <SectionCard icon={<Smartphone className="w-4 h-4 text-blue-500" />} title="إعدادات تحديث التطبيق">
+      <SectionCard icon={<Smartphone className="w-4 h-4 text-blue-500" />} title="إعدادات التطبيق الأساسية">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
-            label="أحدث إصدار"
+            label="إصدار التطبيق الحالي"
             value={appConfig.latest_version}
             onChange={v => setAppConfig({ ...appConfig, latest_version: v })}
             placeholder="0.2.0"
           />
           <InputField
-            label="الحد الأدنى للإصدار"
-            value={appConfig.min_version}
-            onChange={v => setAppConfig({ ...appConfig, min_version: v })}
-            placeholder="0.1.0"
+            label="رابط التحميل المباشر (APK)"
+            value={appConfig.download_url}
+            onChange={v => setAppConfig({ ...appConfig, download_url: v })}
+            placeholder="https://example.com/app.apk"
           />
         </div>
-        <InputField
-          label="رابط حزمة التحديث (ZIP)"
-          value={appConfig.bundle_url}
-          onChange={v => setAppConfig({ ...appConfig, bundle_url: v })}
-          placeholder="https://example.com/update.zip"
-        />
-        <label className="block space-y-1.5">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wide">رسالة التحديث للمستخدمين</span>
-          <textarea
-            value={appConfig.update_message}
-            onChange={e => setAppConfig({ ...appConfig, update_message: e.target.value })}
-            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px] resize-none"
-            placeholder="رسالة تظهر للمستخدم عند توفر تحديث"
-          />
-        </label>
-        <ToggleField
-          label="فرض التحديث الإجباري"
-          description="منع المستخدمين من الاستمرار بدون تحديث"
-          checked={appConfig.force_update}
-          onChange={v => setAppConfig({ ...appConfig, force_update: v })}
-        />
       </SectionCard>
 
       <SectionCard icon={<Bell className="w-4 h-4 text-red-500" />} title="وضع الصيانة">

@@ -32,8 +32,23 @@ if (fs.existsSync(apiDir)) {
   console.log('📦 API routes temporarily hidden for static export');
 }
 
+// Load .env.production variables manually to ensure they are available for the build
+const envProdPath = path.resolve(__dirname, '../.env.production');
+let envVars = 'BUILD_TYPE=static ';
+if (fs.existsSync(envProdPath)) {
+  console.log('📝 Loading environment variables from .env.production');
+  const envProd = fs.readFileSync(envProdPath, 'utf8');
+  envProd.split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      envVars += `${trimmed} `;
+    }
+  });
+}
+
 try {
-  execSync('cross-env BUILD_TYPE=static next build', { stdio: 'inherit' });
+  console.log('🚀 Starting static build...');
+  execSync(`cross-env ${envVars} next build`, { stdio: 'inherit' });
 } catch (err) {
   console.error('❌ Build failed:', err.message);
   restoreApi();
