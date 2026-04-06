@@ -1,0 +1,50 @@
+name: Deploy OTA Update
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-ota:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Build and Export
+        run: npm run export
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          BUILD_TYPE: static
+          
+      - name: Create ZIP Bundle
+        run: node scripts/create-ota-bundle.js
+        
+      - name: Upload to Supabase Storage
+        run: |
+          # We use curl to upload directly to Supabase Storage (public bucket)
+          # Replace BUCKET_NAME with your bucket (e.g., 'app-updates')
+          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          -H "Content-Type: application/zip" \
+          -H "x-upsert: true" \
+          --data-binary "@dist/update.zip"
+          
+      - name: Update App Version in DB
+        run: |
+          # Update the version in app_config table automatically
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          curl -X PATCH "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/app_config?id=eq.1" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          -H "Content-Type: application/json" \
+          -H "Prefer: return=minimal" \
+          -d "{\"latest_version\": \"$NEW_VERSION\", \"update_url\": \"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip\"}"

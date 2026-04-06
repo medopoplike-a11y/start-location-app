@@ -72,8 +72,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
           </motion.div>
         )}
       </AnimatePresence>
-      {/* AppUpdater disabled temporarily to prevent redirect loops and stick splash issues */}
-      {/* <AppUpdater /> */}
+      <AppUpdater />
       {children}
     </>
   );
