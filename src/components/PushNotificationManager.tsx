@@ -4,10 +4,18 @@ import { useEffect } from 'react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabaseClient';
+import { config } from '@/lib/config';
 
 export default function PushNotificationManager({ userId }: { userId: string | null }) {
   useEffect(() => {
+    // 1. Core safety checks
     if (!userId || !Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    // 2. Feature flag check - CRITICAL: Prevent native crash if Firebase is not ready
+    if (!config.features.pushNotifications) {
+      console.log('PushNotificationManager: Feature disabled in config. To enable, add google-services.json and set pushNotifications: true');
       return;
     }
 
