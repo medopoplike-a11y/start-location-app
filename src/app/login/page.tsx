@@ -34,25 +34,39 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
   const [mounted, setMounted] = useState(false);
+  const [isLoggedOut, setIsLoggedOut] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Check for logged_out param
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('logged_out') === 'true') {
+        console.log("LoginPage: Detected explicit logout, blocking auto-redirect");
+        setIsLoggedOut(true);
+        // Clear param without reload
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
   }, []);
 
   // Watch for authentication from AuthProvider
   useEffect(() => {
-    if (user && mounted) {
+    if (user && mounted && !isLoggedOut) {
       console.log("LoginPage: User detected from AuthProvider, redirecting...");
       const role = user.user_metadata?.role || profile?.role || "driver";
       router.replace(getRedirectPath(role));
     }
-  }, [user, profile, router, mounted]);
+  }, [user, profile, router, mounted, isLoggedOut]);
 
   // Optimized session check - kept for immediate redirect on mount
   useEffect(() => {
     let isMounted = true;
     const checkSession = async () => {
       try {
+        if (isLoggedOut) return;
+        
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && isMounted) {
           console.log("LoginPage: Session exists on mount, resolving role...");
@@ -63,9 +77,9 @@ const LoginPage = () => {
         console.log("LoginPage: Initial session check skipped");
       }
     };
-    if (mounted) checkSession();
+    if (mounted && !isLoggedOut) checkSession();
     return () => { isMounted = false; };
-  }, [router, mounted]);
+  }, [router, mounted, isLoggedOut]);
 
   // Load remembered email
   useEffect(() => {

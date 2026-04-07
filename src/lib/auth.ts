@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseLock } from './supabaseClient';
 import { config } from './config';
+import { Capacitor } from '@capacitor/core';
 
 const supabaseUrl = config.supabase.url || '';
 const supabaseAnonKey = config.supabase.anonKey || '';
@@ -155,31 +156,61 @@ export const signIn = async (email: string, password?: string) => {
 
 export const signOut = async () => {
   try {
-    const signOutPromise = supabase.auth.signOut();
+    console.log("Auth: signOut started");
+    // 1. Tell Supabase to sign out globally
+    const signOutPromise = supabase.auth.signOut({ scope: 'global' });
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('signOut timeout')), 5000);
+      setTimeout(() => reject(new Error('signOut timeout')), 3000); // Shorter timeout for snappier UI
     });
 
-    const { error } = await Promise.race([signOutPromise, timeoutPromise]) as any;
-    if (error) {
-      console.warn('Auth: signOut returned error', error);
+    try {
+      const { error } = await Promise.race([signOutPromise, timeoutPromise]) as any;
+      if (error) {
+        console.warn('Auth: signOut returned error', error);
+      }
+    } catch (raceErr) {
+      console.warn('Auth: signOut race error or timeout', raceErr);
     }
   } catch (error) {
     console.error('Auth: Error during signOut:', error);
   } finally {
+    console.log("Auth: Cleaning storage and redirecting...");
     if (typeof window !== 'undefined') {
       try {
+        // 2. Clear localStorage aggressively
+        const sessionKey = 'start-location-v1-session';
+        localStorage.removeItem(sessionKey);
+        
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const key = localStorage.key(i);
           if (!key) continue;
-          if (key.includes('auth-token') || key.includes('supabase')) {
+          if (key.includes('auth-token') || key.includes('supabase') || key.includes('session')) {
             localStorage.removeItem(key);
           }
         }
-      } catch {
-        // ignore
+
+        // 3. Clear Preferences for Capacitor if native
+        const isNative = Capacitor.isNativePlatform();
+        if (isNative) {
+          try {
+            const { Preferences } = await import('@capacitor/preferences');
+            await Preferences.remove({ key: sessionKey });
+            // Clear all preferences just in case? No, let's be targeted.
+            await Preferences.remove({ key: 'supabase.auth.token' });
+          } catch (prefErr) {
+            console.warn("Auth: Preferences clear error", prefErr);
+          }
+        }
+
+        // 4. Force hard redirect to login page
+        // Use a small delay to let state settle
+        setTimeout(() => {
+          window.location.replace('/login?logged_out=true');
+        }, 100);
+      } catch (err) {
+        console.error("Auth: Cleanup failed", err);
+        window.location.replace('/login');
       }
-      window.location.replace('/login');
     }
   }
 };
