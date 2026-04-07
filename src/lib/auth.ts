@@ -103,9 +103,12 @@ export const createUserByAdmin = async (
 };
 
 export const getUserProfile = async (userId: string, email?: string): Promise<UserProfile | null> => {
-  const userEmail = email;
+  const userEmail = email?.toLowerCase();
   
+  console.log("getUserProfile: Checking for email:", userEmail);
+
   if (isConfiguredAdminEmail(userEmail)) {
+    console.log("getUserProfile: Detected Admin Email from config");
     return {
       id: userId,
       email: userEmail || '',
@@ -121,6 +124,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
     if (!error && data) {
       return data as UserProfile;
     }
+    console.warn("getUserProfile: No profile found in DB for user", userId);
   } catch (dbError) {
     console.warn('getUserProfile: Database error:', dbError);
   }
