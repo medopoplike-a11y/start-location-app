@@ -470,6 +470,17 @@ function AdminContent() {
     { title: "أرباح النظام", value: formatCurrency(totalProfits), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
   ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits, formatCurrency]);
 
+  // Diagnostic Info for Debugging
+  const connectionInfo = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return {
+      url: (supabase as any).supabaseUrl || 'unknown',
+      authenticated: !!user,
+      profileFound: !!allUsers.find(u => u.id === user?.id),
+      usersCount: allUsers.length
+    };
+  }, [user, allUsers]);
+
   // 11. Render Helpers
   if (!mounted || loading || authLoading || error) {
     return (
@@ -556,6 +567,13 @@ function AdminContent() {
             </div>
           </div>
         </header>
+
+        {/* Diagnostic Banner - Only visible when something is potentially wrong */}
+        {connectionInfo && (connectionInfo.usersCount === 0 || connectionInfo.url.includes('placeholder')) && (
+          <div className="bg-amber-50 border-b border-amber-100 p-2 text-center text-[10px] font-bold text-amber-700">
+            ⚠️ تحذير: النظام متصل بمشروع Supabase فارغ أو غير مهيأ. (المشروع: {connectionInfo.url})
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
           <Suspense fallback={<AppLoader />}>
