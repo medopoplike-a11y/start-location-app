@@ -135,12 +135,27 @@ const isValidUpdateUrl = async (url: string) => {
   }
 };
 
+let lastCheckTime = 0;
+let isChecking = false;
+const CHECK_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown
+
 /**
  * نظام التحديث التلقائي الذكي (OTA)
  * يقوم بالتحقق من جدول app_config في Supabase وتحميل التحديث فوراً
  */
-export const checkForAutoUpdate = async () => {
+export const checkForAutoUpdate = async (force = false) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
+  if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
+
+  // Prevent frequent checks unless forced
+  const now = Date.now();
+  if (!force && now - lastCheckTime < CHECK_COOLDOWN) {
+    console.log('Native OTA: Skipping check due to cooldown.');
+    return { available: false, reason: 'COOLDOWN' };
+  }
+  
+  isChecking = true;
+  lastCheckTime = now;
 
   try {
     console.log('Native OTA: Checking for updates in app_config...');
@@ -161,7 +176,13 @@ export const checkForAutoUpdate = async () => {
     }
 
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-    const current = await CapacitorUpdater.getLatest();
+    let current;
+    try {
+      current = await CapacitorUpdater.getLatest();
+    } catch (e) {
+      console.warn('Native OTA: Failed to get latest bundle info from plugin, using fallback', e);
+      current = { version: '0.0.0' };
+    }
     const bundleUrl = String(config.bundle_url || '').trim();
 
     const phoneVersion = current.version || '0.0.0';
@@ -216,7 +237,13 @@ export const checkForAutoUpdate = async () => {
     };
   } catch (e: any) {
     console.error('Native OTA: Fatal error during update check:', e);
-    return { available: false, reason: 'FATAL_ERROR', error: e.message };
+    let errorMsg = e.message || 'فشل الاتصال بخادم التحديثات';
+    if (errorMsg.includes('rate_limit_exceeded')) {
+      errorMsg = 'تجاوزت حد المحاولات المسموح به حالياً. يرجى الانتظار 15 دقيقة ثم المحاولة مرة أخرى.';
+    }
+    return { available: false, reason: 'FATAL_ERROR', error: errorMsg };
+  } finally {
+    isChecking = false;
   }
 };
 

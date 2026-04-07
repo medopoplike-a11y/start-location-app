@@ -41,7 +41,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             setProgress(percent);
           });
 
-          const updateInfo = await checkForAutoUpdate();
+          const updateInfo = await checkForAutoUpdate(true);
 
           if (updateInfo?.available) {
             setVersion(updateInfo.version || "");
@@ -56,7 +56,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             }
           } else if (updateInfo?.reason === 'DB_ERROR' || updateInfo?.reason === 'FATAL_ERROR') {
             setUpdateStatus("error");
-            setErrorMessage(updateInfo.error || "فشل الاتصال بخادم التحديثات");
+            setErrorMessage(updateInfo?.error || "فشل الاتصال بخادم التحديثات");
           } else {
             setUpdateStatus("idle");
           }

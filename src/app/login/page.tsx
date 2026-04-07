@@ -65,21 +65,7 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
-      const checkOta = async () => {
-        try {
-          const { checkForAutoUpdate } = await import("@/lib/native-utils");
-          setOtaStatus("بدء فحص التحديث...");
-          const res = await checkForAutoUpdate();
-          if (res.available) {
-            setOtaStatus(`تحديث متاح: v${res.version}`);
-          } else {
-            setOtaStatus("لا يوجد تحديث متاح");
-          }
-        } catch (e: any) {
-          setOtaStatus(`خطأ في الفحص: ${e.message}`);
-        }
-      };
-      checkOta();
+      setOtaStatus("نظام التحديث التلقائي نشط");
     }
   }, []);
 
@@ -313,13 +299,16 @@ const LoginPage = () => {
             <div className="flex items-center justify-between mb-1">
               <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
               <button 
+                disabled={otaStatus.includes("جاري")}
                 onClick={async () => {
                   setOtaStatus("جاري الفحص الإجباري...");
                   try {
                     const { checkForAutoUpdate } = await import("@/lib/native-utils");
-                    const res = await checkForAutoUpdate();
+                    const res = await checkForAutoUpdate(true);
                     if (res.available) {
                       setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
+                    } else if (res.reason === 'COOLDOWN') {
+                      setOtaStatus("يرجى الانتظار 5 دقائق بين كل فحص يدوي.");
                     } else {
                       setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
                     }
@@ -327,7 +316,7 @@ const LoginPage = () => {
                     setOtaStatus(`فشل الفحص: ${e.message}`);
                   }
                 }}
-                className="text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95"
+                className={`text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95 ${otaStatus.includes("جاري") ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 فحص إجباري الآن
               </button>

@@ -22,8 +22,7 @@
     "CapacitorUpdater": {
       "autoUpdate": false,
       "stats": false,
-      "resetWhenUpdating": false,
-      "appId": "com.start.location"
+      "resetWhenUpdating": false
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
