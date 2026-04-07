@@ -12,6 +12,7 @@ import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
+import CameraScanner from "@/components/CameraScanner";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
@@ -38,6 +39,7 @@ export default function DriverApp() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "wallet">("orders");
   const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<{orderId: string, customerIndex: number} | null>(null);
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
   const [vendorDebt, setVendorDebt] = useState(0);
   const [systemBalance, setSystemBalance] = useState(0);
@@ -572,28 +574,20 @@ export default function DriverApp() {
     }
   };
 
-  const handleCaptureInvoice = async (orderId: string, customerIndex: number) => {
-    if (!isNative()) {
-      toastError("التقاط الصور متاح فقط على تطبيق الهاتف");
-      return;
-    }
+  const handleCaptureInvoice = (orderId: string, customerIndex: number) => {
+    setCameraTarget({ orderId, customerIndex });
+  };
+
+  const onCameraCapture = async (base64Data: string) => {
+    if (!cameraTarget) return;
+    const { orderId, customerIndex } = cameraTarget;
+    setCameraTarget(null);
 
     try {
-      const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-      const image = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.Base64,
-        source: CameraSource.Camera
-      });
-
-      if (!image || !image.base64String) return;
-
       setIsUploadingInvoice(true);
       toastSuccess("جاري رفع الفاتورة...");
 
       const fileName = `invoice_${orderId}_${customerIndex}_${Date.now()}.jpg`;
-      const base64Data = image.base64String;
       
       // Convert base64 to blob
       const byteCharacters = atob(base64Data);
@@ -632,7 +626,7 @@ export default function DriverApp() {
       }
     } catch (err) {
       console.error('Invoice capture failed:', err);
-      toastError("فشل التقاط أو رفع الصورة");
+      toastError("فشل رفع الصورة");
     } finally {
       setIsUploadingInvoice(false);
     }
@@ -761,6 +755,15 @@ export default function DriverApp() {
           onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
           onSignOut={handleSignOut}
         />
+
+        <AnimatePresence>
+          {cameraTarget && (
+            <CameraScanner 
+              onCapture={onCameraCapture}
+              onClose={() => setCameraTarget(null)}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </AuthGuard>
   );

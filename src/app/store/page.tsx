@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
@@ -31,7 +31,7 @@ import StoreSettingsView from "./components/SettingsView";
 import StoreDrawer from "./components/StoreDrawer";
 import OrderFormView from "./components/OrderFormView";
 import StoreAccountModals from "./components/StoreAccountModals";
-import InAppCamera from "./components/InAppCamera";
+import CameraScanner from "@/components/CameraScanner";
 
 export default function StoreApp() {
   return (
@@ -777,10 +777,15 @@ function StoreContent() {
     setShowInAppCamera(true);
   };
 
-  const handleInAppCapture = async (blob: Blob) => {
+  const handleInAppCapture = async (base64Data: string) => {
     const timestamp = Date.now();
-    const arrayBuffer = await blob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+    // Convert base64 to Uint8Array
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const uint8Array = new Uint8Array(byteNumbers);
     
     if (cameraMode === "form") {
       // If we have an activeCaptureIndex, update the specific customer
@@ -843,6 +848,7 @@ function StoreContent() {
       } finally {
         setUploadingInvoice(false);
         setActiveCaptureIndex(null);
+        setShowInAppCamera(false);
       }
     } else if (cameraMode === "quick" && quickUploadOrderId) {
       setUploadingInvoice(true);
@@ -856,7 +862,7 @@ function StoreContent() {
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('invoices')
           .upload(fileName, uint8Array, {
-            contentType: 'image/jpeg',
+            contentType: 'image/jpeg', 
             cacheControl: '3600'
           });
         
@@ -878,6 +884,7 @@ function StoreContent() {
       } finally {
         setUploadingInvoice(false);
         setQuickUploadOrderId(null);
+        setShowInAppCamera(false);
       }
     }
   };
@@ -1062,11 +1069,17 @@ function StoreContent() {
         </motion.button>
       )}
 
-      <InAppCamera 
-        show={showInAppCamera} 
-        onClose={() => setShowInAppCamera(false)} 
-        onCapture={handleInAppCapture} 
-      />
+      <AnimatePresence>
+        {showInAppCamera && (
+          <CameraScanner
+            onCapture={handleInAppCapture}
+            onClose={() => {
+              setShowInAppCamera(false);
+              setQuickUploadOrderId(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <StoreAccountModals
         showPasswordModal={showPasswordModal}
