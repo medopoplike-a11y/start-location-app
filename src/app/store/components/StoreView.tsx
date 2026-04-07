@@ -251,25 +251,44 @@ export default function StoreView({
                     </div>
                   </div>
 
-                  {order.invoiceUrl && (
-                    <div className="mb-6 bg-green-50/50 p-3 rounded-[22px] border border-green-100/50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-green-200 bg-white">
-                          <img 
-                            src={order.invoiceUrl} 
-                            alt="Invoice" 
-                            className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => setPreviewUrl(order.invoiceUrl || null)}
-                          />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-green-700">تم رفع الفاتورة</p>
-                          <p className="text-[8px] font-bold text-green-600/60 tracking-tight italic">اضغط للمعاينة</p>
+                  <div className="mb-6 bg-orange-50/30 p-4 rounded-[28px] border border-orange-100/50 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Camera className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="text-[10px] font-black text-orange-700 uppercase tracking-wider">فاتورة الطلب</span>
+                      </div>
+                      {order.invoiceUrl && (
+                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">تم الرفع</span>
+                      )}
+                    </div>
+                    
+                    {order.invoiceUrl ? (
+                      <div className="relative group/invoice cursor-pointer overflow-hidden rounded-2xl border-2 border-white shadow-sm aspect-video bg-white">
+                        <img 
+                          src={order.invoiceUrl} 
+                          alt="Invoice" 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover/invoice:scale-110"
+                          onClick={() => setPreviewUrl(order.invoiceUrl || null)}
+                        />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/invoice:opacity-100 transition-opacity flex items-center justify-center">
+                          <Eye className="text-white w-6 h-6" />
                         </div>
                       </div>
-                      <FileText className="w-4 h-4 text-green-500 opacity-40" />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-orange-200 rounded-2xl bg-white/50 gap-2">
+                        <Camera className="w-6 h-6 text-orange-200" />
+                        <p className="text-[9px] font-bold text-orange-300">لم يتم رفع فاتورة بعد</p>
+                        {isEditable && onQuickInvoiceUpload && (
+                          <button
+                            onClick={() => onQuickInvoiceUpload(order)}
+                            className="mt-1 px-4 py-1.5 bg-orange-500 text-white text-[9px] font-black rounded-xl shadow-lg shadow-orange-100 active:scale-95 transition-all"
+                          >
+                            تصوير الآن
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="flex justify-between items-center pt-5 border-t border-slate-50">
                     <div className="flex items-center gap-3">

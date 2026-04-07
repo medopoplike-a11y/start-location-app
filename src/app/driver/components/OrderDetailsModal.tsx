@@ -248,16 +248,20 @@ export default function OrderDetailsModal({
                         </div>
                       </div>
                         <div className="flex items-center gap-2">
-                          {cust.invoice_url && (
+                          {cust.invoice_url ? (
                             <a 
                               href={cust.invoice_url} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="w-10 h-10 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all"
+                              className="w-12 h-12 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden"
                               title="عرض الفاتورة"
                             >
-                              <ExternalLink size={18} />
+                              <img src={cust.invoice_url} className="w-full h-full object-cover" alt="Invoice" />
                             </a>
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-gray-300 italic text-[8px] text-center p-1">
+                              لا توجد فاتورة
+                            </div>
                           )}
                           <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                             <Phone size={18} />

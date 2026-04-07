@@ -187,7 +187,27 @@ export default function OrdersView({ liveOrders, activities, onCancelOrder, onUp
                       </div>
                     </div>
 
-                    <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100/50 space-y-2 mt-3 mb-3">
+                    <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100/50 space-y-3 mt-3 mb-3">
+                      {/* Unified Invoice View for Admin */}
+                      {order.invoice_url && (
+                        <div className="relative group/admin-invoice cursor-pointer overflow-hidden rounded-xl border border-slate-200 aspect-[21/9] bg-white">
+                          <img 
+                            src={order.invoice_url} 
+                            alt="Order Invoice" 
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover/admin-invoice:scale-105"
+                          />
+                          <a 
+                            href={order.invoice_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-[10px] font-black"
+                          >
+                            <Eye size={14} />
+                            فتح الفاتورة الكاملة
+                          </a>
+                        </div>
+                      )}
+
                       {order.customers && order.customers.length > 0 ? (
                         <div className="space-y-1">
                           <p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1.5">
