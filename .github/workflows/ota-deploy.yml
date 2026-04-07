@@ -40,14 +40,7 @@ jobs:
           --data-binary "@dist/update.zip"
           
       - name: Update App Version in DB
-        run: |
-          # Update the version in app_config table using UPSERT to ensure it works even if id=1 is missing
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          BUNDLE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/public/app-updates/update.zip"
-          
-          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/app_config" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          -H "Content-Type: application/json" \
-          -H "Prefer: resolution=merge-duplicates" \
-          -d "{\"id\": 1, \"latest_version\": \"$NEW_VERSION\", \"bundle_url\": \"$BUNDLE_URL\", \"force_update\": true}"
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/update-ota-version.mjs
