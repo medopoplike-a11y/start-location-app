@@ -8,6 +8,7 @@ import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 
 const isSupabaseConfigured = config.isConfigured();
 
@@ -28,31 +29,42 @@ const LoginPage = () => {
   const [status, setStatus] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [diagInfo, setDiagInfo] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
 
-  // Simple session check to avoid loop
+  // Optimized session check
   useEffect(() => {
+    let isMounted = true;
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log("LoginPage: Session exists, checking role...");
-        
-        let role = session.user.user_metadata?.role;
-        
-        if (!role) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          role = profile?.role;
-        }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && isMounted) {
+          console.log("LoginPage: Session exists, resolving role...");
+          
+          // Try metadata first (zero network cost)
+          let role = session.user.user_metadata?.role;
+          
+          if (!role) {
+            // Only fetch from DB if metadata is missing
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            role = profile?.role;
+          }
 
-        const finalRole = role || "driver";
-        router.replace(getRedirectPath(finalRole));
+          if (isMounted) {
+            const finalRole = role || "driver";
+            router.replace(getRedirectPath(finalRole));
+          }
+        }
+      } catch (err) {
+        console.error("Session check failed", err);
       }
     };
     checkSession();
+    return () => { isMounted = false; };
   }, [router]);
 
   // Load remembered email
@@ -91,7 +103,10 @@ const LoginPage = () => {
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return; // Prevent double clicks
+    
     setLoading(true);
+    setError(""); // Clear old errors
     setStatus("جاري تسجيل الدخول...");
     
     try {
@@ -101,16 +116,21 @@ const LoginPage = () => {
     } catch (e) {}
 
     try {
+      console.log("LoginPage: Attempting signIn for", email);
       const { data, error: loginError } = await signIn(email.trim(), password);
 
       if (loginError) {
-        setStatus(`خطأ: ${loginError.message}`);
+        console.error("LoginPage: signIn error", loginError);
+        setError(loginError.message);
+        setStatus("");
         setLoading(false);
         return;
       }
 
       if (!data?.user) {
-        setStatus("فشل تسجيل الدخول: لم يتم العثور على بيانات المستخدم");
+        console.error("LoginPage: signIn returned no user");
+        setError("فشل تسجيل الدخول: لم يتم العثور على بيانات المستخدم");
+        setStatus("");
         setLoading(false);
         return;
       }
@@ -125,6 +145,7 @@ const LoginPage = () => {
       }
 
       // Essential delay for storage persistence before redirect
+      // For web, we might need a shorter or different approach
       setTimeout(async () => {
         try {
           console.log("LoginPage: Auth delay finished, fetching role...");
@@ -157,7 +178,7 @@ const LoginPage = () => {
           // 3. Admin email check as ultimate fallback
           if (!role && email) {
             const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").toLowerCase().split(",");
-            if (adminEmails.includes(email.toLowerCase())) {
+            if (adminEmails.includes(email.trim().toLowerCase())) {
               role = "admin";
               console.log("LoginPage: Role identified as Admin via email");
             }
@@ -170,16 +191,27 @@ const LoginPage = () => {
           console.log(`LoginPage: Final Role identified as ${finalRole}, Redirecting to ${target}`);
           
           // Use window.location as fallback for router issues
-          if (router) router.replace(target);
-          else window.location.assign(target);
+          // IMPORTANT: Check if we are already at the target to avoid loops
+          if (window.location.pathname === target) {
+             console.log("LoginPage: Already at target, skipping redirect");
+             setLoading(false);
+             return;
+          }
+
+          if (router) {
+            router.replace(target);
+          } else {
+            window.location.assign(target);
+          }
         } catch (redirErr) {
           console.error("LoginPage: Redirection failed", redirErr);
-          window.location.assign("/driver"); 
+          window.location.assign("/driver/"); 
         }
-      }, 1500);
+      }, 800);
     } catch (err: any) {
       console.error("LoginPage: Unexpected error", err);
-      setStatus(`حدث خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
+      setError(`حدث خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
+      setStatus("");
       setLoading(false);
     }
   };
@@ -216,34 +248,51 @@ const LoginPage = () => {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
+              <Mail className="w-3 h-3" />
               البريد الإلكتروني
             </label>
             <div className="relative group">
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="user@example.com"
-                className="w-full bg-slate-900/40 border border-white/5 px-5 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
+                className="w-full bg-slate-900/40 border border-white/5 pl-5 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
               />
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
+                <Mail className="w-5 h-5" />
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
+              <Lock className="w-3 h-3" />
               كلمة المرور
             </label>
             <div className="relative group">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-900/40 border border-white/5 px-5 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
+                className="w-full bg-slate-900/40 border border-white/5 pl-14 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
               />
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
+                <Lock className="w-5 h-5" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
@@ -261,11 +310,18 @@ const LoginPage = () => {
           </div>
 
           {(error || status) && (
-            <div className={`rounded-2xl px-4 py-3 text-xs font-medium ${
-              error ? "bg-red-500/10 text-red-200 border border-red-500/20" : "bg-blue-500/10 text-blue-200 border border-blue-500/20"
-            }`}>
-              {error || status}
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`rounded-2xl px-4 py-3 text-xs font-bold flex items-center gap-3 ${
+                error 
+                  ? "bg-red-500/10 text-red-400 border border-red-500/20" 
+                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              }`}
+            >
+              {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
+              <span>{error || status}</span>
+            </motion.div>
           )}
 
           <button
