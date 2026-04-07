@@ -197,7 +197,7 @@ const LoginPage = () => {
       >
         <div className="flex flex-col items-center mb-8" onClick={checkConnection}>
           <StartLogo className="w-20 h-20 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer" />
-          <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-blue-400 via-red-500 to-yellow-500 text-transparent bg-clip-text drop-shadow-sm">
+          <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 text-transparent bg-clip-text drop-shadow-sm">
             Start Location
           </h1>
         </div>
@@ -274,7 +274,7 @@ const LoginPage = () => {
             className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
               !isSupabaseConfigured 
                 ? "bg-red-600" 
-                : "bg-gradient-to-r from-blue-600 via-red-600 to-yellow-500 hover:shadow-blue-500/25 active:scale-[0.98]"
+                : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:shadow-emerald-500/25 active:scale-[0.98]"
             } disabled:opacity-50`}
           >
             {loading ? "جاري التحقق..." : "تسجيل الدخول"}
