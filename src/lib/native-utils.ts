@@ -56,6 +56,7 @@ export const setCache = async (key: string, value: any) => {
 
 /**
  * دالة لجلب البيانات من ذاكرة الهاتف
+ * (تم تحسين الأداء لضمان الاستجابة الفورية)
  */
 export const getCache = async <T>(key: string): Promise<T | null> => {
   try {
