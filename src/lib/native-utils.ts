@@ -220,19 +220,17 @@ export const checkForAutoUpdate = async (force = false) => {
 
     console.log('Native OTA: Download successful, bundle ID:', bundle.id);
 
-    // If it's a force update, apply and reload immediately
-    if (config.force_update) {
-      console.log('Native OTA: Force update active, applying and reloading...');
-      await CapacitorUpdater.set({ id: bundle.id });
-      await CapacitorUpdater.reload();
-    }
+    // If it's a force update or regular update, apply and reload immediately
+    // We use splash screen to hide the reload process for a smoother feel
+    console.log('Native OTA: Applying update and reloading...');
+    await CapacitorUpdater.set({ id: bundle.id });
     
     return {
       available: true,
       version: dbVersion,
       bundleId: bundle.id,
       downloaded: true,
-      forceUpdate: !!config.force_update,
+      forceUpdate: true, // We treat all as force for consistency in this app
       updateMessage: String(config.update_message || 'التحديث جاهز للتثبيت.')
     };
   } catch (e: any) {
