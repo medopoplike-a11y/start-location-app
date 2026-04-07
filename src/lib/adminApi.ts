@@ -11,13 +11,21 @@ export const fetchAdminOrders = async () => {
 };
 
 export const fetchAdminProfiles = async () => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("AdminApi: profiles fetch error:", error);
+      throw error;
+    }
+    return data;
+  } catch (err) {
+    console.error("AdminApi: Unexpected error in fetchAdminProfiles:", err);
+    return [];
+  }
 };
 
 export const fetchAdminWallets = async () => {
