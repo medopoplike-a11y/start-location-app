@@ -13,15 +13,16 @@ import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2 } from "lucide-react
 
 const isSupabaseConfigured = config.isConfigured();
 
-const getRedirectPath = (role?: string) => {
-  if (!role) return "/driver";
-  const normalized = role.toLowerCase();
-  if (normalized === "admin") return "/admin";
-  if (normalized === "vendor") return "/store";
-  return "/driver";
-};
-
 const LoginPage = () => {
+  const getRedirectPath = (role: string) => {
+    const r = role.toLowerCase();
+    if (r === "admin") return "/admin";
+    if (r === "vendor") return "/vendor";
+    return "/driver";
+  };
+
+  const VERSION = "v0.5.8-ULTIMATE";
+
   const router = useRouter();
   const { user, profile } = useAuth();
   const [email, setEmail] = useState("");
@@ -232,22 +233,33 @@ const LoginPage = () => {
   };
 
   return (
-    <main className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative" dir="rtl">
-      {/* Optimized Background (Minimal performance impact) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.03),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.03),transparent_40%)]" />
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="silver-live-bg" />
+      
+      {/* Background Decorative Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] animate-pulse-soft" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] animate-pulse-soft" />
 
-      <motion.section 
-        initial={{ opacity: 0, y: 10 }}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md relative z-10 glass-morphism rounded-[2.5rem] p-8 md:p-10 premium-glow"
+        className="w-full max-w-md z-10"
       >
-        <div className="flex flex-col items-center mb-8" onClick={checkConnection}>
-          <StartLogo className="w-20 h-20 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer" />
-          <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 text-transparent bg-clip-text drop-shadow-sm">
-            Start Location
-          </h1>
-        </div>
+        <div className="glass-morphism p-8 md:p-12 rounded-[3rem] shadow-2xl relative">
+          <div className="flex flex-col items-center mb-12">
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
+              <StartLogo className="w-24 h-24 relative" />
+            </div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2 flex items-center gap-2">
+              START
+              <span className="text-blue-600">APP</span>
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="ultimate-badge">ULTIMATE</span>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Management</p>
+            </div>
+          </div>
 
         {diagInfo && (
           <div className="mb-4 p-3 bg-black/40 border border-blue-500/30 rounded-xl text-[10px] font-mono text-blue-300 text-center animate-pulse">

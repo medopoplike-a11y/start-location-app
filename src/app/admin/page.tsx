@@ -526,11 +526,20 @@ function AdminContent() {
       </motion.aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
+        <header className="glass-morphism h-20 px-8 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-gray-50 text-gray-900 rounded-xl border border-gray-200">{sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
-            <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
-              <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-slate-100 rounded-xl transition-colors lg:hidden"
+            >
+              <Menu className="w-6 h-6 text-slate-600" />
+            </button>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                لوحة التحكم
+                <span className="ultimate-badge">ULTIMATE</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Control Center</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -549,21 +558,13 @@ function AdminContent() {
             <button onClick={() => setActiveView("operations")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
               <Zap className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-3 p-1.5 pr-4 bg-white rounded-2xl border border-gray-100">
-              <div className="text-left hidden sm:block"><p className="text-xs font-black text-gray-900">أدمن ستارت</p><p className="text-[10px] font-bold text-blue-600">Control Center</p></div>
-              <div className="w-10 h-10 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-1"><StartLogo className="w-8 h-8" /></div>
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-200">
+              {user?.email?.[0].toUpperCase()}
             </div>
           </div>
         </header>
 
-        {/* Diagnostic Banner - Only visible when something is potentially wrong */}
-        {connectionInfo && (connectionInfo.usersCount === 0 || connectionInfo.url.includes('placeholder')) && (
-          <div className="bg-amber-50 border-b border-amber-100 p-2 text-center text-[10px] font-bold text-amber-700">
-            ⚠️ تحذير: النظام متصل بمشروع Supabase فارغ أو غير مهيأ. (المشروع: {connectionInfo.url})
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
           <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
         <DashboardView 
@@ -630,7 +631,7 @@ function AdminContent() {
               </div>
             )}
           </Suspense>
-        </div>
+        </main>
       </div>
 
       {/* Modals */}

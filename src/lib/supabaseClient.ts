@@ -6,15 +6,6 @@ import { Preferences } from '@capacitor/preferences';
 const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
-if (typeof window !== 'undefined') {
-  console.log("=== Supabase Connection Info ===");
-  console.log("URL:", supabaseUrl.substring(0, 15) + "...");
-  console.log("Key Length:", supabaseAnonKey.length);
-  if (supabaseUrl.includes('placeholder')) {
-    console.error("⚠️ CRITICAL: Using placeholder Supabase URL. Check environment variables in Vercel.");
-  }
-}
-
 const isNative = typeof window !== 'undefined' && 
   (window as any).Capacitor?.isNativePlatform?.() === true;
 
