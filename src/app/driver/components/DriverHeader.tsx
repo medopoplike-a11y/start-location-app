@@ -12,6 +12,7 @@ interface DriverHeaderProps {
   onOpenDrawer: () => void;
   onToggleActive: () => void;
   onSync: () => void;
+  isSurgeActive?: boolean;
 }
 
 export default function DriverHeader({
@@ -22,6 +23,7 @@ export default function DriverHeader({
   onOpenDrawer,
   onToggleActive,
   onSync,
+  isSurgeActive = false,
 }: DriverHeaderProps) {
   return (
     <header className="bg-white/70 backdrop-blur-2xl p-4 md:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between sticky top-0 z-40 border-b border-slate-100/50">
@@ -34,7 +36,19 @@ export default function DriverHeader({
           <Menu className="w-5 h-5" />
         </motion.button>
         <div className="flex flex-col">
-          <h1 className="text-xs font-black text-slate-900 leading-tight tracking-tight uppercase">Start Location</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xs font-black text-slate-900 leading-tight tracking-tight uppercase">Start Location</h1>
+            {isSurgeActive && (
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="bg-orange-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-bounce"
+              >
+                <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
+                SURGE
+              </motion.div>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" />
             <p className="text-[10px] font-bold text-slate-500 truncate max-w-[100px]">{driverName}</p>

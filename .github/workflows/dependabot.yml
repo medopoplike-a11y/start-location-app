@@ -5,8 +5,9 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  repository-projects: write
 
 jobs:
   dependabot-auto-merge:

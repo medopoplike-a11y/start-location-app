@@ -20,10 +20,9 @@
   },
   "plugins": {
     "CapacitorUpdater": {
-      "autoUpdate": true,
-      "stats": true,
-      "resetWhenUpdating": false,
-      "appId": "com.start.location"
+      "autoUpdate": false,
+      "stats": false,
+      "resetWhenUpdating": false
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
@@ -39,6 +38,18 @@
       "stopOnTerminate": false,
       "startOnBoot": true,
       "foregroundService": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": false,
+      "backgroundColor": "#f8fafc",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "androidSpinnerStyle": "large",
+      "iosSpinnerStyle": "small",
+      "spinnerColor": "#3b82f6",
+      "splashFullScreen": true,
+      "splashImmersive": true
     }
   }
 }

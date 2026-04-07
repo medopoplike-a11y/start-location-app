@@ -7,9 +7,10 @@ import { useEffect, useState } from "react";
 interface SyncIndicatorProps {
   lastSync: Date;
   isSyncing?: boolean;
+  onReset?: () => void;
 }
 
-export const SyncIndicator = ({ lastSync, isSyncing = false }: SyncIndicatorProps) => {
+export const SyncIndicator = ({ lastSync, isSyncing = false, onReset }: SyncIndicatorProps) => {
   const [timeAgo, setTimeAgo] = useState("الآن");
 
   useEffect(() => {
@@ -23,7 +24,11 @@ export const SyncIndicator = ({ lastSync, isSyncing = false }: SyncIndicatorProp
   }, [lastSync]);
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50/50 backdrop-blur-sm rounded-full border border-gray-100 shadow-sm">
+    <div 
+      onClick={onReset}
+      className={`flex items-center gap-2 px-3 py-1.5 bg-gray-50/50 backdrop-blur-sm rounded-full border border-gray-100 shadow-sm transition-all ${onReset ? 'cursor-pointer active:scale-95' : ''}`}
+      title={onReset ? "اضغط لإعادة تعيين التزامن" : ""}
+    >
       <motion.div
         animate={isSyncing ? { rotate: 360 } : {}}
         transition={isSyncing ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}

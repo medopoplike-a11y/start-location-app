@@ -7,7 +7,7 @@ export default function HomeRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Standard Next.js router replacement
+    // Redirect to login page as the entry point
     router.replace('/login');
   }, [router]);
 

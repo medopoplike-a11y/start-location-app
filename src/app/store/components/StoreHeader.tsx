@@ -13,9 +13,11 @@ interface StoreHeaderProps {
   onSearchChange: (value: string) => void;
   onOpenDrawer: () => void;
   onSync: () => void;
+  onResetSync?: () => void;
+  isSurgeActive?: boolean;
 }
 
-export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync }: StoreHeaderProps) {
+export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync, onResetSync, isSurgeActive = false }: StoreHeaderProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
@@ -37,12 +39,24 @@ export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQue
           <Menu className="w-5 h-5 text-gray-900" />
         </button>
         <div>
-          <h1 className="text-base font-bold text-gray-900 leading-tight">{vendorName}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-bold text-gray-900 leading-tight">{vendorName}</h1>
+            {isSurgeActive && (
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="bg-orange-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-bounce"
+              >
+                <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
+                SURGE
+              </motion.div>
+            )}
+          </div>
           <p className="text-[10px] text-gray-400">لوحة تحكم المحل</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
+        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} onReset={onResetSync} />
 
         <motion.button
           whileTap={{ scale: 0.9, rotate: 180 }}

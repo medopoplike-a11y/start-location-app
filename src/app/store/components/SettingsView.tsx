@@ -85,20 +85,6 @@ export default function StoreSettingsView({
         )}
       </div>
 
-      {/* Notifications Section */}
-      <div className="bg-white p-6 rounded-[32px] border border-gray-100 space-y-4 shadow-sm">
-        <h3 className="text-sm font-black text-gray-700">تنبيهات النظام</h3>
-        <button 
-          onClick={() => {
-            localStorage.removeItem('skip_push_registration');
-            alert('تم إعادة تفعيل محاولة الاتصال بخدمة التنبيهات. سيتم المحاولة عند تشغيل التطبيق القادم.');
-          }}
-          className="w-full p-4 rounded-2xl bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 hover:bg-blue-100 transition-all"
-        >
-          إعادة ضبط خدمة التنبيهات
-        </button>
-      </div>
-
       {/* Profile Info Section */}
       <div className="bg-white p-6 rounded-[32px] border border-gray-100 space-y-6 shadow-sm">
         <h3 className="text-sm font-black text-gray-700">بيانات الحساب</h3>
@@ -130,7 +116,7 @@ export default function StoreSettingsView({
             value={settingsData.area}
             onChange={(e) => onSettingsDataChange({ ...settingsData, area: e.target.value })}
             className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
-            placeholder="مثال: المعادي، مصر الجديدة..."
+            placeholder="مثال: مدينة الشروق، المعادي..."
           />
         </div>
         <button

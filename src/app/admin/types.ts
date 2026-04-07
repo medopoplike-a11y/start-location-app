@@ -4,9 +4,34 @@ export interface AdminOrder {
   vendor_full_name?: string | null;
   vendor_id?: string;
   driver_id?: string | null;
-  customer_details?: { name?: string };
-  financials?: { order_value?: number; delivery_fee?: number; insurance_fee?: number; system_commission?: number; vendor_commission?: number };
+  customer_details?: { 
+    name?: string;
+    phone?: string;
+    address?: string;
+    notes?: string;
+    coords?: { lat: number; lng: number } | null;
+    customers?: Array<{
+      name: string;
+      phone: string;
+      address: string;
+      orderValue: number;
+      deliveryFee: number;
+      status: 'pending' | 'delivered';
+      deliveredAt?: string;
+    }>;
+  };
+  financials?: { 
+    order_value?: number; 
+    delivery_fee?: number; 
+    insurance_fee?: number; 
+    system_commission?: number; 
+    vendor_commission?: number;
+    prep_time?: string;
+  };
   created_at: string;
+  status_updated_at?: string;
+  vendor_collected_at?: string | null;
+  driver_confirmed_at?: string | null;
 }
 
 export interface LiveOrderItem {
@@ -20,6 +45,7 @@ export interface LiveOrderItem {
   amount: number;
   delivery_fee: number;
   created_at: string;
+  customers?: AdminOrder['customer_details']['customers'];
 }
 
 export interface DriverCard {
@@ -42,6 +68,8 @@ export interface VendorCard {
   balance: number;
   status: string;
   location?: { lat?: number; lng?: number } | null;
+  commission_type?: 'percentage' | 'fixed';
+  commission_value?: number;
 }
 
 export interface AppUser {
@@ -62,6 +90,7 @@ export interface OnlineDriver {
   lat: number;
   lng: number;
   lastSeen: string;
+  status?: 'available' | 'busy';
 }
 
 export interface SettlementItem {

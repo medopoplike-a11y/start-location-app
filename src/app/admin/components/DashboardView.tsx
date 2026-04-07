@@ -27,9 +27,17 @@ interface DashboardViewProps {
   stats: StatItem[];
   onlineDrivers: OnlineDriver[];
   vendors: VendorCard[];
+  liveOrders: LiveOrderItem[];
+  allOrders: AdminOrder[];
+  systemHealth: {
+    activeOrdersCount: number;
+    onlineDriversCount: number;
+    ratio: number;
+    status: "optimal" | "busy" | "congested";
+  };
 }
 
-export default function DashboardView({ activityLog, stats, onlineDrivers, vendors }: DashboardViewProps) {
+export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, liveOrders, allOrders, systemHealth }: DashboardViewProps) {
   return (
     <div className="space-y-8">
       {/* Upper Section: Stats & Activity */}
@@ -85,6 +93,54 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
 
         {/* Stats Grid */}
         <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          {/* System Health Widget */}
+          <div className={`xl:col-span-3 bg-white border-2 rounded-[32px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 transition-all ${
+            systemHealth.status === 'congested' ? "border-red-200 bg-red-50/30 shadow-red-50 shadow-lg" :
+            systemHealth.status === 'busy' ? "border-amber-200 bg-amber-50/30" : "border-emerald-100 bg-emerald-50/30"
+          }`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-[22px] flex items-center justify-center ${
+                systemHealth.status === 'congested' ? "bg-red-500 shadow-red-200 shadow-xl" :
+                systemHealth.status === 'busy' ? "bg-amber-500 shadow-amber-200 shadow-xl" : "bg-emerald-500 shadow-emerald-200 shadow-xl"
+              }`}>
+                <Activity className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">حالة تشغيل النظام</h4>
+                <p className={`text-[11px] font-bold ${
+                  systemHealth.status === 'congested' ? "text-red-600" :
+                  systemHealth.status === 'busy' ? "text-amber-600" : "text-emerald-600"
+                }`}>
+                  {systemHealth.status === 'congested' ? "ازدحام شديد — يرجى تفعيل وضع Surge" :
+                   systemHealth.status === 'busy' ? "ضغط عمل مرتفع — يرجى المراقبة" : "النظام يعمل بكفاءة مثالية"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-8 bg-white/60 p-4 rounded-3xl border border-white/80">
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">طلبات نشطة</p>
+                <p className="text-xl font-black text-slate-900">{systemHealth.activeOrdersCount}</p>
+              </div>
+              <div className="w-px h-8 bg-slate-100" />
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">طيارين متاحين</p>
+                <p className="text-xl font-black text-slate-900">{systemHealth.onlineDriversCount}</p>
+              </div>
+              <div className="w-px h-8 bg-slate-100" />
+              <div className={`text-center px-4 py-1.5 rounded-2xl ${
+                systemHealth.ratio > 2 ? "bg-red-100" : systemHealth.ratio > 1 ? "bg-amber-100" : "bg-emerald-100"
+              }`}>
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">النسبة</p>
+                <p className={`text-sm font-black ${
+                  systemHealth.ratio > 2 ? "text-red-600" : systemHealth.ratio > 1 ? "text-amber-600" : "text-emerald-600"
+                }`}>
+                  {systemHealth.ratio.toFixed(1)}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {stats.map((stat, idx) => (
             <PremiumCard 
               key={idx} 
@@ -120,8 +176,23 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
         
         <div className="h-[450px] relative">
           <LiveMap
-            drivers={onlineDrivers}
-            vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng }] : [])}
+            drivers={onlineDrivers.map(d => ({
+              ...d,
+              status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
+              details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
+            }))}
+            vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
+            orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned') && vendors.find(v => v.id_full === o.vendor_id)?.location).map(o => {
+              const v = vendors.find(v => v.id_full === o.vendor_id)!;
+              return {
+                id: o.id,
+                name: o.vendor_full_name || "محل",
+                lat: v.location!.lat!,
+                lng: v.location!.lng!,
+                status: o.status === 'pending' ? 'جاري البحث عن طيار' : 'تم التعيين - بانتظار التحصيل',
+                details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
+              };
+            })}
             zoom={13}
             className="h-full w-full"
           />
@@ -130,8 +201,8 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
              <div className="bg-white/90 backdrop-blur-md p-3 rounded-2xl border border-white shadow-xl flex items-center gap-3">
                 <div className="w-8 h-8 bg-sky-50 rounded-xl flex items-center justify-center border border-sky-100"><Truck className="w-4 h-4 text-sky-500" /></div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase">أسرع توصيل</p>
-                  <p className="text-[10px] font-black text-slate-800 tracking-tighter">حي المعادي</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase">المنطقة الرئيسية</p>
+                  <p className="text-[10px] font-black text-slate-800 tracking-tighter">مدينة الشروق</p>
                 </div>
              </div>
           </div>

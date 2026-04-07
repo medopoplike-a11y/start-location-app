@@ -9,6 +9,7 @@ import type { Order, DBDriverOrder } from "../types";
 interface WalletProps {
   todayDeliveryFees: number;
   vendorDebt: number;
+  systemBalance: number;
   orders: Order[];
   deliveredOrders: DBDriverOrder[];
   allHistory: DBDriverOrder[];
@@ -17,7 +18,7 @@ interface WalletProps {
 
 type FilterPeriod = "today" | "15days" | "month";
 
-export default function DriverWalletView({ todayDeliveryFees, vendorDebt, orders, deliveredOrders, allHistory, onConfirmPayment }: WalletProps) {
+export default function DriverWalletView({ todayDeliveryFees, vendorDebt, systemBalance, orders, deliveredOrders, allHistory, onConfirmPayment }: WalletProps) {
   const [tab, setTab] = useState<"earnings" | "vendors">("earnings");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterPeriod>("today");
@@ -66,32 +67,50 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, orders
       </div>
 
       {/* Commission Box */}
-      <div className="bg-orange-50 border border-orange-100 rounded-[24px] p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-orange-500" />
-            <p className="text-[11px] font-black text-orange-700">عمولة الشركة المستحقة</p>
+      <div className="bg-gray-900 border border-gray-800 rounded-[32px] p-6 text-white shadow-xl shadow-slate-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إجمالي مستحقات الشركة</p>
+              <h3 className="text-2xl font-black text-white">{(systemBalance || 0).toFixed(2)} <span className="text-xs font-bold opacity-50">ج.م</span></h3>
+            </div>
           </div>
-          <span className="text-base font-black text-orange-600">{totalCommission.toFixed(2)} ج.م</span>
+          <button className="bg-orange-500 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all">
+            سداد الآن
+          </button>
         </div>
-        <div className="space-y-1">
-          <div className="flex justify-between text-[10px] text-orange-600 font-bold">
-            <span>%{(commissionRate * 100).toFixed(0)} من سعر التوصيل</span>
-            <span>{(filteredFees * commissionRate).toFixed(2)} ج.م</span>
+
+        <div className="h-px bg-white/10 my-4" />
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black text-slate-400 uppercase">تفاصيل عمولة الفترة المختارة</p>
+            <span className="text-xs font-black text-orange-500">{totalCommission.toFixed(2)} ج.م</span>
           </div>
-          <div className="flex justify-between text-[10px] text-orange-600 font-bold">
-            <span>{filteredHistory.length} طلب × {commissionPerOrder} ج.م</span>
-            <span>{(filteredHistory.length * commissionPerOrder).toFixed(2)} ج.م</span>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">%{(commissionRate * 100).toFixed(0)} من التوصيل</p>
+              <p className="text-xs font-black text-white">{(filteredFees * commissionRate).toFixed(2)} ج.م</p>
+            </div>
+            <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">رسوم تأمين ({filteredHistory.length} طلب)</p>
+              <p className="text-xs font-black text-white">{(filteredHistory.length * commissionPerOrder).toFixed(2)} ج.م</p>
+            </div>
           </div>
         </div>
+
         {/* Filter Tabs inside commission box */}
-        <div className="flex bg-orange-100 p-1 rounded-xl gap-1 mt-3">
+        <div className="flex bg-white/5 p-1 rounded-xl gap-1 mt-4 border border-white/5">
           {(["today", "15days", "month"] as FilterPeriod[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                filter === f ? "bg-white text-orange-700 shadow-sm" : "text-orange-400"
+              className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${
+                filter === f ? "bg-white text-gray-900 shadow-sm" : "text-slate-500 hover:text-slate-300"
               }`}
             >
               {filterLabels[f]}

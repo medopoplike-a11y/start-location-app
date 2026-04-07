@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import { supabase, supabaseLock } from './supabaseClient';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Toast } from '@capacitor/toast';
-import { Preferences } from '@capacitor/preferences';
 
 /**
  * دالة للاهتزاز البسيط عند النقر أو حدوث إجراء
@@ -36,41 +35,6 @@ export const showNativeToast = async (text: string) => {
  */
 export const isNative = () => {
   return typeof window !== 'undefined' && Capacitor.isNativePlatform();
-};
-
-/**
- * دالة لحفظ البيانات في ذاكرة الهاتف الدائمة (Persistent Storage)
- */
-export const setCache = async (key: string, value: any) => {
-  try {
-    const stringValue = JSON.stringify(value);
-    if (isNative()) {
-      await Preferences.set({ key, value: stringValue });
-    } else {
-      localStorage.setItem(key, stringValue);
-    }
-  } catch (e) {
-    console.warn(`Cache: Failed to set ${key}`, e);
-  }
-};
-
-/**
- * دالة لجلب البيانات من ذاكرة الهاتف
- */
-export const getCache = async <T>(key: string): Promise<T | null> => {
-  try {
-    let value: string | null = null;
-    if (isNative()) {
-      const result = await Preferences.get({ key });
-      value = result.value;
-    } else {
-      value = localStorage.getItem(key);
-    }
-    return value ? JSON.parse(value) : null;
-  } catch (e) {
-    console.warn(`Cache: Failed to get ${key}`, e);
-    return null;
-  }
 };
 
 /**
@@ -124,9 +88,12 @@ export const requestPushNotificationPermissions = async () => {
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     const pushStatus = await PushNotifications.requestPermissions();
+    // Removed automatic registration to prevent native crash when Firebase is missing
+    /*
     if (pushStatus.receive === 'granted') {
       await PushNotifications.register();
     }
+    */
     return pushStatus;
   } catch (e) {
     console.warn('Native: Failed to request push notification permissions', e);
@@ -148,96 +115,121 @@ const isValidUpdateUrl = async (url: string) => {
   if (!url || !/^https?:\/\//i.test(url)) return false;
 
   try {
-    const response = await fetch(url, { method: 'HEAD' });
+    const response = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
     if (!response.ok) {
+      console.warn(`Native OTA: URL ${url} returned status ${response.status}`);
       return false;
     }
 
     const contentType = response.headers.get('content-type') || '';
-    return contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
-  } catch (headError) {
-    console.warn('Native: HEAD check failed for update URL, trying GET', headError);
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-0' }
-      });
-      if (!response.ok) return false;
-
-      const contentType = response.headers.get('content-type') || '';
-      return contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
-    } catch (getError) {
-      console.error('Native: Update URL validation failed', getError);
-      return false;
+    const isValid = contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
+    
+    if (!isValid) {
+      console.warn(`Native OTA: URL ${url} has invalid content-type: ${contentType}`);
     }
+    
+    return isValid;
+  } catch (err) {
+    console.error(`Native OTA: Failed to validate URL ${url}`, err);
+    return false;
   }
 };
+
+import { Preferences } from '@capacitor/preferences';
+
+let lastCheckTime = 0;
+let isChecking = false;
+const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown
 
 /**
  * نظام التحديث التلقائي الذكي (OTA)
  * يقوم بالتحقق من جدول app_config في Supabase وتحميل التحديث فوراً
  */
-export const checkForAutoUpdate = async () => {
-  if (!isNative()) return { available: false };
+export const checkForAutoUpdate = async (force = false) => {
+  if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
+  if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
+
+  const now = Date.now();
+  if (!force && now - lastCheckTime < CHECK_COOLDOWN) {
+    return { available: false, reason: 'COOLDOWN' };
+  }
+  
+  isChecking = true;
+  lastCheckTime = now;
 
   try {
-    // التحقق من الإعدادات بدون قفل لتجنب أي تعارض أو بطء
     const { data: config, error: configError } = await supabase
       .from('app_config')
       .select('*')
+      .eq('id', 1)
       .single();
 
-    if (configError) {
-      console.warn('Native: checkForAutoUpdate skip due to config error:', configError.message);
-      return { available: false };
-    }
-
-    if (!config) {
-      return { available: false };
+    if (configError || !config) {
+      return { available: false, reason: 'NO_CONFIG' };
     }
 
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-    const current = await CapacitorUpdater.getLatest();
+    
+    // 1. Get current state
+    const dbVersion = String(config.latest_version || '').trim();
     const bundleUrl = String(config.bundle_url || '').trim();
 
-    if (!bundleUrl || !config.latest_version) {
-      console.warn('Native: Update config missing bundle_url or latest_version');
-      return { available: false };
+    // 2. Check persistent storage for "Applied Version"
+    // This is our ground truth to prevent infinite loops
+    const { value: appliedVersion } = await Preferences.get({ key: 'last_applied_ota_version' });
+    
+    console.log(`Native OTA: [Applied: ${appliedVersion}] [DB: ${dbVersion}]`);
+
+    if (appliedVersion === dbVersion) {
+      console.log('Native OTA: App already has this version applied persistently.');
+      return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 
-    if (config.latest_version === current.version) {
-      return { available: false };
+    // 3. Double check with plugin
+    let current;
+    try {
+      current = await CapacitorUpdater.getLatest();
+    } catch (e) {
+      current = { version: '0.0.0' };
     }
 
-    if (!(await isValidUpdateUrl(bundleUrl))) {
-      console.warn('Native: Update URL is not valid or not reachable', bundleUrl);
-      return { available: false };
+    if (current.version === dbVersion) {
+      // Sync our storage if plugin already knows
+      await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
+      return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 
-    console.log('Native: New update found!', config.latest_version);
+    if (!bundleUrl || !dbVersion) {
+      return { available: false, reason: 'MISSING_CONFIG' };
+    }
+
+    console.log('Native OTA: New update found! Downloading:', dbVersion);
 
     const bundle = await CapacitorUpdater.download({
       url: bundleUrl,
-      version: config.latest_version
+      version: dbVersion
     });
 
-    // Never force update automatically to prevent infinite reload loops
-    // Let the UI handle the update by showing a button
+    // 4. Set as default and save to persistent storage BEFORE reload
+    await CapacitorUpdater.set({ id: bundle.id });
+    await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
     
+    console.log('Native OTA: Update applied to storage. Ready for reload.');
+
     return {
       available: true,
-      version: config.latest_version,
+      version: dbVersion,
       bundleId: bundle.id,
       downloaded: true,
-      forceUpdate: !!config.force_update,
-      updateMessage: String(config.update_message || 'التحديث جاهز للتثبيت.')
+      forceUpdate: true,
+      updateMessage: String(config.update_message || 'جاري تثبيت التحديث...')
     };
-  } catch (e) {
-    console.error('Auto Update Check Failed:', e);
+  } catch (e: any) {
+    console.error('Native OTA: Fatal error:', e);
+    return { available: false, reason: 'FATAL_ERROR', error: e.message };
+  } finally {
+    isChecking = false;
   }
-
-  return { available: false };
 };
 
 /**

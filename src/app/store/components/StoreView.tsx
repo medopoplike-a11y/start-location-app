@@ -1,9 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2 } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
+import ImagePreviewModal from "./ImagePreviewModal";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
 import { translateVendorOrderStatus } from "../utils";
 
@@ -34,6 +36,9 @@ interface StoreViewProps {
   onCollectDebt: (orderId: string) => void;
   onCancelOrder: (orderId: string) => void;
   onEditOrder: (order: Order) => void;
+  onQuickInvoiceUpload?: (order: Order) => void;
+  uploadingInvoice?: boolean;
+  quickUploadOrderId?: string | null;
 }
 
 export default function StoreView({
@@ -52,7 +57,12 @@ export default function StoreView({
   onCollectDebt,
   onCancelOrder,
   onEditOrder,
+  onQuickInvoiceUpload,
+  uploadingInvoice,
+  quickUploadOrderId
 }: StoreViewProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
     const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
@@ -241,6 +251,26 @@ export default function StoreView({
                     </div>
                   </div>
 
+                  {order.invoiceUrl && (
+                    <div className="mb-6 bg-green-50/50 p-3 rounded-[22px] border border-green-100/50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-green-200 bg-white">
+                          <img 
+                            src={order.invoiceUrl} 
+                            alt="Invoice" 
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => setPreviewUrl(order.invoiceUrl || null)}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-green-700">تم رفع الفاتورة</p>
+                          <p className="text-[8px] font-bold text-green-600/60 tracking-tight italic">اضغط للمعاينة</p>
+                        </div>
+                      </div>
+                      <FileText className="w-4 h-4 text-green-500 opacity-40" />
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center pt-5 border-t border-slate-50">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 relative group-hover:border-sky-200 transition-all overflow-hidden">
@@ -261,6 +291,26 @@ export default function StoreView({
                     </div>
 
                     <div className="flex gap-2">
+                      {isEditable && !order.invoiceUrl && onQuickInvoiceUpload && (
+                        <motion.button
+                          onClick={() => onQuickInvoiceUpload(order)}
+                          disabled={uploadingInvoice && quickUploadOrderId === order.id}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={`flex items-center justify-center w-10 h-10 rounded-xl shadow-lg transition-all ${
+                            uploadingInvoice && quickUploadOrderId === order.id
+                              ? "bg-slate-100 text-slate-400 shadow-none cursor-not-allowed"
+                              : "bg-orange-500 text-white shadow-orange-100"
+                          }`}
+                          title={uploadingInvoice && quickUploadOrderId === order.id ? "جاري الرفع..." : "تصوير الفاتورة مباشر"}
+                        >
+                          {uploadingInvoice && quickUploadOrderId === order.id ? (
+                            <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                          ) : (
+                            <Camera className="w-5 h-5" />
+                          )}
+                        </motion.button>
+                      )}
                       {isEditable ? (
                         <>
                           <motion.button
@@ -323,6 +373,12 @@ export default function StoreView({
           </AnimatePresence>
         )}
       </section>
+
+      <ImagePreviewModal
+        url={previewUrl}
+        show={!!previewUrl}
+        onClose={() => setPreviewUrl(null)}
+      />
     </div>
   );
 }

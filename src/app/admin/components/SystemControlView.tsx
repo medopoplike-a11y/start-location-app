@@ -21,6 +21,7 @@ interface SystemControlViewProps {
   onUnlockAllDrivers: () => void;
   onGlobalReset: () => void;
   onRefresh: () => void;
+  onBroadcastMessage: (msg: string) => void;
 }
 
 export default function SystemControlView({
@@ -35,8 +36,10 @@ export default function SystemControlView({
   onUnlockAllDrivers,
   onGlobalReset,
   onRefresh,
+  onBroadcastMessage,
 }: SystemControlViewProps) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [broadcastText, setBroadcastText] = useState("");
   const activeDrivers = drivers.filter(d => !d.isShiftLocked);
   const lockedDrivers = drivers.filter(d => d.isShiftLocked);
 

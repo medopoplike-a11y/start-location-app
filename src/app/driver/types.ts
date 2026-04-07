@@ -14,11 +14,22 @@ export interface Order {
   prepTime: string;
   isPickedUp: boolean;
   priority: number;
+  statusUpdatedAt?: string;
   vendorPhone?: string;
   customerPhone?: string;
   vendorCollectedAt?: string | null;
   driverConfirmedAt?: string | null;
   orderValue?: number;
+  customers?: Array<{
+    name: string;
+    phone: string;
+    address: string;
+    orderValue: number;
+    deliveryFee: number;
+    status: 'pending' | 'delivered';
+    deliveredAt?: string;
+    invoice_url?: string;
+  }>;
   financials?: {
     order_value?: number;
     delivery_fee?: number;
@@ -39,10 +50,19 @@ export interface DBDriverOrder {
     location?: { lat: number; lng: number };
   } | null;
   customer_details: {
-    name: string;
+    name?: string;
     phone?: string;
-    address: string;
+    address?: string;
     coords?: { lat: number; lng: number } | null;
+    customers?: Array<{
+      name: string;
+      phone: string;
+      address: string;
+      orderValue: number;
+      deliveryFee: number;
+      status: 'pending' | 'delivered';
+      deliveredAt?: string;
+    }>;
   };
   financials: {
     delivery_fee: number;
@@ -53,6 +73,7 @@ export interface DBDriverOrder {
   };
   distance?: number;
   status: Order["status"];
+  status_updated_at?: string;
   vendor_collected_at?: string | null;
   driver_confirmed_at?: string | null;
 }

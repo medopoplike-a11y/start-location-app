@@ -14,6 +14,11 @@ export const config = {
   admin: {
     emails: adminEmails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
   },
+  features: {
+    // Enable this only AFTER configuring Google Services on Android/iOS
+    // If enabled without google-services.json, the app WILL CRASH on startup.
+    pushNotifications: false, 
+  },
   isProduction: process.env.NODE_ENV === 'production',
   isConfigured: () => {
     return (

@@ -17,48 +17,60 @@ import {
   LogOut, 
   Wallet,
   RefreshCw,
-  Zap
+  Zap,
+  AlertTriangle,
+  Loader2,
+  BarChart3
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
+const DashboardView = dynamic(() => import("./components/DashboardView"), { 
+  ssr: false,
+  loading: () => <AppLoader />
+});
+const SettlementsView = dynamic(() => import("./components/SettlementsView"), { ssr: false });
+const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: false });
+const ReportsView = dynamic(() => import("./components/ReportsView"), { ssr: false });
+const UserManagementView = dynamic(() => import("./components/UserManagementView"), { ssr: false });
+const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), { ssr: false });
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
+import { Capacitor } from "@capacitor/core";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
-import { CardSkeleton, AdminSkeleton, DashboardSkeleton } from "@/components/ui/Skeleton";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
-import DashboardView from "./components/DashboardView";
-import OrdersView from "./components/OrdersView";
-import DriversView from "./components/DriversView";
-import VendorsView from "./components/VendorsView";
-import SettlementsView from "./components/SettlementsView";
-import SettingsView from "./components/SettingsView";
-import OrderDistributionView from "./components/OrderDistributionView";
-import SystemControlView from "./components/SystemControlView";
 
 export default function AdminPanel() {
+  return (
+    <AuthGuard allowedRoles={["admin"]}>
+      <AdminContent />
+    </AuthGuard>
+  );
+}
+
+function AdminContent() {
+  // 1. Core State
   const { user, loading: authLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // UI State
+  // 2. UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
-  const { lastSync, isSyncing } = useSync(undefined, () => {
-    if (!authLoading && user) fetchData();
-  }, true);
 
-  // Data State
+  // 3. Data State
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
   const [liveOrders, setLiveOrders] = useState<LiveOrderItem[]>([]);
   const [allOrders, setAllOrders] = useState<AdminOrder[]>([]);
@@ -69,30 +81,31 @@ export default function AdminPanel() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
   
-  // Financial State
+  // 4. Financial State
   const [totalProfits, setTotalProfits] = useState(0);
   const [insuranceFund, setInsuranceFund] = useState(0);
   const [totalSystemDebt, setTotalSystemDebt] = useState(0);
 
-  // Form State
+  // 5. Form & Config State
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [showAddVendor, setShowAddVendor] = useState(false);
   const [newDriverData, setNewDriverData] = useState({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
   const [newVendorData, setNewVendorData] = useState({ name: "", email: "", password: "", phone: "" });
-  const [appConfig, setAppConfig] = useState({
-    latest_version: "0.2.0",
-    min_version: "0.2.0",
-    download_url: "/start-location-v0.2.0.apk",
-    bundle_url: "",
-    force_update: true,
-    update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة.",
-    maintenance_mode: false,
-    maintenance_message: "التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.",
-    driver_commission: 15.0,
-    vendor_commission: 20.0,
-    vendor_fee: 1.0,
-    safe_ride_fee: 1.0
-  });
+  const [appConfig, setAppConfig] = useState<any>(null); // Start with null to prevent old data fallback
+
+  // 6. Utility Functions (Defined EARLY to avoid TDZ)
+  const getErrorMessage = useCallback((error: unknown): string => {
+    if (error instanceof Error) return error.message;
+    if (typeof error === "object" && error !== null && "message" in error) {
+      return String((error as { message?: unknown }).message || "حدث خطأ");
+    }
+    return "حدث خطأ";
+  }, []);
+
+  const translateStatus = useCallback((status: string) => {
+    const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
+    return statuses[status] || status;
+  }, []);
 
   const addActivity = useCallback((text: string) => {
     setActivityLog(prev => [{
@@ -102,50 +115,22 @@ export default function AdminPanel() {
     }, ...prev].slice(0, 5));
   }, []);
 
-  const getErrorMessage = useCallback((error: unknown): string => {
-    if (error instanceof Error) return error.message;
-    if (typeof error === "object" && error !== null && "message" in error) {
-      return String((error as { message?: unknown }).message || "حدث خطأ");
-    }
-    return "حدث خطأ";
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const withTimeout = useCallback(async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
-    });
+  const formatCurrency = useCallback((value: number) => {
     try {
-      return await Promise.race([promise, timeoutPromise]);
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (isNaN(value) || value === null || value === undefined) return "0";
+      return value.toLocaleString('ar-EG');
+    } catch (e) {
+      return String(value || 0);
     }
   }, []);
 
-  const translateStatus = useCallback((status: string) => {
-    const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
-    return statuses[status] || status;
-  }, []);
-
+  // 7. Data Fetching Functions
   const fetchOrders = useCallback(async () => {
     try {
       const data = await fetchAdminOrders();
       if (data) {
-        setAllOrders(data);
         const typedData = data as AdminOrder[];
         setAllOrders(typedData);
-        setCache('admin_orders', typedData); // Cache orders
         const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => ({
           id: o.id.slice(0, 8),
           id_full: o.id,
@@ -156,7 +141,8 @@ export default function AdminPanel() {
           driver_id: o.driver_id,
           amount: o.financials?.order_value || 0,
           delivery_fee: o.financials?.delivery_fee || 0,
-          created_at: o.created_at
+          created_at: o.created_at,
+          customers: o.customer_details?.customers
         }));
         setLiveOrders(live);
         setActivities(typedData.slice(0, 5).map((o) => ({
@@ -176,17 +162,12 @@ export default function AdminPanel() {
       const profiles = await fetchAdminProfiles();
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
-        setCache('admin_profiles', typedProfiles); // Cache profiles
         const online = typedProfiles
           .filter((p) => (p.role || '').toLowerCase() === 'driver' && p.is_online)
           .map((p) => {
           let loc = p.location;
           if (typeof loc === 'string') {
-            try {
-              loc = JSON.parse(loc) as { lat?: number; lng?: number };
-            } catch {
-              loc = null;
-            }
+            try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; }
           }
           const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
           return {
@@ -214,7 +195,18 @@ export default function AdminPanel() {
           setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
             const w = typedWallets.find((wal) => wal.user_id === p.id);
             const location = typeof p.location === "object" && p.location !== null ? p.location : null;
-            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location };
+            return { 
+              id: p.id.slice(0, 8), 
+              id_full: p.id, 
+              name: p.full_name || "بدون اسم", 
+              type: "محل", 
+              orders: 0, 
+              balance: (w?.debt || 0) + (w?.system_balance || 0), 
+              status: "نشط", 
+              location,
+              commission_type: (p as any).commission_type,
+              commission_value: (p as any).commission_value
+            };
           }));
         }
       }
@@ -239,57 +231,79 @@ export default function AdminPanel() {
 
   const fetchData = useCallback(async () => {
     try {
-      await Promise.all([fetchProfiles(), fetchOrders(), fetchSettlements(), fetchAppConfig()]);
+      setError(null);
+      
+      const fetchWithTimeout = async (promise: Promise<any>, label: string) => {
+        const timeout = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 10000)
+        );
+        return Promise.race([promise, timeout]);
+      };
+
+      await Promise.allSettled([
+        fetchWithTimeout(fetchProfiles(), "بيانات المستخدمين"),
+        fetchWithTimeout(fetchOrders(), "بيانات الطلبات"),
+        fetchWithTimeout(fetchSettlements(), "بيانات التسويات"),
+        fetchWithTimeout(fetchAppConfig(), "إعدادات النظام")
+      ]);
     } catch (err) {
       console.error("Admin: Global fetch error:", err);
+      setError(getErrorMessage(err));
     }
-  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig]);
+  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
+
+  // 8. Lifecycle & Sync Hooks
+  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, () => {
+    if (mounted && !authLoading && user) fetchData();
+  }, true);
+
+  // KeepAwake: Prevent screen sleep if admin is using mobile to monitor
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(() => {});
+      return () => {
+        KeepAwake.allowSleep().catch(() => {});
+      };
+    }
+  }, [mounted]);
 
   useEffect(() => {
-    // Mobile-optimized fallback
+    setMounted(true);
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-    const fallbackMs = isCapacitor ? 10000 : 5000;
-    const hardFallback = setTimeout(() => {
-      console.log(`AdminPage: Hard fallback (${fallbackMs/1000}s)`);
-      setLoading(false);
-    }, fallbackMs);
+    const fallbackMs = isCapacitor ? 20000 : 10000;
+    const hardFallback = setTimeout(() => { setLoading(false); }, fallbackMs);
 
     const init = async () => {
-      // 1. Load cached data for instant display
-      const [cachedOrders, cachedProfiles] = await Promise.all([
-        getCache<AdminOrder[]>('admin_orders'),
-        getCache<ProfileRow[]>('admin_profiles')
-      ]);
-      
-      if (cachedOrders && cachedOrders.length > 0) {
-        setAllOrders(cachedOrders);
-        setLoading(false); // Hide loader early
-      }
-
       if (authLoading) return;
-      
-      // If no user after auth loading, let AuthGuard handle it
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
+      if (!user) { setLoading(false); return; }
       try {
+        setLoading(true);
         await fetchData();
       } catch (e) {
-        console.error("AdminPage: Init error", e);
+        setError(`فشل في تهيئة النظام: ${getErrorMessage(e)}`);
       } finally {
         clearTimeout(hardFallback);
         setLoading(false);
       }
     };
-
     init();
     return () => clearTimeout(hardFallback);
-  }, [authLoading, fetchData]);
+  }, [mounted, authLoading, fetchData, user, getErrorMessage]);
 
   useEffect(() => {
-    if (allOrders.length > 0) {
+    if (allOrders.length > 0 && appConfig) {
       const profits = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
@@ -301,7 +315,6 @@ export default function AdminPanel() {
         }
         return acc;
       }, 0);
-
       const fund = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
@@ -309,11 +322,19 @@ export default function AdminPanel() {
         }
         return acc;
       }, 0);
-
       setTotalProfits(profits);
       setInsuranceFund(fund);
     }
   }, [allOrders, appConfig]);
+
+  // 9. UI Handlers
+  const handleBroadcast = useCallback(async (msg: string) => {
+    try {
+      setActionLoading(true);
+      await broadcastAlert(msg);
+      addActivity(`تم إرسال تنبيه عام: ${msg.slice(0, 20)}...`);
+    } catch (e) { console.error("Broadcast failed", e); } finally { setActionLoading(false); }
+  }, [broadcastAlert, addActivity]);
 
   const handleAddDriver = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,9 +346,7 @@ export default function AdminPanel() {
       setShowAddDriver(false);
       setNewDriverData({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
       fetchData();
-    } else {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } else { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [newDriverData, addActivity, fetchData, getErrorMessage]);
 
@@ -341,38 +360,29 @@ export default function AdminPanel() {
       setShowAddVendor(false);
       setNewVendorData({ name: "", email: "", password: "", phone: "" });
       fetchData();
-    } else {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } else { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [newVendorData, addActivity, fetchData, getErrorMessage]);
 
   const handleUpdateAppConfig = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!appConfig) return;
     setActionLoading(true);
     try {
       await updateAdminAppConfig(appConfig);
       alert("تم تحديث إعدادات النظام بنجاح!");
-    } catch (error) {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [appConfig, getErrorMessage]);
 
   const handleSettlementAction = useCallback(async (settlementId: string, newStatus: 'approved' | 'rejected') => {
-    // Optimistic Update
-    const originalSettlements = [...settlements];
-    setSettlements(prev => prev.filter(s => s.id !== settlementId));
-
-    try {
-      const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
-      if (error) throw error;
+    const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
+    if (!error) {
+      alert("تم التحديث!");
       addActivity(`تم ${newStatus === "approved" ? "اعتماد" : "رفض"} تسوية`);
-    } catch (err) {
-      setSettlements(originalSettlements);
-      alert("فشل تحديث حالة التسوية");
+      setSettlements(prev => prev.filter(s => s.id !== settlementId));
     }
-  }, [settlements, addActivity]);
+  }, [addActivity]);
 
   const handleResetUser = useCallback(async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
@@ -382,9 +392,7 @@ export default function AdminPanel() {
       alert("تم التصفير!");
       addActivity(`تم تصفير بيانات ${userName}`);
       fetchData();
-    } catch (error) {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage]);
 
@@ -396,141 +404,156 @@ export default function AdminPanel() {
       alert("تم التصفير الشامل!");
       addActivity("تم تنفيذ تصفير شامل للنظام");
       fetchData();
-    } catch (error) {
-      alert(`خطأ: ${getErrorMessage(error)}`);
-    }
+    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage]);
 
   const handleToggleShiftLock = useCallback(async (driverId: string, currentStatus: boolean) => {
-    // Optimistic Update
-    const originalDrivers = [...drivers];
-    setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
-    
+    setActionLoading(true);
     try {
       await toggleDriverLock(driverId, !currentStatus);
+      setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
       addActivity(`تم ${!currentStatus ? "قفل" : "فتح"} شيفت الطيار`);
-    } catch (e) { 
-      setDrivers(originalDrivers);
-      console.error(e); 
-    }
-  }, [drivers, addActivity]);
+    } catch (e) { console.error(e); }
+    setActionLoading(false);
+  }, [addActivity]);
 
   const handleLockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد قفل شيفت جميع المناديب؟")) return;
-    
-    const originalDrivers = [...drivers];
+    setActionLoading(true);
+    for (const d of drivers.filter(d => !d.isShiftLocked)) { await toggleDriverLock(d.id_full, true).catch(() => {}); }
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: true, status: "محظور" })));
-    
-    try {
-      setActionLoading(true);
-      for (const d of originalDrivers.filter(d => !d.isShiftLocked)) {
-        await toggleDriverLock(d.id_full, true).catch(() => {});
-      }
-      addActivity("تم قفل شيفت جميع المناديب");
-    } catch (e) {
-      setDrivers(originalDrivers);
-    } finally {
-      setActionLoading(false);
-    }
+    addActivity("تم قفل شيفت جميع المناديب");
+    setActionLoading(false);
   }, [drivers, addActivity]);
 
   const handleUnlockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد فتح شيفت جميع المناديب؟")) return;
-    
-    const originalDrivers = [...drivers];
+    setActionLoading(true);
+    for (const d of drivers.filter(d => d.isShiftLocked)) { await toggleDriverLock(d.id_full, false).catch(() => {}); }
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: false, status: "نشط" })));
-    
-    try {
-      setActionLoading(true);
-      for (const d of originalDrivers.filter(d => d.isShiftLocked)) {
-        await toggleDriverLock(d.id_full, false).catch(() => {});
-      }
-      addActivity("تم فتح شيفت جميع المناديب");
-    } catch (e) {
-      setDrivers(originalDrivers);
-    } finally {
-      setActionLoading(false);
-    }
+    addActivity("تم فتح شيفت جميع المناديب");
+    setActionLoading(false);
   }, [drivers, addActivity]);
 
   const handleToggleMaintenance = useCallback(async (val: boolean) => {
-    const originalConfig = { ...appConfig };
+    if (!appConfig) return;
     setAppConfig(prev => ({ ...prev, maintenance_mode: val }));
     try {
       await updateAdminAppConfig({ ...appConfig, maintenance_mode: val });
       addActivity(`تم ${val ? "تفعيل" : "إيقاف"} وضع الصيانة`);
-    } catch (e) { 
-      setAppConfig(originalConfig);
-      console.error(e); 
-    }
+    } catch (e) { console.error(e); }
   }, [appConfig, addActivity]);
 
   const handleAssignOrder = useCallback(async (orderId: string, driverId: string, driverName: string) => {
-    // Optimistic Update
-    const originalLiveOrders = [...liveOrders];
-    setLiveOrders(prev => prev.map(o =>
-      o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o
-    ));
-
-    try {
-      const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
-      if (error) throw error;
+    const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
+    if (!error) {
       addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
-    } catch (err) {
-      setLiveOrders(originalLiveOrders);
-      alert("فشل تعيين الطلب");
+      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o ));
     }
-  }, [liveOrders, addActivity]);
+  }, [addActivity]);
 
   const handleCancelOrder = useCallback(async (orderId: string) => {
-    // Optimistic Update
-    const originalLiveOrders = [...liveOrders];
-    setLiveOrders(prev => prev.map(o =>
-      o.id_full === orderId ? { ...o, status: "ملغي" } : o
-    ));
-
-    try {
-      const { error } = await updateOrderStatus(orderId, 'cancelled');
-      if (error) throw error;
+    const { error } = await updateOrderStatus(orderId, 'cancelled');
+    if (!error) {
       addActivity(`تم إلغاء الطلب #${orderId.slice(0,8)}`);
-    } catch (err) {
-      setLiveOrders(originalLiveOrders);
-      alert("فشل إلغاء الطلب");
+      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: "ملغي" } : o ));
     }
-  }, [liveOrders, addActivity]);
+  }, [addActivity]);
+
+  const handleUpdateOrderStatusManual = useCallback(async (orderId: string, status: any) => {
+    const { error } = await updateOrderStatus(orderId, status);
+    if (!error) {
+      addActivity(`تعديل يدوي: حالة الطلب #${orderId.slice(0,8)} إلى ${translateStatus(status)}`);
+      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: translateStatus(status) } : o ));
+      fetchOrders(); // Refresh all data to ensure financials etc are updated
+    }
+  }, [addActivity, translateStatus, fetchOrders]);
+
+  const handleUpdateVendorCommission = useCallback(async (vendorId: string, type: 'percentage' | 'fixed', value: number) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        commission_type: type,
+        commission_value: value 
+      })
+      .eq('id', vendorId);
+
+    if (!error) {
+      addActivity(`تعديل نظام العمولة لمحل: ${vendors.find(v => v.id_full === vendorId)?.name}`);
+      setVendors(prev => prev.map(v => v.id_full === vendorId ? { ...v, commission_type: type, commission_value: value } : v));
+    } else {
+      console.error("Update commission error:", error);
+    }
+  }, [vendors, addActivity]);
 
   const handleSignOut = useCallback(async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Sign out failed:', error);
-    }
+    try { await signOut(); } catch (error) { console.error('Sign out failed:', error); }
   }, []);
+
+  // 10. Derived State
+  const systemHealth = useMemo(() => {
+    const activeOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').length;
+    const onlineDriversCount = onlineDrivers.length;
+    const ratio = onlineDriversCount > 0 ? activeOrdersCount / onlineDriversCount : activeOrdersCount;
+    let status: "optimal" | "busy" | "congested" = "optimal";
+    if (ratio > 2) status = "congested";
+    else if (ratio > 1) status = "busy";
+    return { activeOrdersCount, onlineDriversCount, ratio, status };
+  }, [allOrders, onlineDrivers]);
 
   const stats = useMemo(() => [
     { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-sky-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب", color: "sky" },
     { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-emerald-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن", color: "emerald" },
-    { title: "صندوق التأمين", value: insuranceFund.toLocaleString(), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
-    { title: "عمولات مستحقة", value: totalSystemDebt.toLocaleString(), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
-    { title: "أرباح النظام", value: totalProfits.toLocaleString(), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
-  ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits]);
+    { title: "صندوق التأمين", value: formatCurrency(insuranceFund), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
+    { title: "عمولات مستحقة", value: formatCurrency(totalSystemDebt), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
+    { title: "أرباح النظام", value: formatCurrency(totalProfits), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
+  ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits, formatCurrency]);
 
-  if (loading || authLoading) {
+  // Diagnostic Info for Debugging
+  const connectionInfo = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return {
+      url: (supabase as any).supabaseUrl || 'unknown',
+      authenticated: !!user,
+      profileFound: !!allUsers.find(u => u.id === user?.id),
+      usersCount: allUsers.length
+    };
+  }, [user, allUsers]);
+
+  // 11. Render Helpers
+  if (!mounted || loading || authLoading || error) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-6 text-center">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" />
-        <h2 className="text-xl font-bold text-white mb-2">جاري تحميل لوحة الإدارة...</h2>
-        <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
-        <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-xl transition-all border border-white/10">إعادة تحميل يدوية</button>
+        {error ? (
+          <div className="bg-white/10 p-8 rounded-[40px] border border-red-500/30 backdrop-blur-xl max-w-sm">
+            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">فشل تحميل النظام</h2>
+            <p className="text-slate-400 text-sm mb-6">{error}</p>
+            <button 
+              onClick={() => { setError(null); fetchData(); }} 
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black transition-all shadow-lg shadow-blue-500/20"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        ) : (
+          <>
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" />
+            <h2 className="text-xl font-bold text-white mb-2">جاري تحميل لوحة الإدارة...</h2>
+            <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
+            <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-xl transition-all border border-white/10">إعادة تحميل يدوية</button>
+          </>
+        )}
       </div>
     );
   }
 
   return (
-    <AuthGuard allowedRoles={["admin"]}>
-      <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
-        <div className="silver-live-bg" />
+    <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
+      <div className="silver-live-bg" />
 
       {/* Sidebar */}
       <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 backdrop-blur-xl border-l border-white/20 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
@@ -541,14 +564,11 @@ export default function AdminPanel() {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {[
             { id: "dashboard", label: "لوحة التحكم", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { id: "orders", label: "المراقبة الحية", icon: <MapIcon className="w-5 h-5" /> },
-            { id: "distribution", label: "توزيع الطلبات", icon: <Truck className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || undefined },
-            { id: "drivers", label: "المناديب", icon: <Users className="w-5 h-5" /> },
-            { id: "vendors", label: "المحلات", icon: <Store className="w-5 h-5" /> },
-            { id: "accounts", label: "الحسابات", icon: <ShieldCheck className="w-5 h-5" /> },
-            { id: "settlements", label: "التسويات", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
-            { id: "system", label: "التحكم اليدوي", icon: <RefreshCw className="w-5 h-5" />, badge: manualMode ? "يدوي" : undefined },
-            { id: "settings", label: "الإعدادات", icon: <Settings className="w-5 h-5" /> }
+            { id: "operations", label: "مركز العمليات", icon: <Zap className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || (manualMode ? "!" : undefined) },
+            { id: "reports", label: "التقارير", icon: <BarChart3 className="w-5 h-5" /> },
+            { id: "users", label: "إدارة المستخدمين", icon: <Users className="w-5 h-5" /> },
+            { id: "settlements", label: "التسويات المالية", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
+            { id: "settings", label: "إعدادات النظام", icon: <Settings className="w-5 h-5" /> }
           ].map(item => (
             <button key={item.id} onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${activeView === item.id ? "bg-blue-600/10 text-blue-600 font-bold" : "text-gray-500 hover:bg-gray-100"}`}>
               {item.icon}{sidebarOpen && <span className="text-sm flex-1 text-right">{item.label}</span>}{item.badge ? <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span> : null}
@@ -559,11 +579,20 @@ export default function AdminPanel() {
       </motion.aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
+        <header className="glass-morphism h-20 px-8 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-gray-50 text-gray-900 rounded-xl border border-gray-200">{sidebarOpen ? <ChevronRight className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
-            <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
-              <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-slate-100 rounded-xl transition-colors lg:hidden"
+            >
+              <Menu className="w-6 h-6 text-slate-600" />
+            </button>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                لوحة التحكم
+                <span className="ultimate-badge">ULTIMATE</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Control Center</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -573,87 +602,95 @@ export default function AdminPanel() {
                 <span className="text-[10px] font-black text-amber-700 uppercase">وضع يدوي</span>
               </div>
             )}
-            {appConfig.maintenance_mode && (
+            {appConfig?.maintenance_mode && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-2xl">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-[10px] font-black text-red-600 uppercase">صيانة</span>
               </div>
             )}
-            <button onClick={() => setActiveView("system")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
+            <button onClick={() => setActiveView("operations")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
               <Zap className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-3 p-1.5 pr-4 bg-white rounded-2xl border border-gray-100">
-              <div className="text-left hidden sm:block"><p className="text-xs font-black text-gray-900">أدمن ستارت</p><p className="text-[10px] font-bold text-blue-600">Control Center</p></div>
-              <div className="w-10 h-10 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-1"><StartLogo className="w-8 h-8" /></div>
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-200">
+              {user?.email?.[0].toUpperCase()}
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
-          <Suspense fallback={<AdminSkeleton />}>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+          <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
-              <DashboardView activityLog={activityLog} stats={stats} onlineDrivers={onlineDrivers} vendors={vendors} />
-            )}
+        <DashboardView 
+          activityLog={activityLog} 
+          stats={stats} 
+          onlineDrivers={onlineDrivers} 
+          vendors={vendors}
+          liveOrders={liveOrders}
+          allOrders={allOrders}
+          systemHealth={systemHealth}
+        />
+      )}
 
-            {activeView === "accounts" && (
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-100 rounded-[40px] p-6 shadow-sm"><AccountsView users={allUsers} /></div>
-              </div>
-            )}
-
-            {activeView === "orders" && (
-              <OrdersView liveOrders={liveOrders} activities={activities} onCancelOrder={handleCancelOrder} />
-            )}
-
-            {activeView === "distribution" && (
-              <OrderDistributionView
+            {activeView === "operations" && (
+              <OperationsCenter
                 liveOrders={liveOrders}
                 drivers={drivers}
-                onAssign={handleAssignOrder}
-              />
-            )}
-
-            {activeView === "drivers" && (
-              <DriversView
-                drivers={drivers}
-                onAddDriver={() => setShowAddDriver(true)}
-                onToggleShiftLock={handleToggleShiftLock}
-                onResetUser={handleResetUser}
-              />
-            )}
-
-            {activeView === "vendors" && (
-              <VendorsView vendors={vendors} onAddVendor={() => setShowAddVendor(true)} onResetUser={handleResetUser} />
-            )}
-
-            {activeView === "settlements" && (
-              <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
-            )}
-
-            {activeView === "system" && (
-              <SystemControlView
+                activities={activities}
                 manualMode={manualMode}
-                maintenanceMode={appConfig.maintenance_mode}
-                drivers={drivers}
+                maintenanceMode={appConfig?.maintenance_mode || false}
                 actionLoading={actionLoading}
                 onToggleManualMode={setManualMode}
                 onToggleMaintenance={handleToggleMaintenance}
                 onToggleShiftLock={handleToggleShiftLock}
                 onLockAllDrivers={handleLockAllDrivers}
                 onUnlockAllDrivers={handleUnlockAllDrivers}
+                onGlobalReset={handleGlobalReset}
+                onRefresh={fetchData}
+                onBroadcastMessage={handleBroadcast}
+                onAssign={handleAssignOrder}
+                onCancelOrder={handleCancelOrder}
+                onUpdateStatus={handleUpdateOrderStatusManual}
               />
             )}
 
-            {activeView === "settings" && (
-              <SettingsView
-                config={appConfig}
-                loading={actionLoading}
-                onUpdate={setAppConfig}
-                onSave={handleUpdateAppConfig}
+            {activeView === "users" && (
+              <UserManagementView
+                drivers={drivers}
+                vendors={vendors}
+                users={allUsers}
+                onAddDriver={() => setShowAddDriver(true)}
+                onAddVendor={() => setShowAddVendor(true)}
+                onUpdateVendorCommission={handleUpdateVendorCommission}
+                onToggleShiftLock={handleToggleShiftLock}
+                onResetUser={handleResetUser}
               />
             )}
+
+            {activeView === "reports" && (
+              <ReportsView allOrders={allOrders} />
+            )}
+
+            {activeView === "settlements" && (
+              <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
+            )}
+
+            {activeView === "settings" && appConfig && (
+              <SettingsView
+                appConfig={appConfig}
+                actionLoading={actionLoading}
+                setAppConfig={setAppConfig}
+                onSubmit={handleUpdateAppConfig}
+                onGlobalReset={handleGlobalReset}
+              />
+            )}
+            {activeView === "settings" && !appConfig && (
+              <div className="bg-white p-8 rounded-[40px] text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500 mb-4" />
+                <p className="text-slate-500 font-bold">جاري تحميل إعدادات النظام...</p>
+              </div>
+            )}
           </Suspense>
-        </div>
+        </main>
       </div>
 
       {/* Modals */}
@@ -690,6 +727,5 @@ export default function AdminPanel() {
         )}
       </AnimatePresence>
     </div>
-    </AuthGuard>
   );
 }

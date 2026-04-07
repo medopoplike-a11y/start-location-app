@@ -10,13 +10,13 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Only export statically if specifically requested (for mobile builds)
-  output: process.env.BUILD_TYPE === 'static' ? 'export' : undefined,
+  // Force standard build on Vercel to support API routes, and static export only for local mobile builds
+  output: (process.env.BUILD_TYPE === 'static' && !process.env.VERCEL) ? 'export' : undefined,
+  trailingSlash: false, // Reverted to false to fix Capacitor "Page couldn't load" issue
   images: {
     unoptimized: true,
   },
   reactStrictMode: true,
-  trailingSlash: true,
   env: {
     IS_BUILDING: process.env.BUILD_TYPE === 'static' ? 'true' : 'false',
   },

@@ -7,11 +7,21 @@ export interface Order {
   status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'cancelled';
   distance: number;
   customer_details: {
-    name: string;
-    phone: string;
-    address: string;
+    name?: string;
+    phone?: string;
+    address?: string;
     notes?: string;
     coords?: { lat: number, lng: number } | null;
+    customers?: Array<{
+      name: string;
+      phone: string;
+      address: string;
+      orderValue: number;
+      deliveryFee: number;
+      status: 'pending' | 'delivered';
+      deliveredAt?: string;
+      invoice_url?: string;
+    }>;
   };
   financials: {
     order_value: number;
@@ -24,6 +34,7 @@ export interface Order {
   };
   invoice_url?: string;
   created_at?: string;
+  status_updated_at?: string;
   vendor_collected_at?: string | null;
   driver_confirmed_at?: string | null;
 }
@@ -119,7 +130,10 @@ export const deleteCanceledOrders = async (vendorId: string) => {
  * تحديث حالة الطلب
  */
 export const updateOrderStatus = async (orderId: string, status: Order['status'], driverId?: string) => {
-  const updates: Partial<Pick<Order, 'status' | 'driver_id'>> = { status };
+  const updates: any = { 
+    status,
+    status_updated_at: new Date().toISOString()
+  };
   if (driverId) updates.driver_id = driverId;
 
   return await supabase
@@ -134,17 +148,55 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
  * الاشتراكات الحية (Real-time Subscriptions)
  */
 
-export const subscribeToOrders = (callback: () => void) => {
-  return supabase
-    .channel('public:orders')
+export const subscribeToOrders = (callback: () => void, vendorId?: string) => {
+  const channel = supabase.channel(`orders${vendorId ? `:${vendorId}` : ''}`);
+  
+  if (vendorId) {
+    return channel
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `vendor_id=eq.${vendorId}`
+      }, callback)
+      .subscribe();
+  }
+
+  return channel
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
     .subscribe();
 };
 
-export const subscribeToProfiles = (callback: () => void) => {
-  return supabase
-    .channel('public:profiles')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, callback)
+export const subscribeToProfiles = (callback: () => void, profileId?: string) => {
+  const channel = supabase.channel(`profiles${profileId ? `:${profileId}` : ''}`);
+  
+  if (profileId) {
+    return channel
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'profiles',
+        filter: `id=eq.${profileId}`
+      }, callback)
+      .subscribe();
+  }
+
+  // For global profile changes (like online status), we should be careful.
+  // Instead of subscribing to ALL profile changes, we only care about is_online changes.
+  return channel
+    .on('postgres_changes', { 
+      event: 'UPDATE', 
+      schema: 'public', 
+      table: 'profiles'
+    }, (payload) => {
+      // Only trigger if is_online status changed or it's an important update
+      // This helps reduce unnecessary refreshes from location updates
+      const oldStatus = (payload.old as any)?.is_online;
+      const newStatus = (payload.new as any)?.is_online;
+      if (oldStatus !== newStatus) {
+        callback();
+      }
+    })
     .subscribe();
 };
 
@@ -192,9 +244,10 @@ export const assignOrderToNearestDriver = async (
   // 1. Get all online drivers
   const { data: onlineDrivers, error: driversError } = await supabase
     .from('profiles')
-    .select('id, full_name, location')
+    .select('id, full_name, location, is_locked')
     .eq('role', 'driver')
-    .eq('is_online', true);
+    .eq('is_online', true)
+    .eq('is_locked', false);
 
   if (driversError || !onlineDrivers?.length) {
     return { success: false, error: 'لا يوجد طيارين متاحين الآن' };
@@ -220,18 +273,36 @@ export const assignOrderToNearestDriver = async (
     return { success: false, error: 'جميع الطيارين مشغولون (الحد الأقصى 3 طلبات)' };
   }
 
-  // 4. Sort by fewest orders first, then by nearest distance
+  // 4. Advanced sorting:
+  // - First priority: Drivers with 0 orders (to ensure fair distribution)
+  // - Second priority: Nearest distance
+  // - Third priority: Fewest total orders
   const sorted = available.sort((a, b) => {
     const aOrders = orderCount[a.id] || 0;
     const bOrders = orderCount[b.id] || 0;
-    if (aOrders !== bOrders) return aOrders - bOrders;
+    
+    // Fair distribution check
+    if (aOrders === 0 && bOrders > 0) return -1;
+    if (bOrders === 0 && aOrders > 0) return 1;
 
+    // Distance check
     if (vendorLocation && a.location && b.location) {
-      const aLoc = a.location as { lat: number; lng: number };
-      const bLoc = b.location as { lat: number; lng: number };
-      return haversineKm(vendorLocation, aLoc) - haversineKm(vendorLocation, bLoc);
+      try {
+        const aLoc = typeof a.location === 'string' ? JSON.parse(a.location) : a.location;
+        const bLoc = typeof b.location === 'string' ? JSON.parse(b.location) : b.location;
+        
+        if (aLoc.lat && aLoc.lng && bLoc.lat && bLoc.lng) {
+          const distA = haversineKm(vendorLocation, aLoc);
+          const distB = haversineKm(vendorLocation, bLoc);
+          if (Math.abs(distA - distB) > 0.1) return distA - distB; // 100m tolerance
+        }
+      } catch (e) {
+        console.warn("Distance sort failed for some drivers", e);
+      }
     }
-    return 0;
+    
+    // Fallback to order count
+    return aOrders - bOrders;
   });
 
   const best = sorted[0];

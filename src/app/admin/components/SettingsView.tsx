@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { motion } from "framer-motion";
-import { Save, Smartphone, DollarSign, Package, Bell, Loader2 } from "lucide-react";
+import { Save, Smartphone, DollarSign, Package, Bell, Loader2, Zap } from "lucide-react";
 
 interface AppConfigState {
   latest_version: string;
@@ -17,6 +17,8 @@ interface AppConfigState {
   vendor_commission: number;
   vendor_fee: number;
   safe_ride_fee: number;
+  surge_pricing_active: boolean;
+  surge_pricing_multiplier: number;
 }
 
 interface SettingsViewProps {
@@ -96,42 +98,37 @@ export default function SettingsView({ appConfig, actionLoading, setAppConfig, o
         </button>
       </div>
 
-      <SectionCard icon={<Smartphone className="w-4 h-4 text-blue-500" />} title="إعدادات تحديث التطبيق">
+      <SectionCard icon={<Smartphone className="w-4 h-4 text-blue-500" />} title="إعدادات التطبيق الأساسية">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
-            label="أحدث إصدار"
+            label="إصدار التطبيق الحالي"
             value={appConfig.latest_version}
             onChange={v => setAppConfig({ ...appConfig, latest_version: v })}
             placeholder="0.2.0"
           />
           <InputField
-            label="الحد الأدنى للإصدار"
-            value={appConfig.min_version}
-            onChange={v => setAppConfig({ ...appConfig, min_version: v })}
-            placeholder="0.1.0"
+            label="رابط حزمة التحديث (OTA Bundle)"
+            value={appConfig.bundle_url}
+            onChange={v => setAppConfig({ ...appConfig, bundle_url: v })}
+            placeholder="https://example.com/update.zip"
+          />
+          <div className="md:col-span-2">
+            <InputField
+              label="رابط التحميل المباشر (APK)"
+              value={appConfig.download_url}
+              onChange={v => setAppConfig({ ...appConfig, download_url: v })}
+              placeholder="https://example.com/app.apk"
+            />
+          </div>
+        </div>
+        <div className="pt-4 border-t border-slate-50">
+          <ToggleField
+            label="تحديث إجباري"
+            description="إجبار المستخدمين على التحديث فوراً"
+            checked={appConfig.force_update}
+            onChange={v => setAppConfig({ ...appConfig, force_update: v })}
           />
         </div>
-        <InputField
-          label="رابط حزمة التحديث (ZIP)"
-          value={appConfig.bundle_url}
-          onChange={v => setAppConfig({ ...appConfig, bundle_url: v })}
-          placeholder="https://example.com/update.zip"
-        />
-        <label className="block space-y-1.5">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wide">رسالة التحديث للمستخدمين</span>
-          <textarea
-            value={appConfig.update_message}
-            onChange={e => setAppConfig({ ...appConfig, update_message: e.target.value })}
-            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px] resize-none"
-            placeholder="رسالة تظهر للمستخدم عند توفر تحديث"
-          />
-        </label>
-        <ToggleField
-          label="فرض التحديث الإجباري"
-          description="منع المستخدمين من الاستمرار بدون تحديث"
-          checked={appConfig.force_update}
-          onChange={v => setAppConfig({ ...appConfig, force_update: v })}
-        />
       </SectionCard>
 
       <SectionCard icon={<Bell className="w-4 h-4 text-red-500" />} title="وضع الصيانة">
@@ -191,6 +188,30 @@ export default function SettingsView({ appConfig, actionLoading, setAppConfig, o
             />
           </div>
         </div>
+
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-6 mt-2">
+          <div className="md:col-span-2">
+            <h4 className="font-black text-orange-600 flex items-center gap-2 text-sm">
+              <Zap className="w-4 h-4" />
+              نظام أسعار الذروة (Surge Pricing)
+            </h4>
+          </div>
+          
+          <ToggleField
+            label="تفعيل زيادة الأسعار"
+            description="تطبيق مضاعف السعر تلقائياً"
+            checked={appConfig.surge_pricing_active}
+            onChange={v => setAppConfig({ ...appConfig, surge_pricing_active: v })}
+          />
+
+          <InputField
+            label="مضاعف السعر (مثلاً 1.5)"
+            value={appConfig.surge_pricing_multiplier}
+            onChange={v => setAppConfig({ ...appConfig, surge_pricing_multiplier: Number(v) || 1 })}
+            type="number"
+          />
+        </div>
+
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
           <p className="text-[11px] font-black text-slate-400 mb-3">ملخص العمولات الحالية</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">

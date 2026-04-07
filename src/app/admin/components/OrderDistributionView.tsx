@@ -16,12 +16,19 @@ export default function OrderDistributionView({ liveOrders, drivers, onAssign }:
   const [assigning, setAssigning] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
 
-  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
+  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending" || o.status === "تم التعيين" || o.status === "في الطريق");
   const availableDrivers = drivers.filter(d => !d.isShiftLocked);
   const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
 
   const handleAssign = async (driverId: string, driverName: string) => {
     if (!selectedOrderId) return;
+    
+    // Manual Override Confirmation
+    const order = pendingOrders.find(o => o.id_full === selectedOrderId);
+    if (order && order.driver_id) {
+      if (!confirm(`هذا الطلب معين بالفعل للطيار ${order.driver}. هل تريد تحويله للطيار ${driverName}؟`)) return;
+    }
+
     setAssigning(true);
     try {
       await onAssign(selectedOrderId, driverId, driverName);

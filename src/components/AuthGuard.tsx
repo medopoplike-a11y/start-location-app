@@ -34,9 +34,12 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     // Safety fallback: if auth loading is stuck, eventually try to proceed
     const safetyTimeout = setTimeout(() => {
       if (loading) {
-        console.warn("AuthGuard: Auth state loading stuck, attempting to proceed...");
+        console.warn("AuthGuard: Auth state loading stuck, forcing redirect to login...");
+        const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+        if (isNative) window.location.assign("/login");
+        else window.location.assign("/login");
       }
-    }, 15000);
+    }, 8000); // Reduced from 15s to 8s for better UX
     return () => clearTimeout(safetyTimeout);
   }, [loading]);
 
@@ -52,22 +55,26 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     if (!user) {
       console.log("AuthGuard: No user session, redirecting to login");
       // Use window.location as fallback for router issues
-      if (isNative) window.location.assign("/login/");
-      else if (router) router.replace("/login/");
-      else window.location.assign("/login/");
+      const loginUrl = "/login"; // Removed trailing slash
+      if (isNative) window.location.assign(loginUrl);
+      else if (router) router.replace(loginUrl);
+      else window.location.assign(loginUrl);
     } else if (userRole && !authorized) {
       console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
-      if (isNative) window.location.assign("/login/");
-      else if (router) router.replace("/login/");
-      else window.location.assign("/login/");
+      const loginUrl = "/login";
+      if (isNative) window.location.assign(loginUrl);
+      else if (router) router.replace(loginUrl);
+      else window.location.assign(loginUrl);
     } else if (!userRole) {
       console.log("AuthGuard: User logged in but role not found yet, waiting...");
       const timeoutId = setTimeout(() => {
         if (!userRole) {
           console.error("AuthGuard: Role discovery timeout, forcing login");
-          router.replace("/login");
+          const loginUrl = "/login";
+          if (isNative) window.location.assign(loginUrl);
+          else router.replace(loginUrl);
         }
-      }, isNative ? 15000 : 10000);
+      }, isNative ? 30000 : 15000);
       return () => clearTimeout(timeoutId);
     }
   }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -10,12 +10,13 @@ import {
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
-import PushNotificationManager from "@/components/PushNotificationManager";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -23,13 +24,13 @@ import { useToast } from "@/hooks/useToast";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
 import { formatVendorTime } from "./utils";
 import StoreHeader from "./components/StoreHeader";
-import StoreView from "./components/StoreView";
+import StoreOrdersHub from "./components/StoreOrdersHub";
 import WalletView from "./components/WalletView";
 import StoreSettingsView from "./components/SettingsView";
-import HistoryView from "./components/HistoryView";
 import StoreDrawer from "./components/StoreDrawer";
-import OrderFormModal from "./components/OrderFormModal";
+import OrderFormView from "./components/OrderFormView";
 import StoreAccountModals from "./components/StoreAccountModals";
+import InAppCamera from "./components/InAppCamera";
 
 export default function StoreApp() {
   return (
@@ -47,9 +48,14 @@ function StoreContent() {
 
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const vendorIdRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    vendorIdRef.current = vendorId;
+  }, [vendorId]);
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
-  const [activeView, setActiveView] = useState<"store" | "wallet" | "history" | "settings">("store");
+  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -74,6 +80,10 @@ function StoreContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [updatingLocation, setUpdatingLocation] = useState(false);
+  const [showInAppCamera, setShowInAppCamera] = useState(false);
+  const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
+  const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
+  const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     customer: "",
@@ -83,8 +93,128 @@ function StoreContent() {
     deliveryFee: "30",
     notes: "",
     prepTime: "15",
-    customerCoords: null as { lat: number, lng: number } | null
+    customerCoords: null as { lat: number, lng: number } | null,
+    customers: [] as Array<{
+      name: string;
+      phone: string;
+      address: string;
+      orderValue: string;
+      deliveryFee: string;
+      prepTime: string;
+      invoiceUrl?: string;
+      isUploading?: boolean;
+    }>
   });
+
+  // KeepAwake: Prevent screen from turning off in Store view
+  useEffect(() => {
+    if (activeView === "store" && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(() => {});
+      return () => {
+        KeepAwake.allowSleep().catch(() => {});
+      };
+    }
+  }, [activeView]);
+
+  // Persistence: Save form state to Native Preferences (more reliable than localStorage)
+  useEffect(() => {
+    const saveState = async () => {
+      if (activeView === "order-form") {
+        const state = JSON.stringify({ formData, editingOrder, invoiceUrl, showOrderForm: true });
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.set({ key: 'pending_order_form_v2', value: state });
+        } else {
+          localStorage.setItem('pending_order_form_v2', state);
+        }
+      } else {
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.remove({ key: 'pending_order_form_v2' });
+        } else {
+          localStorage.removeItem('pending_order_form_v2');
+        }
+      }
+    };
+    saveState();
+  }, [formData, editingOrder, invoiceUrl, activeView]);
+
+  // Persistence: Restore form state
+  useEffect(() => {
+    const restoreState = async () => {
+      let saved = null;
+      if (Capacitor.isNativePlatform()) {
+        const { value } = await Preferences.get({ key: 'pending_order_form_v2' });
+        saved = value;
+      } else {
+        saved = localStorage.getItem('pending_order_form_v2');
+      }
+
+      if (saved) {
+        try {
+          const { formData: sFormData, editingOrder: sEditingOrder, invoiceUrl: sInvoiceUrl, showOrderForm: sShowOrderForm } = JSON.parse(saved);
+          if (sShowOrderForm) {
+            setFormData(sFormData);
+            setEditingOrder(sEditingOrder);
+            setInvoiceUrl(sInvoiceUrl);
+            setActiveView("order-form");
+          }
+        } catch (e) {
+          console.error("Failed to restore form state", e);
+        }
+      }
+    };
+    restoreState();
+  }, []);
+
+  // Handle Camera Restore after OS kills activity
+  useEffect(() => {
+    const checkRestoredResult = async () => {
+      if (typeof window === 'undefined' || !Capacitor.isNativePlatform()) return;
+      
+      const { App } = await import("@capacitor/app");
+      const handle = await App.addListener('appRestoredResult', async (result) => {
+        if (result.pluginId === 'Camera' && result.methodName === 'getPhoto' && result.data) {
+          console.log("StorePage: Restored Camera result detected!");
+          
+          // Wait for vendorId if not yet available
+          let attempts = 0;
+          while (!vendorIdRef.current && attempts < 15) {
+            await new Promise(r => setTimeout(r, 600));
+            attempts++;
+          }
+
+          if (!vendorIdRef.current) {
+            console.error("StorePage: Could not restore camera result, vendorId not found");
+            return;
+          }
+
+          if (result.data.webPath) {
+            try {
+              // Check if it was a quick upload
+              const { value: quickOrderId } = await Preferences.get({ key: 'pending_quick_upload_id' });
+              
+              if (quickOrderId) {
+                console.log("StorePage: Restoring Quick Upload for order:", quickOrderId);
+                await processQuickUpload(result.data.webPath, quickOrderId);
+              } else {
+                console.log("StorePage: Restoring Modal Upload");
+                const response = await fetch(result.data.webPath);
+                const blob = await response.blob();
+                const file = new File([blob], `restored-camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+                await processUpload(file);
+              }
+            } catch (err) {
+              console.error("Failed to process restored camera image", err);
+              error("فشل استعادة ومعالجة الصورة");
+            } finally {
+              await Preferences.remove({ key: 'pending_quick_upload_id' });
+            }
+          }
+        }
+      });
+      return () => handle.remove();
+    };
+    checkRestoredResult();
+  }, []); // Only once on mount
 
   const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "" });
 
@@ -99,31 +229,46 @@ function StoreContent() {
 
   // Sound notification logic
   useEffect(() => {
+    // Only proceed if we have a previous count and new orders were actually added
     if (lastOrderCount !== null && orders.length > lastOrderCount) {
-      const activeNewOrders = orders.filter(o => o.status === 'pending').length;
-      const lastActiveNewOrders = orders.slice(0, lastOrderCount).filter(o => o.status === 'pending').length;
+      // Since orders are sorted by created_at DESC, new orders are at the beginning
+      const newOrders = orders.slice(0, orders.length - lastOrderCount);
+      const hasNewPending = newOrders.some(o => o.status === 'pending');
       
-      if (activeNewOrders > lastActiveNewOrders) {
-        console.log("StorePage: New order detected, playing sound...");
-        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
-        audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
-        
-        if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-          import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
-            Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-          });
+      if (hasNewPending) {
+        console.log("StorePage: New pending order detected, playing sound...");
+        try {
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+          audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
+          
+          if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+            import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
+              Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+            }).catch(() => {});
+          }
+        } catch (audioErr) {
+          console.error("StorePage: Audio playback error", audioErr);
         }
       }
     }
     setLastOrderCount(orders.length);
-  }, [orders, lastOrderCount]);
+  }, [orders]);
 
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
   const [settlementHistory, setSettlementHistory] = useState<SettlementHistoryItem[]>([]);
 
-  const [appConfig, setAppConfig] = useState({ driver_commission: 15, vendor_commission: 20, vendor_fee: 1, safe_ride_fee: 1 });
+  const [appConfig, setAppConfig] = useState({ 
+    driver_commission: 15, 
+    vendor_commission: 20, 
+    vendor_commission_type: 'percentage' as 'percentage' | 'fixed',
+    vendor_commission_value: 0,
+    vendor_fee: 1, 
+    safe_ride_fee: 1,
+    surge_pricing_active: false,
+    surge_pricing_multiplier: 1.0
+  });
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -151,20 +296,6 @@ function StoreContent() {
     }, 15000);
 
     const init = async () => {
-      // 1. Load cached data for instant display
-      const [cachedName, cachedOrders, cachedBalance] = await Promise.all([
-        getCache<string>('vendor_name'),
-        getCache<Order[]>('vendor_orders'),
-        getCache<number>('vendor_balance')
-      ]);
-      
-      if (cachedName) setVendorName(cachedName);
-      if (cachedOrders && cachedOrders.length > 0) {
-        setOrders(cachedOrders);
-        setLoading(false); // Hide loader if we have data
-      }
-      if (cachedBalance !== null) setBalance(cachedBalance);
-
       if (authLoading) return;
 
       try {
@@ -204,6 +335,14 @@ function StoreContent() {
             phone: profile.phone || "",
             area: profile.area || ""
           });
+
+          // Update appConfig with vendor's specific commission
+          setAppConfig(prev => ({
+            ...prev,
+            vendor_commission_type: (profile as any).commission_type || 'percentage',
+            vendor_commission_value: (profile as any).commission_value || 0,
+            vendor_commission: (profile as any).commission_type === 'percentage' ? ((profile as any).commission_value || 20) : prev.vendor_commission
+          }));
           
           console.log("StorePage: Fetching dashboard data...");
           await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
@@ -216,7 +355,9 @@ function StoreContent() {
                 driver_commission: configData.driver_commission || 15,
                 vendor_commission: configData.vendor_commission || 20,
                 vendor_fee: configData.vendor_fee || 1,
-                safe_ride_fee: configData.safe_ride_fee || 1
+                safe_ride_fee: configData.safe_ride_fee || 1,
+                surge_pricing_active: !!configData.surge_pricing_active,
+                surge_pricing_multiplier: configData.surge_pricing_multiplier || 1.0
               });
             }
           } catch (configErr) {
@@ -256,10 +397,25 @@ function StoreContent() {
     setBalance(pendingCollection);
   }, [orders]);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const updateData = async (uid: string) => {
-    if (!uid) return;
+    if (!uid || isSyncing) return;
+    
+    // Abort previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsSyncing(true);
     setLastSync(new Date());
+
+    const safetyTimeout = setTimeout(() => {
+      setIsSyncing(false);
+      abortControllerRef.current = null;
+    }, 12000);
+
     try {
       const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.allSettled([
         getVendorOrders(uid),
@@ -268,23 +424,25 @@ function StoreContent() {
         supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true)
       ]);
 
-      let currentCommission = 0;
       if (dbOrders.status === 'fulfilled' && dbOrders.value) {
-        const uiOrders = dbOrders.value.map(mapDBOrderToUI);
-        setOrders(uiOrders);
-        setCache('vendor_orders', uiOrders);
-        currentCommission = dbOrders.value
+        setOrders(dbOrders.value.map(mapDBOrderToUI));
+        
+        // حساب العمولة المستحقة محلياً كاحتياطي في حال تأخر تحديث قاعدة البيانات
+        const calculatedCommission = dbOrders.value
           .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
-          .reduce((sum: number, o: any) => sum + (o.financials?.system_commission || 0), 0);
+          .reduce((sum: number, o: any) => {
+            const vndComm = o.financials?.vendor_commission || 0;
+            const insFee = o.financials?.insurance_fee || 0;
+            return sum + vndComm + (insFee / 2);
+          }, 0);
+        
+        setCompanyCommission(calculatedCommission);
       }
 
+      // إذا كانت قيمة المحفظة في قاعدة البيانات موجودة، نستخدم القيمة الأكبر لضمان الدقة
       if (walletRes.status === 'fulfilled' && walletRes.value.data) {
-        const bal = walletRes.value.data.system_balance || 0;
-        setCompanyCommission(bal);
-        setCache('vendor_balance', bal);
-      } else {
-        setCompanyCommission(currentCommission);
-        setCache('vendor_balance', currentCommission);
+        const dbBalance = walletRes.value.data.system_balance || 0;
+        setCompanyCommission(prev => Math.max(prev, dbBalance));
       }
 
       if (settlementsRes.status === 'fulfilled' && settlementsRes.value.data) {
@@ -315,42 +473,41 @@ function StoreContent() {
       }
     } catch (err) {
       console.error("VendorPage: Update error", err);
+    } finally {
+      clearTimeout(safetyTimeout);
+      setIsSyncing(false);
     }
-    setIsSyncing(false);
   };
 
   // --- Logic Helpers ---
   const handleCancelOrder = async (orderId: string) => {
+    try {
+      Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+    } catch (e) {}
+    
     // Safety check for confirm on native
     const shouldCancel = typeof window !== 'undefined' && window.confirm ? window.confirm('هل أنت متأكد من إلغاء الطلب؟') : true;
     if (!shouldCancel) return;
 
-    // Optimistic Update
-    const originalOrders = [...orders];
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
-    success('تم إلغاء الطلب بنجاح');
-
-    try {
-      const { error: cancelErr } = await cancelOrder(orderId);
-      if (cancelErr) throw cancelErr;
-      
+    const { error: cancelErr } = await cancelOrder(orderId);
+    if (!cancelErr) {
+      success('تم إلغاء الطلب بنجاح');
       if (vendorId) updateData(vendorId);
-    } catch (err) {
-      setOrders(originalOrders);
-      error('خطأ في الإلغاء. حاول مرة أخرى.');
+    } else {
+      error('خطأ في الإلغاء');
     }
   };
 
   const mapDBOrderToUI = (db: VendorDBOrder): Order => {
     // Robust mapping with safety checks
     const financials = db.financials || { order_value: 0, delivery_fee: 0 };
-    const customer = db.customer_details || { name: "عميل", address: "عنوان غير محدد" };
+    const customerDetails = db.customer_details || { name: "عميل", address: "عنوان غير محدد" };
 
     return {
       id: db.id,
-      customer: customer.name || "عميل",
-      phone: (customer as any).phone || "",
-      address: customer.address || "عنوان غير محدد",
+      customer: customerDetails.name || "عميل",
+      phone: (customerDetails as any).phone || "",
+      address: customerDetails.address || "عنوان غير محدد",
       status: db.status || 'pending',
       driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
       driverPhone: db.driver?.phone || "",
@@ -359,11 +516,12 @@ function StoreContent() {
       time: formatVendorTime(db.created_at || ""),
       createdAt: db.created_at || new Date().toISOString(),
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
-      notes: (customer as any).notes || "",
+      notes: (customerDetails as any).notes || "",
       prepTime: String((financials as any).prep_time || "15"),
       invoiceUrl: db.invoice_url,
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
+      customers: customerDetails.customers,
       financials: db.financials ? {
         order_value: Number(financials.order_value || 0),
         delivery_fee: Number(financials.delivery_fee || 0),
@@ -419,15 +577,12 @@ function StoreContent() {
   };
 
   const handleOpenForm = async (order: Order | null = null) => {
-    // Disabled haptics to debug 5s crash
-    /*
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
       }
     } catch(e) {}
-    */
     if (order) {
       setEditingOrder(order);
       setInvoiceUrl(order.invoiceUrl || null);
@@ -439,14 +594,47 @@ function StoreContent() {
         deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, ""),
         notes: order.notes || "",
         prepTime: order.prepTime || "15",
-        customerCoords: null
+        customerCoords: null,
+        customers: order.customers ? order.customers.map((c, i) => ({
+          id: (c as any).id || Math.random().toString(36).substring(2, 9),
+          name: c.name,
+          phone: c.phone || "",
+          address: c.address,
+          orderValue: String(c.orderValue),
+          deliveryFee: String(c.deliveryFee),
+          prepTime: String((c as any).prepTime || order.prepTime || "15"),
+          invoiceUrl: c.invoice_url
+        })) : [{
+          id: Math.random().toString(36).substring(2, 9),
+          name: order.customer,
+          phone: order.phone || "",
+          address: order.address,
+          orderValue: order.amount.replace(/[^0-9.-]+/g, ""),
+          deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, ""),
+          prepTime: order.prepTime || "15",
+          invoiceUrl: order.invoiceUrl
+        }]
       });
     } else {
       setEditingOrder(null);
       setInvoiceUrl(null);
-      setFormData({ customer: "", phone: "", address: "", orderValue: "", deliveryFee: "30", notes: "", prepTime: "15", customerCoords: null });
+      setFormData({ 
+        customer: "", 
+        phone: "", 
+        address: "", 
+        orderValue: "", 
+        deliveryFee: "30", 
+        notes: "", 
+        prepTime: "15", 
+        customerCoords: null,
+        customers: [{ 
+          id: Math.random().toString(36).substring(2, 9),
+          name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "" 
+        }]
+      });
     }
-    setShowOrderForm(true);
+    setShowOrderForm(false);
+    setActiveView("order-form");
   };
 
   const handleSaveOrder = async () => {
@@ -458,23 +646,53 @@ function StoreContent() {
         distance = Math.round(calculateDistance(vendorLocation.lat, vendorLocation.lng, formData.customerCoords.lat, formData.customerCoords.lng) * 10) / 10;
       }
 
-      const manualDeliveryFee = Number(formData.deliveryFee);
-      const calculated = calculateOrderFinancials(distance, 0, manualDeliveryFee, {
-        driverCommissionPct: appConfig.driver_commission,
-        vendorCommissionPct: appConfig.vendor_commission,
-        driverInsuranceFee: appConfig.safe_ride_fee,
-        vendorInsuranceFee: appConfig.vendor_fee
-      });
+      // Use the new multi-stop pricing calculation
+      const manualDeliveryFees = formData.customers.map(c => Number(c.deliveryFee) || 0);
+      const calculated = calculateOrderFinancials(
+        formData.customers.length,
+        manualDeliveryFees,
+        {
+          driverCommissionPct: appConfig.driver_commission,
+          vendorCommissionPct: appConfig.vendor_commission,
+          vendorCommissionFixed: appConfig.vendor_commission_value,
+          vendorCommissionType: appConfig.vendor_commission_type,
+          driverInsuranceFee: appConfig.safe_ride_fee,
+          vendorInsuranceFee: appConfig.vendor_fee,
+          surgePricingActive: appConfig.surge_pricing_active,
+          surgePricingMultiplier: appConfig.surge_pricing_multiplier
+        }
+      );
+
+      const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0);
+      const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0);
+      const maxPrepTime = formData.customers.reduce((max, c) => Math.max(max, Number(c.prepTime) || 0), 0) || Number(formData.prepTime) || 15;
+
       const orderData = {
         vendor_id: vendorId,
         driver_id: null,
         status: 'pending' as const,
         distance,
-        customer_details: { name: formData.customer, phone: formData.phone, address: formData.address, notes: formData.notes, coords: formData.customerCoords },
+        customer_details: { 
+          name: formData.customers[0]?.name || "سكة", // Default for legacy support
+          phone: formData.customers[0]?.phone || "",
+          address: formData.customers[0]?.address || "",
+          notes: formData.notes, 
+          coords: formData.customerCoords,
+          customers: formData.customers.map(c => ({
+            name: c.name,
+            phone: c.phone,
+            address: c.address,
+            orderValue: Number(c.orderValue),
+            deliveryFee: Number(c.deliveryFee),
+            prepTime: c.prepTime,
+            status: 'pending' as const,
+            invoice_url: c.invoiceUrl
+          }))
+        },
         financials: { 
-          order_value: Number(formData.orderValue), 
-          delivery_fee: manualDeliveryFee, 
-          prep_time: formData.prepTime, 
+          order_value: totalOrderValue, 
+          delivery_fee: totalDeliveryFee, 
+          prep_time: String(maxPrepTime), 
           system_commission: calculated.systemCommission, 
           vendor_commission: calculated.vendorCommission,
           driver_earnings: calculated.driverEarnings, 
@@ -492,9 +710,9 @@ function StoreContent() {
       if (data) {
         const ui = mapDBOrderToUI(data as VendorDBOrder);
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
-        setShowOrderForm(false);
-        success(editingOrder ? "تم تعديل الطلب بنجاح" : "تم إنشاء طلب جديد بنجاح");
-        addActivityLocal(editingOrder ? "تم تعديل الطلب" : "تم إنشاء طلب جديد");
+        setActiveView("store");
+        success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
+        addActivityLocal(editingOrder ? "تم تعديل السكة" : "تم إنشاء سكة جديدة");
       }
     } catch (err) {
       error("حدث خطأ أثناء حفظ الطلب. حاول مرة أخرى.");
@@ -505,39 +723,134 @@ function StoreContent() {
   };
 
   const handleCollectDebt = async (orderId: string) => {
-    // Optimistic Update
-    const originalOrders = [...orders];
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, vendorCollectedAt: new Date().toISOString() } : o));
-    success(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح`);
-
-    try {
-      const { error: dbError } = await vendorCollectDebt(orderId);
-      if (dbError) throw dbError;
-      
+    const { error: dbError } = await vendorCollectDebt(orderId);
+    if (!dbError) {
+      success(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح`);
       addActivityLocal(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)}`);
       if (vendorId) {
         updateData(vendorId);
       }
-    } catch (err) {
-      setOrders(originalOrders);
+    } else {
       error("حدث خطأ أثناء تأكيد التحصيل.");
     }
   };
 
-  const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !vendorId) return;
-    setUploadingInvoice(true);
-    try {
-      const fileName = `${vendorId}/${Date.now()}.${file.name.split('.').pop()}`;
-      const { error: dbError } = await supabase.storage.from('invoices').upload(fileName, file);
-      if (dbError) throw dbError;
-      const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-      setInvoiceUrl(publicUrl);
-      success("تم رفع الفاتورة بنجاح");
-    } catch {
-      error("فشل رفع الفاتورة. حاول مرة أخرى.");
-    } finally { setUploadingInvoice(false); }
+  const handleCameraCapture = async (customerIndex?: number) => {
+    setCameraMode("form");
+    setActiveCaptureIndex(customerIndex !== undefined ? customerIndex : null);
+    setShowInAppCamera(true);
+  };
+
+  const handleQuickInvoiceUpload = async (order: Order) => {
+    setQuickUploadOrderId(order.id);
+    setCameraMode("quick");
+    setActiveCaptureIndex(null);
+    setShowInAppCamera(true);
+  };
+
+  const handleInAppCapture = async (blob: Blob) => {
+    const timestamp = Date.now();
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    if (cameraMode === "form") {
+      // If we have an activeCaptureIndex, update the specific customer
+      if (activeCaptureIndex !== null) {
+        setFormData(prev => {
+          const newCustomers = [...prev.customers];
+          if (newCustomers[activeCaptureIndex]) {
+            newCustomers[activeCaptureIndex] = { ...newCustomers[activeCaptureIndex], isUploading: true };
+          }
+          return { ...prev, customers: newCustomers };
+        });
+      } else {
+        setUploadingInvoice(true);
+      }
+
+      try {
+        const currentVendorId = vendorIdRef.current || user?.id;
+        if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
+
+        const fileName = `${currentVendorId}/${timestamp}${activeCaptureIndex !== null ? `_cust_${activeCaptureIndex}` : ''}.jpg`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(fileName, uint8Array, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600'
+          });
+        
+        if (uploadError) throw new Error(uploadError.message);
+        
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        
+        if (activeCaptureIndex !== null) {
+          setFormData(prev => {
+            const newCustomers = [...prev.customers];
+            if (newCustomers[activeCaptureIndex]) {
+              newCustomers[activeCaptureIndex] = { 
+                ...newCustomers[activeCaptureIndex], 
+                invoiceUrl: publicUrl,
+                isUploading: false 
+              };
+            }
+            return { ...prev, customers: newCustomers };
+          });
+        } else {
+          setInvoiceUrl(publicUrl);
+        }
+        success("تم التقاط ورفع الفاتورة بنجاح");
+      } catch (err: any) {
+        error(`فشل رفع الفاتورة: ${err.message}`);
+        if (activeCaptureIndex !== null) {
+          setFormData(prev => {
+            const newCustomers = [...prev.customers];
+            if (newCustomers[activeCaptureIndex]) {
+              newCustomers[activeCaptureIndex] = { ...newCustomers[activeCaptureIndex], isUploading: false };
+            }
+            return { ...prev, customers: newCustomers };
+          });
+        }
+      } finally {
+        setUploadingInvoice(false);
+        setActiveCaptureIndex(null);
+      }
+    } else if (cameraMode === "quick" && quickUploadOrderId) {
+      setUploadingInvoice(true);
+      try {
+        const currentVendorId = vendorIdRef.current || user?.id;
+        if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
+
+        const fileName = `${currentVendorId}/${timestamp}_quick_${quickUploadOrderId}.jpg`;
+        console.log("Attempting quick upload to storage:", fileName);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(fileName, uint8Array, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600'
+          });
+        
+        if (uploadError) {
+          console.error("Quick Storage upload error:", uploadError);
+          throw new Error(uploadError.message || "خطأ في تخزين الصورة");
+        }
+        
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: publicUrl });
+        if (updateError) throw updateError;
+        
+        setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: publicUrl } : o));
+        success("تم تحديث الطلب بالفاتورة بنجاح");
+      } catch (err: any) {
+        console.error("Quick in-app upload error details:", err);
+        const errorMsg = err.message || JSON.stringify(err);
+        error(`فشل رفع الفاتورة السريع: ${errorMsg}`);
+      } finally {
+        setUploadingInvoice(false);
+        setQuickUploadOrderId(null);
+      }
+    }
   };
 
   const handleUpdateLocation = async () => {
@@ -630,7 +943,6 @@ function StoreContent() {
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
       <div className="silver-live-bg" />
     <Toast toasts={toasts} onRemove={removeToast} />
-      <PushNotificationManager userId={vendorId ?? null} />
       
       <StoreHeader
         vendorName={vendorName}
@@ -640,61 +952,73 @@ function StoreContent() {
         onSearchChange={setSearchQuery}
         onOpenDrawer={() => setShowDrawer(true)}
         onSync={() => vendorId && updateData(vendorId)}
+        onResetSync={() => setIsSyncing(false)}
+        isSurgeActive={appConfig.surge_pricing_active}
       />
 
       <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
-        <Suspense fallback={
-          <div className="space-y-4">
-            <OrderSkeleton />
-            <OrderSkeleton />
-          </div>
-        }>
-          {activeView === "store" ? (
-            <StoreView
-              orders={orders}
-              searchQuery={searchQuery}
-              activeTab={activeTab}
-              activityLog={activityLog}
-              balance={balance}
-              onlineDrivers={onlineDrivers}
-              companyCommission={companyCommission}
-              showLiveMap={showLiveMap}
-              vendorLocation={vendorLocation}
-              vendorId={vendorId}
-              vendorName={vendorName}
-              onSetActiveTab={setActiveTab}
-              onCollectDebt={handleCollectDebt}
-              onCancelOrder={handleCancelOrder}
-              onEditOrder={handleOpenForm}
-            />
-          ) : activeView === "wallet" ? (
-            <WalletView
-              companyCommission={companyCommission}
-              balance={balance}
-              settlementHistory={settlementHistory}
-              commissionDetails={{
-                totalDeliveryFees: orders.filter(o => o.status === "delivered").reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
-                orderCount: orders.filter(o => o.status === "delivered").length,
-                commissionRate: appConfig.driver_commission / 100,
-                commissionPerOrder: appConfig.vendor_fee || 1,
-              }}
-              onOpenSettlementModal={() => setShowSettlementModal(true)}
-            />
-          ) : activeView === "settings" ? (
-            <StoreSettingsView
-              settingsData={settingsData}
-              savingSettings={savingSettings}
-              vendorLocation={vendorLocation}
-              updatingLocation={updatingLocation}
-              onBack={() => setActiveView("store")}
-              onSettingsDataChange={setSettingsData}
-              onSave={handleUpdateProfile}
-              onUpdateLocation={handleUpdateLocation}
-            />
-          ) : (
-            <HistoryView orders={orders} />
-          )}
-        </Suspense>
+        {activeView === "store" ? (
+          <StoreOrdersHub
+            orders={orders}
+            searchQuery={searchQuery}
+            activeTab={activeTab}
+            activityLog={activityLog}
+            balance={balance}
+            onlineDrivers={onlineDrivers}
+            companyCommission={companyCommission}
+            showLiveMap={showLiveMap}
+            vendorLocation={vendorLocation}
+            vendorId={vendorId}
+            vendorName={vendorName}
+            onSetActiveTab={setActiveTab}
+            onCollectDebt={handleCollectDebt}
+            onCancelOrder={handleCancelOrder}
+            onEditOrder={handleOpenForm}
+            onQuickInvoiceUpload={handleQuickInvoiceUpload}
+            uploadingInvoice={uploadingInvoice}
+            quickUploadOrderId={quickUploadOrderId}
+          />
+        ) : activeView === "wallet" ? (
+          <WalletView
+            companyCommission={companyCommission}
+            balance={balance}
+            settlementHistory={settlementHistory}
+            commissionDetails={{
+              totalDeliveryFees: orders.filter(o => o.status === "delivered" && !o.vendorCollectedAt).reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
+              orderCount: orders.filter(o => o.status === "delivered" && !o.vendorCollectedAt).length,
+              commissionRate: appConfig.vendor_commission / 100,
+              commissionPerOrder: appConfig.vendor_fee || 1,
+              commissionType: appConfig.vendor_commission_type,
+              commissionValue: appConfig.vendor_commission_value,
+            }}
+            onOpenSettlementModal={() => setShowSettlementModal(true)}
+          />
+        ) : activeView === "settings" ? (
+          <StoreSettingsView
+            settingsData={settingsData}
+            savingSettings={savingSettings}
+            vendorLocation={vendorLocation}
+            updatingLocation={updatingLocation}
+            onBack={() => setActiveView("store")}
+            onSettingsDataChange={setSettingsData}
+            onSave={handleUpdateProfile}
+            onUpdateLocation={handleUpdateLocation}
+          />
+        ) : (
+          <OrderFormView
+            editingOrder={editingOrder}
+            formData={formData}
+            invoiceUrl={invoiceUrl}
+            uploadingInvoice={uploadingInvoice}
+            isSaving={isSavingOrder}
+            hasVendorLocation={!!(vendorLocation?.lat && vendorLocation?.lng)}
+            onBack={() => setActiveView("store")}
+            onFormDataChange={setFormData}
+            onPickCustomerLocation={handlePickCustomerLocation}
+            onCameraCapture={handleCameraCapture}
+            onSave={handleSaveOrder}
+          />
+        )}
       </main>
 
 {activeView === "store" && (
@@ -709,20 +1033,10 @@ function StoreContent() {
         </motion.button>
       )}
 
-      
-      <OrderFormModal
-        show={showOrderForm}
-        editingOrder={editingOrder}
-        formData={formData}
-        invoiceUrl={invoiceUrl}
-        uploadingInvoice={uploadingInvoice}
-        isSaving={isSavingOrder}
-        hasVendorLocation={!!(vendorLocation?.lat && vendorLocation?.lng)}
-        onClose={() => setShowOrderForm(false)}
-        onFormDataChange={setFormData}
-        onPickCustomerLocation={handlePickCustomerLocation}
-        onInvoiceUpload={handleInvoiceUpload}
-        onSave={handleSaveOrder}
+      <InAppCamera 
+        show={showInAppCamera} 
+        onClose={() => setShowInAppCamera(false)} 
+        onCapture={handleInAppCapture} 
       />
 
       <StoreAccountModals
@@ -743,15 +1057,17 @@ function StoreContent() {
         onRequestSettlement={handleRequestSettlement}
       />
 
-      <StoreDrawer
-        showDrawer={showDrawer}
-        vendorName={vendorName}
-        activeView={activeView}
-        onClose={() => setShowDrawer(false)}
-        onChangeView={setActiveView}
-        onUpdateLocation={handleUpdateLocation}
-        onSignOut={handleSignOut}
-      />
+      {activeView !== "order-form" && (
+        <StoreDrawer
+          showDrawer={showDrawer}
+          vendorName={vendorName}
+          activeView={activeView === "order-form" ? "store" : activeView}
+          onClose={() => setShowDrawer(false)}
+          onChangeView={(view) => setActiveView(view as any)}
+          onUpdateLocation={handleUpdateLocation}
+          onSignOut={handleSignOut}
+        />
+      )}
     </div>
   );
 }

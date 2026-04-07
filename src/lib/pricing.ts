@@ -37,40 +37,46 @@ export interface OrderFinancials {
 }
 
 export interface PricingConfig {
-  driverCommissionPct: number; // e.g., 15
-  vendorCommissionPct: number; // e.g., 20
-  driverInsuranceFee: number; // e.g., 1
-  vendorInsuranceFee: number; // e.g., 1
+  driverCommissionPct?: number;
+  vendorCommissionPct?: number;
+  vendorCommissionFixed?: number;
+  vendorCommissionType?: 'percentage' | 'fixed';
+  driverInsuranceFee?: number;
+  vendorInsuranceFee?: number;
+  surgePricingActive?: boolean;
+  surgePricingMultiplier?: number;
 }
 
-export const calculateOrderFinancials = (distance: number, surgeFee: number = 0, manualFee?: number, config?: PricingConfig): OrderFinancials => {
-  const deliveryFee = manualFee !== undefined ? manualFee : calculateDeliveryFee(distance, surgeFee);
+export const calculateOrderFinancials = (customerCount: number = 1, manualDeliveryFees: number[] = [], config?: PricingConfig): OrderFinancials => {
+  // Total delivery fee is the sum of all manual delivery fees for each customer
+  const totalDeliveryFee = manualDeliveryFees.reduce((sum, fee) => sum + (fee || 0), 0);
   
   const driverCommPct = (config?.driverCommissionPct ?? 15) / 100;
-  const vendorCommPct = (config?.vendorCommissionPct ?? 20) / 100;
-  const driverInsurance = config?.driverInsuranceFee ?? SAFE_RIDE_FEE;
-  const vendorInsurance = config?.vendorInsuranceFee ?? VENDOR_INSURANCE_FEE;
   
-  const insuranceFundTotal = driverInsurance + vendorInsurance;
+  // Calculate Vendor Commission
+  let vendorCommission = 0;
+  if (config?.vendorCommissionType === 'fixed') {
+    vendorCommission = (config.vendorCommissionFixed ?? 0) * customerCount;
+  } else {
+    const vendorCommPct = (config?.vendorCommissionPct ?? 20) / 100;
+    vendorCommission = Math.round(totalDeliveryFee * vendorCommPct * 100) / 100;
+  }
   
-  // System Commission (Driver side)
-  const systemCommission = deliveryFee * driverCommPct;
+  // 1 EGP insurance fee per customer (total)
+  const insuranceFundTotal = customerCount * 1.0; 
+  
+  // System Commission from Driver side (e.g. 15% of delivery fee)
+  const systemCommission = Math.round(totalDeliveryFee * driverCommPct * 100) / 100;
 
-  // System Commission (Vendor side)
-  const vendorCommission = deliveryFee * vendorCommPct;
-  
-  // Driver Earnings: The delivery fee minus the system commission and their insurance contribution
-  const driverEarnings = deliveryFee - systemCommission - driverInsurance;
-
-  // Vendor Fee: Fixed contribution to insurance
-  const vendorFee = vendorInsurance;
+  // Driver Earnings: Total delivery fee minus system commission minus insurance
+  const driverEarnings = Math.round((totalDeliveryFee - systemCommission - insuranceFundTotal) * 100) / 100;
 
   return {
-    totalFee: deliveryFee,
-    insuranceFundTotal,
+    totalFee: Math.round(totalDeliveryFee * 100) / 100,
+    insuranceFundTotal: Math.round(insuranceFundTotal * 100) / 100,
     systemCommission,
     vendorCommission,
     driverEarnings,
-    vendorFee
+    vendorFee: insuranceFundTotal
   };
 };

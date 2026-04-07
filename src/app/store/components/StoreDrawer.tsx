@@ -3,13 +3,14 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { History, LogOut, MapPin, Settings, Store, Wallet, X } from "lucide-react";
+import { useBackButton } from "@/hooks/useBackButton";
 
 interface StoreDrawerProps {
   showDrawer: boolean;
   vendorName: string;
-  activeView: "store" | "wallet" | "history" | "settings";
+  activeView: "store" | "wallet" | "settings";
   onClose: () => void;
-  onChangeView: (view: "store" | "wallet" | "history" | "settings") => void;
+  onChangeView: (view: "store" | "wallet" | "settings") => void;
   onUpdateLocation: () => void;
   onSignOut: () => void;
 }
@@ -23,6 +24,7 @@ export default function StoreDrawer({
   onUpdateLocation,
   onSignOut,
 }: StoreDrawerProps) {
+  useBackButton(onClose, showDrawer);
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
@@ -31,7 +33,7 @@ export default function StoreDrawer({
     } catch (e) {}
   };
 
-  const handleNavClick = async (view: "store" | "wallet" | "history" | "settings") => {
+  const handleNavClick = async (view: "store" | "wallet" | "settings") => {
     triggerHaptic();
     onChangeView(view);
     onClose();
@@ -47,7 +49,6 @@ export default function StoreDrawer({
             <div className="flex-1 p-4 space-y-2">
               <button onClick={() => handleNavClick("store")} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "store" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Store className="w-5 h-5" /><span className="text-sm font-bold">الرئيسية والطلبات</span></button>
               <button onClick={() => handleNavClick("wallet")} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "wallet" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Wallet className="w-5 h-5" /><span className="text-sm font-bold">المحفظة المالية</span></button>
-              <button onClick={() => handleNavClick("history")} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "history" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><History className="w-5 h-5" /><span className="text-sm font-bold">سجل العمليات</span></button>
               <button onClick={() => handleNavClick("settings")} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeView === "settings" ? "bg-brand-orange/10 text-brand-orange" : "hover:bg-gray-50 text-gray-700"}`}><Settings className="w-5 h-5" /><span className="text-sm font-bold">إعدادات الحساب</span></button>
               <div className="h-px bg-gray-100 my-4" />
               <button onClick={() => { 
