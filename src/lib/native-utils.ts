@@ -135,9 +135,11 @@ const isValidUpdateUrl = async (url: string) => {
   }
 };
 
+import { Preferences } from '@capacitor/preferences';
+
 let lastCheckTime = 0;
 let isChecking = false;
-const CHECK_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown
+const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown
 
 /**
  * نظام التحديث التلقائي الذكي (OTA)
@@ -147,10 +149,8 @@ export const checkForAutoUpdate = async (force = false) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
   if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
 
-  // Prevent frequent checks unless forced
   const now = Date.now();
   if (!force && now - lastCheckTime < CHECK_COOLDOWN) {
-    console.log('Native OTA: Skipping check due to cooldown.');
     return { available: false, reason: 'COOLDOWN' };
   }
   
@@ -158,93 +158,75 @@ export const checkForAutoUpdate = async (force = false) => {
   lastCheckTime = now;
 
   try {
-    console.log('Native OTA: Checking for updates in app_config...');
     const { data: config, error: configError } = await supabase
       .from('app_config')
       .select('*')
       .eq('id', 1)
       .single();
 
-    if (configError) {
-      console.error('Native OTA: Database query failed:', configError.message);
-      return { available: false, reason: 'DB_ERROR', error: configError.message };
-    }
-
-    if (!config) {
-      console.warn('Native OTA: No app_config record found for id=1');
+    if (configError || !config) {
       return { available: false, reason: 'NO_CONFIG' };
     }
 
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+    
+    // 1. Get current state
+    const dbVersion = String(config.latest_version || '').trim();
+    const bundleUrl = String(config.bundle_url || '').trim();
+
+    // 2. Check persistent storage for "Applied Version"
+    // This is our ground truth to prevent infinite loops
+    const { value: appliedVersion } = await Preferences.get({ key: 'last_applied_ota_version' });
+    
+    console.log(`Native OTA: [Applied: ${appliedVersion}] [DB: ${dbVersion}]`);
+
+    if (appliedVersion === dbVersion) {
+      console.log('Native OTA: App already has this version applied persistently.');
+      return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
+    }
+
+    // 3. Double check with plugin
     let current;
     try {
       current = await CapacitorUpdater.getLatest();
     } catch (e) {
-      console.warn('Native OTA: Failed to get latest bundle info from plugin, using fallback', e);
       current = { version: '0.0.0' };
     }
-    const bundleUrl = String(config.bundle_url || '').trim();
 
-    const phoneVersion = current.version || '0.0.0';
-    const dbVersion = config.latest_version || '0.0.0';
-
-    console.log(`Native OTA: [Current: ${phoneVersion}] [Latest: ${dbVersion}]`);
-    console.log(`Native OTA: Bundle URL: ${bundleUrl}`);
-
-    // Robust version check: handle timestamp-based versions properly
-    // If dbVersion starts with phoneVersion and contains a suffix, it's a new build
-    const isNewVersion = dbVersion !== phoneVersion;
-
-    if (!isNewVersion) {
-      console.log('Native OTA: App is up to date.');
-      return { 
-        available: false, 
-        version: dbVersion, 
-        phoneVersion: phoneVersion,
-        reason: 'SAME_VERSION' 
-      };
+    if (current.version === dbVersion) {
+      // Sync our storage if plugin already knows
+      await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
+      return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 
     if (!bundleUrl || !dbVersion) {
-      console.warn('Native OTA: Missing update configuration in DB');
-      return { 
-        available: false, 
-        version: dbVersion, 
-        phoneVersion: phoneVersion,
-        reason: 'MISSING_CONFIG' 
-      };
+      return { available: false, reason: 'MISSING_CONFIG' };
     }
 
-    console.log('Native OTA: New update found! Starting download...');
+    console.log('Native OTA: New update found! Downloading:', dbVersion);
 
     const bundle = await CapacitorUpdater.download({
       url: bundleUrl,
       version: dbVersion
     });
 
-    console.log('Native OTA: Download successful, bundle ID:', bundle.id);
-
-    // If it's a force update or regular update, apply immediately
-    console.log('Native OTA: Applying update...');
+    // 4. Set as default and save to persistent storage BEFORE reload
     await CapacitorUpdater.set({ id: bundle.id });
+    await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
     
-    // Crucial: No reload here, let AppWrapper handle it with a delay
-    
+    console.log('Native OTA: Update applied to storage. Ready for reload.');
+
     return {
       available: true,
       version: dbVersion,
       bundleId: bundle.id,
       downloaded: true,
       forceUpdate: true,
-      updateMessage: String(config.update_message || 'التحديث جاهز للتثبيت.')
+      updateMessage: String(config.update_message || 'جاري تثبيت التحديث...')
     };
   } catch (e: any) {
-    console.error('Native OTA: Fatal error during update check:', e);
-    let errorMsg = e.message || 'فشل الاتصال بخادم التحديثات';
-    if (errorMsg.includes('rate_limit_exceeded')) {
-      errorMsg = 'تجاوزت حد المحاولات المسموح به حالياً. يرجى الانتظار 15 دقيقة ثم المحاولة مرة أخرى.';
-    }
-    return { available: false, reason: 'FATAL_ERROR', error: errorMsg };
+    console.error('Native OTA: Fatal error:', e);
+    return { available: false, reason: 'FATAL_ERROR', error: e.message };
   } finally {
     isChecking = false;
   }

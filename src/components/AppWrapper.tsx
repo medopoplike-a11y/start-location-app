@@ -54,12 +54,6 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
           
           const updateInfo = await checkForAutoUpdate(isManual);
 
-          // Prevent infinite reload loop if we just updated to this version
-          if (updateInfo?.version && updateInfo.version === lastUpdateRef.current) {
-            console.log('Native OTA: Already tried updating to this version in this session, skipping.');
-            return;
-          }
-
           if (updateInfo?.available) {
             // Add listener for download progress only when update is found
             const downloadListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
@@ -75,33 +69,36 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             if (updateInfo.downloaded) {
               setUpdateStatus("ready");
               setProgress(100);
-              lastUpdateRef.current = updateInfo.version || "";
               
-              // Inform Capgo that the update is ready before reload
-              try {
-                const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-                if ((CapacitorUpdater as any).notifyAppReady) {
-                  await (CapacitorUpdater as any).notifyAppReady();
-                }
-              } catch (e) {}
-
               // Give system time to finalize the bundle set
               setTimeout(async () => {
                 try {
                   const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                  
+                  // Reset rollback check for the new bundle
+                  // This ensures the update is treated as successful and persistent
+                  console.log('Native OTA: Finalizing update and marking as successful...');
+                  
+                  // Crucial: We need to inform Capgo that this bundle is working perfectly
+                  try {
+                    if ((CapacitorUpdater as any).notifyAppReady) {
+                      await (CapacitorUpdater as any).notifyAppReady();
+                    }
+                  } catch (err) {
+                    console.warn('Native OTA: notifyAppReady failed', err);
+                  }
+                  
+                  // 2. Reload to apply
                   await CapacitorUpdater.reload();
                 } catch (e) {
                   window.location.reload();
                 }
-              }, 3000);
+              }, 2000);
             } else {
               setUpdateStatus("downloading");
             }
             
             return () => downloadListener.remove();
-          } else if (updateInfo?.reason === 'DB_ERROR' || updateInfo?.reason === 'FATAL_ERROR') {
-            setUpdateStatus("error");
-            setErrorMessage(updateInfo?.error || "فشل الاتصال بخادم التحديثات");
           } else {
             setUpdateStatus("idle");
           }
