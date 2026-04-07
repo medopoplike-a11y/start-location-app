@@ -92,7 +92,7 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
         <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white">
           <X className="w-6 h-6" />
         </button>
-        <h3 className="text-white font-black text-sm">{title}</h3>
+        <h3 className="text-white font-black text-xs opacity-80">{title}</h3>
         {!capturedImage && (
           <button 
             onClick={() => setFlash(!flash)} 

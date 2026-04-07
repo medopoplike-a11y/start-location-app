@@ -266,25 +266,33 @@ export default function OrderFormView({
 
                         <div className="pt-2">
                           {cust.invoiceUrl && (
-                            <div className="mb-3 relative rounded-2xl overflow-hidden border-2 border-green-100 aspect-video bg-white shadow-inner">
-                              <img src={cust.invoiceUrl} className="w-full h-full object-cover" alt="Invoice Preview" />
-                              <div className="absolute top-2 right-2 bg-green-500 text-white p-1 rounded-full shadow-lg">
-                                <CheckCircle2 size={14} />
+                            <div className="mb-2 relative rounded-xl overflow-hidden border border-green-100 aspect-video bg-white shadow-sm group/preview">
+                              <img 
+                                src={cust.invoiceUrl} 
+                                className="w-full h-full object-cover cursor-pointer" 
+                                alt="Invoice Preview" 
+                                onClick={() => onCameraCapture?.(idx)} // Clicking preview re-opens camera or could open full view
+                              />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                <Camera size={16} className="text-white" />
+                              </div>
+                              <div className="absolute top-1.5 right-1.5 bg-green-500 text-white p-0.5 rounded-full shadow-md">
+                                <CheckCircle2 size={10} />
                               </div>
                             </div>
                           )}
                           <button
                             onClick={() => onCameraCapture?.(idx)}
                             disabled={isSaving || cust.isUploading}
-                            className={`w-full p-5 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 ${
+                            className={`w-full p-3 rounded-xl border border-dashed transition-all flex items-center justify-center gap-2 ${
                               cust.invoiceUrl 
-                                ? "bg-green-50 border-green-200 text-green-600 shadow-inner" 
+                                ? "bg-green-50 border-green-200 text-green-600" 
                                 : "bg-gray-50 border-gray-200 text-gray-400 hover:border-orange-200 hover:text-orange-500"
                             }`}
                           >
-                            <Camera size={24} className={!cust.invoiceUrl && !cust.isUploading ? "animate-bounce" : ""} />
-                            <span className="text-[11px] font-black">
-                              {cust.isUploading ? "جاري الرفع..." : cust.invoiceUrl ? "تم توثيق فاتورة العميل ✓" : "تصوير فاتورة هذا العميل"}
+                            <Camera size={16} className={!cust.invoiceUrl && !cust.isUploading ? "animate-pulse" : ""} />
+                            <span className="text-[10px] font-black">
+                              {cust.isUploading ? "جاري الرفع..." : cust.invoiceUrl ? "تحديث الفاتورة" : "تصوير الفاتورة"}
                             </span>
                           </button>
                         </div>

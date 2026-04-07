@@ -253,19 +253,19 @@ export default function StoreView({
 
                   {/* Multi-Invoice Preview for Sikka */}
                   {order.customers && order.customers.length > 0 && order.customers.some(c => c.invoice_url) && (
-                    <div className="mb-6 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <div className="mb-4 flex flex-wrap gap-2">
                       {order.customers.map((cust, idx) => cust.invoice_url && (
-                        <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-md group/mini">
+                        <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden border border-orange-100 shadow-sm group/mini">
                           <img 
                             src={cust.invoice_url} 
                             alt={`Invoice ${idx}`} 
                             className="w-full h-full object-cover"
                             onClick={() => setPreviewUrl(cust.invoice_url || null)}
                           />
-                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
-                            <Eye className="text-white w-4 h-4" />
+                          <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
+                            <Eye className="text-white w-3 h-3" />
                           </div>
-                          <div className="absolute top-1 right-1 bg-slate-900/80 text-white text-[7px] px-1.5 py-0.5 rounded-full font-black">
+                          <div className="absolute top-0.5 right-0.5 bg-orange-500 text-white text-[6px] px-1 py-0.5 rounded-md font-black">
                             {idx + 1}
                           </div>
                         </div>
@@ -273,39 +273,23 @@ export default function StoreView({
                     </div>
                   )}
 
-                  <div className="mb-6 bg-orange-50/30 p-4 rounded-[28px] border border-orange-100/50 flex flex-col gap-3">
+                  <div className="mb-6 bg-slate-50/30 p-3 rounded-[24px] border border-slate-100/50 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Camera className="w-3.5 h-3.5 text-orange-500" />
-                        <span className="text-[10px] font-black text-orange-700 uppercase tracking-wider">فاتورة الطلب</span>
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3 h-3 text-slate-400" />
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">الفواتير</span>
                       </div>
-                      {order.invoiceUrl && (
-                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">تم الرفع</span>
-                      )}
                     </div>
                     
-                    {order.invoiceUrl ? (
-                      <div className="relative group/invoice cursor-pointer overflow-hidden rounded-2xl border-2 border-white shadow-sm aspect-video bg-white">
-                        <img 
-                          src={order.invoiceUrl} 
-                          alt="Invoice" 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover/invoice:scale-110"
-                          onClick={() => setPreviewUrl(order.invoiceUrl || null)}
-                        />
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/invoice:opacity-100 transition-opacity flex items-center justify-center">
-                          <Eye className="text-white w-6 h-6" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-orange-200 rounded-2xl bg-white/50 gap-2">
-                        <Camera className="w-6 h-6 text-orange-200" />
-                        <p className="text-[9px] font-bold text-orange-300">لم يتم رفع فاتورة بعد</p>
+                    {!order.invoiceUrl && (!order.customers || !order.customers.some(c => c.invoice_url)) && (
+                      <div className="flex items-center justify-between py-1 px-2 border border-dashed border-slate-200 rounded-xl bg-white/50">
+                        <p className="text-[8px] font-bold text-slate-400 italic">لا توجد فاتورة مرفوعة</p>
                         {isEditable && onQuickInvoiceUpload && (
                           <button
                             onClick={() => onQuickInvoiceUpload(order)}
-                            className="mt-1 px-4 py-1.5 bg-orange-500 text-white text-[9px] font-black rounded-xl shadow-lg shadow-orange-100 active:scale-95 transition-all"
+                            className="bg-orange-500 text-white text-[8px] font-black px-3 py-1 rounded-lg active:scale-95 transition-all"
                           >
-                            تصوير الآن
+                            تصوير
                           </button>
                         )}
                       </div>
