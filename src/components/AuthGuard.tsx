@@ -36,8 +36,8 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       if (loading) {
         console.warn("AuthGuard: Auth state loading stuck, forcing redirect to login...");
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
-        if (isNative) window.location.assign("/login/");
-        else window.location.assign("/login/");
+        if (isNative) window.location.assign("/login");
+        else window.location.assign("/login");
       }
     }, 8000); // Reduced from 15s to 8s for better UX
     return () => clearTimeout(safetyTimeout);
@@ -55,20 +55,20 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     if (!user) {
       console.log("AuthGuard: No user session, redirecting to login");
       // Use window.location as fallback for router issues
-      if (isNative) window.location.assign("/login/");
-      else if (router) router.replace("/login/");
-      else window.location.assign("/login/");
+      if (isNative) window.location.assign("/login");
+      else if (router) router.replace("/login");
+      else window.location.assign("/login");
     } else if (userRole && !authorized) {
       console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
-      if (isNative) window.location.assign("/login/");
-      else if (router) router.replace("/login/");
-      else window.location.assign("/login/");
+      if (isNative) window.location.assign("/login");
+      else if (router) router.replace("/login");
+      else window.location.assign("/login");
     } else if (!userRole) {
       console.log("AuthGuard: User logged in but role not found yet, waiting...");
       const timeoutId = setTimeout(() => {
         if (!userRole) {
           console.error("AuthGuard: Role discovery timeout, forcing login");
-          if (isNative) window.location.assign("/login/");
+          if (isNative) window.location.assign("/login");
           else router.replace("/login");
         }
       }, isNative ? 30000 : 15000);
