@@ -13,11 +13,11 @@ import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2 } from "lucide-react
 const isSupabaseConfigured = config.isConfigured();
 
 const getRedirectPath = (role?: string) => {
-  if (!role) return "/driver";
+  if (!role) return "/driver/";
   const normalized = role.toLowerCase();
-  if (normalized === "admin") return "/admin";
-  if (normalized === "vendor") return "/store";
-  return "/driver";
+  if (normalized === "admin") return "/admin/";
+  if (normalized === "vendor") return "/store/";
+  return "/driver/";
 };
 
 const LoginPage = () => {
@@ -194,7 +194,7 @@ const LoginPage = () => {
           // Use window.location as fallback for router issues
           // IMPORTANT: On web, window.location.assign is more robust than router.replace for hard redirects
           if (typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform?.()) {
-            window.location.assign(target);
+            window.location.href = target; // href is even more robust for full page loads
           } else {
             if (router) router.replace(target);
             else window.location.assign(target);

@@ -81,16 +81,13 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: !isNative, // Only detect on web
-    storage: isNative ? appStorage : undefined, // Use default on web, custom on native
-    storageKey: 'start-location-v1-session',
+    detectSessionInUrl: true,
+    // Use custom storage ONLY for native to handle Preferences sync
+    // For web, use the default (localStorage) which is most stable
+    storage: isNative ? appStorage : undefined,
     flowType: 'pkce',
-    // On web, we disable the lock entirely to prevent potential hangs on desktop browsers
-    // Capacitor still needs the custom lock for reliability
-    lock: isNative ? (supabaseLock as any) : {
-      acquire: async () => () => {}, // Dummy lock for web
-      runExclusive: async (cb: any) => await cb(),
-    } as any,
+    // Use default browser locks for web, custom lock for native
+    lock: isNative ? (supabaseLock as any) : undefined,
   },
 });
 

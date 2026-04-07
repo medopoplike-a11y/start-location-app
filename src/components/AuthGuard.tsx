@@ -55,21 +55,24 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     if (!user) {
       console.log("AuthGuard: No user session, redirecting to login");
       // Use window.location as fallback for router issues
-      if (isNative) window.location.assign("/login");
-      else if (router) router.replace("/login");
-      else window.location.assign("/login");
+      const loginUrl = "/login/"; // Use trailing slash as per config
+      if (isNative) window.location.assign(loginUrl);
+      else if (router) router.replace(loginUrl);
+      else window.location.assign(loginUrl);
     } else if (userRole && !authorized) {
       console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
-      if (isNative) window.location.assign("/login");
-      else if (router) router.replace("/login");
-      else window.location.assign("/login");
+      const loginUrl = "/login/";
+      if (isNative) window.location.assign(loginUrl);
+      else if (router) router.replace(loginUrl);
+      else window.location.assign(loginUrl);
     } else if (!userRole) {
       console.log("AuthGuard: User logged in but role not found yet, waiting...");
       const timeoutId = setTimeout(() => {
         if (!userRole) {
           console.error("AuthGuard: Role discovery timeout, forcing login");
-          if (isNative) window.location.assign("/login");
-          else router.replace("/login");
+          const loginUrl = "/login/";
+          if (isNative) window.location.assign(loginUrl);
+          else router.replace(loginUrl);
         }
       }, isNative ? 30000 : 15000);
       return () => clearTimeout(timeoutId);
