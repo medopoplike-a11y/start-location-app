@@ -143,72 +143,81 @@ export const checkForAutoUpdate = async () => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
 
   try {
+    console.log('Native OTA: Checking for updates in app_config...');
     const { data: config, error: configError } = await supabase
       .from('app_config')
       .select('*')
+      .eq('id', 1)
       .single();
 
     if (configError) {
-      console.warn('Native: checkForAutoUpdate skip due to config error:', configError.message);
+      console.error('Native OTA: Database query failed:', configError.message);
       return { available: false, reason: 'DB_ERROR', error: configError.message };
     }
 
     if (!config) {
-      return { available: false };
+      console.warn('Native OTA: No app_config record found for id=1');
+      return { available: false, reason: 'NO_CONFIG' };
     }
 
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
     const current = await CapacitorUpdater.getLatest();
     const bundleUrl = String(config.bundle_url || '').trim();
 
-    console.log(`Native OTA: Phone version: ${current.version}`);
-    console.log(`Native OTA: DB version: ${config.latest_version}`);
+    const phoneVersion = current.version || '0.0.0';
+    const dbVersion = config.latest_version || '0.0.0';
+
+    console.log(`Native OTA: [Current: ${phoneVersion}] [Latest: ${dbVersion}]`);
     console.log(`Native OTA: Bundle URL: ${bundleUrl}`);
 
-    if (config.latest_version === current.version) {
-      console.log('Native: Version is exactly the same:', current.version);
-      return { available: false, version: config.latest_version, reason: 'SAME_VERSION' };
+    if (dbVersion === phoneVersion) {
+      console.log('Native OTA: App is up to date.');
+      return { 
+        available: false, 
+        version: dbVersion, 
+        phoneVersion: phoneVersion,
+        reason: 'SAME_VERSION' 
+      };
     }
 
-    if (!bundleUrl || !config.latest_version) {
-      console.warn('Native: Update URL or version not found in DB');
-      return { available: false, version: config.latest_version, reason: 'MISSING_CONFIG' };
+    if (!bundleUrl || !dbVersion) {
+      console.warn('Native OTA: Missing update configuration in DB');
+      return { 
+        available: false, 
+        version: dbVersion, 
+        phoneVersion: phoneVersion,
+        reason: 'MISSING_CONFIG' 
+      };
     }
 
-    if (!(await isValidUpdateUrl(bundleUrl))) {
-      console.warn('Native: Update URL is not reachable, but we will try downloading anyway to bypass potential network head-check blocks', bundleUrl);
-      // We proceed instead of returning false to be more aggressive
-    }
-
-    console.log('Native: New update found! Version:', config.latest_version);
+    console.log('Native OTA: New update found! Starting download...');
 
     const bundle = await CapacitorUpdater.download({
       url: bundleUrl,
-      version: config.latest_version
+      version: dbVersion
     });
 
-    console.log('Native: Download complete, bundle ID:', bundle.id);
+    console.log('Native OTA: Download successful, bundle ID:', bundle.id);
 
     // If it's a force update, apply and reload immediately
     if (config.force_update) {
-      console.log('Native: Force update active, applying and reloading...');
+      console.log('Native OTA: Force update active, applying and reloading...');
       await CapacitorUpdater.set({ id: bundle.id });
       await CapacitorUpdater.reload();
     }
     
     return {
       available: true,
-      version: config.latest_version,
+      version: dbVersion,
       bundleId: bundle.id,
       downloaded: true,
       forceUpdate: !!config.force_update,
       updateMessage: String(config.update_message || 'التحديث جاهز للتثبيت.')
     };
-  } catch (e) {
-    console.error('Auto Update Check Failed:', e);
+  } catch (e: any) {
+    console.error('Native OTA: Fatal error during update check:', e);
+    return { available: false, reason: 'FATAL_ERROR', error: e.message };
   }
-
-  return { available: false };
 };
 
 /**

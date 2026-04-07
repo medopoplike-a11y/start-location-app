@@ -20,8 +20,8 @@
   },
   "plugins": {
     "CapacitorUpdater": {
-      "autoUpdate": true,
-      "stats": true,
+      "autoUpdate": false,
+      "stats": false,
       "resetWhenUpdating": false,
       "appId": "com.start.location"
     },

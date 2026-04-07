@@ -13,6 +13,7 @@ import { RefreshCw, Download, CheckCircle, AlertTriangle } from "lucide-react";
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
   const [updateStatus, setUpdateStatus] = React.useState<"idle" | "checking" | "downloading" | "ready" | "error">("idle");
+  const [errorMessage, setErrorMessage] = React.useState("");
   const [progress, setProgress] = React.useState(0);
   const [version, setVersion] = React.useState("");
   const [bundleId, setBundleId] = React.useState("");
@@ -38,9 +39,6 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             const percent = data.percent ?? 0;
             setUpdateStatus("downloading");
             setProgress(percent);
-            if (percent >= 100) {
-              setUpdateStatus("ready");
-            }
           });
 
           const updateInfo = await checkForAutoUpdate();
@@ -56,21 +54,35 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             } else {
               setUpdateStatus("downloading");
             }
+          } else if (updateInfo?.reason === 'DB_ERROR' || updateInfo?.reason === 'FATAL_ERROR') {
+            setUpdateStatus("error");
+            setErrorMessage(updateInfo.error || "فشل الاتصال بخادم التحديثات");
           } else {
             setUpdateStatus("idle");
           }
 
           return () => downloadListener.remove();
-        } catch (e) {
+        } catch (e: any) {
           console.error("OTA Update Check Failed:", e);
           setUpdateStatus("error");
+          setErrorMessage(e.message || "حدث خطأ غير متوقع");
         }
       };
 
       runUpdateCheck();
+      
+      // Listen for manual retries
+      const retryListener = () => {
+        runUpdateCheck();
+      };
+      window.addEventListener('retryUpdate', retryListener);
+
       // Check every 30 minutes
       const interval = setInterval(runUpdateCheck, 1000 * 60 * 30);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('retryUpdate', retryListener);
+      };
     }
   }, []);
 
@@ -86,26 +98,34 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   return (
     <>
       <AnimatePresence>
-        {updateStatus !== "idle" && updateStatus !== "error" && (
+        {(updateStatus !== "idle") && (
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-6 right-6 z-[9999] bg-white/90 backdrop-blur-2xl p-4 rounded-[28px] shadow-2xl border border-blue-100 flex items-center gap-4"
+            className={`fixed bottom-6 left-6 right-6 z-[9999] bg-white/90 backdrop-blur-2xl p-4 rounded-[28px] shadow-2xl border flex items-center gap-4 ${
+              updateStatus === "error" ? "border-red-100" : "border-blue-100"
+            }`}
             dir="rtl"
           >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              updateStatus === "ready" ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"
+              updateStatus === "ready" ? "bg-green-50 text-green-600" : 
+              updateStatus === "error" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
             }`}>
               {updateStatus === "downloading" && <Download className="w-5 h-5 animate-bounce" />}
               {updateStatus === "ready" && <CheckCircle className="w-5 h-5" />}
+              {updateStatus === "error" && <AlertTriangle className="w-5 h-5" />}
             </div>
             
             <div className="flex-1">
               <p className="text-xs font-black text-gray-900">
-                {updateStatus === "downloading" ? `جاري تحديث النظام (${progress}%)` : "تم تحميل تحديث جديد"}
+                {updateStatus === "downloading" ? `جاري تحديث النظام (${progress}%)` : 
+                 updateStatus === "ready" ? "تم تحميل تحديث جديد" :
+                 updateStatus === "error" ? "فشل التحديث" : "جاري فحص التحديثات..."}
               </p>
-              <p className="text-[10px] font-bold text-gray-400">إصدار {version || "جديد"}</p>
+              <p className="text-[10px] font-bold text-gray-400">
+                {updateStatus === "error" ? errorMessage : `إصدار ${version || "جديد"}`}
+              </p>
             </div>
 
             {updateStatus === "ready" && (
@@ -125,6 +145,30 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
               >
                 تحديث الآن
               </button>
+            )}
+
+            {updateStatus === "error" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setUpdateStatus("idle");
+                    // Delay slightly before retrying
+                    setTimeout(() => {
+                      const event = new CustomEvent('retryUpdate');
+                      window.dispatchEvent(event);
+                    }, 100);
+                  }}
+                  className="bg-red-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-lg shadow-red-100 active:scale-95 transition-all"
+                >
+                  إعادة المحاولة
+                </button>
+                <button
+                  onClick={() => setUpdateStatus("idle")}
+                  className="text-gray-400 hover:text-gray-600 text-[10px] font-bold"
+                >
+                  إغلاق
+                </button>
+              </div>
             )}
           </motion.div>
         )}

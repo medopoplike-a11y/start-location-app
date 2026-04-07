@@ -11,8 +11,14 @@ async function updateOtaVersion() {
   }
 
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-  const version = packageJson.version;
-  const bundleUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/update.zip`;
+  const baseVersion = packageJson.version;
+  
+  // Use GitHub Run ID or timestamp to ensure the version is ALWAYS unique
+  // This ensures the mobile app detects a new version even if package.json hasn't changed
+  const buildId = process.env.GITHUB_RUN_ID || Date.now().toString().slice(-6);
+  const version = `${baseVersion}-${buildId}`;
+  
+  const bundleUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/update.zip?t=${Date.now()}`;
 
   console.log(`🚀 Updating OTA version to: ${version}`);
   console.log(`🔗 Bundle URL: ${bundleUrl}`);
