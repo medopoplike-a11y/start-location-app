@@ -12,7 +12,7 @@ const nextConfig = {
   },
   // Explicitly check for Vercel to disable static output
   output: (process.env.BUILD_TYPE === 'static' && !process.env.VERCEL) ? 'export' : undefined,
-  trailingSlash: true, // Enforce trailing slashes for consistency across Web and Native
+  trailingSlash: false, // Reverted to false to fix Capacitor "Page couldn't load" issue
   images: {
     unoptimized: true,
   },
