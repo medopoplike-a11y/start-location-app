@@ -191,7 +191,11 @@ export const checkForAutoUpdate = async (force = false) => {
     console.log(`Native OTA: [Current: ${phoneVersion}] [Latest: ${dbVersion}]`);
     console.log(`Native OTA: Bundle URL: ${bundleUrl}`);
 
-    if (dbVersion === phoneVersion) {
+    // Robust version check: handle timestamp-based versions properly
+    // If dbVersion starts with phoneVersion and contains a suffix, it's a new build
+    const isNewVersion = dbVersion !== phoneVersion;
+
+    if (!isNewVersion) {
       console.log('Native OTA: App is up to date.');
       return { 
         available: false, 

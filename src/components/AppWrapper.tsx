@@ -17,6 +17,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   const [progress, setProgress] = React.useState(0);
   const [version, setVersion] = React.useState("");
   const [bundleId, setBundleId] = React.useState("");
+  const lastUpdateRef = React.useRef<string>("");
 
   React.useEffect(() => {
     setMounted(true);
@@ -47,20 +48,26 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
       // Confirm ready on every mount/load
       confirmAppReady();
 
-      const runUpdateCheck = async () => {
+      const runUpdateCheck = async (isManual = false) => {
         try {
           const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
           
-          // Add listener for download progress
-          const downloadListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
-            const percent = data.percent ?? 0;
-            setUpdateStatus("downloading");
-            setProgress(percent);
-          });
+          const updateInfo = await checkForAutoUpdate(isManual);
 
-          const updateInfo = await checkForAutoUpdate(true);
+          // Prevent infinite reload loop if we just updated to this version
+          if (updateInfo?.version && updateInfo.version === lastUpdateRef.current) {
+            console.log('Native OTA: Already tried updating to this version in this session, skipping.');
+            return;
+          }
 
           if (updateInfo?.available) {
+            // Add listener for download progress only when update is found
+            const downloadListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
+              const percent = data.percent ?? 0;
+              setUpdateStatus("downloading");
+              setProgress(percent);
+            });
+
             setVersion(updateInfo.version || "");
             if (updateInfo.bundleId) {
               setBundleId(updateInfo.bundleId);
@@ -68,29 +75,20 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             if (updateInfo.downloaded) {
               setUpdateStatus("ready");
               setProgress(100);
+              lastUpdateRef.current = updateInfo.version || "";
               
+              // Inform Capgo that the update is ready before reload
+              try {
+                const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                if ((CapacitorUpdater as any).notifyAppReady) {
+                  await (CapacitorUpdater as any).notifyAppReady();
+                }
+              } catch (e) {}
+
               // Give system time to finalize the bundle set
               setTimeout(async () => {
                 try {
                   const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-                  
-                  // Reset rollback check for the new bundle
-                  // This ensures the update is treated as successful and persistent
-                  console.log('Native OTA: Finalizing update and marking as successful...');
-                  
-                  // Crucial: We need to inform Capgo that this bundle is working perfectly
-                  // This prevents the 'Auto-Rollback' to the old version
-                  try {
-                    // This is the missing piece: notify the plugin that the update is successful
-                    // so it doesn't revert to the previous version on next launch
-                    if ((CapacitorUpdater as any).notifyAppReady) {
-                      await (CapacitorUpdater as any).notifyAppReady();
-                    }
-                  } catch (err) {
-                    console.warn('Native OTA: notifyAppReady failed', err);
-                  }
-                  
-                  // 2. Reload to apply
                   await CapacitorUpdater.reload();
                 } catch (e) {
                   window.location.reload();
@@ -99,14 +97,14 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             } else {
               setUpdateStatus("downloading");
             }
+            
+            return () => downloadListener.remove();
           } else if (updateInfo?.reason === 'DB_ERROR' || updateInfo?.reason === 'FATAL_ERROR') {
             setUpdateStatus("error");
             setErrorMessage(updateInfo?.error || "فشل الاتصال بخادم التحديثات");
           } else {
             setUpdateStatus("idle");
           }
-
-          return () => downloadListener.remove();
         } catch (e: any) {
           console.error("OTA Update Check Failed:", e);
           setUpdateStatus("error");
@@ -118,12 +116,12 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
       
       // Listen for manual retries
       const retryListener = () => {
-        runUpdateCheck();
+        runUpdateCheck(true);
       };
       window.addEventListener('retryUpdate', retryListener);
 
       // Check every 30 minutes
-      const interval = setInterval(runUpdateCheck, 1000 * 60 * 30);
+      const interval = setInterval(() => runUpdateCheck(false), 1000 * 60 * 30);
       return () => {
         clearInterval(interval);
         window.removeEventListener('retryUpdate', retryListener);
