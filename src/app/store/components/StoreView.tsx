@@ -251,6 +251,28 @@ export default function StoreView({
                     </div>
                   </div>
 
+                  {/* Multi-Invoice Preview for Sikka */}
+                  {order.customers && order.customers.length > 0 && order.customers.some(c => c.invoice_url) && (
+                    <div className="mb-6 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                      {order.customers.map((cust, idx) => cust.invoice_url && (
+                        <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-md group/mini">
+                          <img 
+                            src={cust.invoice_url} 
+                            alt={`Invoice ${idx}`} 
+                            className="w-full h-full object-cover"
+                            onClick={() => setPreviewUrl(cust.invoice_url || null)}
+                          />
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
+                            <Eye className="text-white w-4 h-4" />
+                          </div>
+                          <div className="absolute top-1 right-1 bg-slate-900/80 text-white text-[7px] px-1.5 py-0.5 rounded-full font-black">
+                            {idx + 1}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="mb-6 bg-orange-50/30 p-4 rounded-[28px] border border-orange-100/50 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">

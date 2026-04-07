@@ -265,6 +265,14 @@ export default function OrderFormView({
                         </div>
 
                         <div className="pt-2">
+                          {cust.invoiceUrl && (
+                            <div className="mb-3 relative rounded-2xl overflow-hidden border-2 border-green-100 aspect-video bg-white shadow-inner">
+                              <img src={cust.invoiceUrl} className="w-full h-full object-cover" alt="Invoice Preview" />
+                              <div className="absolute top-2 right-2 bg-green-500 text-white p-1 rounded-full shadow-lg">
+                                <CheckCircle2 size={14} />
+                              </div>
+                            </div>
+                          )}
                           <button
                             onClick={() => onCameraCapture?.(idx)}
                             disabled={isSaving || cust.isUploading}

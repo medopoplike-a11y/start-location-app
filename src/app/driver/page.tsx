@@ -484,7 +484,15 @@ export default function DriverApp() {
     toastSuccess("تم قبول الطلب! جاري التحديث...");
 
     try {
-      const { error: dbError } = await updateOrderStatus(orderId, 'assigned', driverId);
+      const { error: dbError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'assigned', 
+          driver_id: driverId,
+          status_updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
       if (dbError) throw dbError;
       
       // Update data in background
