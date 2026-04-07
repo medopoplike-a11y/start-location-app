@@ -336,10 +336,10 @@ const LoginPage = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.5-PLATINUM</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.6-DIAMOND</span>
               <div className="flex items-center gap-1">
-                <div className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse" />
-                <span className="text-[7px] font-black text-cyan-500/80 uppercase">نظام الويب والجوّال: مستقر</span>
+                <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" />
+                <span className="text-[7px] font-black text-blue-500/80 uppercase">نظام الاتصال المطور: نشط</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

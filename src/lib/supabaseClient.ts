@@ -82,12 +82,18 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Use custom storage ONLY for native to handle Preferences sync
-    // For web, use the default (localStorage) which is most stable
+    // Use default localStorage for web, custom storage for native
     storage: isNative ? appStorage : undefined,
-    flowType: 'pkce',
-    // Use default browser locks for web, custom lock for native
-    lock: isNative ? (supabaseLock as any) : undefined,
+    storageKey: 'start-location-v1-session',
+    // Let Supabase handle the flow and locking automatically on web
+    // This is more stable for desktop browsers
+    ...(isNative ? {
+      flowType: 'pkce',
+      lock: supabaseLock as any
+    } : {
+      // Standard web config
+      flowType: 'implicit', // Try implicit for better desktop compatibility
+    })
   },
 });
 
