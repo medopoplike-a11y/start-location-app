@@ -17,7 +17,7 @@ const LoginPage = () => {
   const getRedirectPath = (role: string) => {
     const r = role.toLowerCase();
     if (r === "admin") return "/admin";
-    if (r === "vendor") return "/vendor";
+    if (r === "vendor") return "/store";
     return "/driver";
   };
 

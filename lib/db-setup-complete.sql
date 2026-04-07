@@ -335,7 +335,12 @@ DROP POLICY IF EXISTS "app_config_admin_policy" ON app_config;
 
 -- Profiles: Users can read their own and admin can read all
 CREATE POLICY "profiles_read_policy" ON profiles FOR SELECT
-  USING (auth.uid() = id OR is_admin());
+  USING (
+    auth.uid() = id OR 
+    role = 'driver' OR 
+    role = 'vendor' OR 
+    is_admin()
+  );
 
 CREATE POLICY "profiles_update_policy" ON profiles FOR UPDATE
   USING (auth.uid() = id OR is_admin());
@@ -347,11 +352,27 @@ CREATE POLICY "wallets_read_policy" ON wallets FOR SELECT
 CREATE POLICY "wallets_admin_update" ON wallets FOR UPDATE
   USING (is_admin());
 
--- Orders: Vendors see their own, Drivers see assigned, Admin sees all
+-- Orders: Vendors see their own, Drivers see assigned & pending, Admin sees all
 CREATE POLICY "orders_read_policy" ON orders FOR SELECT
   USING (
+    status = 'pending' OR
     auth.uid() = vendor_id OR
     auth.uid() = driver_id OR
+    is_admin()
+  );
+
+-- Orders: Drivers can update if pending (accepting) or if assigned to them
+CREATE POLICY "orders_update_policy" ON orders FOR UPDATE
+  USING (
+    (status = 'pending' AND driver_id IS NULL) OR
+    auth.uid() = driver_id OR
+    is_admin()
+  );
+
+-- Orders: Vendors can insert
+CREATE POLICY "orders_insert_policy" ON orders FOR INSERT
+  WITH CHECK (
+    auth.uid() = vendor_id OR
     is_admin()
   );
 

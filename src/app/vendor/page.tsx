@@ -9,8 +9,8 @@ export default function VendorRedirect() {
 
   useEffect(() => {
     // Redirect to the new stable path
-    console.log("Redirecting from legacy /vendor to /store/");
-    router.replace("/store/");
+    console.log("Redirecting from legacy /vendor to /store");
+    router.replace("/store");
   }, [router]);
 
   return (

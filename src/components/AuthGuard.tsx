@@ -55,7 +55,7 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     if (!user) {
       console.log("AuthGuard: No user session, redirecting to login");
       // Use window.location as fallback for router issues
-      const loginUrl = "/login"; // Removed trailing slash
+      const loginUrl = "/login"; 
       if (isNative) window.location.assign(loginUrl);
       else if (router) router.replace(loginUrl);
       else window.location.assign(loginUrl);
@@ -72,7 +72,8 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
           console.error("AuthGuard: Role discovery timeout, forcing login");
           const loginUrl = "/login";
           if (isNative) window.location.assign(loginUrl);
-          else router.replace(loginUrl);
+          else if (router) router.replace(loginUrl);
+          else window.location.assign(loginUrl);
         }
       }, isNative ? 30000 : 15000);
       return () => clearTimeout(timeoutId);

@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { App } from "@capacitor/app";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { Keyboard, KeyboardStyle } from "@capacitor/keyboard";
+import { NavigationBar } from "@capgo/capacitor-navigation-bar";
 import { useRouter, usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 
@@ -17,16 +19,13 @@ export const NativeBridge = () => {
     const setupNative = async () => {
       // 1. Handle Back Button with support for custom handlers
       await App.addListener('backButton', () => {
-        // Check if there are any global back button handlers (e.g. for modals)
         const handlers = (window as any)._backButtonHandlers || [];
         if (handlers.length > 0) {
-          // Execute the last registered handler (top-most modal)
           const lastHandler = handlers[handlers.length - 1];
           lastHandler();
           return;
         }
 
-        // Default behavior: minimize if on main routes, else go back
         const mainRoutes = ['/login', '/driver', '/admin', '/store'];
         if (mainRoutes.includes(pathname)) {
           App.minimizeApp();
@@ -35,20 +34,35 @@ export const NativeBridge = () => {
         }
       });
 
-      // 2. Configure Status Bar
+      // 2. Configure Native UI Elements
       try {
+        // Status Bar
         await StatusBar.setStyle({ style: Style.Light });
-        await StatusBar.setBackgroundColor({ color: '#f8fafc' }); // Match app background
+        await StatusBar.setBackgroundColor({ color: '#f8fafc' }); 
+        
+        // Navigation Bar (Android only)
+        if (Capacitor.getPlatform() === 'android') {
+          await NavigationBar.setAlpha({ alpha: 0.1 });
+          await NavigationBar.setColor({ color: '#f8fafc' });
+        }
+
+        // Keyboard
+        if (Capacitor.getPlatform() === 'ios') {
+          await Keyboard.setStyle({ style: KeyboardStyle.Light });
+        }
+        await Keyboard.setAccessoryBarVisible({ isVisible: false });
       } catch (e) {
-        console.warn('NativeBridge: StatusBar failed', e);
+        console.warn('NativeBridge: UI config failed', e);
       }
 
-      // 3. Hide Splash Screen when app is ready
-      try {
-        await SplashScreen.hide();
-      } catch (e) {
-        console.warn('NativeBridge: SplashScreen hide failed', e);
-      }
+      // 3. Hide Splash Screen with a slight delay for smooth transition
+      setTimeout(async () => {
+        try {
+          await SplashScreen.hide({
+            fadeOutDuration: 400
+          });
+        } catch (e) {}
+      }, 500);
     };
 
     setupNative();

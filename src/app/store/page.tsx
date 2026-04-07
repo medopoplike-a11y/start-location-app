@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
-  Plus
+  Plus, RefreshCw, Truck, Wallet, Settings
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -46,6 +46,44 @@ function StoreContent() {
   const { toasts, removeToast, success, error } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();
+
+  // Pull to refresh logic
+  const [pullProgress, setPullProgress] = useState(0);
+  const [isRefreshingManual, setIsRefreshingManual] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  const handlePullToRefresh = async () => {
+    if (isRefreshingManual || !vendorId) return;
+    setIsRefreshingManual(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+      }
+    } catch (e) {}
+    
+    await updateData(vendorId);
+    
+    setTimeout(() => {
+      setIsRefreshingManual(false);
+      setPullProgress(0);
+    }, 1000);
+  };
+
+  const onScroll = (e: React.UIEvent<HTMLElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    if (scrollTop < 0) {
+      const progress = Math.min(Math.abs(scrollTop) / 100, 1.5);
+      setPullProgress(progress);
+    } else {
+      setPullProgress(0);
+    }
+  };
+
+  const onScrollEnd = () => {
+    if (pullProgress > 1.2 && !isRefreshingManual) {
+      handlePullToRefresh();
+    }
+  };
 
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);
@@ -329,9 +367,9 @@ function StoreContent() {
           if (role !== 'vendor' && role !== 'admin') {
             console.warn("StorePage: Unauthorized role", role);
             if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-              window.location.assign("/login/");
+              window.location.assign("/login");
             } else {
-              router.replace("/login/");
+              router.replace("/login");
             }
             return;
           }
@@ -993,7 +1031,22 @@ function StoreContent() {
         isSurgeActive={appConfig.surge_pricing_active}
       />
 
-      <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
+      <main 
+        ref={mainRef}
+        onScroll={onScroll}
+        onScrollEnd={onScrollEnd}
+        className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto scroll-smooth overscroll-contain"
+      >
+        {/* Pull to refresh indicator */}
+        <motion.div 
+          style={{ opacity: pullProgress, scale: pullProgress, y: pullProgress * 20 }}
+          className="flex justify-center h-0 overflow-visible relative z-0 pointer-events-none"
+        >
+          <div className={`p-2 rounded-full bg-white shadow-lg border border-slate-100 ${isRefreshingManual ? 'animate-spin' : ''}`}>
+            <RefreshCw className={`w-5 h-5 ${pullProgress > 1.2 ? 'text-blue-500' : 'text-slate-400'}`} />
+          </div>
+        </motion.div>
+
         {activeView === "store" ? (
           <StoreOrdersHub
             orders={orders}
@@ -1057,6 +1110,33 @@ function StoreContent() {
           />
         )}
       </main>
+
+      {/* Store Navigation with Haptics */}
+      <nav className="fixed bottom-0 inset-x-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-100 flex items-center justify-around px-6 z-40 pb-safe">
+        {[
+          { id: "store", label: "الطلبات", icon: Truck },
+          { id: "wallet", label: "المحفظة", icon: Wallet },
+          { id: "settings", label: "الإعدادات", icon: Settings },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isSelected = activeView === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                try { Haptics.selectionChanged(); } catch(e) {}
+                setActiveView(tab.id as any);
+              }}
+              className={`flex flex-col items-center gap-1 transition-all ${
+                isSelected ? "text-blue-600 scale-110" : "text-slate-400"
+              }`}
+            >
+              <Icon className={`w-6 h-6 ${isSelected ? "fill-blue-600/10" : ""}`} />
+              <span className="text-[10px] font-black tracking-tighter">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
 {activeView === "store" && (
         <motion.button 

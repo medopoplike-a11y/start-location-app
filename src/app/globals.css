@@ -15,19 +15,27 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
     scroll-behavior: smooth;
+    user-select: none; /* Disable text selection for a more native feel */
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
+
   body {
-    @apply antialiased;
+    @apply antialiased overflow-x-hidden;
     color: rgb(var(--foreground-rgb));
     background: #f8fafc;
     min-height: 100vh;
     font-feature-settings: 'pnum';
     line-height: 1.6;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   input, textarea, select {
     @apply rounded-2xl bg-white/80 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-800 transition-all backdrop-blur-md outline-none;
+    user-select: text !important; /* Re-enable for inputs */
+    -webkit-user-select: text !important;
   }
 
   input:focus, textarea:focus, select:focus {

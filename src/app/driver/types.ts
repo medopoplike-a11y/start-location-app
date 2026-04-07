@@ -20,6 +20,7 @@ export interface Order {
   vendorCollectedAt?: string | null;
   driverConfirmedAt?: string | null;
   orderValue?: number;
+  invoiceUrl?: string;
   customers?: Array<{
     name: string;
     phone: string;
@@ -74,6 +75,7 @@ export interface DBDriverOrder {
   distance?: number;
   status: Order["status"];
   status_updated_at?: string;
+  invoice_url?: string;
   vendor_collected_at?: string | null;
   driver_confirmed_at?: string | null;
 }

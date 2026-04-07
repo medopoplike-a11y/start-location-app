@@ -61,8 +61,13 @@ BEGIN
   END IF;
 
   -- السماح للجميع برؤية مواقع الطيارين المتصلين (للمطاعم والأدمن)
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view online drivers') THEN
-    CREATE POLICY "Anyone can view online drivers" ON profiles FOR SELECT USING (role = 'driver' AND is_online = true);
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view relevant profiles') THEN
+    CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (
+      auth.uid() = id OR 
+      role = 'driver' OR 
+      role = 'vendor' OR
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    );
   END IF;
   
   -- السماح للمستخدمين بتحديث ملفاتهم الشخصية فقط
@@ -210,12 +215,43 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 -- سياسات الوصول للطلبات
 DO $$ 
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'All users can view relevant orders') THEN
-    CREATE POLICY "All users can view relevant orders" 
+  -- 1. سياسة القراءة: الطيار يرى الطلبات المتاحة (pending) أو الطلبات المسندة إليه
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Drivers can view available or assigned orders') THEN
+    CREATE POLICY "Drivers can view available or assigned orders" 
     ON orders FOR SELECT 
-    USING (auth.uid() = vendor_id OR auth.uid() = driver_id OR EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    ));
+    USING (
+      status = 'pending' OR 
+      auth.uid() = driver_id OR 
+      auth.uid() = vendor_id OR 
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+  END IF;
+
+  -- 2. سياسة التحديث: الطيار يمكنه قبول الطلب (إذا كان pending) أو تحديث حالة طلبه المسند إليه
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Drivers can accept or update their orders') THEN
+    CREATE POLICY "Drivers can accept or update their orders" 
+    ON orders FOR UPDATE 
+    USING (
+      (status = 'pending' AND driver_id IS NULL) OR 
+      auth.uid() = driver_id OR
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    )
+    WITH CHECK (
+      -- ضمان أن الطيار لا يمكنه تغيير driver_id لطيار آخر
+      (status = 'assigned' AND (driver_id = auth.uid() OR driver_id IS NULL)) OR
+      (auth.uid() = driver_id) OR
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+  END IF;
+
+  -- 3. سياسة الإضافة: المحلات فقط يمكنها إضافة طلبات
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Vendors can create orders') THEN
+    CREATE POLICY "Vendors can create orders" 
+    ON orders FOR INSERT 
+    WITH CHECK (
+      auth.uid() = vendor_id OR 
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    );
   END IF;
 END $$;
 

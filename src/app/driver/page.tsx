@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, Suspense, useRef } from "react";
+import { motion, AnimatePresence, useScroll, useMotionValue, useTransform } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Preferences } from "@capacitor/preferences";
@@ -17,6 +17,7 @@ import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
+import { RefreshCw, MapPin, Truck, Wallet } from "lucide-react";
 import type { Order, DBDriverOrder } from "./types";
 import DriverHeader from "./components/DriverHeader";
 import DriverOperationsHub from "./components/DriverOperationsHub";
@@ -41,6 +42,50 @@ export default function DriverApp() {
   const [vendorDebt, setVendorDebt] = useState(0);
   const [systemBalance, setSystemBalance] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
+
+  // Pull to refresh logic
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullProgress, setPullProgress] = useState(0);
+  const [isRefreshingManual, setIsRefreshingManual] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  const handlePullToRefresh = async () => {
+    if (isRefreshingManual) return;
+    setIsRefreshingManual(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+      }
+    } catch (e) {}
+    
+    await manualSync();
+    
+    setTimeout(() => {
+      setIsRefreshingManual(false);
+      setPullProgress(0);
+    }, 1000);
+  };
+
+  const onScroll = (e: React.UIEvent<HTMLElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    if (scrollTop < 0) {
+      const progress = Math.min(Math.abs(scrollTop) / 100, 1.5);
+      setPullProgress(progress);
+      if (progress > 1.2 && !isPulling && !isRefreshingManual) {
+        setIsPulling(true);
+      }
+    } else {
+      setPullProgress(0);
+      setIsPulling(false);
+    }
+  };
+
+  const onScrollEnd = () => {
+    if (pullProgress > 1.2 && !isRefreshingManual) {
+      handlePullToRefresh();
+    }
+    setIsPulling(false);
+  };
   // 4. Pickup Timeout Check (15 minutes)
   useEffect(() => {
     if (!driverId || orders.length === 0) return;
@@ -373,6 +418,7 @@ export default function DriverApp() {
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
       orderValue: db.financials.order_value,
+      invoiceUrl: db.invoice_url,
       financials: {
         order_value: db.financials.order_value,
         delivery_fee: db.financials.delivery_fee,
@@ -481,26 +527,47 @@ export default function DriverApp() {
     // Optimistic Update: Update UI immediately
     const originalOrders = [...orders];
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o));
-    toastSuccess("تم قبول الطلب! جاري التحديث...");
 
     try {
-      const { error: dbError } = await supabase
+      // 1. Check if order is still pending to avoid race conditions
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('status, driver_id')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError || !currentOrder) {
+        throw new Error("لم يتم العثور على الطلب");
+      }
+
+      if (currentOrder.status !== 'pending' || currentOrder.driver_id) {
+        throw new Error("عذراً، هذا الطلب تم قبوله من قبل طيار آخر.");
+      }
+
+      // 2. Perform the update with a condition (double check)
+      const { data, error: dbError } = await supabase
         .from('orders')
         .update({ 
           status: 'assigned', 
           driver_id: driverId,
           status_updated_at: new Date().toISOString()
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('status', 'pending')
+        .select()
+        .single();
 
       if (dbError) throw dbError;
+      if (!data) throw new Error("فشل تحديث حالة الطلب");
+
+      toastSuccess("تم قبول الطلب بنجاح! بالتوفيق.");
       
       // Update data in background
       await Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
-    } catch (err) {
+    } catch (err: any) {
       // Rollback on error
       setOrders(originalOrders);
-      toastError("فشل قبول الطلب. حاول مرة أخرى.");
+      toastError(err.message || "فشل قبول الطلب. حاول مرة أخرى.");
       console.error("handleAcceptOrder error:", err);
     }
   };
@@ -629,7 +696,7 @@ export default function DriverApp() {
           <DriverHeader
             driverName={driverName}
             lastSyncTime={lastSyncTime}
-            isRefreshing={isRefreshing}
+            isRefreshing={isRefreshingManual}
             isActive={isActive}
             isSurgeActive={isSurgeActive}
             onOpenDrawer={() => {
@@ -640,7 +707,22 @@ export default function DriverApp() {
             onSync={manualSync}
           />
 
-          <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
+          <main 
+            ref={mainRef}
+            onScroll={onScroll}
+            onScrollEnd={onScrollEnd}
+            className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto scroll-smooth overscroll-contain"
+          >
+            {/* Pull to refresh indicator */}
+            <motion.div 
+              style={{ opacity: pullProgress, scale: pullProgress, y: pullProgress * 20 }}
+              className="flex justify-center h-0 overflow-visible relative z-0 pointer-events-none"
+            >
+              <div className={`p-2 rounded-full bg-white shadow-lg border border-slate-100 ${isRefreshingManual ? 'animate-spin' : ''}`}>
+                <RefreshCw className={`w-5 h-5 ${pullProgress > 1.2 ? 'text-blue-500' : 'text-slate-400'}`} />
+              </div>
+            </motion.div>
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -690,6 +772,32 @@ export default function DriverApp() {
               </motion.div>
             </AnimatePresence>
           </main>
+
+          {/* Tab Navigation with Haptics */}
+          <nav className="fixed bottom-0 inset-x-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-slate-100 flex items-center justify-around px-6 z-40 pb-safe">
+            {[
+              { id: "orders", label: "الطلبات", icon: Truck },
+              { id: "wallet", label: "المحفظة", icon: Wallet },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    try { Haptics.selectionChanged(); } catch(e) {}
+                    setActiveTab(tab.id as any);
+                  }}
+                  className={`flex flex-col items-center gap-1 transition-all ${
+                    isSelected ? "text-blue-600 scale-110" : "text-slate-400"
+                  }`}
+                >
+                  <Icon className={`w-6 h-6 ${isSelected ? "fill-blue-600/10" : ""}`} />
+                  <span className="text-[10px] font-black tracking-tighter">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
         <DriverDrawer
