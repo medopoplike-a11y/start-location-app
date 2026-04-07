@@ -86,22 +86,7 @@ function AdminContent() {
   const [showAddVendor, setShowAddVendor] = useState(false);
   const [newDriverData, setNewDriverData] = useState({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
   const [newVendorData, setNewVendorData] = useState({ name: "", email: "", password: "", phone: "" });
-  const [appConfig, setAppConfig] = useState({
-    latest_version: "0.5.4",
-    min_version: "0.1.0",
-    download_url: "/start-location-v0.2.0.apk",
-    bundle_url: "",
-    force_update: true,
-    update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة.",
-    maintenance_mode: false,
-    maintenance_message: "التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.",
-    driver_commission: 15.0,
-    vendor_commission: 15.0,
-    vendor_fee: 1.0,
-    safe_ride_fee: 1.0,
-    surge_pricing_active: false,
-    surge_pricing_multiplier: 1.0
-  });
+  const [appConfig, setAppConfig] = useState<any>(null); // Start with null to prevent old data fallback
 
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
   const getErrorMessage = useCallback((error: unknown): string => {
@@ -291,7 +276,7 @@ function AdminContent() {
   }, [mounted, authLoading, fetchData, user, getErrorMessage]);
 
   useEffect(() => {
-    if (allOrders.length > 0) {
+    if (allOrders.length > 0 && appConfig) {
       const profits = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
