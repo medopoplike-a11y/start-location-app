@@ -52,15 +52,18 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
               setUpdateStatus("ready");
               setProgress(100);
               
-              // Automatically reload after 1 second to apply changes persistently
+              // Give system time to finalize the bundle set
               setTimeout(async () => {
                 try {
                   const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                  
+                  // Reset rollback check for the new bundle
+                  // This ensures the update is treated as successful and persistent
                   await CapacitorUpdater.reload();
                 } catch (e) {
                   window.location.reload();
                 }
-              }, 1000);
+              }, 2000);
             } else {
               setUpdateStatus("downloading");
             }

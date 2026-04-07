@@ -220,17 +220,18 @@ export const checkForAutoUpdate = async (force = false) => {
 
     console.log('Native OTA: Download successful, bundle ID:', bundle.id);
 
-    // If it's a force update or regular update, apply and reload immediately
-    // We use splash screen to hide the reload process for a smoother feel
-    console.log('Native OTA: Applying update and reloading...');
+    // If it's a force update or regular update, apply immediately
+    console.log('Native OTA: Applying update...');
     await CapacitorUpdater.set({ id: bundle.id });
+    
+    // Crucial: No reload here, let AppWrapper handle it with a delay
     
     return {
       available: true,
       version: dbVersion,
       bundleId: bundle.id,
       downloaded: true,
-      forceUpdate: true, // We treat all as force for consistency in this app
+      forceUpdate: true,
       updateMessage: String(config.update_message || 'التحديث جاهز للتثبيت.')
     };
   } catch (e: any) {
