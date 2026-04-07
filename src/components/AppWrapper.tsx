@@ -30,6 +30,23 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
     // OTA Update Check Logic (Silent)
     if (isNative()) {
+      const confirmAppReady = async () => {
+        try {
+          const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+          // Inform Capgo that the current bundle is loaded and working correctly
+          // This prevents the system from rolling back to the previous version
+          if ((CapacitorUpdater as any).notifyAppReady) {
+            await (CapacitorUpdater as any).notifyAppReady();
+            console.log('Native OTA: Current bundle confirmed as READY to prevent rollback');
+          }
+        } catch (e) {
+          console.warn('Native OTA: Failed to confirm app ready', e);
+        }
+      };
+      
+      // Confirm ready on every mount/load
+      confirmAppReady();
+
       const runUpdateCheck = async () => {
         try {
           const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
@@ -59,11 +76,26 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
                   
                   // Reset rollback check for the new bundle
                   // This ensures the update is treated as successful and persistent
+                  console.log('Native OTA: Finalizing update and marking as successful...');
+                  
+                  // Crucial: We need to inform Capgo that this bundle is working perfectly
+                  // This prevents the 'Auto-Rollback' to the old version
+                  try {
+                    // This is the missing piece: notify the plugin that the update is successful
+                    // so it doesn't revert to the previous version on next launch
+                    if ((CapacitorUpdater as any).notifyAppReady) {
+                      await (CapacitorUpdater as any).notifyAppReady();
+                    }
+                  } catch (err) {
+                    console.warn('Native OTA: notifyAppReady failed', err);
+                  }
+                  
+                  // 2. Reload to apply
                   await CapacitorUpdater.reload();
                 } catch (e) {
                   window.location.reload();
                 }
-              }, 2000);
+              }, 3000);
             } else {
               setUpdateStatus("downloading");
             }
