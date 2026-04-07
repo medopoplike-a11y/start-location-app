@@ -2,7 +2,7 @@
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, MapPin, X, Loader2, AlertTriangle, Plus, Trash2, User, ChevronDown, ChevronUp, CheckCircle2, ArrowRight } from "lucide-react";
+import { Camera, MapPin, X, Loader2, AlertTriangle, Plus, Trash2, User, ChevronDown, ChevronUp, CheckCircle2, ArrowRight, Eye } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useState, useEffect } from "react";
 import type { Order } from "../types";
@@ -64,9 +64,12 @@ export default function OrderFormView({
 
   useEffect(() => {
     if (formData.customers.length > 0 && expandedIndex === null) {
-      setExpandedIndex(formData.customers.length - 1);
+      const timer = setTimeout(() => {
+        setExpandedIndex(formData.customers.length - 1);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [formData.customers.length]);
+  }, [formData.customers.length, expandedIndex]);
 
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
