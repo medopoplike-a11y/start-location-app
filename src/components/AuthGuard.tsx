@@ -34,9 +34,12 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     // Safety fallback: if auth loading is stuck, eventually try to proceed
     const safetyTimeout = setTimeout(() => {
       if (loading) {
-        console.warn("AuthGuard: Auth state loading stuck, attempting to proceed...");
+        console.warn("AuthGuard: Auth state loading stuck, forcing redirect to login...");
+        const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+        if (isNative) window.location.assign("/login/");
+        else window.location.assign("/login/");
       }
-    }, 15000);
+    }, 8000); // Reduced from 15s to 8s for better UX
     return () => clearTimeout(safetyTimeout);
   }, [loading]);
 
