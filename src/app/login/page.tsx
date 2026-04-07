@@ -36,12 +36,12 @@ const LoginPage = () => {
 
   // Watch for authentication from AuthProvider
   useEffect(() => {
-    if (user) {
+    if (user && mounted) {
       console.log("LoginPage: User detected from AuthProvider, redirecting...");
       const role = user.user_metadata?.role || profile?.role || "driver";
       router.replace(getRedirectPath(role));
     }
-  }, [user, profile, router]);
+  }, [user, profile, router, mounted]);
 
   // Optimized session check - kept for immediate redirect on mount
   useEffect(() => {
@@ -58,9 +58,9 @@ const LoginPage = () => {
         console.log("LoginPage: Initial session check skipped");
       }
     };
-    checkSession();
+    if (mounted) checkSession();
     return () => { isMounted = false; };
-  }, [router]);
+  }, [router, mounted]);
 
   // Load remembered email
   useEffect(() => {
@@ -112,6 +112,11 @@ const LoginPage = () => {
 
     try {
       console.log("LoginPage: Attempting signIn for", email);
+      // Clean up any old session data before trying to sign in
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('start-location-v1-session');
+      }
+      
       const { data, error: loginError } = await signIn(email.trim(), password);
 
       if (loginError) {
@@ -346,10 +351,10 @@ const LoginPage = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.7-OBSIDIAN</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.8-ULTIMATE</span>
               <div className="flex items-center gap-1">
-                <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
-                <span className="text-[7px] font-black text-purple-500/80 uppercase">نظام الدخول المعزز: نشط</span>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-[7px] font-black text-green-500/80 uppercase">نظام الدخول الذكي: مستقر تماماً</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

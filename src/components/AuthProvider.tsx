@@ -63,6 +63,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log(`AuthProvider: onAuthStateChange event: ${event}`, session?.user?.id);
           if (!active) return;
 
+          if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+            // Force a clean state on sign out
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('start-location-v1-session');
+            }
+            return;
+          }
+
           setUser(session?.user ?? null);
           if (session?.user) {
             const userProfile = await getUserProfile(session.user.id, session.user.email);
