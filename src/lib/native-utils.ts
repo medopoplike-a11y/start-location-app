@@ -172,8 +172,6 @@ const isValidUpdateUrl = async (url: string) => {
   }
 };
 
-import { Preferences } from '@capacitor/preferences';
-
 let lastCheckTime = 0;
 let isChecking = false;
 const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown
