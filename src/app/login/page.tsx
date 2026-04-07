@@ -1,8 +1,9 @@
 "use client";
 
-import { signIn } from "@/lib/auth";
+import { signIn, getUserProfile } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/components/AuthProvider";
 import { motion } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -22,6 +23,7 @@ const getRedirectPath = (role?: string) => {
 
 const LoginPage = () => {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,26 +34,28 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
 
-  // Optimized session check - removed redundant fetch to avoid locking conflicts
+  // Watch for authentication from AuthProvider
+  useEffect(() => {
+    if (user) {
+      console.log("LoginPage: User detected from AuthProvider, redirecting...");
+      const role = user.user_metadata?.role || profile?.role || "driver";
+      router.replace(getRedirectPath(role));
+    }
+  }, [user, profile, router]);
+
+  // Optimized session check - kept for immediate redirect on mount
   useEffect(() => {
     let isMounted = true;
     const checkSession = async () => {
       try {
-        // Use a timeout for the initial session check to prevent UI hang
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
-        
-        const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
-        const session = result?.data?.session;
-
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && isMounted) {
-          console.log("LoginPage: Session exists, resolving role...");
-          const role = session.user.user_metadata?.role;
-          const finalRole = role || "driver";
-          router.replace(getRedirectPath(finalRole));
+          console.log("LoginPage: Session exists on mount, resolving role...");
+          const role = session.user.user_metadata?.role || "driver";
+          router.replace(getRedirectPath(role));
         }
       } catch (err) {
-        console.log("LoginPage: Initial session check skipped or timed out (expected on first load)");
+        console.log("LoginPage: Initial session check skipped");
       }
     };
     checkSession();
@@ -342,10 +346,10 @@ const LoginPage = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.6-DIAMOND</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.7-OBSIDIAN</span>
               <div className="flex items-center gap-1">
-                <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" />
-                <span className="text-[7px] font-black text-blue-500/80 uppercase">نظام الاتصال المطور: نشط</span>
+                <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
+                <span className="text-[7px] font-black text-purple-500/80 uppercase">نظام الدخول المعزز: نشط</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

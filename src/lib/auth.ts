@@ -136,15 +136,8 @@ export const signIn = async (email: string, password?: string) => {
   }
 
   try {
-    console.log("signIn: Calling supabase.auth.signInWithPassword with 30s timeout...");
-    
-    // Increased timeout to 30s for slower desktop connections
-    const signInPromise = supabase.auth.signInWithPassword({ email, password });
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('انتهت مهلة الاتصال بالسيرفر. يرجى التحقق من اتصال الإنترنت ومحاولة تسجيل الدخول مرة أخرى.')), 30000);
-    });
-
-    const result = await Promise.race([signInPromise, timeoutPromise]) as any;
+    console.log("signIn: Calling supabase.auth.signInWithPassword...");
+    const result = await supabase.auth.signInWithPassword({ email, password });
     console.log("=== signIn RESULT SUCCESS ===");
     return result;
   } catch (error: any) {
@@ -153,7 +146,7 @@ export const signIn = async (email: string, password?: string) => {
     
     // Handle specific common errors
     if (error.message?.includes('Failed to fetch')) {
-      return { data: null, error: new Error('فشل الاتصال بالسيرفر. يرجى التأكد من عدم وجود إضافات (مثل AdBlock) تمنع الاتصال.') };
+      return { data: null, error: new Error('فشل الاتصال بالسيرفر. يرجى التحقق من اتصال الإنترنت.') };
     }
     
     return { data: null, error: error };
