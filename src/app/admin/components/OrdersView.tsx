@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera } from "lucide-react";
+import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera, Eye } from "lucide-react";
 import type { ActivityItem, LiveOrderItem } from "../types";
 
 interface OrdersViewProps {
