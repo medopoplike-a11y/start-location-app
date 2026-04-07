@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile, UserProfile } from "@/lib/auth";
+import { getCache, setCache } from "@/lib/native-utils";
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +27,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let authSubscription: { unsubscribe: () => void } | null = null;
 
     const loadSession = async () => {
+      // 1. Try to load profile from cache first for instant UX
+      const cachedProfile = await getCache<UserProfile>('auth_profile');
+      if (cachedProfile && active) {
+        setProfile(cachedProfile);
+        setLoading(false); // Can hide loader early if we have a cached profile
+      }
+
       try {
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
         console.log(`AuthProvider: loadSession started (Native: ${isNative})`);
@@ -35,6 +43,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
         let session = result?.data?.session;
+
+        // If no session on native, try a small retry because storage can be slow
+        if (!session && isNative && active) {
+          console.log("AuthProvider: No session found on native, retrying in 500ms...");
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+        }
         
         if (!active) return;
 
@@ -42,13 +58,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("AuthProvider: Initial session found:", session.user.id);
           currentUserIdRef.current = session.user.id;
           setUser(session.user);
-          getUserProfile(session.user.id, session.user.email).then(userProfile => {
-            if (active) setProfile(userProfile);
-          });
+          const userProfile = await getUserProfile(session.user.id, session.user.email);
+          if (active) {
+            setProfile(userProfile);
+            if (userProfile) setCache('auth_profile', userProfile);
+          }
         } else {
           console.log("AuthProvider: No initial session");
           setUser(null);
           setProfile(null);
+          setCache('auth_profile', null);
         }
       } catch (error) {
         console.warn("AuthProvider: Initial session load skipped or timed out", error);
@@ -71,6 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             currentUserIdRef.current = null;
             setUser(null);
             setProfile(null);
+            setCache('auth_profile', null);
             setLoading(false);
             if (typeof window !== 'undefined') {
               localStorage.removeItem('start-location-v1-session');
@@ -93,11 +113,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const userProfile = await getUserProfile(session.user.id, session.user.email);
             if (active) {
               setProfile(userProfile);
+              if (userProfile) setCache('auth_profile', userProfile);
               setLoading(false);
             }
           } else {
             if (active) {
               setProfile(null);
+              setCache('auth_profile', null);
               setLoading(false);
             }
           }

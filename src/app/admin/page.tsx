@@ -41,6 +41,7 @@ import { KeepAwake } from "@capacitor-community/keep-awake";
 import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
+import { getCache, setCache } from "@/lib/native-utils";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
@@ -131,6 +132,7 @@ function AdminContent() {
       if (data) {
         const typedData = data as AdminOrder[];
         setAllOrders(typedData);
+        setCache('admin_orders', typedData); // Cache orders
         const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => ({
           id: o.id.slice(0, 8),
           id_full: o.id,
@@ -162,6 +164,7 @@ function AdminContent() {
       const profiles = await fetchAdminProfiles();
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
+        setCache('admin_profiles', typedProfiles); // Cache profiles
         const online = typedProfiles
           .filter((p) => (p.role || '').toLowerCase() === 'driver' && p.is_online)
           .map((p) => {
@@ -286,6 +289,17 @@ function AdminContent() {
     const hardFallback = setTimeout(() => { setLoading(false); }, fallbackMs);
 
     const init = async () => {
+      // 1. Load cached data for instant display
+      const [cachedOrders, cachedProfiles] = await Promise.all([
+        getCache<AdminOrder[]>('admin_orders'),
+        getCache<ProfileRow[]>('admin_profiles')
+      ]);
+      
+      if (cachedOrders && cachedOrders.length > 0) {
+        setAllOrders(cachedOrders);
+        setLoading(false); // Hide loader early
+      }
+
       if (authLoading) return;
       if (!user) { setLoading(false); return; }
       try {
@@ -376,13 +390,19 @@ function AdminContent() {
   }, [appConfig, getErrorMessage]);
 
   const handleSettlementAction = useCallback(async (settlementId: string, newStatus: 'approved' | 'rejected') => {
-    const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
-    if (!error) {
-      alert("تم التحديث!");
+    // Optimistic Update
+    const originalSettlements = [...settlements];
+    setSettlements(prev => prev.filter(s => s.id !== settlementId));
+
+    try {
+      const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
+      if (error) throw error;
       addActivity(`تم ${newStatus === "approved" ? "اعتماد" : "رفض"} تسوية`);
-      setSettlements(prev => prev.filter(s => s.id !== settlementId));
+    } catch (err) {
+      setSettlements(originalSettlements);
+      alert("فشل تحديث حالة التسوية");
     }
-  }, [addActivity]);
+  }, [settlements, addActivity]);
 
   const handleResetUser = useCallback(async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
@@ -409,57 +429,103 @@ function AdminContent() {
   }, [addActivity, fetchData, getErrorMessage]);
 
   const handleToggleShiftLock = useCallback(async (driverId: string, currentStatus: boolean) => {
-    setActionLoading(true);
+    // Optimistic Update
+    const originalDrivers = [...drivers];
+    setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
+    
     try {
       await toggleDriverLock(driverId, !currentStatus);
-      setDrivers(prev => prev.map(d => d.id_full === driverId ? { ...d, isShiftLocked: !currentStatus, status: !currentStatus ? "محظور" : "نشط" } : d));
       addActivity(`تم ${!currentStatus ? "قفل" : "فتح"} شيفت الطيار`);
-    } catch (e) { console.error(e); }
-    setActionLoading(false);
-  }, [addActivity]);
+    } catch (e) { 
+      setDrivers(originalDrivers);
+      console.error(e); 
+    }
+  }, [drivers, addActivity]);
 
   const handleLockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد قفل شيفت جميع المناديب؟")) return;
-    setActionLoading(true);
-    for (const d of drivers.filter(d => !d.isShiftLocked)) { await toggleDriverLock(d.id_full, true).catch(() => {}); }
+    
+    const originalDrivers = [...drivers];
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: true, status: "محظور" })));
-    addActivity("تم قفل شيفت جميع المناديب");
-    setActionLoading(false);
+    
+    try {
+      setActionLoading(true);
+      for (const d of originalDrivers.filter(d => !d.isShiftLocked)) {
+        await toggleDriverLock(d.id_full, true).catch(() => {});
+      }
+      addActivity("تم قفل شيفت جميع المناديب");
+    } catch (e) {
+      setDrivers(originalDrivers);
+    } finally {
+      setActionLoading(false);
+    }
   }, [drivers, addActivity]);
 
   const handleUnlockAllDrivers = useCallback(async () => {
     if (!confirm("هل تريد فتح شيفت جميع المناديب؟")) return;
-    setActionLoading(true);
-    for (const d of drivers.filter(d => d.isShiftLocked)) { await toggleDriverLock(d.id_full, false).catch(() => {}); }
+    
+    const originalDrivers = [...drivers];
     setDrivers(prev => prev.map(d => ({ ...d, isShiftLocked: false, status: "نشط" })));
-    addActivity("تم فتح شيفت جميع المناديب");
-    setActionLoading(false);
+    
+    try {
+      setActionLoading(true);
+      for (const d of originalDrivers.filter(d => d.isShiftLocked)) {
+        await toggleDriverLock(d.id_full, false).catch(() => {});
+      }
+      addActivity("تم فتح شيفت جميع المناديب");
+    } catch (e) {
+      setDrivers(originalDrivers);
+    } finally {
+      setActionLoading(false);
+    }
   }, [drivers, addActivity]);
 
   const handleToggleMaintenance = useCallback(async (val: boolean) => {
     if (!appConfig) return;
+    const originalConfig = { ...appConfig };
     setAppConfig(prev => ({ ...prev, maintenance_mode: val }));
     try {
       await updateAdminAppConfig({ ...appConfig, maintenance_mode: val });
-      addActivity(`تم ${val ? "تفعيل" : "إيقاف"} وضع الصيانة`);
-    } catch (e) { console.error(e); }
+      addActivity(`تم ${val ? "تفعيل" : "إيقاف"}	وضع الصيانة`);
+    } catch (e) { 
+      setAppConfig(originalConfig);
+      console.error(e); 
+    }
   }, [appConfig, addActivity]);
 
   const handleAssignOrder = useCallback(async (orderId: string, driverId: string, driverName: string) => {
-    const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
-    if (!error) {
+    // Optimistic Update
+    const originalLiveOrders = [...liveOrders];
+    setLiveOrders(prev => prev.map(o =>
+      o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o
+    ));
+
+    try {
+      const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
+      if (error) throw error;
       addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
-      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o ));
+    } catch (err) {
+      setLiveOrders(originalLiveOrders);
+      alert("فشل تعيين الطلب");
     }
-  }, [addActivity]);
+  }, [liveOrders, addActivity]);
 
   const handleCancelOrder = useCallback(async (orderId: string) => {
-    const { error } = await updateOrderStatus(orderId, 'cancelled');
-    if (!error) {
+    // Optimistic Update
+    const originalLiveOrders = [...liveOrders];
+    setLiveOrders(prev => prev.map(o =>
+      o.id_full === orderId ? { ...o, status: "ملغي" } : o
+    ));
+
+    try {
+      const { error } = await updateOrderStatus(orderId, 'cancelled');
+      if (error) throw error;
       addActivity(`تم إلغاء الطلب #${orderId.slice(0,8)}`);
-      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: "ملغي" } : o ));
+    } catch (err) {
+      setLiveOrders(originalLiveOrders);
+      alert("فشل إلغاء الطلب");
     }
-  }, [addActivity]);
+  }, [liveOrders, addActivity]);
 
   const handleUpdateOrderStatusManual = useCallback(async (orderId: string, status: any) => {
     const { error } = await updateOrderStatus(orderId, status);

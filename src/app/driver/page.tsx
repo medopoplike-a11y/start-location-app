@@ -10,6 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
+import { getCache, setCache } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -23,7 +24,7 @@ import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
 
 export default function DriverApp() {
-  const { toasts, removeToast, success: toastSuccess } = useToast();
+  const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();
   
@@ -74,6 +75,7 @@ export default function DriverApp() {
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [lastLocationUpdate, setLastLocationUpdate] = useState<number>(0);
   const [deliveredOrders, setDeliveredOrders] = useState<DBDriverOrder[]>([]);
   const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
   const [isSurgeActive, setIsSurgeActive] = useState(false);
@@ -145,6 +147,23 @@ export default function DriverApp() {
     }, fallbackMs);
 
     const setup = async () => {
+      // 1. Try to load initial data from cache for instant display
+      const [cachedName, cachedOrders, cachedStats] = await Promise.all([
+        getCache<string>('driver_name'),
+        getCache<Order[]>('driver_orders'),
+        getCache<any>('driver_stats')
+      ]);
+
+      if (cachedName) setDriverName(cachedName);
+      if (cachedOrders && cachedOrders.length > 0) {
+        setOrders(cachedOrders);
+        setLoading(false); // Hide loader if we have data
+      }
+      if (cachedStats) {
+        if (cachedStats.vendorDebt) setVendorDebt(cachedStats.vendorDebt);
+        if (cachedStats.todayDeliveryFees) setTodayDeliveryFees(cachedStats.todayDeliveryFees);
+      }
+
       if (authLoading) return; // Wait for AuthProvider
 
       // Prevent redundant setup if we already have the driverId set
@@ -203,8 +222,13 @@ export default function DriverApp() {
 
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
+        const now = Date.now();
+        // Limit updates to once every 20 seconds to save battery
+        if (now - lastLocationUpdate < 20000) return;
+        
         const newLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
         setDriverLocation(newLocation);
+        setLastLocationUpdate(now);
 
         await supabase.from('profiles').update({ 
           location: newLocation,
@@ -218,11 +242,11 @@ export default function DriverApp() {
           setIsActive(false);
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [driverId, isActive]);
+  }, [driverId, isActive, lastLocationUpdate]);
 
   async function fetchStats(currentDriverId: string) {
     setLastSyncTime(new Date());
@@ -238,11 +262,21 @@ export default function DriverApp() {
       if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
       if (walletData) {
-        setVendorDebt(walletData.debt || 0);
         setSystemBalance(walletData.system_balance || 0);
+        setVendorDebt(walletData.debt || 0);
       }
-      // if (ordersDebtData) setVendorDebt(ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0));
-      if (todayOrders) setTodayDeliveryFees(todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0));
+      if (ordersDebtData) {
+        const debt = ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
+        setVendorDebt(debt);
+        // Cache stats
+        setCache('driver_stats', { vendorDebt: debt, todayDeliveryFees: todayDeliveryFees });
+      }
+      if (todayOrders) {
+        const fees = todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0);
+        setTodayDeliveryFees(fees);
+        // Cache stats update
+        setCache('driver_stats', { vendorDebt: vendorDebt, todayDeliveryFees: fees });
+      }
       if (settlementsData) {
         void settlementsData.map(s => ({
           id: s.id,
@@ -431,39 +465,66 @@ export default function DriverApp() {
 
   const handleAcceptOrder = async (orderId: string) => {
     if (!driverId) return;
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' as const } : o));
-    const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
-    if (!error) {
-      toastSuccess('تم قبول الطلب بنجاح!');
-      await fetchOrders(driverId);
-    } else {
-      await fetchOrders(driverId);
+    
+    // Optimistic Update: Update UI immediately
+    const originalOrders = [...orders];
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2 } : o));
+    toastSuccess("تم قبول الطلب! جاري التحديث...");
+
+    try {
+      const { error: dbError } = await updateOrderStatus(orderId, 'assigned', driverId);
+      if (dbError) throw dbError;
+      
+      // Update data in background
+      void Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
+    } catch (err) {
+      // Rollback on error
+      setOrders(originalOrders);
+      toastError("فشل قبول الطلب. حاول مرة أخرى.");
+      console.error("handleAcceptOrder error:", err);
     }
   };
 
   const handlePickupOrder = async (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' as const, isPickedUp: true } : o));
-    const { error } = await updateOrderStatus(orderId, 'in_transit');
-    if (!error) {
-      toastSuccess('تم تأكيد الاستلام من المحل — المديونية سُجّلت في محفظتك');
-    }
-    if (driverId) {
-      await fetchOrders(driverId);
-      void fetchStats(driverId);
+    if (!driverId) return;
+
+    // Optimistic Update
+    const originalOrders = [...orders];
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true, priority: 1 } : o));
+    toastSuccess("تم استلام الطلب! في الطريق...");
+
+    try {
+      const { error: dbError } = await updateOrderStatus(orderId, 'in_transit', driverId);
+      if (dbError) throw dbError;
+      
+      void Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
+    } catch (err) {
+      setOrders(originalOrders);
+      toastError("فشل تحديث الحالة. حاول مرة أخرى.");
     }
   };
 
   const handleDeliverOrder = async (orderId: string) => {
+    if (!driverId) return;
+
+    // Optimistic Update: Remove from active orders
+    const originalOrders = [...orders];
     setOrders(prev => prev.filter(o => o.id !== orderId));
-    const { error } = await updateOrderStatus(orderId, 'delivered');
-    if (!error) {
-      toastSuccess('تم إنهاء السكة بنجاح! يمكنك الآن تأكيد تسليم المبلغ للمحل من محفظتك.');
-    }
-    if (driverId) {
-      await fetchOrders(driverId);
-      void fetchStats(driverId);
-      void fetchDeliveredOrders(driverId);
-      void fetchTodayHistory(driverId);
+    toastSuccess("تم التوصيل بنجاح! مبروك...");
+
+    try {
+      const { error: dbError } = await updateOrderStatus(orderId, 'delivered', driverId);
+      if (dbError) throw dbError;
+      
+      void Promise.allSettled([
+        fetchOrders(driverId), 
+        fetchStats(driverId),
+        fetchDeliveredOrders(driverId),
+        fetchTodayHistory(driverId)
+      ]);
+    } catch (err) {
+      setOrders(originalOrders);
+      toastError("فشل إتمام الطلب. حاول مرة أخرى.");
     }
   };
 

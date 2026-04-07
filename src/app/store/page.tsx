@@ -17,6 +17,7 @@ import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
+import { getCache, setCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -296,6 +297,20 @@ function StoreContent() {
     }, 15000);
 
     const init = async () => {
+      // 1. Load cached data for instant display
+      const [cachedName, cachedOrders, cachedBalance] = await Promise.all([
+        getCache<string>('vendor_name'),
+        getCache<Order[]>('vendor_orders'),
+        getCache<number>('vendor_balance')
+      ]);
+      
+      if (cachedName) setVendorName(cachedName);
+      if (cachedOrders && cachedOrders.length > 0) {
+        setOrders(cachedOrders);
+        setLoading(false); // Hide loader if we have data
+      }
+      if (cachedBalance !== null) setBalance(cachedBalance);
+
       if (authLoading) return;
 
       try {
@@ -489,12 +504,19 @@ function StoreContent() {
     const shouldCancel = typeof window !== 'undefined' && window.confirm ? window.confirm('هل أنت متأكد من إلغاء الطلب؟') : true;
     if (!shouldCancel) return;
 
-    const { error: cancelErr } = await cancelOrder(orderId);
-    if (!cancelErr) {
-      success('تم إلغاء الطلب بنجاح');
+    // Optimistic Update
+    const originalOrders = [...orders];
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
+    success('تم إلغاء الطلب بنجاح');
+
+    try {
+      const { error: cancelErr } = await cancelOrder(orderId);
+      if (cancelErr) throw cancelErr;
+      
       if (vendorId) updateData(vendorId);
-    } else {
-      error('خطأ في الإلغاء');
+    } catch (err) {
+      setOrders(originalOrders);
+      error('خطأ في الإلغاء. حاول مرة أخرى.');
     }
   };
 
@@ -723,14 +745,21 @@ function StoreContent() {
   };
 
   const handleCollectDebt = async (orderId: string) => {
-    const { error: dbError } = await vendorCollectDebt(orderId);
-    if (!dbError) {
-      success(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح`);
+    // Optimistic Update
+    const originalOrders = [...orders];
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, vendorCollectedAt: new Date().toISOString() } : o));
+    success(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح`);
+
+    try {
+      const { error: dbError } = await vendorCollectDebt(orderId);
+      if (dbError) throw dbError;
+      
       addActivityLocal(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)}`);
       if (vendorId) {
         updateData(vendorId);
       }
-    } else {
+    } catch (err) {
+      setOrders(originalOrders);
       error("حدث خطأ أثناء تأكيد التحصيل.");
     }
   };

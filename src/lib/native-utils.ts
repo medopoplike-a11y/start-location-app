@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { supabase, supabaseLock } from './supabaseClient';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Toast } from '@capacitor/toast';
+import { Preferences } from '@capacitor/preferences';
 
 /**
  * دالة للاهتزاز البسيط عند النقر أو حدوث إجراء
@@ -35,6 +36,41 @@ export const showNativeToast = async (text: string) => {
  */
 export const isNative = () => {
   return typeof window !== 'undefined' && Capacitor.isNativePlatform();
+};
+
+/**
+ * دالة لحفظ البيانات في ذاكرة الهاتف الدائمة (Persistent Storage)
+ */
+export const setCache = async (key: string, value: any) => {
+  try {
+    const stringValue = JSON.stringify(value);
+    if (isNative()) {
+      await Preferences.set({ key, value: stringValue });
+    } else {
+      localStorage.setItem(key, stringValue);
+    }
+  } catch (e) {
+    console.warn(`Cache: Failed to set ${key}`, e);
+  }
+};
+
+/**
+ * دالة لجلب البيانات من ذاكرة الهاتف
+ */
+export const getCache = async <T>(key: string): Promise<T | null> => {
+  try {
+    let value: string | null = null;
+    if (isNative()) {
+      const result = await Preferences.get({ key });
+      value = result.value;
+    } else {
+      value = localStorage.getItem(key);
+    }
+    return value ? JSON.parse(value) : null;
+  } catch (e) {
+    console.warn(`Cache: Failed to get ${key}`, e);
+    return null;
+  }
 };
 
 /**
