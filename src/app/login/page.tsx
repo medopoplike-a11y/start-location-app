@@ -422,8 +422,8 @@ const LoginPage = () => {
             <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
           </div>
         </div>
-      </motion.section>
-    </main>
+      </motion.div>
+    </div>
   );
 };
 
