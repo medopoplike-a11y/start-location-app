@@ -33,6 +33,11 @@ const LoginPage = () => {
   const [diagInfo, setDiagInfo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Watch for authentication from AuthProvider
   useEffect(() => {
