@@ -18,7 +18,8 @@ import {
   Wallet,
   RefreshCw,
   Zap,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
@@ -339,6 +340,7 @@ function AdminContent() {
 
   const handleUpdateAppConfig = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!appConfig) return;
     setActionLoading(true);
     try {
       await updateAdminAppConfig(appConfig);
@@ -409,6 +411,7 @@ function AdminContent() {
   }, [drivers, addActivity]);
 
   const handleToggleMaintenance = useCallback(async (val: boolean) => {
+    if (!appConfig) return;
     setAppConfig(prev => ({ ...prev, maintenance_mode: val }));
     try {
       await updateAdminAppConfig({ ...appConfig, maintenance_mode: val });
@@ -537,7 +540,7 @@ function AdminContent() {
                 <span className="text-[10px] font-black text-amber-700 uppercase">وضع يدوي</span>
               </div>
             )}
-            {appConfig.maintenance_mode && (
+            {appConfig?.maintenance_mode && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-2xl">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-[10px] font-black text-red-600 uppercase">صيانة</span>
@@ -580,7 +583,7 @@ function AdminContent() {
                 drivers={drivers}
                 activities={activities}
                 manualMode={manualMode}
-                maintenanceMode={appConfig.maintenance_mode}
+                maintenanceMode={appConfig?.maintenance_mode || false}
                 actionLoading={actionLoading}
                 onToggleManualMode={setManualMode}
                 onToggleMaintenance={handleToggleMaintenance}
@@ -611,7 +614,7 @@ function AdminContent() {
               <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
             )}
 
-            {activeView === "settings" && (
+            {activeView === "settings" && appConfig && (
               <SettingsView
                 appConfig={appConfig}
                 actionLoading={actionLoading}
@@ -619,6 +622,12 @@ function AdminContent() {
                 onSubmit={handleUpdateAppConfig}
                 onGlobalReset={handleGlobalReset}
               />
+            )}
+            {activeView === "settings" && !appConfig && (
+              <div className="bg-white p-8 rounded-[40px] text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500 mb-4" />
+                <p className="text-slate-500 font-bold">جاري تحميل إعدادات النظام...</p>
+              </div>
             )}
           </Suspense>
         </div>
