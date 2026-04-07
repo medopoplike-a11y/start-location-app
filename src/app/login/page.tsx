@@ -144,8 +144,9 @@ const LoginPage = () => {
         localStorage.removeItem('remembered_email');
       }
 
-      // Essential delay for storage persistence before redirect
-      // For web, we might need a shorter or different approach
+      // Faster redirect for web, keep delay for native persistence
+      const redirectDelay = (window as any).Capacitor?.isNativePlatform?.() ? 800 : 100;
+
       setTimeout(async () => {
         try {
           console.log("LoginPage: Auth delay finished, fetching role...");
@@ -191,23 +192,18 @@ const LoginPage = () => {
           console.log(`LoginPage: Final Role identified as ${finalRole}, Redirecting to ${target}`);
           
           // Use window.location as fallback for router issues
-          // IMPORTANT: Check if we are already at the target to avoid loops
-          if (window.location.pathname === target) {
-             console.log("LoginPage: Already at target, skipping redirect");
-             setLoading(false);
-             return;
-          }
-
-          if (router) {
-            router.replace(target);
-          } else {
+          // IMPORTANT: On web, window.location.assign is more robust than router.replace for hard redirects
+          if (typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform?.()) {
             window.location.assign(target);
+          } else {
+            if (router) router.replace(target);
+            else window.location.assign(target);
           }
         } catch (redirErr) {
           console.error("LoginPage: Redirection failed", redirErr);
           window.location.assign("/driver/"); 
         }
-      }, 800);
+      }, redirectDelay);
     } catch (err: any) {
       console.error("LoginPage: Unexpected error", err);
       setError(`حدث خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
@@ -340,10 +336,10 @@ const LoginPage = () => {
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.4-GOLD</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.5-PLATINUM</span>
               <div className="flex items-center gap-1">
-                <div className="w-1 h-1 bg-yellow-400 rounded-full animate-pulse" />
-                <span className="text-[7px] font-black text-yellow-500/80 uppercase">نظام التحديث الذكي: نشط ومستقر</span>
+                <div className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse" />
+                <span className="text-[7px] font-black text-cyan-500/80 uppercase">نظام الويب والجوّال: مستقر</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

@@ -136,14 +136,21 @@ export const signIn = async (email: string, password?: string) => {
   }
 
   try {
-    console.log("signIn: Calling supabase.auth.signInWithPassword...");
-    const result = await supabase.auth.signInWithPassword({ email, password });
-    console.log("=== signIn RESULT ===");
+    console.log("signIn: Calling supabase.auth.signInWithPassword with 15s timeout...");
+    
+    // Manual timeout for the auth call
+    const signInPromise = supabase.auth.signInWithPassword({ email, password });
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('انتهت مهلة الاتصال بالسيرفر. يرجى المحاولة مرة أخرى.')), 15000);
+    });
+
+    const result = await Promise.race([signInPromise, timeoutPromise]) as any;
+    console.log("=== signIn RESULT SUCCESS ===");
     return result;
-  } catch (error) {
-    console.error("=== signIn EXCEPTION ===");
-    console.error("signIn: Error:", error);
-    return { data: null, error: error as Error };
+  } catch (error: any) {
+    console.error("=== signIn ERROR ===");
+    console.error("signIn Error details:", error);
+    return { data: null, error: error };
   }
 };
 
