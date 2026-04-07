@@ -27,31 +27,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
         console.log(`AuthProvider: loadSession started (Native: ${isNative})`);
 
-        // First attempt
-        let { data: { session } } = await supabase.auth.getSession();
+        // Use a timeout for the initial session check to prevent blocking the whole app
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 5000));
         
-        // If no session on native, try a small retry because storage can be slow
-        if (!session && isNative && active) {
-          console.log("AuthProvider: No session found on native, retrying in 500ms...");
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const retry = await supabase.auth.getSession();
-          session = retry.data.session;
-        }
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        let session = result?.data?.session;
         
         if (!active) return;
 
         if (session?.user) {
           console.log("AuthProvider: User session found:", session.user.id);
           setUser(session.user);
-          const userProfile = await getUserProfile(session.user.id, session.user.email);
-          if (active) setProfile(userProfile);
+          // Don't await profile fetch, do it in background to unblock UI
+          getUserProfile(session.user.id, session.user.email).then(userProfile => {
+            if (active) setProfile(userProfile);
+          });
         } else {
           console.log("AuthProvider: No user session found");
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
-        console.error("AuthProvider: loadSession error:", error);
+        console.warn("AuthProvider: Initial session load skipped or timed out", error);
       } finally {
         if (active) {
           setLoading(false);

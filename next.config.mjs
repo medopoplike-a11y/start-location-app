@@ -12,11 +12,11 @@ const nextConfig = {
   },
   // Explicitly check for Vercel to disable static output
   output: (process.env.BUILD_TYPE === 'static' && !process.env.VERCEL) ? 'export' : undefined,
+  trailingSlash: true, // Enforce trailing slashes for consistency across Web and Native
   images: {
     unoptimized: true,
   },
   reactStrictMode: true,
-  trailingSlash: true,
   env: {
     IS_BUILDING: process.env.BUILD_TYPE === 'static' ? 'true' : 'false',
   },

@@ -32,35 +32,26 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
 
-  // Optimized session check
+  // Optimized session check - removed redundant fetch to avoid locking conflicts
   useEffect(() => {
     let isMounted = true;
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Use a timeout for the initial session check to prevent UI hang
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
+        
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        const session = result?.data?.session;
+
         if (session?.user && isMounted) {
           console.log("LoginPage: Session exists, resolving role...");
-          
-          // Try metadata first (zero network cost)
-          let role = session.user.user_metadata?.role;
-          
-          if (!role) {
-            // Only fetch from DB if metadata is missing
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            role = profile?.role;
-          }
-
-          if (isMounted) {
-            const finalRole = role || "driver";
-            router.replace(getRedirectPath(finalRole));
-          }
+          const role = session.user.user_metadata?.role;
+          const finalRole = role || "driver";
+          router.replace(getRedirectPath(finalRole));
         }
       } catch (err) {
-        console.error("Session check failed", err);
+        console.log("LoginPage: Initial session check skipped or timed out (expected on first load)");
       }
     };
     checkSession();
@@ -318,6 +309,21 @@ const LoginPage = () => {
               {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
               <span>{error || status}</span>
             </motion.div>
+          )}
+
+          {error && error.includes("مهلة") && (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+              className="w-full bg-slate-800 text-slate-300 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-700 transition-all border border-slate-700"
+            >
+              إعادة ضبط اتصال السيرفر (Reset Session)
+            </button>
           )}
 
           <button
