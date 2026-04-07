@@ -21,8 +21,6 @@ interface DriverOperationsHubProps {
   onPickupOrder: (orderId: string) => void;
   onDeliverOrder: (orderId: string) => void;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => void;
-  onCaptureInvoice?: (orderId: string, customerIndex: number) => void;
-  isUploadingInvoice?: boolean;
 }
 
 export default function DriverOperationsHub({
@@ -38,9 +36,7 @@ export default function DriverOperationsHub({
   onAcceptOrder,
   onPickupOrder,
   onDeliverOrder,
-  onDeliverCustomer,
-  onCaptureInvoice,
-  isUploadingInvoice
+  onDeliverCustomer
 }: DriverOperationsHubProps) {
   const [viewMode, setViewMode] = useState<"orders" | "history">("orders");
 
@@ -112,8 +108,6 @@ export default function DriverOperationsHub({
               onPickupOrder={onPickupOrder}
               onDeliverOrder={onDeliverOrder}
               onDeliverCustomer={onDeliverCustomer}
-              onCaptureInvoice={onCaptureInvoice}
-              isUploadingInvoice={isUploadingInvoice}
             />
           ) : (
             <DriverHistoryView todayHistory={todayHistory} />
