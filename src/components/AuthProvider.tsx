@@ -17,6 +17,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Use a ref to track current user ID to avoid stale closure loops
+  const currentUserIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -27,7 +30,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
         console.log(`AuthProvider: loadSession started (Native: ${isNative})`);
 
-        // Use a timeout for the initial session check to prevent blocking the whole app
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 5000));
         
@@ -37,14 +39,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!active) return;
 
         if (session?.user) {
-          console.log("AuthProvider: User session found:", session.user.id);
+          console.log("AuthProvider: Initial session found:", session.user.id);
+          currentUserIdRef.current = session.user.id;
           setUser(session.user);
-          // Don't await profile fetch, do it in background to unblock UI
           getUserProfile(session.user.id, session.user.email).then(userProfile => {
             if (active) setProfile(userProfile);
           });
         } else {
-          console.log("AuthProvider: No user session found");
+          console.log("AuthProvider: No initial session");
           setUser(null);
           setProfile(null);
         }
@@ -60,25 +62,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setupAuthListener = () => {
       try {
         const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log(`AuthProvider: onAuthStateChange event: ${event}`, session?.user?.id);
+          const newUserId = session?.user?.id || null;
+          console.log(`AuthProvider: onAuthStateChange event: ${event}`, newUserId);
+          
           if (!active) return;
 
           if (event === 'SIGNED_OUT') {
+            currentUserIdRef.current = null;
             setUser(null);
             setProfile(null);
             setLoading(false);
-            // Force a clean state on sign out
             if (typeof window !== 'undefined') {
               localStorage.removeItem('start-location-v1-session');
             }
             return;
           }
 
-          // If session and user are same as current, don't trigger state update
-          if (session?.user?.id === user?.id && event === 'TOKEN_REFRESHED') {
+          // Use the ref to check if the user has actually changed
+          // This prevents infinite loops on TOKEN_REFRESHED
+          if (event === 'TOKEN_REFRESHED' && newUserId === currentUserIdRef.current) {
             console.log("AuthProvider: Skipping redundant TOKEN_REFRESHED update");
             return;
           }
+
+          // Update tracking ref
+          currentUserIdRef.current = newUserId;
 
           setUser(session?.user ?? null);
           if (session?.user) {
