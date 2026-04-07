@@ -87,16 +87,16 @@ function AdminContent() {
   const [newDriverData, setNewDriverData] = useState({ name: "", email: "", password: "", phone: "", area: "", vehicle_type: "موتوسيكل", national_id: "" });
   const [newVendorData, setNewVendorData] = useState({ name: "", email: "", password: "", phone: "" });
   const [appConfig, setAppConfig] = useState({
-    latest_version: "0.2.6",
-    min_version: "0.2.0",
-    download_url: "/start-location-v0.2.6-ready.apk",
+    latest_version: "0.5.4",
+    min_version: "0.1.0",
+    download_url: "/start-location-v0.2.0.apk",
     bundle_url: "",
     force_update: true,
     update_message: "لقد قمنا بتحسينات كبيرة في الأداء وإضافة مزايا جديدة. يرجى التحديث للاستمتاع بأفضل تجربة.",
     maintenance_mode: false,
     maintenance_message: "التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.",
     driver_commission: 15.0,
-    vendor_commission: 20.0,
+    vendor_commission: 15.0,
     vendor_fee: 1.0,
     safe_ride_fee: 1.0,
     surge_pricing_active: false,
