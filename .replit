@@ -1,0 +1,52 @@
+modules = ["nodejs-20", "bash"]
+[agent]
+expertMode = true
+integrations = ["javascript_database:1.0.0"]
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_APP_VERSION = "0.2.2"
+NEXT_PUBLIC_BUILD_TYPE = "production"
+NEXT_PUBLIC_CAPGO_APP_ID = "com.start.location"
+NEXT_PUBLIC_AUTO_UPDATE_ENABLED = "true"
+NEXT_PUBLIC_UPDATE_CHECK_INTERVAL = "1800000"
+DEBUG_MODE = "false"
+VERBOSE_LOGGING = "false"
+NEXT_PUBLIC_ADMIN_EMAILS = "medopoplike@gmail.com"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npm", "run", "start"]
+build = ["npm", "run", "build"]

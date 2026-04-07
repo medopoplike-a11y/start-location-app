@@ -1,0 +1,44 @@
+{
+  "appId": "com.start.location",
+  "appName": "Start Location",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost",
+    "allowNavigation": [
+      "sdpjvorettivpdviytqo.supabase.co"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "backgroundColor": "#0f172a",
+    "buildOptions": {
+      "releaseType": "APK"
+    }
+  },
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": true,
+      "stats": true,
+      "resetWhenUpdating": false,
+      "appId": "com.start.location"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "dark",
+      "resizeOnFullScreen": true
+    },
+    "BackgroundGeolocation": {
+      "staleLocationInterval": 10000,
+      "distanceFilter": 10,
+      "stopOnTerminate": false,
+      "startOnBoot": true,
+      "foregroundService": true
+    }
+  }
+}
