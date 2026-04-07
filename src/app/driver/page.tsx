@@ -37,6 +37,7 @@ export default function DriverApp() {
   const [loading, setLoading] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "wallet">("orders");
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
   const [vendorDebt, setVendorDebt] = useState(0);
   const [systemBalance, setSystemBalance] = useState(0);
@@ -452,11 +453,20 @@ export default function DriverApp() {
     if (newAuto && isActive && driverId && pollInterval === null) {
       // start poll
       const interval = setInterval(async () => {
+        if (!isActive || !driverId) {
+          clearInterval(interval);
+          setPollInterval(null);
+          return;
+        }
         const newOrders = await getAvailableOrders();
         if (newOrders.length > 0) {
           const firstOrder = newOrders[0];
+          // Check if already assigned to someone else
+          if (firstOrder.driver_id) return;
+          
           await updateOrderStatus(firstOrder.id, 'assigned', driverId);
-          toastSuccess('تم القبول التلقائي');
+          toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
+          void fetchOrders(driverId);
         }
       }, 5000);
       setPollInterval(interval);
@@ -464,11 +474,14 @@ export default function DriverApp() {
   };
 
   const handleAcceptOrder = async (orderId: string) => {
-    if (!driverId) return;
+    if (!driverId) {
+      toastError("فشل تحديد هوية الطيار. يرجى إعادة تسجيل الدخول.");
+      return;
+    }
     
     // Optimistic Update: Update UI immediately
     const originalOrders = [...orders];
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2 } : o));
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o));
     toastSuccess("تم قبول الطلب! جاري التحديث...");
 
     try {
@@ -476,7 +489,7 @@ export default function DriverApp() {
       if (dbError) throw dbError;
       
       // Update data in background
-      void Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
+      await Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
     } catch (err) {
       // Rollback on error
       setOrders(originalOrders);
@@ -556,6 +569,72 @@ export default function DriverApp() {
       }
     } catch (err) {
       console.error('Deliver customer failed:', err);
+    }
+  };
+
+  const handleCaptureInvoice = async (orderId: string, customerIndex: number) => {
+    if (!isNative()) {
+      toastError("التقاط الصور متاح فقط على تطبيق الهاتف");
+      return;
+    }
+
+    try {
+      const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera
+      });
+
+      if (!image || !image.base64String) return;
+
+      setIsUploadingInvoice(true);
+      toastSuccess("جاري رفع الفاتورة...");
+
+      const fileName = `invoice_${orderId}_${customerIndex}_${Date.now()}.jpg`;
+      const base64Data = image.base64String;
+      
+      // Convert base64 to blob
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('invoices')
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+
+      // Update Order in DB
+      const { data: dbOrder } = await supabase.from('orders').select('customer_details').eq('id', orderId).single();
+      if (dbOrder) {
+        const newCustomers = [...(dbOrder.customer_details.customers || [])];
+        newCustomers[customerIndex] = {
+          ...newCustomers[customerIndex],
+          invoice_url: publicUrl
+        };
+        
+        const { error: updateError } = await supabase.from('orders')
+          .update({ customer_details: { ...dbOrder.customer_details, customers: newCustomers } })
+          .eq('id', orderId);
+
+        if (updateError) throw updateError;
+        
+        toastSuccess("تم رفع الفاتورة بنجاح!");
+        void fetchOrders(driverId || undefined);
+      }
+    } catch (err) {
+      console.error('Invoice capture failed:', err);
+      toastError("فشل التقاط أو رفع الصورة");
+    } finally {
+      setIsUploadingInvoice(false);
     }
   };
 
@@ -645,6 +724,8 @@ export default function DriverApp() {
                       onPickupOrder={handlePickupOrder}
                       onDeliverOrder={handleDeliverOrder}
                       onDeliverCustomer={handleDeliverCustomer}
+                      onCaptureInvoice={handleCaptureInvoice}
+                      isUploadingInvoice={isUploadingInvoice}
                     />
                   ) : activeTab === "wallet" ? (
                     <DriverWalletView

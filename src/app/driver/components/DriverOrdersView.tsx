@@ -30,6 +30,8 @@ interface DriverOrdersViewProps {
   onPickupOrder: (orderId: string) => Promise<void>;
   onDeliverOrder: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
+  onCaptureInvoice?: (orderId: string, customerIndex: number) => Promise<void>;
+  isUploadingInvoice?: boolean;
 }
 
 const statusConfig: Record<string, { label: string; dotColor: string; bg: string; text: string }> = {
@@ -52,6 +54,8 @@ export default function DriverOrdersView({
   onPickupOrder,
   onDeliverOrder,
   onDeliverCustomer,
+  onCaptureInvoice,
+  isUploadingInvoice
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -367,6 +371,8 @@ export default function DriverOrdersView({
           onPickup={handlePickup}
           onDeliver={handleDeliver}
           onDeliverCustomer={onDeliverCustomer}
+          onCaptureInvoice={onCaptureInvoice}
+          isUploadingInvoice={isUploadingInvoice}
           loading={actionLoading}
         />
       )}

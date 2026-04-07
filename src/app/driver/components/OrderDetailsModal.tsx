@@ -15,6 +15,8 @@ interface OrderDetailsModalProps {
   onPickup: (orderId: string) => Promise<void>;
   onDeliver: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
+  onCaptureInvoice?: (orderId: string, customerIndex: number) => Promise<void>;
+  isUploadingInvoice?: boolean;
   loading?: boolean;
 }
 
@@ -39,6 +41,8 @@ export default function OrderDetailsModal({
   onPickup,
   onDeliver,
   onDeliverCustomer,
+  onCaptureInvoice,
+  isUploadingInvoice = false,
   loading = false,
 }: OrderDetailsModalProps) {
   useBackButton(onClose, !!order);
@@ -247,22 +251,42 @@ export default function OrderDetailsModal({
                           {cust.address}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {cust.invoice_url && (
-                          <a 
-                            href={cust.invoice_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-10 h-10 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all"
-                            title="عرض الفاتورة"
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => onCaptureInvoice?.(order.id, idx)}
+                            disabled={isUploadingInvoice || cust.status === 'delivered'}
+                            className={`w-10 h-10 border rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all ${
+                              cust.invoice_url 
+                                ? "bg-emerald-50 border-emerald-100 text-emerald-500" 
+                                : "bg-orange-50 border-orange-100 text-orange-500"
+                            }`}
+                            title={cust.invoice_url ? "تغيير الفاتورة" : "تصوير الفاتورة"}
                           >
-                            <Camera size={18} />
+                            {isUploadingInvoice ? (
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                className="w-4 h-4 border-2 border-orange-500/30 border-t-orange-500 rounded-full"
+                              />
+                            ) : (
+                              <Camera size={18} />
+                            )}
+                          </button>
+                          {cust.invoice_url && (
+                            <a 
+                              href={cust.invoice_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="w-10 h-10 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all"
+                              title="عرض الفاتورة"
+                            >
+                              <ExternalLink size={18} />
+                            </a>
+                          )}
+                          <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                            <Phone size={18} />
                           </a>
-                        )}
-                        <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                          <Phone size={18} />
-                        </a>
-                      </div>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-3">
