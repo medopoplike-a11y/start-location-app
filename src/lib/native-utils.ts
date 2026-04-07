@@ -176,11 +176,11 @@ export const checkForAutoUpdate = async () => {
     }
 
     if (!(await isValidUpdateUrl(bundleUrl))) {
-      console.warn('Native: Update URL is not valid or not reachable', bundleUrl);
-      return { available: false };
+      console.warn('Native: Update URL is not reachable, but we will try downloading anyway to bypass potential network head-check blocks', bundleUrl);
+      // We proceed instead of returning false to be more aggressive
     }
 
-    console.log('Native: New update found!', config.latest_version);
+    console.log('Native: New update found! Version:', config.latest_version);
 
     const bundle = await CapacitorUpdater.download({
       url: bundleUrl,
