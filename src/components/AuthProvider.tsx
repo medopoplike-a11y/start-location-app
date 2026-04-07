@@ -74,6 +74,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
+          // If session and user are same as current, don't trigger state update
+          if (session?.user?.id === user?.id && event === 'TOKEN_REFRESHED') {
+            console.log("AuthProvider: Skipping redundant TOKEN_REFRESHED update");
+            return;
+          }
+
           setUser(session?.user ?? null);
           if (session?.user) {
             const userProfile = await getUserProfile(session.user.id, session.user.email);
