@@ -236,7 +236,6 @@ const LoginPage = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <div className="silver-live-bg" />
       
-      {/* Background Decorative Blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] animate-pulse-soft" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] animate-pulse-soft" />
 
@@ -261,165 +260,166 @@ const LoginPage = () => {
             </div>
           </div>
 
-        {diagInfo && (
-          <div className="mb-4 p-3 bg-black/40 border border-blue-500/30 rounded-xl text-[10px] font-mono text-blue-300 text-center animate-pulse">
-            {diagInfo}
-          </div>
-        )}
+          {diagInfo && (
+            <div className="mb-4 p-3 bg-black/40 border border-blue-500/30 rounded-xl text-[10px] font-mono text-blue-300 text-center animate-pulse">
+              {diagInfo}
+            </div>
+          )}
 
-        {!isSupabaseConfigured && (
-          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200 backdrop-blur-md">
-            ⚠️ تنبيه النظام: Supabase غير مهيأ.
-          </div>
-        )}
+          {!isSupabaseConfigured && (
+            <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200 backdrop-blur-md">
+              ⚠️ تنبيه النظام: Supabase غير مهيأ.
+            </div>
+          )}
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-              <Mail className="w-3 h-3" />
-              البريد الإلكتروني
-            </label>
-            <div className="relative group">
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="user@example.com"
-                className="w-full bg-slate-900/40 border border-white/5 pl-5 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
-              />
-              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
-                <Mail className="w-5 h-5" />
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
+                <Mail className="w-3 h-3" />
+                البريد الإلكتروني
+              </label>
+              <div className="relative group">
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="user@example.com"
+                  className="w-full bg-slate-900/40 border border-white/5 pl-5 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
+                  <Mail className="w-5 h-5" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-              <Lock className="w-3 h-3" />
-              كلمة المرور
-            </label>
-            <div className="relative group">
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-900/40 border border-white/5 pl-14 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
-              />
-              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
-                <Lock className="w-5 h-5" />
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
+                <Lock className="w-3 h-3" />
+                كلمة المرور
+              </label>
+              <div className="relative group">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-900/40 border border-white/5 pl-14 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-2">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-700 bg-slate-900/40 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="rememberMe" className="text-xs font-bold text-slate-400">
+                تذكر البريد الإلكتروني
+              </label>
+            </div>
+
+            {(error || status) && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`rounded-2xl px-4 py-3 text-xs font-bold flex items-center gap-3 ${
+                  error 
+                    ? "bg-red-500/10 text-red-400 border border-red-500/20" 
+                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                }`}
+              >
+                {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
+                <span>{error || status}</span>
+              </motion.div>
+            )}
+
+            {error && error.includes("مهلة") && (
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.clear();
+                    window.location.reload();
+                  }
+                }}
+                className="w-full bg-slate-800 text-slate-300 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-700 transition-all border border-slate-700"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                إعادة ضبط اتصال السيرفر (Reset Session)
               </button>
-            </div>
-          </div>
+            )}
 
-          <div className="flex items-center gap-2 px-2">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-700 bg-slate-900/40 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="rememberMe" className="text-xs font-bold text-slate-400">
-              تذكر البريد الإلكتروني
-            </label>
-          </div>
-
-          {(error || status) && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`rounded-2xl px-4 py-3 text-xs font-bold flex items-center gap-3 ${
-                error 
-                  ? "bg-red-500/10 text-red-400 border border-red-500/20" 
-                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              }`}
-            >
-              {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
-              <span>{error || status}</span>
-            </motion.div>
-          )}
-
-          {error && error.includes("مهلة") && (
             <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  localStorage.clear();
-                  window.location.reload();
-                }
-              }}
-              className="w-full bg-slate-800 text-slate-300 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-700 transition-all border border-slate-700"
+              type="submit"
+              disabled={loading}
+              className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
+                !isSupabaseConfigured 
+                  ? "bg-red-600" 
+                  : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:shadow-emerald-500/25 active:scale-[0.98]"
+              } disabled:opacity-50`}
             >
-              إعادة ضبط اتصال السيرفر (Reset Session)
+              {loading ? "جاري التحقق..." : "تسجيل الدخول"}
             </button>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
-              !isSupabaseConfigured 
-                ? "bg-red-600" 
-                : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:shadow-emerald-500/25 active:scale-[0.98]"
-            } disabled:opacity-50`}
-          >
-            {loading ? "جاري التحقق..." : "تسجيل الدخول"}
-          </button>
-        </form>
+          </form>
 
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">v0.5.8-ULTIMATE</span>
-              <div className="flex items-center gap-1">
-                <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-[7px] font-black text-green-500/80 uppercase">نظام الدخول الذكي: مستقر تماماً</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{VERSION}</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-[7px] font-black text-green-500/80 uppercase">نظام الدخول الذكي: مستقر تماماً</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
+                <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
-              <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
-            </div>
-          </div>
-          <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
-              <button 
-                disabled={otaStatus.includes("جاري")}
-                onClick={async () => {
-                  setOtaStatus("جاري الفحص الإجباري...");
-                  try {
-                    const { checkForAutoUpdate } = await import("@/lib/native-utils");
-                    const res = await checkForAutoUpdate(true);
-                    if (res.available) {
-                      setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
-                    } else if (res.reason === 'COOLDOWN') {
-                      setOtaStatus("يرجى الانتظار 5 دقائق بين كل فحص يدوي.");
-                    } else {
-                      setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
+            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
+                <button 
+                  disabled={otaStatus.includes("جاري")}
+                  onClick={async () => {
+                    setOtaStatus("جاري الفحص الإجباري...");
+                    try {
+                      const { checkForAutoUpdate } = await import("@/lib/native-utils");
+                      const res = await checkForAutoUpdate(true);
+                      if (res.available) {
+                        setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
+                      } else if (res.reason === 'COOLDOWN') {
+                        setOtaStatus("يرجى الانتظار 5 دقائق بين كل فحص يدوي.");
+                      } else {
+                        setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
+                      }
+                    } catch (e: any) {
+                      setOtaStatus(`فشل الفحص: ${e.message}`);
                     }
-                  } catch (e: any) {
-                    setOtaStatus(`فشل الفحص: ${e.message}`);
-                  }
-                }}
-                className={`text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95 ${otaStatus.includes("جاري") ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                فحص إجباري الآن
-              </button>
+                  }}
+                  className={`text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95 ${otaStatus.includes("جاري") ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  فحص إجباري الآن
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
             </div>
-            <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
           </div>
         </div>
       </motion.div>
