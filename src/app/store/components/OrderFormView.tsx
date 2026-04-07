@@ -271,10 +271,13 @@ export default function OrderFormView({
                                 src={cust.invoiceUrl} 
                                 className="w-full h-full object-cover cursor-pointer" 
                                 alt="Invoice Preview" 
-                                onClick={() => onCameraCapture?.(idx)} // Clicking preview re-opens camera or could open full view
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(cust.invoiceUrl, '_blank');
+                                }}
                               />
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                <Camera size={16} className="text-white" />
+                                <Eye size={16} className="text-white" />
                               </div>
                               <div className="absolute top-1.5 right-1.5 bg-green-500 text-white p-0.5 rounded-full shadow-md">
                                 <CheckCircle2 size={10} />
@@ -282,6 +285,7 @@ export default function OrderFormView({
                             </div>
                           )}
                           <button
+                            type="button"
                             onClick={() => onCameraCapture?.(idx)}
                             disabled={isSaving || cust.isUploading}
                             className={`w-full p-3 rounded-xl border border-dashed transition-all flex items-center justify-center gap-2 ${

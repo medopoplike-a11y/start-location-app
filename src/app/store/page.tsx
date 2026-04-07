@@ -848,6 +848,7 @@ function StoreContent() {
       } finally {
         setUploadingInvoice(false);
         setActiveCaptureIndex(null);
+        setQuickUploadOrderId(null);
         setShowInAppCamera(false);
       }
     } else if (cameraMode === "quick" && quickUploadOrderId) {
