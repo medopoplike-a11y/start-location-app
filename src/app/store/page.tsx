@@ -16,7 +16,7 @@ import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
-import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
+import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
@@ -743,6 +743,17 @@ function StoreContent() {
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
         setActiveView("store");
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
+        
+        // Auto-assign to nearest driver if it's a new order
+        if (!editingOrder && vendorLocation) {
+          assignOrderToNearestDriver(data.id, vendorLocation).then((res) => {
+            if (res.success) {
+              success(`تم تعيين الطيار ${res.driverName} تلقائياً للطلب`);
+              if (vendorId) updateData(vendorId);
+            }
+          });
+        }
+        
         addActivityLocal(editingOrder ? "تم تعديل السكة" : "تم إنشاء سكة جديدة");
       }
     } catch (err) {

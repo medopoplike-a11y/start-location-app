@@ -285,7 +285,7 @@ export const assignOrderToNearestDriver = async (
     if (o.driver_id) orderCount[o.driver_id] = (orderCount[o.driver_id] || 0) + 1;
   });
 
-  // 3. Filter drivers under the max limit (3 active orders)
+  // 3. Filter drivers under the max limit (3 active orders total)
   const MAX_ORDERS_PER_DRIVER = 3;
   const available = onlineDrivers.filter((d) => (orderCount[d.id] || 0) < MAX_ORDERS_PER_DRIVER);
 
@@ -294,18 +294,11 @@ export const assignOrderToNearestDriver = async (
   }
 
   // 4. Advanced sorting:
-  // - First priority: Drivers with 0 orders (to ensure fair distribution)
-  // - Second priority: Nearest distance
-  // - Third priority: Fewest total orders
+  // - First priority: Nearest distance to vendor
+  // - Second priority: Driver with fewest active orders
+  // - Third priority: Fair distribution (Drivers with 0 orders)
   const sorted = available.sort((a, b) => {
-    const aOrders = orderCount[a.id] || 0;
-    const bOrders = orderCount[b.id] || 0;
-    
-    // Fair distribution check
-    if (aOrders === 0 && bOrders > 0) return -1;
-    if (bOrders === 0 && aOrders > 0) return 1;
-
-    // Distance check
+    // 1. Distance check (Primary)
     if (vendorLocation && a.location && b.location) {
       try {
         const aLoc = typeof a.location === 'string' ? JSON.parse(a.location) : a.location;
@@ -316,12 +309,12 @@ export const assignOrderToNearestDriver = async (
           const distB = haversineKm(vendorLocation, bLoc);
           if (Math.abs(distA - distB) > 0.1) return distA - distB; // 100m tolerance
         }
-      } catch (e) {
-        console.warn("Distance sort failed for some drivers", e);
-      }
+      } catch (e) {}
     }
-    
-    // Fallback to order count
+
+    // 2. Order count check (Secondary)
+    const aOrders = orderCount[a.id] || 0;
+    const bOrders = orderCount[b.id] || 0;
     return aOrders - bOrders;
   });
 
