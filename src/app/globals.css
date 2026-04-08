@@ -43,12 +43,6 @@
     overscroll-behavior-y: contain; 
   }
 
-  /* Keyboard Compatibility Fixes */
-  .keyboard-is-open {
-    height: auto !important;
-    overflow-y: scroll !important;
-  }
-  
   /* Prevent focus zoom on iOS */
   @media screen and (max-width: 768px) {
     input, select, textarea {

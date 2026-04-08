@@ -39,8 +39,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className="bg-[#f3f4f6]" data-scroll-behavior="smooth">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover, interactive-widget=resizes-content" />
-        {/* Next.js automatically handles metadata and viewport exports, but we override here for interactive-widget */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
       <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
 
