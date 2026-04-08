@@ -1,3 +1,4 @@
+// GitHub Push Confirmation - April 2026
 "use client";
 
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
