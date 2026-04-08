@@ -3,7 +3,6 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { Camera, MapPin, X, Loader2, AlertTriangle } from "lucide-react";
-import type { ChangeEvent } from "react";
 import type { Order } from "../types";
 
 interface FormState {
@@ -28,9 +27,9 @@ interface OrderFormModalProps {
   onClose: () => void;
   onFormDataChange: (next: FormState) => void;
   onPickCustomerLocation: () => void;
-  onInvoiceUpload: (e: ChangeEvent<HTMLInputElement>) => void;
   onCameraCapture?: () => void;
   onSave: () => void;
+  onlineDriversCount?: number;
 }
 
 export default function OrderFormModal({ hasVendorLocation = true,
@@ -43,9 +42,9 @@ export default function OrderFormModal({ hasVendorLocation = true,
   onClose,
   onFormDataChange,
   onPickCustomerLocation,
-  onInvoiceUpload,
   onCameraCapture,
   onSave,
+  onlineDriversCount = 0,
 }: OrderFormModalProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
@@ -98,14 +97,13 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 </button>
                 <div 
                   onClick={() => {
-                    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-                      onCameraCapture?.();
+                    if (onCameraCapture) {
+                      onCameraCapture();
                     }
                   }}
                   className="flex-1"
                 >
                   <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all active:scale-95 ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-orange-50 text-orange-500 border-orange-200 shadow-sm shadow-orange-50"}`}>
-                    <input type="file" className="hidden" accept="image/*" disabled={isSaving} onChange={onInvoiceUpload} />
                     <Camera className={`w-6 h-6 ${!invoiceUrl && !uploadingInvoice ? "animate-bounce" : ""}`} />
                     <span className="text-[10px]">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم رفع الفاتورة ✓" : "تصوير الفاتورة مباشر"}</span>
                   </label>

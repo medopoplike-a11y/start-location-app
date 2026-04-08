@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, X, RefreshCcw, Check } from "lucide-react";
+import { Camera, X, RefreshCcw, Check, Loader2 } from "lucide-react";
 
 interface InAppCameraProps {
   show: boolean;
@@ -17,6 +17,7 @@ export default function InAppCamera({ show, onClose, onCapture }: InAppCameraPro
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const stopStream = () => {
     if (stream) {
@@ -28,6 +29,7 @@ export default function InAppCamera({ show, onClose, onCapture }: InAppCameraPro
   const startCamera = async () => {
     stopStream();
     setError(null);
+    setIsStarting(true);
     try {
       const constraints = {
         video: {
@@ -36,14 +38,21 @@ export default function InAppCamera({ show, onClose, onCapture }: InAppCameraPro
           height: { ideal: 720 }
         }
       };
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("الكاميرا غير مدعومة في هذا المتصفح.");
+      }
+
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(newStream);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera access error:", err);
-      setError("لا يمكن الوصول للكاميرا. تأكد من إعطاء الصلاحيات.");
+      setError(err.message || "لا يمكن الوصول للكاميرا. تأكد من إعطاء الصلاحيات.");
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -112,6 +121,12 @@ export default function InAppCamera({ show, onClose, onCapture }: InAppCameraPro
                   playsInline
                   className="w-full h-full object-cover"
                 />
+                {isStarting && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <Loader2 className="w-10 h-10 text-white animate-spin mb-4" />
+                    <p className="text-white text-sm font-bold">جاري تشغيل الكاميرا...</p>
+                  </div>
+                )}
                 {error && (
                   <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
                     <p className="text-white bg-red-500/80 p-4 rounded-2xl">{error}</p>
@@ -143,7 +158,8 @@ export default function InAppCamera({ show, onClose, onCapture }: InAppCameraPro
               {!capturedImage ? (
                 <button
                   onClick={handleCapture}
-                  className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center group"
+                  disabled={isStarting || !!error}
+                  className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center group ${isStarting || error ? 'opacity-30 cursor-not-allowed' : ''}`}
                 >
                   <div className="w-16 h-16 bg-white rounded-full group-active:scale-90 transition-transform" />
                 </button>

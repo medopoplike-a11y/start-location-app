@@ -643,12 +643,6 @@ function StoreContent() {
     }
   };
 
-  const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !vendorId) return;
-    await processUpload(file);
-  };
-
   const handleCameraCapture = async () => {
     setCameraMode("form");
     setShowInAppCamera(true);
@@ -884,7 +878,6 @@ function StoreContent() {
         onClose={() => setShowOrderForm(false)}
         onFormDataChange={setFormData}
         onPickCustomerLocation={handlePickCustomerLocation}
-        onInvoiceUpload={handleInvoiceUpload}
         onCameraCapture={handleCameraCapture}
         onSave={handleSaveOrder}
         onlineDriversCount={onlineDrivers.length}
