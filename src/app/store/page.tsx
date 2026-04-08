@@ -28,7 +28,7 @@ import StoreOrdersHub from "./components/StoreOrdersHub";
 import WalletView from "./components/WalletView";
 import StoreSettingsView from "./components/SettingsView";
 import StoreDrawer from "./components/StoreDrawer";
-import OrderFormModal from "./components/OrderFormModal";
+import OrderFormView from "./components/OrderFormView";
 import StoreAccountModals from "./components/StoreAccountModals";
 import InAppCamera from "./components/InAppCamera";
 
@@ -55,7 +55,7 @@ function StoreContent() {
   }, [vendorId]);
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
-  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings">("store");
+  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -119,8 +119,8 @@ function StoreContent() {
   // Persistence: Save form state to Native Preferences (more reliable than localStorage)
   useEffect(() => {
     const saveState = async () => {
-      if (showOrderForm) {
-        const state = JSON.stringify({ formData, editingOrder, invoiceUrl, showOrderForm });
+      if (activeView === "order-form") {
+        const state = JSON.stringify({ formData, editingOrder, invoiceUrl, showOrderForm: true });
         if (Capacitor.isNativePlatform()) {
           await Preferences.set({ key: 'pending_order_form_v2', value: state });
         } else {
@@ -135,7 +135,7 @@ function StoreContent() {
       }
     };
     saveState();
-  }, [formData, editingOrder, invoiceUrl, showOrderForm]);
+  }, [formData, editingOrder, invoiceUrl, activeView]);
 
   // Persistence: Restore form state
   useEffect(() => {
@@ -155,7 +155,7 @@ function StoreContent() {
             setFormData(sFormData);
             setEditingOrder(sEditingOrder);
             setInvoiceUrl(sInvoiceUrl);
-            setShowOrderForm(true);
+            setActiveView("order-form");
           }
         } catch (e) {
           console.error("Failed to restore form state", e);
@@ -624,7 +624,8 @@ function StoreContent() {
         }]
       });
     }
-    setShowOrderForm(true);
+    setShowOrderForm(false);
+    setActiveView("order-form");
   };
 
   const handleSaveOrder = async () => {
@@ -700,7 +701,7 @@ function StoreContent() {
       if (data) {
         const ui = mapDBOrderToUI(data as VendorDBOrder);
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
-        setShowOrderForm(false);
+        setActiveView("store");
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
         addActivityLocal(editingOrder ? "تم تعديل السكة" : "تم إنشاء سكة جديدة");
       }
@@ -983,7 +984,7 @@ function StoreContent() {
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />
-        ) : (
+        ) : activeView === "settings" ? (
           <StoreSettingsView
             settingsData={settingsData}
             savingSettings={savingSettings}
@@ -993,6 +994,20 @@ function StoreContent() {
             onSettingsDataChange={setSettingsData}
             onSave={handleUpdateProfile}
             onUpdateLocation={handleUpdateLocation}
+          />
+        ) : (
+          <OrderFormView
+            editingOrder={editingOrder}
+            formData={formData}
+            invoiceUrl={invoiceUrl}
+            uploadingInvoice={uploadingInvoice}
+            isSaving={isSavingOrder}
+            hasVendorLocation={!!(vendorLocation?.lat && vendorLocation?.lng)}
+            onBack={() => setActiveView("store")}
+            onFormDataChange={setFormData}
+            onPickCustomerLocation={handlePickCustomerLocation}
+            onCameraCapture={handleCameraCapture}
+            onSave={handleSaveOrder}
           />
         )}
       </main>
@@ -1008,23 +1023,6 @@ function StoreContent() {
           إضافة طلب جديد
         </motion.button>
       )}
-
-      
-      <OrderFormModal
-        show={showOrderForm}
-        editingOrder={editingOrder}
-        formData={formData}
-        invoiceUrl={invoiceUrl}
-        uploadingInvoice={uploadingInvoice}
-        isSaving={isSavingOrder}
-        hasVendorLocation={!!(vendorLocation?.lat && vendorLocation?.lng)}
-        onClose={() => setShowOrderForm(false)}
-        onFormDataChange={setFormData}
-        onPickCustomerLocation={handlePickCustomerLocation}
-        onCameraCapture={handleCameraCapture}
-        onSave={handleSaveOrder}
-        onlineDriversCount={onlineDrivers.length}
-      />
 
       <InAppCamera 
         show={showInAppCamera} 
@@ -1050,15 +1048,17 @@ function StoreContent() {
         onRequestSettlement={handleRequestSettlement}
       />
 
-      <StoreDrawer
-        showDrawer={showDrawer}
-        vendorName={vendorName}
-        activeView={activeView}
-        onClose={() => setShowDrawer(false)}
-        onChangeView={setActiveView}
-        onUpdateLocation={handleUpdateLocation}
-        onSignOut={handleSignOut}
-      />
+      {activeView !== "order-form" && (
+        <StoreDrawer
+          showDrawer={showDrawer}
+          vendorName={vendorName}
+          activeView={activeView === "order-form" ? "store" : activeView}
+          onClose={() => setShowDrawer(false)}
+          onChangeView={(view) => setActiveView(view as any)}
+          onUpdateLocation={handleUpdateLocation}
+          onSignOut={handleSignOut}
+        />
+      )}
     </div>
   );
 }
