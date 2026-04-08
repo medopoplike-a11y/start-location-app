@@ -14,6 +14,7 @@ interface CustomerData {
   address: string;
   orderValue: string;
   deliveryFee: string;
+  prepTime: string; // Moved here
   invoiceUrl?: string;
   isUploading?: boolean;
 }
@@ -85,7 +86,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
     const newId = `cust_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const newCustomers = [...formData.customers, { 
       id: newId,
-      name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", invoiceUrl: "", isUploading: false 
+      name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "", isUploading: false 
     }];
     onFormDataChange({ ...formData, customers: newCustomers });
     setExpandedIndex(newCustomers.length - 1); // Expand the new one
@@ -218,25 +219,35 @@ export default function OrderFormModal({ hasVendorLocation = true,
                               />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-3">
                               <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 mr-2 uppercase tracking-tighter">قيمة الأوردر</label>
+                                <label className="text-[9px] font-black text-gray-400 mr-1 uppercase tracking-tighter">الأوردر</label>
                                 <input 
                                   type="number" 
                                   value={cust.orderValue} 
                                   onChange={(e) => updateCustomer(idx, 'orderValue', e.target.value)} 
-                                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                                  className="w-full bg-gray-50 p-3 rounded-xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-black text-xs shadow-sm" 
                                   placeholder="0.00" 
                                 />
                               </div>
                               <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 mr-2 uppercase tracking-tighter">سعر التوصيل</label>
+                                <label className="text-[9px] font-black text-gray-400 mr-1 uppercase tracking-tighter">التوصيل</label>
                                 <input 
                                   type="number" 
                                   value={cust.deliveryFee} 
                                   onChange={(e) => updateCustomer(idx, 'deliveryFee', e.target.value)} 
-                                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                                  className="w-full bg-gray-50 p-3 rounded-xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-black text-xs shadow-sm" 
                                   placeholder="30" 
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black text-orange-600 mr-1 uppercase tracking-tighter">تحضير (د)</label>
+                                <input 
+                                  type="number" 
+                                  value={cust.prepTime} 
+                                  onChange={(e) => updateCustomer(idx, 'prepTime', e.target.value)} 
+                                  className="w-full bg-orange-50/50 p-3 rounded-xl border border-orange-100 text-orange-700 outline-none focus:ring-2 ring-orange-300 font-black text-xs shadow-sm" 
+                                  placeholder="15" 
                                 />
                               </div>
                             </div>
@@ -276,37 +287,29 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 )}
               </div>
 
-              {/* General Order Info */}
-              <div className="bg-orange-50/50 p-5 rounded-[32px] border border-orange-100 space-y-5 shadow-sm shadow-orange-50/50">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black text-orange-600 mb-1.5 block uppercase mr-2 tracking-tighter">وقت التحضير (دقيقة)</label>
-                    <input type="number" disabled={isSaving} value={formData.prepTime} onChange={(e) => onFormDataChange({ ...formData, prepTime: e.target.value })} className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold text-sm shadow-sm" placeholder="15" min="1" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-orange-600 mb-1.5 block uppercase mr-2 tracking-tighter">ملاحظات عامة</label>
-                    <input type="text" disabled={isSaving} value={formData.notes} onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold text-sm shadow-sm" placeholder="أي ملاحظات للسكة..." />
-                  </div>
+              {/* Sikka Settings (Compact) */}
+              <div className="bg-orange-50/50 p-5 rounded-[32px] border border-orange-100 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                  <p className="text-[10px] font-black text-orange-700 uppercase tracking-tighter">إعدادات السكة العامة</p>
                 </div>
+                
+                <input 
+                  type="text" 
+                  disabled={isSaving} 
+                  value={formData.notes} 
+                  onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} 
+                  className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold text-sm shadow-sm" 
+                  placeholder="أي ملاحظات عامة للسكة..." 
+                />
 
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => { triggerHaptic(); onPickCustomerLocation(); }}
-                    disabled={isSaving} 
-                    className={`flex-1 p-4 rounded-2xl font-black text-[10px] flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-60 ${formData.customerCoords ? "bg-green-500 text-white shadow-green-100" : "bg-white text-gray-600 border border-gray-100"}`}
-                  >
-                    <MapPin size={16} />{formData.customerCoords ? "✓ الموقع محدد" : "تحديد موقع السكة"}
-                  </button>
-                  {/* General Invoice (Legacy/Fallback) */}
-                  {!activeCustomers.some(c => c.invoiceUrl) && (
-                    <div onClick={() => onCameraCapture?.()} className="flex-1">
-                      <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black cursor-pointer border-2 border-dashed transition-all active:scale-95 shadow-sm ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-white text-orange-500 border-orange-200"}`}>
-                        <Camera className={`w-4 h-4 ${!invoiceUrl && !uploadingInvoice ? "animate-bounce" : ""}`} />
-                        <span className="text-[9px]">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "الفاتورة العامة ✓" : "فاتورة عامة"}</span>
-                      </label>
-                    </div>
-                  )}
-                </div>
+                <button 
+                  onClick={() => { triggerHaptic(); onPickCustomerLocation(); }}
+                  disabled={isSaving} 
+                  className={`w-full p-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-60 ${formData.customerCoords ? "bg-green-500 text-white shadow-green-100" : "bg-white text-gray-600 border border-gray-100"}`}
+                >
+                  <MapPin size={18} />{formData.customerCoords ? "✓ موقع السكة محدد" : "تحديد موقع السكة الجغرافي"}
+                </button>
               </div>
 
               {/* Financial Summary */}
@@ -319,10 +322,18 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   <span>إجمالي رسوم التأمين (1ج لكل عميل):</span>
                   <span>{activeCustomers.length * 1} ج.م</span>
                 </div>
+                
                 <div className="h-px bg-white/10 my-2" />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-black text-orange-400 uppercase">إجمالي التوصيل المحصل:</span>
-                  <span className="text-xl font-black">{activeCustomers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0)} <span className="text-xs font-bold opacity-50">ج.م</span></span>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">إجمالي قيمة الأوردرات</p>
+                    <p className="text-lg font-black text-white">{activeCustomers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0)} <span className="text-[10px] font-bold opacity-40">ج.م</span></p>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <p className="text-[9px] font-black text-orange-400 uppercase tracking-tighter">إجمالي التوصيل</p>
+                    <p className="text-lg font-black text-orange-500">{activeCustomers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0)} <span className="text-[10px] font-bold opacity-40">ج.م</span></p>
+                  </div>
                 </div>
               </div>
 

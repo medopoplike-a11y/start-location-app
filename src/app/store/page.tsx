@@ -100,6 +100,7 @@ function StoreContent() {
       address: string;
       orderValue: string;
       deliveryFee: string;
+      prepTime: string;
       invoiceUrl?: string;
       isUploading?: boolean;
     }>
@@ -592,6 +593,7 @@ function StoreContent() {
           address: c.address,
           orderValue: String(c.orderValue),
           deliveryFee: String(c.deliveryFee),
+          prepTime: String((c as any).prepTime || order.prepTime || "15"),
           invoiceUrl: c.invoice_url
         })) : [{
           id: Math.random().toString(36).substring(2, 9),
@@ -600,6 +602,7 @@ function StoreContent() {
           address: order.address,
           orderValue: order.amount.replace(/[^0-9.-]+/g, ""),
           deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, ""),
+          prepTime: order.prepTime || "15",
           invoiceUrl: order.invoiceUrl
         }]
       });
@@ -617,7 +620,7 @@ function StoreContent() {
         customerCoords: null,
         customers: [{ 
           id: Math.random().toString(36).substring(2, 9),
-          name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", invoiceUrl: "" 
+          name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "" 
         }]
       });
     }
@@ -652,6 +655,7 @@ function StoreContent() {
 
       const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0);
       const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0);
+      const maxPrepTime = formData.customers.reduce((max, c) => Math.max(max, Number(c.prepTime) || 0), 0) || Number(formData.prepTime) || 15;
 
       const orderData = {
         vendor_id: vendorId,
@@ -670,6 +674,7 @@ function StoreContent() {
             address: c.address,
             orderValue: Number(c.orderValue),
             deliveryFee: Number(c.deliveryFee),
+            prepTime: c.prepTime,
             status: 'pending' as const,
             invoice_url: c.invoiceUrl
           }))
@@ -677,7 +682,7 @@ function StoreContent() {
         financials: { 
           order_value: totalOrderValue, 
           delivery_fee: totalDeliveryFee, 
-          prep_time: formData.prepTime, 
+          prep_time: String(maxPrepTime), 
           system_commission: calculated.systemCommission, 
           vendor_commission: calculated.vendorCommission,
           driver_earnings: calculated.driverEarnings, 
