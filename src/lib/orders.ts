@@ -134,17 +134,55 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
  * الاشتراكات الحية (Real-time Subscriptions)
  */
 
-export const subscribeToOrders = (callback: () => void) => {
-  return supabase
-    .channel('public:orders')
+export const subscribeToOrders = (callback: () => void, vendorId?: string) => {
+  const channel = supabase.channel(`orders${vendorId ? `:${vendorId}` : ''}`);
+  
+  if (vendorId) {
+    return channel
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `vendor_id=eq.${vendorId}`
+      }, callback)
+      .subscribe();
+  }
+
+  return channel
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
     .subscribe();
 };
 
-export const subscribeToProfiles = (callback: () => void) => {
-  return supabase
-    .channel('public:profiles')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, callback)
+export const subscribeToProfiles = (callback: () => void, profileId?: string) => {
+  const channel = supabase.channel(`profiles${profileId ? `:${profileId}` : ''}`);
+  
+  if (profileId) {
+    return channel
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'profiles',
+        filter: `id=eq.${profileId}`
+      }, callback)
+      .subscribe();
+  }
+
+  // For global profile changes (like online status), we should be careful.
+  // Instead of subscribing to ALL profile changes, we only care about is_online changes.
+  return channel
+    .on('postgres_changes', { 
+      event: 'UPDATE', 
+      schema: 'public', 
+      table: 'profiles'
+    }, (payload) => {
+      // Only trigger if is_online status changed or it's an important update
+      // This helps reduce unnecessary refreshes from location updates
+      const oldStatus = (payload.old as any)?.is_online;
+      const newStatus = (payload.new as any)?.is_online;
+      if (oldStatus !== newStatus) {
+        callback();
+      }
+    })
     .subscribe();
 };
 

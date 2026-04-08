@@ -328,9 +328,13 @@ function StoreContent() {
   }, [orders]);
 
   const updateData = async (uid: string) => {
-    if (!uid) return;
+    if (!uid || isSyncing) return;
     setIsSyncing(true);
     setLastSync(new Date());
+
+    // Safety timeout to ensure isSyncing is always reset
+    const safetyTimeout = setTimeout(() => setIsSyncing(false), 10000);
+
     try {
       const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.allSettled([
         getVendorOrders(uid),
@@ -379,8 +383,10 @@ function StoreContent() {
       }
     } catch (err) {
       console.error("VendorPage: Update error", err);
+    } finally {
+      clearTimeout(safetyTimeout);
+      setIsSyncing(false);
     }
-    setIsSyncing(false);
   };
 
   // --- Logic Helpers ---
@@ -590,12 +596,16 @@ function StoreContent() {
       const image = await Camera.getPhoto({
         quality: 90,
         allowEditing: false,
-        resultType: CameraResultType.Blob,
-        source: CameraSource.Camera // Directly open camera
+        resultType: CameraResultType.Uri, // Use URI instead of Blob for memory efficiency
+        source: CameraSource.Camera,
+        saveToGallery: false,
+        width: 1024, // Resize to keep it light
       });
 
-      if (image.blob) {
-        const file = new File([image.blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+      if (image.webPath) {
+        const response = await fetch(image.webPath);
+        const blob = await response.blob();
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
         await processUpload(file);
       }
     } catch (err: any) {
@@ -612,13 +622,17 @@ function StoreContent() {
       const image = await Camera.getPhoto({
         quality: 90,
         allowEditing: false,
-        resultType: CameraResultType.Blob,
-        source: CameraSource.Camera
+        resultType: CameraResultType.Uri, // Use URI for efficiency
+        source: CameraSource.Camera,
+        saveToGallery: false,
+        width: 1024,
       });
 
-      if (image.blob) {
+      if (image.webPath) {
         setUploadingInvoice(true);
-        const file = new File([image.blob], `quick-camera-${order.id}.jpg`, { type: "image/jpeg" });
+        const response = await fetch(image.webPath);
+        const blob = await response.blob();
+        const file = new File([blob], `quick-camera-${order.id}.jpg`, { type: "image/jpeg" });
         const fileName = `${vendorId}/${Date.now()}_quick_${order.id}.jpg`;
         
         const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);

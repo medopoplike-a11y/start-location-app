@@ -87,9 +87,15 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
   }, [triggerUpdate]);
 
   useEffect(() => {
-    // 1. Postgres Changes Subscriptions
-    const ordersSub: RealtimeChannel = subscribeToOrders(triggerUpdate);
-    const profilesSub: RealtimeChannel = subscribeToProfiles(triggerUpdate);
+    // 1. Postgres Changes Subscriptions with intelligent filtering
+    // Only subscribe to relevant orders for this user (or all if admin)
+    const ordersSub: RealtimeChannel = subscribeToOrders(triggerUpdate, isAdmin ? undefined : userId);
+    
+    // For profiles, we only care about:
+    // a. The user's own profile changes
+    // b. Important global changes like online status (avoiding high-frequency location updates)
+    const profilesSub: RealtimeChannel = subscribeToProfiles(triggerUpdate, isAdmin ? undefined : userId);
+    
     let walletSub: RealtimeChannel | undefined;
     let settlementsSub: RealtimeChannel | undefined;
     
