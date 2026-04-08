@@ -37,7 +37,8 @@ export default function DriverApp() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "wallet">("orders");
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
-const [vendorDebt, setVendorDebt] = useState(0);
+  const [vendorDebt, setVendorDebt] = useState(0);
+  const [systemBalance, setSystemBalance] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
   // 4. Pickup Timeout Check (15 minutes)
   useEffect(() => {
@@ -236,8 +237,11 @@ const [vendorDebt, setVendorDebt] = useState(0);
       const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
       if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
-      if (walletData) void walletData.system_balance;
-      if (ordersDebtData) setVendorDebt(ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0));
+      if (walletData) {
+        setVendorDebt(walletData.debt || 0);
+        setSystemBalance(walletData.system_balance || 0);
+      }
+      // if (ordersDebtData) setVendorDebt(ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0));
       if (todayOrders) setTodayDeliveryFees(todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0));
       if (settlementsData) {
         void settlementsData.map(s => ({
@@ -279,6 +283,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
         .select('*, profiles:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
         .eq('status', 'delivered')
+        .is('vendor_collected_at', null) // Only show orders where debt is not yet collected by vendor
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -584,6 +589,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
                     <DriverWalletView
                       todayDeliveryFees={todayDeliveryFees}
                       vendorDebt={vendorDebt}
+                      systemBalance={systemBalance}
                       orders={orders}
                       deliveredOrders={deliveredOrders}
                       allHistory={todayHistory}

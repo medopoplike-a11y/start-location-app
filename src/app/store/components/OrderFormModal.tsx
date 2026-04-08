@@ -7,11 +7,14 @@ import { useBackButton } from "@/hooks/useBackButton";
 import type { Order } from "../types";
 
 interface CustomerData {
+  id: string; // Add stable ID
   name: string;
   phone: string;
   address: string;
   orderValue: string;
   deliveryFee: string;
+  invoiceUrl?: string;
+  isUploading?: boolean;
 }
 
 interface FormState {
@@ -30,14 +33,14 @@ interface OrderFormModalProps {
   show: boolean;
   editingOrder: Order | null;
   formData: FormState;
-  invoiceUrl: string | null;
+  invoiceUrl: string | null; // Keep for general/legacy
   uploadingInvoice: boolean;
   isSaving?: boolean;
   hasVendorLocation?: boolean;
   onClose: () => void;
   onFormDataChange: (next: FormState) => void;
   onPickCustomerLocation: () => void;
-  onCameraCapture?: () => void;
+  onCameraCapture?: (customerIndex?: number) => void;
   onSave: () => void;
   onlineDriversCount?: number;
 }
@@ -68,7 +71,10 @@ export default function OrderFormModal({ hasVendorLocation = true,
 
   const addCustomer = () => {
     if (formData.customers.length >= 5) return;
-    const newCustomers = [...formData.customers, { name: "", phone: "", address: "", orderValue: "", deliveryFee: "" }];
+    const newCustomers = [...formData.customers, { 
+      id: Math.random().toString(36).substring(2, 9),
+      name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", invoiceUrl: "", isUploading: false 
+    }];
     onFormDataChange({ ...formData, customers: newCustomers });
   };
 
@@ -77,19 +83,22 @@ export default function OrderFormModal({ hasVendorLocation = true,
     onFormDataChange({ ...formData, customers: newCustomers });
   };
 
-  const updateCustomer = (index: number, field: keyof CustomerData, value: string) => {
+  const updateCustomer = (index: number, field: keyof CustomerData, value: any) => {
     const newCustomers = [...formData.customers];
     newCustomers[index] = { ...newCustomers[index], [field]: value };
     onFormDataChange({ ...formData, customers: newCustomers });
   };
 
-  // If customers array is empty, ensure at least one for the UI
-  const displayCustomers = formData.customers.length > 0 ? formData.customers : [{ 
-    name: formData.customer, 
-    phone: formData.phone, 
-    address: formData.address, 
-    orderValue: formData.orderValue, 
-    deliveryFee: formData.deliveryFee 
+  // Stability Fix: Ensure at least one customer exists if the array is empty
+  // and we are showing the form.
+  const activeCustomers = formData.customers.length > 0 ? formData.customers : [{ 
+    name: formData.customer || "", 
+    phone: formData.phone || "", 
+    address: formData.address || "", 
+    orderValue: formData.orderValue || "", 
+    deliveryFee: formData.deliveryFee || "30",
+    invoiceUrl: invoiceUrl || "",
+    isUploading: uploadingInvoice
   }];
 
   return (
@@ -112,74 +121,94 @@ export default function OrderFormModal({ hasVendorLocation = true,
 
               {/* Customers List */}
               <div className="space-y-8">
-                {formData.customers.map((cust, idx) => (
-                  <div key={idx} className="relative p-4 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
+                {activeCustomers.map((cust, idx) => (
+                  <div key={cust.id || `cust-${idx}`} className="relative p-5 rounded-[32px] bg-gray-50 border border-gray-100 space-y-4 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2 bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-black">
+                      <div className="flex items-center gap-2 bg-orange-100 text-orange-600 px-4 py-1.5 rounded-full text-[11px] font-black">
                         <User size={14} />
                         العميل {idx + 1}
                       </div>
-                      {formData.customers.length > 1 && (
-                        <button onClick={() => removeCustomer(idx)} className="text-red-500 p-1 hover:bg-red-50 rounded-lg transition-colors">
+                      {activeCustomers.length > 1 && (
+                        <button onClick={() => removeCustomer(idx)} className="text-red-500 p-2 hover:bg-red-50 rounded-xl transition-colors">
                           <Trash2 size={18} />
                         </button>
                       )}
                     </div>
                     
-                    <input 
-                      type="text" 
-                      value={cust.name} 
-                      onChange={(e) => updateCustomer(idx, 'name', e.target.value)} 
-                      className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" 
-                      placeholder="اسم العميل" 
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <input 
-                        type="tel" 
-                        value={cust.phone} 
-                        onChange={(e) => updateCustomer(idx, 'phone', e.target.value)} 
-                        className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" 
-                        placeholder="رقم الهاتف" 
-                      />
+                    <div className="space-y-4">
                       <input 
                         type="text" 
-                        value={cust.address} 
-                        onChange={(e) => updateCustomer(idx, 'address', e.target.value)} 
-                        className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" 
-                        placeholder="العنوان بالتفصيل" 
+                        value={cust.name} 
+                        onChange={(e) => updateCustomer(idx, 'name', e.target.value)} 
+                        className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                        placeholder="اسم العميل" 
                       />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 mr-2">قيمة الأوردر</label>
+                      
+                      <div className="grid grid-cols-2 gap-4">
                         <input 
-                          type="number" 
-                          value={cust.orderValue} 
-                          onChange={(e) => updateCustomer(idx, 'orderValue', e.target.value)} 
-                          className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" 
-                          placeholder="0.00" 
+                          type="tel" 
+                          value={cust.phone} 
+                          onChange={(e) => updateCustomer(idx, 'phone', e.target.value)} 
+                          className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                          placeholder="رقم الهاتف" 
+                        />
+                        <input 
+                          type="text" 
+                          value={cust.address} 
+                          onChange={(e) => updateCustomer(idx, 'address', e.target.value)} 
+                          className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                          placeholder="العنوان بالتفصيل" 
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 mr-2">سعر التوصيل</label>
-                        <input 
-                          type="number" 
-                          value={cust.deliveryFee} 
-                          onChange={(e) => updateCustomer(idx, 'deliveryFee', e.target.value)} 
-                          className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold" 
-                          placeholder="30" 
-                        />
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 mr-2 uppercase">قيمة الأوردر</label>
+                          <input 
+                            type="number" 
+                            value={cust.orderValue} 
+                            onChange={(e) => updateCustomer(idx, 'orderValue', e.target.value)} 
+                            className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                            placeholder="0.00" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 mr-2 uppercase">سعر التوصيل</label>
+                          <input 
+                            type="number" 
+                            value={cust.deliveryFee} 
+                            onChange={(e) => updateCustomer(idx, 'deliveryFee', e.target.value)} 
+                            className="w-full bg-white p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm shadow-sm" 
+                            placeholder="30" 
+                          />
+                        </div>
+                      </div>
+
+                      {/* Per-Customer Invoice Button */}
+                      <div className="pt-2">
+                        <button
+                          onClick={() => onCameraCapture?.(idx)}
+                          disabled={isSaving || cust.isUploading}
+                          className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 ${
+                            cust.invoiceUrl 
+                              ? "bg-green-50 border-green-200 text-green-600" 
+                              : "bg-white border-orange-100 text-orange-500 hover:border-orange-200"
+                          }`}
+                        >
+                          <Camera size={20} className={!cust.invoiceUrl && !cust.isUploading ? "animate-bounce" : ""} />
+                          <span className="text-[10px] font-black">
+                            {cust.isUploading ? "جاري الرفع..." : cust.invoiceUrl ? "تم رفع فاتورة العميل ✓" : "تصوير فاتورة هذا العميل"}
+                          </span>
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {formData.customers.length < 5 && (
+                {activeCustomers.length < 5 && (
                   <button 
                     onClick={addCustomer}
-                    className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 font-bold flex items-center justify-center gap-2 hover:border-orange-200 hover:text-orange-500 transition-all"
+                    className="w-full py-5 rounded-[28px] border-2 border-dashed border-gray-200 text-gray-400 font-black text-sm flex items-center justify-center gap-3 hover:border-orange-200 hover:text-orange-500 hover:bg-orange-50/30 transition-all active:scale-95"
                   >
                     <Plus size={20} />
                     إضافة عميل آخر للسكة (حتى 5 عملاء)
@@ -188,15 +217,15 @@ export default function OrderFormModal({ hasVendorLocation = true,
               </div>
 
               {/* General Order Info */}
-              <div className="bg-orange-50/50 p-4 rounded-3xl border border-orange-100 space-y-4">
+              <div className="bg-orange-50/50 p-5 rounded-[32px] border border-orange-100 space-y-5 shadow-sm shadow-orange-50/50">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-black text-orange-600 mb-1 block">وقت التحضير (دقيقة)</label>
-                    <input type="number" disabled={isSaving} value={formData.prepTime} onChange={(e) => onFormDataChange({ ...formData, prepTime: e.target.value })} className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold" placeholder="15" min="1" />
+                    <label className="text-[10px] font-black text-orange-600 mb-1.5 block uppercase mr-2">وقت التحضير (دقيقة)</label>
+                    <input type="number" disabled={isSaving} value={formData.prepTime} onChange={(e) => onFormDataChange({ ...formData, prepTime: e.target.value })} className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold text-sm shadow-sm" placeholder="15" min="1" />
                   </div>
                   <div>
-                    <label className="text-xs font-black text-orange-600 mb-1 block">ملاحظات عامة</label>
-                    <input type="text" disabled={isSaving} value={formData.notes} onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold" placeholder="أي ملاحظات للسكة..." />
+                    <label className="text-[10px] font-black text-orange-600 mb-1.5 block uppercase mr-2">ملاحظات عامة</label>
+                    <input type="text" disabled={isSaving} value={formData.notes} onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} className="w-full bg-white p-4 rounded-2xl border border-orange-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold text-sm shadow-sm" placeholder="أي ملاحظات للسكة..." />
                   </div>
                 </div>
 
@@ -204,41 +233,45 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   <button 
                     onClick={() => { triggerHaptic(); onPickCustomerLocation(); }}
                     disabled={isSaving} 
-                    className={`flex-1 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60 ${formData.customerCoords ? "bg-green-500 text-white" : "bg-white text-gray-600 border border-gray-100"}`}
+                    className={`flex-1 p-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-60 ${formData.customerCoords ? "bg-green-500 text-white shadow-green-100" : "bg-white text-gray-600 border border-gray-100"}`}
                   >
-                    <MapPin size={20} />{formData.customerCoords ? "✓ موقع السكة محدد" : "تحديد موقع السكة"}
+                    <MapPin size={18} />{formData.customerCoords ? "✓ الموقع محدد" : "تحديد موقع السكة"}
                   </button>
-                  <div onClick={() => onCameraCapture?.()} className="flex-1">
-                    <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all active:scale-95 ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-white text-orange-500 border-orange-200"}`}>
-                      <Camera className={`w-5 h-5 ${!invoiceUrl && !uploadingInvoice ? "animate-bounce" : ""}`} />
-                      <span className="text-[10px]">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم رفع الفاتورة ✓" : "تصوير الفاتورة"}</span>
-                    </label>
-                  </div>
+                  {/* General Invoice (Legacy/Fallback) */}
+                  {!activeCustomers.some(c => c.invoiceUrl) && (
+                    <div onClick={() => onCameraCapture?.()} className="flex-1">
+                      <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black cursor-pointer border-2 border-dashed transition-all active:scale-95 shadow-sm ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-white text-orange-500 border-orange-200"}`}>
+                        <Camera className={`w-4 h-4 ${!invoiceUrl && !uploadingInvoice ? "animate-bounce" : ""}`} />
+                        <span className="text-[9px]">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "الفاتورة العامة ✓" : "فاتورة عامة"}</span>
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Financial Summary */}
-              <div className="bg-gray-900 p-5 rounded-3xl text-white space-y-2">
-                <div className="flex justify-between text-sm opacity-70">
-                  <span>عدد العملاء:</span>
-                  <span>{formData.customers.length}</span>
+              <div className="bg-slate-900 p-6 rounded-[32px] text-white space-y-3 shadow-xl shadow-slate-200">
+                <div className="flex justify-between items-center text-xs font-bold opacity-60">
+                  <span>عدد العملاء في السكة:</span>
+                  <span className="bg-white/10 px-2 py-0.5 rounded-lg">{activeCustomers.length}</span>
                 </div>
-                <div className="flex justify-between text-sm opacity-70">
-                  <span>إجمالي رسوم التأمين:</span>
-                  <span>{formData.customers.length * 1} ج.م</span>
+                <div className="flex justify-between items-center text-xs font-bold opacity-60">
+                  <span>إجمالي رسوم التأمين (1ج لكل عميل):</span>
+                  <span>{activeCustomers.length * 1} ج.م</span>
                 </div>
-                <div className="flex justify-between text-xl font-black">
-                  <span>إجمالي السكة:</span>
-                  <span>{formData.customers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0)} ج.م</span>
+                <div className="h-px bg-white/10 my-2" />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-black text-orange-400">إجمالي التوصيل المحصل:</span>
+                  <span className="text-2xl font-black">{activeCustomers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0)} <span className="text-xs font-bold opacity-50">ج.م</span></span>
                 </div>
               </div>
 
               <button 
                 onClick={onSave} 
-                disabled={formData.customers.some(c => !c.name || !c.orderValue) || uploadingInvoice || isSaving || formData.customers.length === 0} 
-                className="w-full bg-orange-500 text-white py-5 rounded-3xl font-black text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={activeCustomers.some(c => !c.name || !c.orderValue) || uploadingInvoice || isSaving || activeCustomers.length === 0} 
+                className="w-full bg-orange-500 text-white py-5 rounded-[32px] font-black text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
-                {isSaving ? <><Loader2 className="w-5 h-5 animate-spin" /> جاري الإرسال...</> : (editingOrder ? "حفظ التعديلات" : "إرسال السكة الآن")}
+                {isSaving ? <><Loader2 className="w-6 h-6 animate-spin" /> جاري الإرسال...</> : (editingOrder ? "حفظ تعديلات السكة" : "إرسال السكة للطيارين")}
               </button>
             </div>
           </motion.div>

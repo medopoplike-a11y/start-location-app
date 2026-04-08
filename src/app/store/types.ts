@@ -26,6 +26,7 @@ export interface Order {
     deliveryFee: number;
     status: 'pending' | 'delivered';
     deliveredAt?: string;
+    invoice_url?: string;
   }>;
   financials?: {
     order_value?: number;

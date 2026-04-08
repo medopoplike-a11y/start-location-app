@@ -82,6 +82,7 @@ function StoreContent() {
   const [updatingLocation, setUpdatingLocation] = useState(false);
   const [showInAppCamera, setShowInAppCamera] = useState(false);
   const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
+  const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
   const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -99,6 +100,8 @@ function StoreContent() {
       address: string;
       orderValue: string;
       deliveryFee: string;
+      invoiceUrl?: string;
+      isUploading?: boolean;
     }>
   });
 
@@ -582,18 +585,22 @@ function StoreContent() {
         notes: order.notes || "",
         prepTime: order.prepTime || "15",
         customerCoords: null,
-        customers: order.customers ? order.customers.map(c => ({
+        customers: order.customers ? order.customers.map((c, i) => ({
+          id: (c as any).id || Math.random().toString(36).substring(2, 9),
           name: c.name,
-          phone: c.phone,
+          phone: c.phone || "",
           address: c.address,
           orderValue: String(c.orderValue),
-          deliveryFee: String(c.deliveryFee)
+          deliveryFee: String(c.deliveryFee),
+          invoiceUrl: c.invoice_url
         })) : [{
+          id: Math.random().toString(36).substring(2, 9),
           name: order.customer,
           phone: order.phone || "",
           address: order.address,
           orderValue: order.amount.replace(/[^0-9.-]+/g, ""),
-          deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, "")
+          deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, ""),
+          invoiceUrl: order.invoiceUrl
         }]
       });
     } else {
@@ -608,7 +615,10 @@ function StoreContent() {
         notes: "", 
         prepTime: "15", 
         customerCoords: null,
-        customers: [{ name: "", phone: "", address: "", orderValue: "", deliveryFee: "30" }]
+        customers: [{ 
+          id: Math.random().toString(36).substring(2, 9),
+          name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", invoiceUrl: "" 
+        }]
       });
     }
     setShowOrderForm(true);
@@ -660,7 +670,8 @@ function StoreContent() {
             address: c.address,
             orderValue: Number(c.orderValue),
             deliveryFee: Number(c.deliveryFee),
-            status: 'pending' as const
+            status: 'pending' as const,
+            invoice_url: c.invoiceUrl
           }))
         },
         financials: { 
@@ -709,32 +720,43 @@ function StoreContent() {
     }
   };
 
-  const handleCameraCapture = async () => {
+  const handleCameraCapture = async (customerIndex?: number) => {
     setCameraMode("form");
+    setActiveCaptureIndex(customerIndex !== undefined ? customerIndex : null);
     setShowInAppCamera(true);
   };
 
   const handleQuickInvoiceUpload = async (order: Order) => {
     setQuickUploadOrderId(order.id);
     setCameraMode("quick");
+    setActiveCaptureIndex(null);
     setShowInAppCamera(true);
   };
 
   const handleInAppCapture = async (blob: Blob) => {
     const timestamp = Date.now();
-    
-    // Use Uint8Array for maximum compatibility across mobile browsers
     const arrayBuffer = await blob.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
     if (cameraMode === "form") {
-      setUploadingInvoice(true);
+      // If we have an activeCaptureIndex, update the specific customer
+      if (activeCaptureIndex !== null) {
+        setFormData(prev => {
+          const newCustomers = [...prev.customers];
+          if (newCustomers[activeCaptureIndex]) {
+            newCustomers[activeCaptureIndex] = { ...newCustomers[activeCaptureIndex], isUploading: true };
+          }
+          return { ...prev, customers: newCustomers };
+        });
+      } else {
+        setUploadingInvoice(true);
+      }
+
       try {
         const currentVendorId = vendorIdRef.current || user?.id;
         if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
 
-        const fileName = `${currentVendorId}/${timestamp}.jpg`;
-        console.log("Attempting upload to storage:", fileName);
+        const fileName = `${currentVendorId}/${timestamp}${activeCaptureIndex !== null ? `_cust_${activeCaptureIndex}` : ''}.jpg`;
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('invoices')
@@ -743,20 +765,40 @@ function StoreContent() {
             cacheControl: '3600'
           });
         
-        if (uploadError) {
-          console.error("Storage upload error:", uploadError);
-          throw new Error(uploadError.message || "خطأ في تخزين الصورة");
-        }
+        if (uploadError) throw new Error(uploadError.message);
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-        setInvoiceUrl(publicUrl);
+        
+        if (activeCaptureIndex !== null) {
+          setFormData(prev => {
+            const newCustomers = [...prev.customers];
+            if (newCustomers[activeCaptureIndex]) {
+              newCustomers[activeCaptureIndex] = { 
+                ...newCustomers[activeCaptureIndex], 
+                invoiceUrl: publicUrl,
+                isUploading: false 
+              };
+            }
+            return { ...prev, customers: newCustomers };
+          });
+        } else {
+          setInvoiceUrl(publicUrl);
+        }
         success("تم التقاط ورفع الفاتورة بنجاح");
       } catch (err: any) {
-        console.error("Form in-app upload error details:", err);
-        const errorMsg = err.message || JSON.stringify(err);
-        error(`فشل رفع الفاتورة: ${errorMsg}`);
+        error(`فشل رفع الفاتورة: ${err.message}`);
+        if (activeCaptureIndex !== null) {
+          setFormData(prev => {
+            const newCustomers = [...prev.customers];
+            if (newCustomers[activeCaptureIndex]) {
+              newCustomers[activeCaptureIndex] = { ...newCustomers[activeCaptureIndex], isUploading: false };
+            }
+            return { ...prev, customers: newCustomers };
+          });
+        }
       } finally {
         setUploadingInvoice(false);
+        setActiveCaptureIndex(null);
       }
     } else if (cameraMode === "quick" && quickUploadOrderId) {
       setUploadingInvoice(true);
@@ -931,6 +973,8 @@ function StoreContent() {
               orderCount: orders.filter(o => o.status === "delivered").length,
               commissionRate: appConfig.vendor_commission / 100,
               commissionPerOrder: appConfig.vendor_fee || 1,
+              commissionType: appConfig.vendor_commission_type,
+              commissionValue: appConfig.vendor_commission_value,
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />

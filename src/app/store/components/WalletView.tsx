@@ -13,6 +13,8 @@ interface WalletViewProps {
     orderCount: number;
     commissionRate: number;
     commissionPerOrder: number;
+    commissionType?: 'percentage' | 'fixed';
+    commissionValue?: number;
   };
   onOpenSettlementModal: () => void;
 }
@@ -37,12 +39,14 @@ export default function WalletView({ companyCommission, balance, settlementHisto
     const ago = new Date(now); ago.setDate(ago.getDate() - 30); return d >= ago;
   });
 
+  const isFixed = commissionDetails?.commissionType === 'fixed';
   const rate = commissionDetails?.commissionRate ?? 0.15;
   const perOrder = commissionDetails?.commissionPerOrder ?? 1;
   const totalFees = commissionDetails?.totalDeliveryFees ?? 0;
   const orderCount = commissionDetails?.orderCount ?? 0;
-  const rateCommission = totalFees * rate;
-  const fixedCommission = orderCount * perOrder;
+  
+  const commissionValue = isFixed ? (commissionDetails?.commissionValue ?? 0) : (totalFees * rate);
+  const fixedInsurance = orderCount * perOrder;
 
   return (
     <div className="space-y-6">
@@ -64,12 +68,21 @@ export default function WalletView({ companyCommission, balance, settlementHisto
                 <p className="text-[11px] font-black text-white/80">تفاصيل العمولة (كل ١٥ يوم)</p>
               </div>
               <div className="flex justify-between text-[10px] text-white/70 font-bold">
-                <span>%{(rate * 100).toFixed(0)} من سعر التوصيل</span>
-                <span>{rateCommission.toFixed(2)} ج.م</span>
+                {isFixed ? (
+                  <>
+                    <span>عمولة ثابتة ({commissionDetails?.commissionValue} ج.م × {orderCount} طلب)</span>
+                    <span>{commissionValue.toFixed(2)} ج.م</span>
+                  </>
+                ) : (
+                  <>
+                    <span>%{(rate * 100).toFixed(0)} من سعر التوصيل</span>
+                    <span>{commissionValue.toFixed(2)} ج.م</span>
+                  </>
+                )}
               </div>
               <div className="flex justify-between text-[10px] text-white/70 font-bold">
-                <span>{orderCount} طلب × {perOrder} ج.م</span>
-                <span>{fixedCommission.toFixed(2)} ج.م</span>
+                <span>{orderCount} طلب × {perOrder} ج.م (تأمين)</span>
+                <span>{fixedInsurance.toFixed(2)} ج.م</span>
               </div>
               <div className="flex justify-between text-[10px] text-white font-black border-t border-white/20 pt-1.5">
                 <span>إجمالي رسوم التوصيل</span>

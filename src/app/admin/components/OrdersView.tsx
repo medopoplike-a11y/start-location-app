@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter } from "lucide-react";
+import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera } from "lucide-react";
 import type { ActivityItem, LiveOrderItem } from "../types";
 
 interface OrdersViewProps {
@@ -202,6 +202,11 @@ export default function OrdersView({ liveOrders, activities, onCancelOrder, onUp
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-lg border border-slate-100">{c.deliveryFee} ج.م</span>
+                                {c.invoice_url && (
+                                  <a href={c.invoice_url} target="_blank" rel="noopener noreferrer" className="p-1 bg-orange-50 text-orange-500 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors">
+                                    <Camera size={10} />
+                                  </a>
+                                )}
                                 <span className={`w-1.5 h-1.5 rounded-full ${c.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
                               </div>
                             </div>

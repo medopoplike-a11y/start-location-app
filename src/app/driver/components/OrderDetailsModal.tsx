@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Phone, MapPin, Store, User, Clock, Banknote,
-  Truck, CheckCircle, Package, Navigation, AlertCircle
+  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, ExternalLink
 } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
 import type { Order } from "../types";
@@ -47,6 +47,9 @@ export default function OrderDetailsModal({
 
   const currentStep = statusConfig[order.status]?.step ?? 0;
   const config = statusConfig[order.status] ?? statusConfig.pending;
+
+  const totalOrderValue = order.customers?.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0) || 0;
+  const totalDeliveryFee = order.customers?.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0) || 0;
 
   const handleAction = async () => {
     if (loading) return;
@@ -176,6 +179,21 @@ export default function OrderDetailsModal({
               </a>
             )}
 
+            {/* Sikka Total Summary */}
+            {order.customers && order.customers.length > 0 && (
+              <div className="bg-slate-900 rounded-[32px] p-5 text-white shadow-xl shadow-slate-200 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إجمالي المديونية للمحل</p>
+                  <p className="text-xl font-black text-white">{totalOrderValue} <span className="text-xs font-bold opacity-60">ج.م</span></p>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div className="space-y-1 text-left">
+                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">صافي ربح السكة</p>
+                  <p className="text-xl font-black text-orange-500">{totalDeliveryFee} <span className="text-xs font-bold opacity-60">ج.م</span></p>
+                </div>
+              </div>
+            )}
+
             {/* Vendor (Pickup Point) */}
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
               <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-1.5">
@@ -229,9 +247,22 @@ export default function OrderDetailsModal({
                           {cust.address}
                         </div>
                       </div>
-                      <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                        <Phone size={18} />
-                      </a>
+                      <div className="flex items-center gap-2">
+                        {cust.invoice_url && (
+                          <a 
+                            href={cust.invoice_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-10 h-10 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all"
+                            title="عرض الفاتورة"
+                          >
+                            <Camera size={18} />
+                          </a>
+                        )}
+                        <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                          <Phone size={18} />
+                        </a>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-3">
