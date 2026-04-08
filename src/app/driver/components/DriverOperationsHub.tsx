@@ -21,6 +21,7 @@ interface DriverOperationsHubProps {
   onPickupOrder: (orderId: string) => void;
   onDeliverOrder: (orderId: string) => void;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => void;
+  onPreviewImage?: (url: string) => void;
 }
 
 export default function DriverOperationsHub({
@@ -36,7 +37,8 @@ export default function DriverOperationsHub({
   onAcceptOrder,
   onPickupOrder,
   onDeliverOrder,
-  onDeliverCustomer
+  onDeliverCustomer,
+  onPreviewImage
 }: DriverOperationsHubProps) {
   const [viewMode, setViewMode] = useState<"orders" | "history">("orders");
 
@@ -108,9 +110,13 @@ export default function DriverOperationsHub({
               onPickupOrder={onPickupOrder}
               onDeliverOrder={onDeliverOrder}
               onDeliverCustomer={onDeliverCustomer}
+              onPreviewImage={onPreviewImage}
             />
           ) : (
-            <DriverHistoryView todayHistory={todayHistory} />
+            <DriverHistoryView 
+              history={todayHistory} 
+              onPreviewImage={onPreviewImage}
+            />
           )}
         </motion.div>
       </AnimatePresence>

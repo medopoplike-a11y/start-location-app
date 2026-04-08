@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ListFilter, History, Search, Plus, Activity } from "lucide-react";
 import StoreView from "./StoreView";
 import HistoryView from "./HistoryView";
-import ImagePreviewModal from "./ImagePreviewModal";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 import type { Order, OnlineDriver, VendorLocation } from "../types";
 
 interface StoreOrdersHubProps {

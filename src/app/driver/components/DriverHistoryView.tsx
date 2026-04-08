@@ -2,22 +2,23 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp } from "lucide-react";
+import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import type { DBDriverOrder } from "../types";
 
 interface DriverHistoryViewProps {
-  todayHistory: DBDriverOrder[];
+  history: DBDriverOrder[];
+  onPreviewImage?: (url: string) => void;
 }
 
 type FilterPeriod = "today" | "15days" | "month";
 
-export default function DriverHistoryView({ todayHistory }: DriverHistoryViewProps) {
+export default function DriverHistoryView({ history, onPreviewImage }: DriverHistoryViewProps) {
   const [filter, setFilter] = useState<FilterPeriod>("today");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const now = new Date();
 
-  const filtered = todayHistory.filter((o) => {
+  const filtered = history.filter((o) => {
     if (!o.created_at) return filter === "today";
     const d = new Date(o.created_at);
     if (filter === "today") {
@@ -185,18 +186,37 @@ export default function DriverHistoryView({ todayHistory }: DriverHistoryViewPro
                   {isExpanded && (
                     <div className="px-5 pb-5 pt-1 border-t border-slate-50 space-y-3">
                       {/* Customer info */}
-                      <div className="bg-slate-50 rounded-[16px] p-3 space-y-1.5">
-                        <p className="text-[10px] font-black text-slate-500 uppercase">العميل</p>
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                          <MapPin className="w-3.5 h-3.5 text-red-400" />
-                          {order.customer_details?.address}
+                      <div className="bg-slate-50 rounded-[16px] p-3 space-y-1.5 relative">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase mb-1">العميل</p>
+                            <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                              <MapPin className="w-3.5 h-3.5 text-red-400" />
+                              {order.customer_details?.address}
+                            </div>
+                            {order.customer_details?.phone && (
+                              <a href={`tel:${order.customer_details.phone}`} className="flex items-center gap-2 text-xs text-sky-600 font-bold mt-1">
+                                <Phone className="w-3.5 h-3.5" />
+                                {order.customer_details.phone}
+                              </a>
+                            )}
+                          </div>
+                          
+                          {order.customer_details?.invoice_url && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPreviewImage?.(order.customer_details!.invoice_url!);
+                              }}
+                              className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                            >
+                              <img src={order.customer_details.invoice_url} className="w-full h-full object-cover" alt="Invoice" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/inv:opacity-100 transition-opacity flex items-center justify-center">
+                                <Eye size={10} className="text-white" />
+                              </div>
+                            </button>
+                          )}
                         </div>
-                        {order.customer_details?.phone && (
-                          <a href={`tel:${order.customer_details.phone}`} className="flex items-center gap-2 text-xs text-sky-600 font-bold">
-                            <Phone className="w-3.5 h-3.5" />
-                            {order.customer_details.phone}
-                          </a>
-                        )}
                       </div>
 
                       {/* Financials Breakdown */}

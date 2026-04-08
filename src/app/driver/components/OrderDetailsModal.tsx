@@ -15,6 +15,7 @@ interface OrderDetailsModalProps {
   onPickup: (orderId: string) => Promise<void>;
   onDeliver: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
+  onPreviewImage?: (url: string) => void;
   loading?: boolean;
 }
 
@@ -39,6 +40,7 @@ export default function OrderDetailsModal({
   onPickup,
   onDeliver,
   onDeliverCustomer,
+  onPreviewImage,
   loading = false,
 }: OrderDetailsModalProps) {
   useBackButton(onClose, !!order);
@@ -301,15 +303,16 @@ export default function OrderDetailsModal({
                       </div>
                         <div className="flex items-center gap-2">
                           {cust.invoice_url ? (
-                            <a 
-                              href={cust.invoice_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPreviewImage?.(cust.invoice_url!);
+                              }}
                               className="w-12 h-12 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden"
                               title="عرض الفاتورة"
                             >
                               <img src={cust.invoice_url} className="w-full h-full object-cover" alt="Invoice" />
-                            </a>
+                            </button>
                           ) : (
                             <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-gray-300 italic text-[8px] text-center p-1">
                               لا توجد فاتورة

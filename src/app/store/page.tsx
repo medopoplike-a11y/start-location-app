@@ -33,7 +33,7 @@ import StoreDrawer from "./components/StoreDrawer";
 import OrderFormView from "./components/OrderFormView";
 import StoreAccountModals from "./components/StoreAccountModals";
 import CameraScanner from "@/components/CameraScanner";
-import ImagePreviewModal from "./components/ImagePreviewModal";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 export default function StoreApp() {
   return (

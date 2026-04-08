@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Maximize2 } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
-import { Capacitor } from "@capacitor/core";
 
 interface ImagePreviewModalProps {
   url: string | null;
@@ -51,7 +50,7 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
               </div>
               <div>
                 <h3 className="text-white font-black text-sm tracking-tight">معاينة الفاتورة</h3>
-                <p className="text-white/40 text-[9px] font-bold">اضغط في أي مكان للعودة</p>
+                <p className="text-white/40 text-[9px] font-bold">اضغط في أي مكان أو على زر الإغلاق للعودة</p>
               </div>
             </div>
             

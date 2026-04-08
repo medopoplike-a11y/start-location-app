@@ -30,6 +30,7 @@ interface DriverOrdersViewProps {
   onPickupOrder: (orderId: string) => Promise<void>;
   onDeliverOrder: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
+  onPreviewImage?: (url: string) => void;
 }
 
 const statusConfig: Record<string, { label: string; dotColor: string; bg: string; text: string }> = {
@@ -52,6 +53,7 @@ export default function DriverOrdersView({
   onPickupOrder,
   onDeliverOrder,
   onDeliverCustomer,
+  onPreviewImage,
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -309,6 +311,20 @@ export default function DriverOrdersView({
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
+                              {c.invoice_url && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onPreviewImage?.(c.invoice_url!);
+                                  }}
+                                  className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                                >
+                                  <img src={c.invoice_url} className="w-full h-full object-cover" alt="Inv" />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/inv:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Eye size={8} className="text-white" />
+                                  </div>
+                                </button>
+                              )}
                               <a href={`tel:${c.phone}`} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                                 <Phone size={12} />
                               </a>
@@ -401,6 +417,7 @@ export default function DriverOrdersView({
           onPickup={handlePickup}
           onDeliver={handleDeliver}
           onDeliverCustomer={onDeliverCustomer}
+          onPreviewImage={onPreviewImage}
           loading={actionLoading}
         />
       )}

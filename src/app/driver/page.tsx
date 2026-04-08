@@ -22,6 +22,7 @@ import DriverHeader from "./components/DriverHeader";
 import DriverOperationsHub from "./components/DriverOperationsHub";
 import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { Wallet, X, Loader2 } from "lucide-react";
 
 export default function DriverApp() {
@@ -33,6 +34,7 @@ export default function DriverApp() {
   const [driverId, setDriverId] = useState<string | null>(null);
   const [driverName, setDriverName] = useState("كابتن");
   const [isActive, setIsActive] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -790,6 +792,7 @@ export default function DriverApp() {
                       onPickupOrder={handlePickupOrder}
                       onDeliverOrder={handleDeliverOrder}
                       onDeliverCustomer={handleDeliverCustomer}
+                      onPreviewImage={setPreviewUrl}
                     />
                   ) : activeTab === "wallet" ? (
                     <DriverWalletView
@@ -825,6 +828,12 @@ export default function DriverApp() {
           onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
           onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
           onSignOut={handleSignOut}
+        />
+
+        <ImagePreviewModal
+          url={previewUrl}
+          show={!!previewUrl}
+          onClose={() => setPreviewUrl(null)}
         />
 
         {/* Settlement Modal */}
