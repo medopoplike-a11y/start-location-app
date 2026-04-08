@@ -81,6 +81,9 @@ export default function DriverOrdersView({
   };
 
   const filteredOrders = orders.filter(o => {
+    // If not active, hide available orders
+    if (!isActive && o.status === "pending") return false;
+    
     if (filterTab === "available") return o.status === "pending";
     if (filterTab === "active") return o.status === "assigned" || o.status === "in_transit";
     if (filterTab === "completed") return o.status === "delivered";
@@ -373,7 +376,7 @@ export default function DriverOrdersView({
                         <motion.button
                           className="bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-5 rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 transition-all active:scale-95 disabled:opacity-50"
                           whileTap={{ scale: 0.97 }}
-                          disabled={actionLoading}
+                          disabled={actionLoading || !isActive}
                           onClick={() => handleAccept(order.id)}
                         >
                           ✓ قبول
@@ -418,6 +421,7 @@ export default function DriverOrdersView({
           onDeliver={handleDeliver}
           onDeliverCustomer={onDeliverCustomer}
           onPreviewImage={onPreviewImage}
+          isActive={isActive}
           loading={actionLoading}
         />
       )}

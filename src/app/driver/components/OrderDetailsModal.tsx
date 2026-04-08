@@ -16,6 +16,7 @@ interface OrderDetailsModalProps {
   onDeliver: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
+  isActive?: boolean;
   loading?: boolean;
 }
 
@@ -41,6 +42,7 @@ export default function OrderDetailsModal({
   onDeliver,
   onDeliverCustomer,
   onPreviewImage,
+  isActive = false,
   loading = false,
 }: OrderDetailsModalProps) {
   useBackButton(onClose, !!order);
@@ -434,7 +436,7 @@ export default function OrderDetailsModal({
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleAction}
-                disabled={loading || (order.status === "in_transit" && order.customers && order.customers.length > 0 && !order.customers.every(c => c.status === 'delivered'))}
+                disabled={loading || !isActive || (order.status === "in_transit" && order.customers && order.customers.length > 0 && !order.customers.every(c => c.status === 'delivered'))}
                 className={`w-full py-5 rounded-2xl text-white font-black text-sm shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${actionColor()}`}
               >
                 {loading ? (
@@ -446,6 +448,8 @@ export default function OrderDetailsModal({
                     />
                     جاري التحديث...
                   </div>
+                ) : !isActive && order.status === "pending" ? (
+                  "فعل الحالة للقبول"
                 ) : (
                   actionLabel()
                 )}
