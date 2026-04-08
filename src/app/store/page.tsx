@@ -655,40 +655,63 @@ function StoreContent() {
   };
 
   const handleInAppCapture = async (blob: Blob) => {
-    // Determine the filename based on timestamp
     const timestamp = Date.now();
-    const file = new File([blob], `camera-${timestamp}.jpg`, { type: "image/jpeg" });
+    
+    // Use Uint8Array for maximum compatibility across mobile browsers
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
     
     if (cameraMode === "form") {
       setUploadingInvoice(true);
       try {
-        const currentVendorId = vendorIdRef.current;
-        if (!currentVendorId) throw new Error("Vendor ID missing");
+        const currentVendorId = vendorIdRef.current || user?.id;
+        if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
 
         const fileName = `${currentVendorId}/${timestamp}.jpg`;
-        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
+        console.log("Attempting upload to storage:", fileName);
         
-        if (uploadError) throw uploadError;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(fileName, uint8Array, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600'
+          });
+        
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError);
+          throw new Error(uploadError.message || "خطأ في تخزين الصورة");
+        }
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
         setInvoiceUrl(publicUrl);
         success("تم التقاط ورفع الفاتورة بنجاح");
       } catch (err: any) {
         console.error("Form in-app upload error details:", err);
-        error(`فشل رفع الفاتورة: ${err.message || 'خطأ غير معروف'}`);
+        const errorMsg = err.message || JSON.stringify(err);
+        error(`فشل رفع الفاتورة: ${errorMsg}`);
       } finally {
         setUploadingInvoice(false);
       }
     } else if (cameraMode === "quick" && quickUploadOrderId) {
       setUploadingInvoice(true);
       try {
-        const currentVendorId = vendorIdRef.current;
-        if (!currentVendorId) throw new Error("Vendor ID missing");
+        const currentVendorId = vendorIdRef.current || user?.id;
+        if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
 
         const fileName = `${currentVendorId}/${timestamp}_quick_${quickUploadOrderId}.jpg`;
-        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
+        console.log("Attempting quick upload to storage:", fileName);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(fileName, uint8Array, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600'
+          });
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Quick Storage upload error:", uploadError);
+          throw new Error(uploadError.message || "خطأ في تخزين الصورة");
+        }
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
         const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: publicUrl });
@@ -698,7 +721,8 @@ function StoreContent() {
         success("تم تحديث الطلب بالفاتورة بنجاح");
       } catch (err: any) {
         console.error("Quick in-app upload error details:", err);
-        error(`فشل رفع الفاتورة السريع: ${err.message || 'خطأ غير معروف'}`);
+        const errorMsg = err.message || JSON.stringify(err);
+        error(`فشل رفع الفاتورة السريع: ${errorMsg}`);
       } finally {
         setUploadingInvoice(false);
         setQuickUploadOrderId(null);
