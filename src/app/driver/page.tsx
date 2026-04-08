@@ -38,8 +38,8 @@ export default function DriverApp() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "wallet">("orders");
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
-  const [vendorDebt, setVendorDebt] = useState(0);
-  const [systemBalance, setSystemBalance] = useState(0);
+  const [vendorDebt, setVendorDebt] = useState<number>(0);
+  const [systemBalance, setSystemBalance] = useState<number>(0);
   const [autoAccept, setAutoAccept] = useState(false);
 
   // Handle Body Scroll Lock when drawer is open

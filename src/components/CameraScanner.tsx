@@ -21,89 +21,56 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    const handleNativeCamera = async () => {
-      if (Capacitor.isNativePlatform() && !capturedImage) {
-        try {
-          const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-          const image = await Camera.getPhoto({
-            quality: 90,
-            allowEditing: false,
-            resultType: CameraResultType.Base64,
-            source: CameraSource.Camera,
-            saveToGallery: false
-          });
-          
-          if (!active) return;
-
-          if (image.base64String) {
-            onCapture(image.base64String);
-          } else {
-            onClose();
-          }
-        } catch (e) {
-          console.error("Native camera error:", e);
-          // Fallback to web camera if native fails
-          if (active) startCamera();
-        }
-      } else if (!Capacitor.isNativePlatform()) {
-        if (!capturedImage) {
-          startCamera();
-        }
-      }
-    };
-
-    handleNativeCamera();
-
-    return () => {
-      active = false;
-      stopCamera();
-    };
-  }, []); // Only run on mount for native platform integration
+    startCamera();
+    return () => stopCamera();
+  }, []);
 
   const startCamera = async () => {
-    if (Capacitor.isNativePlatform() && !capturedImage) {
-      // We already tried native camera in useEffect
-      return;
-    }
     stopCamera();
     setError(null);
     try {
       const constraints = {
         video: {
           facingMode: "environment",
-          width: { ideal: 1280 }, // Lowering resolution for mobile performance
+          width: { ideal: 1280 },
           height: { ideal: 720 }
-        }
+        },
+        audio: false
       };
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      // Ensure we don't proceed if component unmounted
-      if (!videoRef.current && !capturedImage) {
-        mediaStream.getTracks().forEach(t => t.stop());
-        return;
-      }
-
-      setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        setStream(mediaStream);
+      } else {
+        // Cleanup if component unmounted while requesting
+        mediaStream.getTracks().forEach(t => t.stop());
       }
     } catch (err) {
       console.error("Camera access error:", err);
-      setError("تعذر الوصول للكاميرا. تأكد من إعطاء الأذونات.");
+      setError("تعذر الوصول للكاميرا داخلياً. تأكد من إعطاء الأذونات.");
     }
   };
 
   const stopCamera = () => {
+    // 1. Clear video source
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    
+    // 2. Stop all tracks immediately
     if (stream) {
       stream.getTracks().forEach(track => {
         track.stop();
         console.log("CameraScanner: Track stopped", track.label);
       });
       setStream(null);
+    }
+
+    // 3. Global cleanup just in case of leaks
+    if (typeof navigator !== 'undefined' && (navigator as any).mediaDevices?.getUserMedia) {
+      // Some browsers need a bit of help cleaning up
     }
   };
 

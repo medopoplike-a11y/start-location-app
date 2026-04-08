@@ -4,7 +4,7 @@ import { signIn, getUserProfile } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect } from "react";
@@ -39,6 +39,15 @@ const LoginPage = () => {
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص التحديثات...");
   const [mounted, setMounted] = useState(false);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsKeyboardOpen(window.innerHeight < 500);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -254,20 +263,29 @@ const LoginPage = () => {
           className="w-full max-w-md"
         >
         <div className="glass-morphism p-8 md:p-12 rounded-[3rem] shadow-2xl relative">
-          <div className="flex flex-col items-center mb-12">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
-              <StartLogo className="w-24 h-24 relative" />
-            </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2 flex items-center gap-2">
-              START
-              <span className="text-blue-600">APP</span>
-            </h1>
-            <div className="flex items-center gap-2">
-              <span className="ultimate-badge">ULTIMATE</span>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Management</p>
-            </div>
-          </div>
+          <AnimatePresence>
+            {!isKeyboardOpen && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex flex-col items-center mb-12"
+              >
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
+                  <StartLogo className="w-24 h-24 relative" />
+                </div>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2 flex items-center gap-2">
+                  START
+                  <span className="text-blue-600">APP</span>
+                </h1>
+                <div className="flex items-center gap-2">
+                  <span className="ultimate-badge">ULTIMATE</span>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Management</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {diagInfo && (
             <div className="mb-4 p-3 bg-black/40 border border-blue-500/30 rounded-xl text-[10px] font-mono text-blue-300 text-center animate-pulse">
@@ -387,49 +405,51 @@ const LoginPage = () => {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{VERSION}</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-                  <span className="text-[7px] font-black text-green-500/80 uppercase">نظام الدخول الذكي: مستقر تماماً</span>
+          {!isKeyboardOpen && (
+            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{VERSION}</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-[7px] font-black text-green-500/80 uppercase">نظام الدخول الذكي: مستقر تماماً</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
+                  <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
-                <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
-              </div>
-            </div>
-            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
-                <button 
-                  disabled={otaStatus.includes("جاري")}
-                  onClick={async () => {
-                    setOtaStatus("جاري الفحص الإجباري...");
-                    try {
-                      const { checkForAutoUpdate } = await import("@/lib/native-utils");
-                      const res = await checkForAutoUpdate(true);
-                      if (res.available) {
-                        setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
-                      } else if (res.reason === 'COOLDOWN') {
-                        setOtaStatus("يرجى الانتظار 5 دقائق بين كل فحص يدوي.");
-                      } else {
-                        setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
+              <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
+                  <button 
+                    disabled={otaStatus.includes("جاري")}
+                    onClick={async () => {
+                      setOtaStatus("جاري الفحص الإجباري...");
+                      try {
+                        const { checkForAutoUpdate } = await import("@/lib/native-utils");
+                        const res = await checkForAutoUpdate(true);
+                        if (res.available) {
+                          setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
+                        } else if (res.reason === 'COOLDOWN') {
+                          setOtaStatus("يرجى الانتظار 5 دقائق بين كل فحص يدوي.");
+                        } else {
+                          setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
+                        }
+                      } catch (e: any) {
+                        setOtaStatus(`فشل الفحص: ${e.message}`);
                       }
-                    } catch (e: any) {
-                      setOtaStatus(`فشل الفحص: ${e.message}`);
-                    }
-                  }}
-                  className={`text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95 ${otaStatus.includes("جاري") ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  فحص إجباري الآن
-                </button>
+                    }}
+                    className={`text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95 ${otaStatus.includes("جاري") ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    فحص إجباري الآن
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
               </div>
-              <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
             </div>
-          </div>
+          )}
         </div>
         </motion.div>
         </div>
