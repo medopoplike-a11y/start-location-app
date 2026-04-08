@@ -2,7 +2,7 @@
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, MapPin, X, Loader2, AlertTriangle, Plus, Trash2, User, ChevronDown, ChevronUp, CheckCircle2, ArrowRight, Eye } from "lucide-react";
+import { Camera, MapPin, Loader2, AlertTriangle, Plus, Trash2, User, ChevronDown, ChevronUp, CheckCircle2, ArrowRight, Eye } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useState, useEffect } from "react";
 import type { Order } from "../types";
