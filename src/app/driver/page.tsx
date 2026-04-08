@@ -22,6 +22,7 @@ import DriverHeader from "./components/DriverHeader";
 import DriverOperationsHub from "./components/DriverOperationsHub";
 import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
+import { Wallet, X, Loader2 } from "lucide-react";
 
 export default function DriverApp() {
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
@@ -41,6 +42,9 @@ export default function DriverApp() {
   const [vendorDebt, setVendorDebt] = useState<number>(0);
   const [systemBalance, setSystemBalance] = useState<number>(0);
   const [autoAccept, setAutoAccept] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [requestingSettlement, setRequestingSettlement] = useState(false);
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {
@@ -690,6 +694,29 @@ export default function DriverApp() {
     }
   };
 
+  const handleRequestSettlement = async () => {
+    if (!driverId || !settlementAmount) return toastError("الرجاء إدخال المبلغ المراد سداده");
+    setRequestingSettlement(true);
+    try {
+      const { error: dbError } = await supabase.from('settlements').insert([{ 
+        user_id: driverId, 
+        amount: Number(settlementAmount), 
+        status: 'pending', 
+        method: 'Vodafone Cash' 
+      }]);
+      if (dbError) throw dbError;
+      toastSuccess("تم إرسال طلب سداد المديونية بنجاح. سيتم التأكيد قريباً.");
+      setShowSettlementModal(false);
+      setSettlementAmount("");
+      fetchStats(driverId);
+    } catch (err) {
+      toastError("حدث خطأ أثناء إرسال الطلب. حاول مرة أخرى.");
+      console.error("Settlement error:", err);
+    } finally {
+      setRequestingSettlement(false);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-[#f3f4f6] p-6 space-y-8" dir="rtl">
       <div className="grid grid-cols-2 gap-4">
@@ -773,6 +800,7 @@ export default function DriverApp() {
                       deliveredOrders={deliveredOrders}
                       allHistory={todayHistory}
                       onConfirmPayment={handleConfirmPayment}
+                      onOpenSettlementModal={() => setShowSettlementModal(true)}
                     />
                   ) : (
                     <div className="text-center py-20">
@@ -798,6 +826,70 @@ export default function DriverApp() {
           onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
           onSignOut={handleSignOut}
         />
+
+        {/* Settlement Modal */}
+        <AnimatePresence>
+          {showSettlementModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowSettlementModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl overflow-hidden"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500">
+                      <Wallet className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900">تأكيد سداد مديونية</h3>
+                      <p className="text-xs font-bold text-slate-400">إرسال طلب تأكيد سداد للشركة</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowSettlementModal(false)} className="p-2 bg-slate-50 rounded-xl text-slate-400">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 mr-1">المبلغ المسدد (ج.م)</label>
+                    <input 
+                      type="number" 
+                      value={settlementAmount}
+                      onChange={(e) => setSettlementAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-transparent border-none outline-none text-3xl font-black text-slate-900 placeholder:text-slate-200"
+                    />
+                  </div>
+
+                  <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start gap-3">
+                    <Wallet className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] font-bold text-blue-700 leading-relaxed">
+                      يرجى إدخال المبلغ الذي قمت بتحويله للشركة فعلياً. سيقوم المسؤول بمراجعة الطلب وتأكيده لتصفير مديونيتك.
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={handleRequestSettlement}
+                    disabled={requestingSettlement || !settlementAmount}
+                    className="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-slate-200 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {requestingSettlement ? <Loader2 className="w-6 h-6 animate-spin" /> : "إرسال طلب التأكيد"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </AuthGuard>
   );

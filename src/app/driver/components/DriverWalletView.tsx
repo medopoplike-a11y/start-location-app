@@ -14,11 +14,12 @@ interface WalletProps {
   deliveredOrders: DBDriverOrder[];
   allHistory: DBDriverOrder[];
   onConfirmPayment: (orderId: string) => Promise<void>;
+  onOpenSettlementModal: () => void;
 }
 
 type FilterPeriod = "today" | "15days" | "month";
 
-export default function DriverWalletView({ todayDeliveryFees, vendorDebt, systemBalance, orders, deliveredOrders, allHistory, onConfirmPayment }: WalletProps) {
+export default function DriverWalletView({ todayDeliveryFees, vendorDebt, systemBalance, orders, deliveredOrders, allHistory, onConfirmPayment, onOpenSettlementModal }: WalletProps) {
   const [tab, setTab] = useState<"earnings" | "vendors">("earnings");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterPeriod>("today");
@@ -81,8 +82,11 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
               </h3>
             </div>
           </div>
-          <button className="bg-orange-500 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all">
-            سداد الآن
+          <button 
+            onClick={onOpenSettlementModal}
+            className="bg-orange-500 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+          >
+            تأكيد سداد
           </button>
         </div>
 
@@ -96,12 +100,12 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
           
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">%{(commissionRate * 100).toFixed(0)} من التوصيل</p>
+              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">%{(commissionRate * 100).toFixed(0)} من التوصيل المتفق عليه</p>
               <p className="text-xs font-black text-white">{(filteredFees * commissionRate).toFixed(2)} ج.م</p>
             </div>
             <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">رسوم تأمين ({filteredHistory.length} طلب)</p>
-              <p className="text-xs font-black text-white">{(filteredHistory.length * commissionPerOrder).toFixed(2)} ج.م</p>
+              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">تأمين رحلة ثابت ({filteredHistory.length} طلب)</p>
+              <p className="text-xs font-black text-white">{(filteredHistory.length * 1.0).toFixed(2)} ج.م</p>
             </div>
           </div>
         </div>

@@ -75,14 +75,14 @@ export default function WalletView({ companyCommission, balance, settlementHisto
                   </>
                 ) : (
                   <>
-                    <span>%{(rate * 100).toFixed(0)} من سعر التوصيل</span>
+                    <span>%{(rate * 100).toFixed(0)} من سعر التوصيل المتفق عليه</span>
                     <span>{commissionValue.toFixed(2)} ج.م</span>
                   </>
                 )}
               </div>
               <div className="flex justify-between text-[10px] text-white/70 font-bold">
-                <span>{orderCount} طلب × {perOrder} ج.م (تأمين)</span>
-                <span>{fixedInsurance.toFixed(2)} ج.م</span>
+                <span>{orderCount} طلب × 1 ج.م (تأمين رحلة ثابت)</span>
+                <span>{(orderCount * 1).toFixed(2)} ج.م</span>
               </div>
               <div className="flex justify-between text-[10px] text-white font-black border-t border-white/20 pt-1.5">
                 <span>إجمالي رسوم التوصيل</span>
