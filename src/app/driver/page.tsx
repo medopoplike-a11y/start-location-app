@@ -39,6 +39,37 @@ export default function DriverApp() {
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
 const [vendorDebt, setVendorDebt] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
+  // 4. Pickup Timeout Check (15 minutes)
+  useEffect(() => {
+    if (!driverId || orders.length === 0) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      orders.forEach(async (order) => {
+        if (order.status === 'assigned' && order.statusUpdatedAt) {
+          const acceptedTime = new Date(order.statusUpdatedAt);
+          const diffMs = now.getTime() - acceptedTime.getTime();
+          const diffMins = diffMs / (1000 * 60);
+
+          if (diffMins >= 15) {
+            console.log(`Order ${order.id} timed out (15 mins since acceptance)`);
+            // Unassign order
+            await supabase.from('orders').update({ 
+              driver_id: null, 
+              status: 'pending',
+              status_updated_at: new Date().toISOString() 
+            }).eq('id', order.id);
+            
+            setOrders(prev => prev.filter(o => o.id !== order.id));
+            toastSuccess(`تم سحب الطلب #${order.id.slice(0, 8)} لعدم الاستلام خلال 15 دقيقة`);
+          }
+        }
+      });
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [driverId, orders, toastSuccess]);
+
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
@@ -127,6 +158,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
             console.log("DriverPage: Using profile from AuthProvider");
             setDriverId(user.id);
             setDriverName(authProfile.full_name || "كابتن");
+            toastSuccess(`أهلاً بك يا كابتن ${authProfile.full_name || ""}!`);
             
             void Promise.allSettled([
               withTimeout('fetchOrders', fetchOrders(), 10000),
@@ -298,6 +330,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
       prepTime: db.financials.prep_time,
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
       priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : 3),
+      statusUpdatedAt: db.status_updated_at || db.created_at || undefined,
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
       orderValue: db.financials.order_value,
@@ -419,13 +452,44 @@ const [vendorDebt, setVendorDebt] = useState(0);
     setOrders(prev => prev.filter(o => o.id !== orderId));
     const { error } = await updateOrderStatus(orderId, 'delivered');
     if (!error) {
-      toastSuccess('تم التوصيل بنجاح! يمكنك الآن تأكيد تسليم المبلغ للمحل من محفظتك.');
+      toastSuccess('تم إنهاء السكة بنجاح! يمكنك الآن تأكيد تسليم المبلغ للمحل من محفظتك.');
     }
     if (driverId) {
       await fetchOrders(driverId);
       void fetchStats(driverId);
       void fetchDeliveredOrders(driverId);
       void fetchTodayHistory(driverId);
+    }
+  };
+
+  const handleDeliverCustomer = async (orderId: string, customerIndex: number) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || !order.customers) return;
+
+    const newCustomers = [...order.customers];
+    newCustomers[customerIndex] = {
+      ...newCustomers[customerIndex],
+      status: 'delivered',
+      deliveredAt: new Date().toISOString()
+    };
+
+    // Update the local state first for responsiveness
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: newCustomers } : o));
+
+    try {
+      // Get current customer_details from DB to be safe
+      const { data: dbOrder } = await supabase.from('orders').select('customer_details').eq('id', orderId).single();
+      if (dbOrder) {
+        const updatedDetails = {
+          ...dbOrder.customer_details,
+          customers: newCustomers
+        };
+        const { error } = await supabase.from('orders').update({ customer_details: updatedDetails }).eq('id', orderId);
+        if (error) throw error;
+        toastSuccess(`تم تسليم العميل ${newCustomers[customerIndex].name} بنجاح`);
+      }
+    } catch (err) {
+      console.error('Deliver customer failed:', err);
     }
   };
 
@@ -514,6 +578,7 @@ const [vendorDebt, setVendorDebt] = useState(0);
                       onAcceptOrder={handleAcceptOrder}
                       onPickupOrder={handlePickupOrder}
                       onDeliverOrder={handleDeliverOrder}
+                      onDeliverCustomer={handleDeliverCustomer}
                     />
                   ) : activeTab === "wallet" ? (
                     <DriverWalletView

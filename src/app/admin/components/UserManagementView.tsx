@@ -14,6 +14,7 @@ interface UserManagementViewProps {
   users: AppUser[];
   onAddDriver: () => void;
   onAddVendor: () => void;
+  onUpdateVendorCommission?: (vendorId: string, type: 'percentage' | 'fixed', value: number) => Promise<void>;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onResetUser: (userId: string, userName: string) => void;
 }
@@ -24,6 +25,7 @@ export default function UserManagementView({
   users,
   onAddDriver,
   onAddVendor,
+  onUpdateVendorCommission,
   onToggleShiftLock,
   onResetUser
 }: UserManagementViewProps) {
@@ -101,6 +103,7 @@ export default function UserManagementView({
               <VendorsView
                 vendors={filteredVendors}
                 onAddVendor={onAddVendor}
+                onUpdateVendorCommission={onUpdateVendorCommission}
                 onResetUser={onResetUser}
               />
             )}

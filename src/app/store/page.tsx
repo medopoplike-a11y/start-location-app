@@ -92,7 +92,14 @@ function StoreContent() {
     deliveryFee: "30",
     notes: "",
     prepTime: "15",
-    customerCoords: null as { lat: number, lng: number } | null
+    customerCoords: null as { lat: number, lng: number } | null,
+    customers: [] as Array<{
+      name: string;
+      phone: string;
+      address: string;
+      orderValue: string;
+      deliveryFee: string;
+    }>
   });
 
   // KeepAwake: Prevent screen from turning off in Store view
@@ -251,6 +258,8 @@ function StoreContent() {
   const [appConfig, setAppConfig] = useState({ 
     driver_commission: 15, 
     vendor_commission: 20, 
+    vendor_commission_type: 'percentage' as 'percentage' | 'fixed',
+    vendor_commission_value: 0,
     vendor_fee: 1, 
     safe_ride_fee: 1,
     surge_pricing_active: false,
@@ -322,6 +331,14 @@ function StoreContent() {
             phone: profile.phone || "",
             area: profile.area || ""
           });
+
+          // Update appConfig with vendor's specific commission
+          setAppConfig(prev => ({
+            ...prev,
+            vendor_commission_type: (profile as any).commission_type || 'percentage',
+            vendor_commission_value: (profile as any).commission_value || 0,
+            vendor_commission: (profile as any).commission_type === 'percentage' ? ((profile as any).commission_value || 20) : prev.vendor_commission
+          }));
           
           console.log("StorePage: Fetching dashboard data...");
           await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
@@ -471,13 +488,13 @@ function StoreContent() {
   const mapDBOrderToUI = (db: VendorDBOrder): Order => {
     // Robust mapping with safety checks
     const financials = db.financials || { order_value: 0, delivery_fee: 0 };
-    const customer = db.customer_details || { name: "عميل", address: "عنوان غير محدد" };
+    const customerDetails = db.customer_details || { name: "عميل", address: "عنوان غير محدد" };
 
     return {
       id: db.id,
-      customer: customer.name || "عميل",
-      phone: (customer as any).phone || "",
-      address: customer.address || "عنوان غير محدد",
+      customer: customerDetails.name || "عميل",
+      phone: (customerDetails as any).phone || "",
+      address: customerDetails.address || "عنوان غير محدد",
       status: db.status || 'pending',
       driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
       driverPhone: db.driver?.phone || "",
@@ -486,11 +503,12 @@ function StoreContent() {
       time: formatVendorTime(db.created_at || ""),
       createdAt: db.created_at || new Date().toISOString(),
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
-      notes: (customer as any).notes || "",
+      notes: (customerDetails as any).notes || "",
       prepTime: String((financials as any).prep_time || "15"),
       invoiceUrl: db.invoice_url,
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
+      customers: customerDetails.customers,
       financials: db.financials ? {
         order_value: Number(financials.order_value || 0),
         delivery_fee: Number(financials.delivery_fee || 0),
@@ -563,12 +581,35 @@ function StoreContent() {
         deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, ""),
         notes: order.notes || "",
         prepTime: order.prepTime || "15",
-        customerCoords: null
+        customerCoords: null,
+        customers: order.customers ? order.customers.map(c => ({
+          name: c.name,
+          phone: c.phone,
+          address: c.address,
+          orderValue: String(c.orderValue),
+          deliveryFee: String(c.deliveryFee)
+        })) : [{
+          name: order.customer,
+          phone: order.phone || "",
+          address: order.address,
+          orderValue: order.amount.replace(/[^0-9.-]+/g, ""),
+          deliveryFee: order.deliveryFee.replace(/[^0-9.-]+/g, "")
+        }]
       });
     } else {
       setEditingOrder(null);
       setInvoiceUrl(null);
-      setFormData({ customer: "", phone: "", address: "", orderValue: "", deliveryFee: "30", notes: "", prepTime: "15", customerCoords: null });
+      setFormData({ 
+        customer: "", 
+        phone: "", 
+        address: "", 
+        orderValue: "", 
+        deliveryFee: "30", 
+        notes: "", 
+        prepTime: "15", 
+        customerCoords: null,
+        customers: [{ name: "", phone: "", address: "", orderValue: "", deliveryFee: "30" }]
+      });
     }
     setShowOrderForm(true);
   };
@@ -582,24 +623,49 @@ function StoreContent() {
         distance = Math.round(calculateDistance(vendorLocation.lat, vendorLocation.lng, formData.customerCoords.lat, formData.customerCoords.lng) * 10) / 10;
       }
 
-      const manualDeliveryFee = Number(formData.deliveryFee);
-      const calculated = calculateOrderFinancials(distance, 0, manualDeliveryFee, {
-        driverCommissionPct: appConfig.driver_commission,
-        vendorCommissionPct: appConfig.vendor_commission,
-        driverInsuranceFee: appConfig.safe_ride_fee,
-        vendorInsuranceFee: appConfig.vendor_fee,
-        surgePricingActive: appConfig.surge_pricing_active,
-        surgePricingMultiplier: appConfig.surge_pricing_multiplier
-      });
+      // Use the new multi-stop pricing calculation
+      const manualDeliveryFees = formData.customers.map(c => Number(c.deliveryFee) || 0);
+      const calculated = calculateOrderFinancials(
+        formData.customers.length,
+        manualDeliveryFees,
+        {
+          driverCommissionPct: appConfig.driver_commission,
+          vendorCommissionPct: appConfig.vendor_commission,
+          vendorCommissionFixed: appConfig.vendor_commission_value,
+          vendorCommissionType: appConfig.vendor_commission_type,
+          driverInsuranceFee: appConfig.safe_ride_fee,
+          vendorInsuranceFee: appConfig.vendor_fee,
+          surgePricingActive: appConfig.surge_pricing_active,
+          surgePricingMultiplier: appConfig.surge_pricing_multiplier
+        }
+      );
+
+      const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0);
+      const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0);
+
       const orderData = {
         vendor_id: vendorId,
         driver_id: null,
         status: 'pending' as const,
         distance,
-        customer_details: { name: formData.customer, phone: formData.phone, address: formData.address, notes: formData.notes, coords: formData.customerCoords },
+        customer_details: { 
+          name: formData.customers[0]?.name || "سكة", // Default for legacy support
+          phone: formData.customers[0]?.phone || "",
+          address: formData.customers[0]?.address || "",
+          notes: formData.notes, 
+          coords: formData.customerCoords,
+          customers: formData.customers.map(c => ({
+            name: c.name,
+            phone: c.phone,
+            address: c.address,
+            orderValue: Number(c.orderValue),
+            deliveryFee: Number(c.deliveryFee),
+            status: 'pending' as const
+          }))
+        },
         financials: { 
-          order_value: Number(formData.orderValue), 
-          delivery_fee: manualDeliveryFee, 
+          order_value: totalOrderValue, 
+          delivery_fee: totalDeliveryFee, 
           prep_time: formData.prepTime, 
           system_commission: calculated.systemCommission, 
           vendor_commission: calculated.vendorCommission,
@@ -619,8 +685,8 @@ function StoreContent() {
         const ui = mapDBOrderToUI(data as VendorDBOrder);
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
         setShowOrderForm(false);
-        success(editingOrder ? "تم تعديل الطلب بنجاح" : "تم إنشاء طلب جديد بنجاح");
-        addActivityLocal(editingOrder ? "تم تعديل الطلب" : "تم إنشاء طلب جديد");
+        success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
+        addActivityLocal(editingOrder ? "تم تعديل السكة" : "تم إنشاء سكة جديدة");
       }
     } catch (err) {
       error("حدث خطأ أثناء حفظ الطلب. حاول مرة أخرى.");

@@ -20,6 +20,7 @@ interface DriverOperationsHubProps {
   onAcceptOrder: (orderId: string) => void;
   onPickupOrder: (orderId: string) => void;
   onDeliverOrder: (orderId: string) => void;
+  onDeliverCustomer?: (orderId: string, customerIndex: number) => void;
 }
 
 export default function DriverOperationsHub({
@@ -34,7 +35,8 @@ export default function DriverOperationsHub({
   onToggleAutoAccept,
   onAcceptOrder,
   onPickupOrder,
-  onDeliverOrder
+  onDeliverOrder,
+  onDeliverCustomer
 }: DriverOperationsHubProps) {
   const [viewMode, setViewMode] = useState<"orders" | "history">("orders");
 
@@ -105,6 +107,7 @@ export default function DriverOperationsHub({
               onAcceptOrder={onAcceptOrder}
               onPickupOrder={onPickupOrder}
               onDeliverOrder={onDeliverOrder}
+              onDeliverCustomer={onDeliverCustomer}
             />
           ) : (
             <DriverHistoryView todayHistory={todayHistory} />

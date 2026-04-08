@@ -7,11 +7,20 @@ export interface Order {
   status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'cancelled';
   distance: number;
   customer_details: {
-    name: string;
-    phone: string;
-    address: string;
+    name?: string;
+    phone?: string;
+    address?: string;
     notes?: string;
     coords?: { lat: number, lng: number } | null;
+    customers?: Array<{
+      name: string;
+      phone: string;
+      address: string;
+      orderValue: number;
+      deliveryFee: number;
+      status: 'pending' | 'delivered';
+      deliveredAt?: string;
+    }>;
   };
   financials: {
     order_value: number;
@@ -24,6 +33,7 @@ export interface Order {
   };
   invoice_url?: string;
   created_at?: string;
+  status_updated_at?: string;
   vendor_collected_at?: string | null;
   driver_confirmed_at?: string | null;
 }
@@ -119,7 +129,10 @@ export const deleteCanceledOrders = async (vendorId: string) => {
  * تحديث حالة الطلب
  */
 export const updateOrderStatus = async (orderId: string, status: Order['status'], driverId?: string) => {
-  const updates: Partial<Pick<Order, 'status' | 'driver_id'>> = { status };
+  const updates: any = { 
+    status,
+    status_updated_at: new Date().toISOString()
+  };
   if (driverId) updates.driver_id = driverId;
 
   return await supabase

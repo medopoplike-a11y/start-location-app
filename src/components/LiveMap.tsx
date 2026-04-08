@@ -39,7 +39,7 @@ export default function LiveMap({
   drivers = [], 
   vendors = [],
   orders = [],
-  center = [30.0444, 31.2357], // Default to Cairo
+  center = [30.1450, 31.6350], // Default to El Shorouk City
   zoom = 13,
   className = "h-[400px] w-full rounded-2xl overflow-hidden shadow-inner"
 }: LiveMapProps) {

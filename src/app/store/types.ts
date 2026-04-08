@@ -18,6 +18,15 @@ export interface Order {
   invoiceUrl?: string;
   vendorCollectedAt?: string | null;
   driverConfirmedAt?: string | null;
+  customers?: Array<{
+    name: string;
+    phone: string;
+    address: string;
+    orderValue: number;
+    deliveryFee: number;
+    status: 'pending' | 'delivered';
+    deliveredAt?: string;
+  }>;
   financials?: {
     order_value?: number;
     delivery_fee?: number;

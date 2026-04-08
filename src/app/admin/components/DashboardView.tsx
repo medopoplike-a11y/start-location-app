@@ -201,8 +201,8 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
              <div className="bg-white/90 backdrop-blur-md p-3 rounded-2xl border border-white shadow-xl flex items-center gap-3">
                 <div className="w-8 h-8 bg-sky-50 rounded-xl flex items-center justify-center border border-sky-100"><Truck className="w-4 h-4 text-sky-500" /></div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase">أسرع توصيل</p>
-                  <p className="text-[10px] font-black text-slate-800 tracking-tighter">حي المعادي</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase">المنطقة الرئيسية</p>
+                  <p className="text-[10px] font-black text-slate-800 tracking-tighter">مدينة الشروق</p>
                 </div>
              </div>
           </div>

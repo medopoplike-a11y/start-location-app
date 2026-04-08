@@ -29,6 +29,7 @@ interface DriverOrdersViewProps {
   onAcceptOrder: (orderId: string) => Promise<void>;
   onPickupOrder: (orderId: string) => Promise<void>;
   onDeliverOrder: (orderId: string) => Promise<void>;
+  onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
 }
 
 const statusConfig: Record<string, { label: string; dotColor: string; bg: string; text: string }> = {
@@ -50,9 +51,11 @@ export default function DriverOrdersView({
   onAcceptOrder,
   onPickupOrder,
   onDeliverOrder,
+  onDeliverCustomer,
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [filterTab, setFilterTab] = useState<"available" | "active" | "completed">("available");
 
   const handleAccept = async (orderId: string) => {
     setActionLoading(true);
@@ -75,11 +78,14 @@ export default function DriverOrdersView({
     setSelectedOrder(null);
   };
 
-  const activeOrders = orders
-    .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
-    .sort((a, b) => a.priority - b.priority);
+  const filteredOrders = orders.filter(o => {
+    if (filterTab === "available") return o.status === "pending";
+    if (filterTab === "active") return o.status === "assigned" || o.status === "in_transit";
+    if (filterTab === "completed") return o.status === "delivered";
+    return true;
+  }).sort((a, b) => a.priority - b.priority);
 
-  const vendorMarkersForMap = activeOrders
+  const vendorMarkersForMap = filteredOrders
     .filter(o => (o.status === "assigned" || o.status === "in_transit") && o.vendorCoords?.lat && o.vendorCoords?.lng)
     .map(o => ({ id: o.vendorId || o.id, name: o.vendor, lat: o.vendorCoords!.lat, lng: o.vendorCoords!.lng }));
 
@@ -102,6 +108,32 @@ export default function DriverOrdersView({
             subtitle="ج.م"
             delay={0.2}
           />
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex bg-white/60 backdrop-blur-md p-1 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+          {[
+            { id: "available", label: "متاحة", count: orders.filter(o => o.status === "pending").length },
+            { id: "active", label: "نشطة", count: orders.filter(o => o.status === "assigned" || o.status === "in_transit").length },
+            { id: "completed", label: "مكتملة", count: orders.filter(o => o.status === "delivered").length },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setFilterTab(tab.id as any)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-black transition-all whitespace-nowrap px-4 ${
+                filterTab === tab.id
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-lg text-[9px] ${filterTab === tab.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500"}`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Live Map or Inactive Warning */}
@@ -162,52 +194,54 @@ export default function DriverOrdersView({
               الطلبات الحالية
             </h2>
             <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-              {activeOrders.length} طلب نشط
+              {filteredOrders.length} طلب
             </span>
           </div>
 
           {/* Auto-Accept Toggle */}
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex items-center justify-between px-5 py-4 rounded-[24px] border transition-all ${
-              autoAccept
-                ? "bg-emerald-50 border-emerald-200"
-                : "bg-white border-slate-100"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                autoAccept ? "bg-emerald-500" : "bg-slate-100"
-              }`}>
-                <Truck className={`w-4 h-4 ${autoAccept ? "text-white" : "text-slate-400"}`} />
-              </div>
-              <div>
-                <p className={`text-[11px] font-black ${autoAccept ? "text-emerald-800" : "text-slate-700"}`}>
-                  القبول التلقائي
-                </p>
-                <p className={`text-[9px] font-bold ${autoAccept ? "text-emerald-500" : "text-slate-400"}`}>
-                  {autoAccept ? "مفعّل — يُقبل أول طلب تلقائياً" : "معطّل — قبول يدوي فقط"}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onToggleAutoAccept}
-              className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
-                autoAccept ? "bg-emerald-500" : "bg-slate-200"
+          {filterTab === "available" && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex items-center justify-between px-5 py-4 rounded-[24px] border transition-all ${
+                autoAccept
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-white border-slate-100"
               }`}
             >
-              <motion.span
-                layout
-                transition={{ type: "spring", stiffness: 700, damping: 30 }}
-                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md ${
-                  autoAccept ? "right-0.5" : "left-0.5"
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  autoAccept ? "bg-emerald-500" : "bg-slate-100"
+                }`}>
+                  <Truck className={`w-4 h-4 ${autoAccept ? "text-white" : "text-slate-400"}`} />
+                </div>
+                <div>
+                  <p className={`text-[11px] font-black ${autoAccept ? "text-emerald-800" : "text-slate-700"}`}>
+                    القبول التلقائي
+                  </p>
+                  <p className={`text-[9px] font-bold ${autoAccept ? "text-emerald-500" : "text-slate-400"}`}>
+                    {autoAccept ? "مفعّل — يُقبل أول طلب تلقائياً" : "معطّل — قبول يدوي فقط"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onToggleAutoAccept}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                  autoAccept ? "bg-emerald-500" : "bg-slate-200"
                 }`}
-              />
-            </button>
-          </motion.div>
+              >
+                <motion.span
+                  layout
+                  transition={{ type: "spring", stiffness: 700, damping: 30 }}
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md ${
+                    autoAccept ? "right-0.5" : "left-0.5"
+                  }`}
+                />
+              </button>
+            </motion.div>
+          )}
 
-          {activeOrders.length === 0 ? (
+          {filteredOrders.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -216,12 +250,11 @@ export default function DriverOrdersView({
               <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Truck className="w-10 h-10 text-slate-200" />
               </div>
-              <p className="text-sm text-slate-400 font-bold">لا توجد طلبات متاحة حالياً</p>
-              <p className="text-[10px] text-slate-300 mt-1 italic">سيتم إخطارك فور توفر طلبات جديدة</p>
+              <p className="text-sm text-slate-400 font-bold">لا توجد طلبات {filterTab === "available" ? "متاحة" : filterTab === "active" ? "نشطة" : "مكتملة"} حالياً</p>
             </motion.div>
           ) : (
             <div className="space-y-4">
-              {activeOrders.map((order, index) => {
+              {filteredOrders.map((order, index) => {
                 const sc = statusConfig[order.status] ?? statusConfig.pending;
                 return (
                   <motion.div
@@ -333,6 +366,7 @@ export default function DriverOrdersView({
           onAccept={handleAccept}
           onPickup={handlePickup}
           onDeliver={handleDeliver}
+          onDeliverCustomer={onDeliverCustomer}
           loading={actionLoading}
         />
       )}

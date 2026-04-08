@@ -19,7 +19,8 @@ import {
   RefreshCw,
   Zap,
   AlertTriangle,
-  Loader2
+  Loader2,
+  BarChart3
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
@@ -29,6 +30,7 @@ const DashboardView = dynamic(() => import("./components/DashboardView"), {
 });
 const SettlementsView = dynamic(() => import("./components/SettlementsView"), { ssr: false });
 const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: false });
+const ReportsView = dynamic(() => import("./components/ReportsView"), { ssr: false });
 const UserManagementView = dynamic(() => import("./components/UserManagementView"), { ssr: false });
 const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), { ssr: false });
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
@@ -139,7 +141,8 @@ function AdminContent() {
           driver_id: o.driver_id,
           amount: o.financials?.order_value || 0,
           delivery_fee: o.financials?.delivery_fee || 0,
-          created_at: o.created_at
+          created_at: o.created_at,
+          customers: o.customer_details?.customers
         }));
         setLiveOrders(live);
         setActivities(typedData.slice(0, 5).map((o) => ({
@@ -192,7 +195,18 @@ function AdminContent() {
           setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
             const w = typedWallets.find((wal) => wal.user_id === p.id);
             const location = typeof p.location === "object" && p.location !== null ? p.location : null;
-            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location };
+            return { 
+              id: p.id.slice(0, 8), 
+              id_full: p.id, 
+              name: p.full_name || "بدون اسم", 
+              type: "محل", 
+              orders: 0, 
+              balance: (w?.debt || 0) + (w?.system_balance || 0), 
+              status: "نشط", 
+              location,
+              commission_type: (p as any).commission_type,
+              commission_value: (p as any).commission_value
+            };
           }));
         }
       }
@@ -447,6 +461,32 @@ function AdminContent() {
     }
   }, [addActivity]);
 
+  const handleUpdateOrderStatusManual = useCallback(async (orderId: string, status: any) => {
+    const { error } = await updateOrderStatus(orderId, status);
+    if (!error) {
+      addActivity(`تعديل يدوي: حالة الطلب #${orderId.slice(0,8)} إلى ${translateStatus(status)}`);
+      setLiveOrders(prev => prev.map(o => o.id_full === orderId ? { ...o, status: translateStatus(status) } : o ));
+      fetchOrders(); // Refresh all data to ensure financials etc are updated
+    }
+  }, [addActivity, translateStatus, fetchOrders]);
+
+  const handleUpdateVendorCommission = useCallback(async (vendorId: string, type: 'percentage' | 'fixed', value: number) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        commission_type: type,
+        commission_value: value 
+      })
+      .eq('id', vendorId);
+
+    if (!error) {
+      addActivity(`تعديل نظام العمولة لمحل: ${vendors.find(v => v.id_full === vendorId)?.name}`);
+      setVendors(prev => prev.map(v => v.id_full === vendorId ? { ...v, commission_type: type, commission_value: value } : v));
+    } else {
+      console.error("Update commission error:", error);
+    }
+  }, [vendors, addActivity]);
+
   const handleSignOut = useCallback(async () => {
     try { await signOut(); } catch (error) { console.error('Sign out failed:', error); }
   }, []);
@@ -525,6 +565,7 @@ function AdminContent() {
           {[
             { id: "dashboard", label: "لوحة التحكم", icon: <LayoutDashboard className="w-5 h-5" /> },
             { id: "operations", label: "مركز العمليات", icon: <Zap className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || (manualMode ? "!" : undefined) },
+            { id: "reports", label: "التقارير", icon: <BarChart3 className="w-5 h-5" /> },
             { id: "users", label: "إدارة المستخدمين", icon: <Users className="w-5 h-5" /> },
             { id: "settlements", label: "التسويات المالية", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
             { id: "settings", label: "إعدادات النظام", icon: <Settings className="w-5 h-5" /> }
@@ -608,6 +649,7 @@ function AdminContent() {
                 onBroadcastMessage={handleBroadcast}
                 onAssign={handleAssignOrder}
                 onCancelOrder={handleCancelOrder}
+                onUpdateStatus={handleUpdateOrderStatusManual}
               />
             )}
 
@@ -618,9 +660,14 @@ function AdminContent() {
                 users={allUsers}
                 onAddDriver={() => setShowAddDriver(true)}
                 onAddVendor={() => setShowAddVendor(true)}
+                onUpdateVendorCommission={handleUpdateVendorCommission}
                 onToggleShiftLock={handleToggleShiftLock}
                 onResetUser={handleResetUser}
               />
+            )}
+
+            {activeView === "reports" && (
+              <ReportsView allOrders={allOrders} />
             )}
 
             {activeView === "settlements" && (

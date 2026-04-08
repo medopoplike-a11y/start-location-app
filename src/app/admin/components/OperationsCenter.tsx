@@ -38,6 +38,7 @@ interface OperationsCenterProps {
   onBroadcastMessage: (msg: string) => void;
   onAssign: (orderId: string, driverId: string, driverName: string) => Promise<void>;
   onCancelOrder?: (orderId: string) => Promise<void>;
+  onUpdateStatus?: (orderId: string, status: any) => Promise<void>;
 }
 
 export default function OperationsCenter({
@@ -56,7 +57,8 @@ export default function OperationsCenter({
   onRefresh,
   onBroadcastMessage,
   onAssign,
-  onCancelOrder
+  onCancelOrder,
+  onUpdateStatus
 }: OperationsCenterProps) {
   const [activeTab, setActiveTab] = useState<"monitor" | "distribution" | "system">("monitor");
   const [broadcastText, setBroadcastText] = useState("");
@@ -159,6 +161,7 @@ export default function OperationsCenter({
                 liveOrders={liveOrders} 
                 activities={activities} 
                 onCancelOrder={onCancelOrder} 
+                onUpdateStatus={onUpdateStatus}
               />
             )}
             {activeTab === "distribution" && (
