@@ -29,6 +29,7 @@ interface OrderFormModalProps {
   onFormDataChange: (next: FormState) => void;
   onPickCustomerLocation: () => void;
   onInvoiceUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  onCameraCapture?: () => void;
   onSave: () => void;
 }
 
@@ -43,6 +44,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
   onFormDataChange,
   onPickCustomerLocation,
   onInvoiceUpload,
+  onCameraCapture,
   onSave,
 }: OrderFormModalProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
@@ -94,7 +96,20 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 >
                   <MapPin size={20} />{formData.customerCoords ? "✓ موقع العميل محدد" : "تحديد موقع العميل"}
                 </button>
-                <label className={`flex-1 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"}`}><input type="file" className="hidden" accept="image/*" disabled={isSaving} onChange={onInvoiceUpload} /><Camera className="w-6 h-6" /><span className="text-xs">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم الرفع" : "رفع الفاتورة"}</span></label>
+                <div 
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+                      onCameraCapture?.();
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"}`}>
+                    <input type="file" className="hidden" accept="image/*" disabled={isSaving} onChange={onInvoiceUpload} />
+                    <Camera className="w-6 h-6" />
+                    <span className="text-xs">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم الرفع" : "رفع الفاتورة"}</span>
+                  </label>
+                </div>
               </div>
               <button onClick={onSave} disabled={!formData.customer || !formData.orderValue || uploadingInvoice || isSaving} className="w-full bg-orange-500 text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{isSaving ? <><Loader2 className="w-5 h-5 animate-spin" /> {editingOrder ? "جاري الحفظ..." : "جاري الإرسال..."}</> : (editingOrder ? "حفظ التعديلات" : "إرسال الطلب الآن")}</button>
             </div>

@@ -4,6 +4,7 @@ import * as React from "react";
 import { isNative, checkForAutoUpdate } from "@/lib/native-utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { RefreshCw, Download, CheckCircle, AlertTriangle } from "lucide-react";
+import { NativeBridge } from "./NativeBridge";
 
 /**
  * AppWrapper: A simple container to ensure the application is mounted
@@ -132,6 +133,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
   return (
     <>
+      <NativeBridge />
       <AnimatePresence>
         {(updateStatus !== "idle") && (
           <motion.div

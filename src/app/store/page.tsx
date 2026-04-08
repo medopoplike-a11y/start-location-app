@@ -507,6 +507,32 @@ function StoreContent() {
   const handleInvoiceUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !vendorId) return;
+    await processUpload(file);
+  };
+
+  const handleCameraCapture = async () => {
+    if (!vendorId) return;
+    try {
+      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Blob,
+        source: CameraSource.Prompt // Allows choosing between Camera or Photos
+      });
+
+      if (image.blob) {
+        const file = new File([image.blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+        await processUpload(file);
+      }
+    } catch (err: any) {
+      if (err.message !== "User cancelled photos app") {
+        error("فشل التقاط الصورة");
+      }
+    }
+  };
+
+  const processUpload = async (file: File) => {
     setUploadingInvoice(true);
     try {
       const fileName = `${vendorId}/${Date.now()}.${file.name.split('.').pop()}`;
@@ -693,6 +719,7 @@ function StoreContent() {
         onFormDataChange={setFormData}
         onPickCustomerLocation={handlePickCustomerLocation}
         onInvoiceUpload={handleInvoiceUpload}
+        onCameraCapture={handleCameraCapture}
         onSave={handleSaveOrder}
         onlineDriversCount={onlineDrivers.length}
       />
