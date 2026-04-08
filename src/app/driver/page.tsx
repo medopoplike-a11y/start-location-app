@@ -66,8 +66,21 @@ export default function DriverApp() {
     }, 1000);
   };
 
+  // Handle Body Scroll Lock when drawer is open
+  useEffect(() => {
+    if (showDrawer) {
+      document.body.classList.add('scroll-lock');
+    } else {
+      document.body.classList.remove('scroll-lock');
+    }
+  }, [showDrawer]);
+
   const onScroll = (e: React.UIEvent<HTMLElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
+    if (showDrawer) {
+      e.preventDefault();
+      return;
+    }
     if (scrollTop < 0) {
       const progress = Math.min(Math.abs(scrollTop) / 100, 1.5);
       setPullProgress(progress);

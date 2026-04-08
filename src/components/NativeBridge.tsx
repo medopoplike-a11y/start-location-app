@@ -46,11 +46,16 @@ export const NativeBridge = () => {
           await NavigationBar.setColor({ color: '#f8fafc' });
         }
 
-        // Keyboard
+        // Keyboard settings to fix white space
+        await Keyboard.setAccessoryBarVisible({ isVisible: false });
         if (Capacitor.getPlatform() === 'ios') {
           await Keyboard.setStyle({ style: KeyboardStyle.Light });
         }
-        await Keyboard.setAccessoryBarVisible({ isVisible: false });
+        
+        // Ensure keyboard doesn't resize the webview in a way that causes white space
+        // For Android, we often want 'adjustPan' instead of 'adjustResize' in AndroidManifest
+        // but via JS we can try to set the scroll behavior
+        await Keyboard.setScroll({ isDisabled: false });
       } catch (e) {
         console.warn('NativeBridge: UI config failed', e);
       }

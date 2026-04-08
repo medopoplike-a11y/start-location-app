@@ -13,28 +13,37 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: contain; /* Changed from none to contain for better feel */
     scroll-behavior: smooth;
-    user-select: none; /* Disable text selection for a more native feel */
+    user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
+    height: 100%;
+    overflow: hidden; /* Fix main scroll barrier */
   }
 
   body {
-    @apply antialiased overflow-x-hidden;
+    @apply antialiased;
     color: rgb(var(--foreground-rgb));
     background: #f8fafc;
-    min-height: 100vh;
-    font-feature-settings: 'pnum';
-    line-height: 1.6;
+    height: 100%;
+    overflow: hidden; /* Prevent body scroll, let main handle it */
+    position: fixed; /* Lock body position for native feel */
+    width: 100%;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Add utility to lock scroll when drawer is open */
+  .scroll-lock {
+    overflow: hidden !important;
+    touch-action: none;
+  }
+
   input, textarea, select {
     @apply rounded-2xl bg-white/80 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-800 transition-all backdrop-blur-md outline-none;
-    user-select: text !important; /* Re-enable for inputs */
+    user-select: text !important;
     -webkit-user-select: text !important;
   }
 
