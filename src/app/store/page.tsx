@@ -657,6 +657,7 @@ function StoreContent() {
   const handleInAppCapture = async (blob: Blob) => {
     // Determine the filename based on timestamp
     const timestamp = Date.now();
+    const file = new File([blob], `camera-${timestamp}.jpg`, { type: "image/jpeg" });
     
     if (cameraMode === "form") {
       setUploadingInvoice(true);
@@ -665,19 +666,16 @@ function StoreContent() {
         if (!currentVendorId) throw new Error("Vendor ID missing");
 
         const fileName = `${currentVendorId}/${timestamp}.jpg`;
-        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, blob, {
-          contentType: 'image/jpeg',
-          upsert: true
-        });
+        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
         
         if (uploadError) throw uploadError;
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
         setInvoiceUrl(publicUrl);
         success("تم التقاط ورفع الفاتورة بنجاح");
-      } catch (err) {
-        console.error("Form in-app upload error:", err);
-        error("فشل رفع الفاتورة");
+      } catch (err: any) {
+        console.error("Form in-app upload error details:", err);
+        error(`فشل رفع الفاتورة: ${err.message || 'خطأ غير معروف'}`);
       } finally {
         setUploadingInvoice(false);
       }
@@ -688,10 +686,7 @@ function StoreContent() {
         if (!currentVendorId) throw new Error("Vendor ID missing");
 
         const fileName = `${currentVendorId}/${timestamp}_quick_${quickUploadOrderId}.jpg`;
-        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, blob, {
-          contentType: 'image/jpeg',
-          upsert: true
-        });
+        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
         
         if (uploadError) throw uploadError;
         
@@ -701,9 +696,9 @@ function StoreContent() {
         
         setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: publicUrl } : o));
         success("تم تحديث الطلب بالفاتورة بنجاح");
-      } catch (err) {
-        console.error("Quick in-app upload error:", err);
-        error("فشل رفع الفاتورة السريع");
+      } catch (err: any) {
+        console.error("Quick in-app upload error details:", err);
+        error(`فشل رفع الفاتورة السريع: ${err.message || 'خطأ غير معروف'}`);
       } finally {
         setUploadingInvoice(false);
         setQuickUploadOrderId(null);
