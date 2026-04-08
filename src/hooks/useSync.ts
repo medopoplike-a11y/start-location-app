@@ -5,7 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 
-export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean = false) => {
+export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isAdmin: boolean = false) => {
   const [lastSync, setLastSync] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
   const [presenceData, setPresenceData] = useState<Record<string, any>>({});
@@ -17,17 +17,17 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
 
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const triggerUpdate = useCallback(() => {
-    // Debounce to prevent rapid multiple updates
+  const triggerUpdate = useCallback((payload?: any) => {
+    // Faster debounce for real-time feel (100ms instead of 300ms)
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
     syncTimeoutRef.current = setTimeout(() => {
       setIsSyncing(true);
-      if (onUpdateRef.current) onUpdateRef.current();
+      if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      setTimeout(() => setIsSyncing(false), 800);
+      setTimeout(() => setIsSyncing(false), 500);
       syncTimeoutRef.current = null;
-    }, 300); // 300ms debounce
+    }, 100); 
   }, []);
 
   useEffect(() => {
@@ -137,6 +137,10 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
           if (payload.target === 'all' || payload.target === userId) {
             triggerUpdate();
           }
+        })
+        .on('broadcast', { event: 'sync-update' }, ({ payload }) => {
+          console.log('useSync: Broadcast sync-update received', payload);
+          triggerUpdate(payload);
         })
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED' && userId) {

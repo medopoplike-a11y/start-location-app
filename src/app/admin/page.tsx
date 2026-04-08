@@ -256,8 +256,51 @@ function AdminContent() {
   }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
 
   // 8. Lifecycle & Sync Hooks
-  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, () => {
-    if (mounted && !authLoading && user) fetchData();
+  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, (payload) => {
+    if (mounted && !authLoading && user) {
+      // Delta Sync Optimization: Update specific states based on payload to avoid full re-fetch
+      if (payload && payload.table === 'profiles' && payload.new) {
+        const p = payload.new;
+        if (p.role === 'driver') {
+          setOnlineDrivers(prev => {
+            const existing = prev.find(d => d.id === p.id);
+            let loc = p.location;
+            if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+            
+            if (!p.is_online) return prev.filter(d => d.id !== p.id);
+            
+            const updatedDriver = {
+              id: p.id,
+              name: p.full_name || "غير معروف",
+              lat: loc?.lat || null,
+              lng: loc?.lng || null,
+              lastSeen: new Date(p.last_location_update || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            };
+            
+            if (updatedDriver.lat === null || updatedDriver.lng === null) return prev.filter(d => d.id !== p.id);
+            if (existing) return prev.map(d => d.id === p.id ? updatedDriver as OnlineDriver : d);
+            return [...prev, updatedDriver as OnlineDriver];
+          });
+          return; // Skip full fetch for driver location/status updates
+        } else if (p.role === 'vendor') {
+          // Optimization: Instant update for vendor location if it changes
+          setAllVendors(prev => {
+            const existing = prev.find(v => v.id === p.id);
+            let loc = p.location;
+            if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+            
+            if (existing && loc) {
+              return prev.map(v => v.id === p.id ? { ...v, lat: loc.lat, lng: loc.lng } : v);
+            }
+            return prev;
+          });
+          // Note: for vendors we still might want to fetchData for other data, so no early return
+        }
+      }
+      
+      // If it's an order update, we can also optimize later, but for now full fetch is safer for data consistency
+      fetchData();
+    }
   }, true);
 
   // KeepAwake: Prevent screen sleep if admin is using mobile to monitor

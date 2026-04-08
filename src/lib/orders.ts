@@ -145,18 +145,13 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
 
   const result = await query.select().single();
   
-  // Instant Sync via Broadcast
+  // Instant Sync via Broadcast - Optimization: Use existing system-wide channel
   if (!result.error) {
-    const channel = supabase.channel('sync-broadcast');
-    await channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.send({
-          type: 'broadcast',
-          event: 'sync-update',
-          payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
-        });
-        await supabase.removeChannel(channel);
-      }
+    const channel = supabase.channel('system_sync');
+    channel.send({
+      type: 'broadcast',
+      event: 'sync-update',
+      payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
     });
   }
 
@@ -186,7 +181,7 @@ export const subscribeToOrders = (callback: () => void, vendorId?: string) => {
     .subscribe();
 };
 
-export const subscribeToProfiles = (callback: () => void, profileId?: string) => {
+export const subscribeToProfiles = (callback: (payload?: any) => void, profileId?: string) => {
   const channel = supabase.channel(`profiles${profileId ? `:${profileId}` : ''}`);
   
   if (profileId) {
@@ -196,24 +191,30 @@ export const subscribeToProfiles = (callback: () => void, profileId?: string) =>
         schema: 'public', 
         table: 'profiles',
         filter: `id=eq.${profileId}`
-      }, callback)
+      }, (payload) => callback(payload))
       .subscribe();
   }
 
-  // For global profile changes (like online status), we should be careful.
-  // Instead of subscribing to ALL profile changes, we only care about is_online changes.
+  // For global profile changes (like online status and location)
   return channel
     .on('postgres_changes', { 
       event: 'UPDATE', 
       schema: 'public', 
       table: 'profiles'
     }, (payload) => {
-      // Only trigger if is_online status changed or it's an important update
-      // This helps reduce unnecessary refreshes from location updates
-      const oldStatus = (payload.old as any)?.is_online;
-      const newStatus = (payload.new as any)?.is_online;
-      if (oldStatus !== newStatus) {
-        callback();
+      const oldData = payload.old as any;
+      const newData = payload.new as any;
+      
+      // Trigger update if:
+      // 1. is_online changed
+      // 2. location changed (crucial for admin map)
+      // 3. is_locked changed
+      if (
+        oldData.is_online !== newData.is_online || 
+        JSON.stringify(oldData.location) !== JSON.stringify(newData.location) ||
+        oldData.is_locked !== newData.is_locked
+      ) {
+        callback(payload);
       }
     })
     .subscribe();
