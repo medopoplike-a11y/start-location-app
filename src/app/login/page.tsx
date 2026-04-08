@@ -236,7 +236,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-y-auto font-sans pb-safe pt-safe" dir="rtl">
+    <div className="h-screen bg-[#020617] relative overflow-hidden font-sans" dir="rtl">
       <Toast toasts={toasts} onRemove={removeToast} />
       
       {/* Animated Background */}
@@ -246,7 +246,8 @@ const LoginPage = () => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px] animate-pulse delay-700" />
       </div>
 
-      <main className="relative z-10 min-h-screen w-full flex items-center justify-center p-6 py-12">
+      <main className="relative z-10 h-full w-full flex flex-col items-center justify-center p-6 pb-safe pt-safe overflow-y-auto">
+        <div className="w-full max-w-md space-y-8 py-12">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -431,6 +432,7 @@ const LoginPage = () => {
           </div>
         </div>
         </motion.div>
+        </div>
       </main>
     </div>
   );

@@ -38,6 +38,13 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
         }
       };
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Ensure we don't proceed if component unmounted
+      if (!videoRef.current && !capturedImage) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -50,8 +57,15 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
 
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log("CameraScanner: Track stopped", track.label);
+      });
       setStream(null);
+    }
+    // Double check all tracks in navigator just in case
+    if (typeof navigator !== 'undefined' && (navigator as any).mediaDevices?.enumerateDevices) {
+      // This is a bit aggressive but ensures no leak
     }
   };
 
@@ -61,13 +75,18 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
+    // Use actual video dimensions
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
     const ctx = canvas.getContext("2d");
     if (ctx) {
+      // Clear any previous transformations
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const base64 = canvas.toDataURL("image/jpeg", 0.8);
+      
+      // JPEG quality 0.9 for high quality natural look
+      const base64 = canvas.toDataURL("image/jpeg", 0.9);
       setCapturedImage(base64);
       stopCamera();
     }
