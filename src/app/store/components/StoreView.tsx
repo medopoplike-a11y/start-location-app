@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2 } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera } from "lucide-react";
 import dynamic from "next/dynamic";
 import { PremiumCard } from "@/components/PremiumCard";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
@@ -34,6 +34,7 @@ interface StoreViewProps {
   onCollectDebt: (orderId: string) => void;
   onCancelOrder: (orderId: string) => void;
   onEditOrder: (order: Order) => void;
+  onQuickInvoiceUpload?: (order: Order) => void;
 }
 
 export default function StoreView({
@@ -52,6 +53,7 @@ export default function StoreView({
   onCollectDebt,
   onCancelOrder,
   onEditOrder,
+  onQuickInvoiceUpload,
 }: StoreViewProps) {
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
@@ -261,6 +263,17 @@ export default function StoreView({
                     </div>
 
                     <div className="flex gap-2">
+                      {isEditable && !order.invoiceUrl && onQuickInvoiceUpload && (
+                        <motion.button
+                          onClick={() => onQuickInvoiceUpload(order)}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="flex items-center justify-center bg-orange-500 text-white w-10 h-10 rounded-xl shadow-lg shadow-orange-100 transition-all"
+                          title="تصوير الفاتورة مباشر"
+                        >
+                          <Camera className="w-5 h-5" />
+                        </motion.button>
+                      )}
                       {isEditable ? (
                         <>
                           <motion.button

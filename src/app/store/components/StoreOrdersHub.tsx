@@ -23,6 +23,7 @@ interface StoreOrdersHubProps {
   onCollectDebt: (orderId: string) => void;
   onCancelOrder: (orderId: string) => void;
   onEditOrder: (order: Order | null) => void;
+  onQuickInvoiceUpload?: (order: Order) => void;
 }
 
 export default function StoreOrdersHub({
@@ -40,7 +41,8 @@ export default function StoreOrdersHub({
   onSetActiveTab,
   onCollectDebt,
   onCancelOrder,
-  onEditOrder
+  onEditOrder,
+  onQuickInvoiceUpload
 }: StoreOrdersHubProps) {
   const [viewMode, setViewMode] = useState<"active" | "history">("active");
 
@@ -114,6 +116,7 @@ export default function StoreOrdersHub({
               onCollectDebt={onCollectDebt}
               onCancelOrder={onCancelOrder}
               onEditOrder={onEditOrder}
+              onQuickInvoiceUpload={onQuickInvoiceUpload}
             />
           ) : (
             <HistoryView orders={orders} />

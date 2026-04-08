@@ -37,6 +37,56 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
   }, []);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("useSync: App visible, triggering sync...");
+        triggerUpdate();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log("useSync: Window focus, triggering sync...");
+      triggerUpdate();
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Capacitor App State
+    let appStateListener: any;
+    let networkListener: any;
+    
+    const setupCapacitor = async () => {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        const { App } = await import("@capacitor/app");
+        const { Network } = await import("@capacitor/network");
+
+        appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) {
+            console.log("useSync: App became active (Capacitor), triggering sync...");
+            triggerUpdate();
+          }
+        });
+
+        networkListener = await Network.addListener('networkStatusChange', (status) => {
+          if (status.connected) {
+            console.log("useSync: Network connected, triggering sync...");
+            triggerUpdate();
+          }
+        });
+      }
+    };
+    setupCapacitor();
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      if (appStateListener) appStateListener.remove();
+      if (networkListener) networkListener.remove();
+    };
+  }, [triggerUpdate]);
+
+  useEffect(() => {
     // 1. Postgres Changes Subscriptions
     const ordersSub: RealtimeChannel = subscribeToOrders(triggerUpdate);
     const profilesSub: RealtimeChannel = subscribeToProfiles(triggerUpdate);

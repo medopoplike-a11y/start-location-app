@@ -104,10 +104,10 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   }}
                   className="flex-1"
                 >
-                  <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"}`}>
+                  <label className={`w-full h-full p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer border-2 border-dashed transition-all active:scale-95 ${isSaving ? "opacity-60 cursor-not-allowed" : ""} ${invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-orange-50 text-orange-500 border-orange-200 shadow-sm shadow-orange-50"}`}>
                     <input type="file" className="hidden" accept="image/*" disabled={isSaving} onChange={onInvoiceUpload} />
-                    <Camera className="w-6 h-6" />
-                    <span className="text-xs">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم الرفع" : "رفع الفاتورة"}</span>
+                    <Camera className={`w-6 h-6 ${!invoiceUrl && !uploadingInvoice ? "animate-bounce" : ""}`} />
+                    <span className="text-[10px]">{uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تم رفع الفاتورة ✓" : "تصوير الفاتورة مباشر"}</span>
                   </label>
                 </div>
               </div>

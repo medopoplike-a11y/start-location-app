@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { Capacitor } from "@capacitor/core";
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
@@ -44,6 +45,11 @@ function StoreContent() {
 
   // Basic State
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const vendorIdRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    vendorIdRef.current = vendorId;
+  }, [vendorId]);
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
   const [activeView, setActiveView] = useState<"store" | "wallet" | "settings">("store");
@@ -82,6 +88,73 @@ function StoreContent() {
     prepTime: "15",
     customerCoords: null as { lat: number, lng: number } | null
   });
+
+  // Persistence: Save form state to localStorage
+  useEffect(() => {
+    if (showOrderForm) {
+      const state = { formData, editingOrder, invoiceUrl, showOrderForm };
+      localStorage.setItem('pending_order_form', JSON.stringify(state));
+    } else {
+      localStorage.removeItem('pending_order_form');
+    }
+  }, [formData, editingOrder, invoiceUrl, showOrderForm]);
+
+  // Persistence: Restore form state from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('pending_order_form');
+    if (saved) {
+      try {
+        const { formData: sFormData, editingOrder: sEditingOrder, invoiceUrl: sInvoiceUrl, showOrderForm: sShowOrderForm } = JSON.parse(saved);
+        if (sShowOrderForm) {
+          setFormData(sFormData);
+          setEditingOrder(sEditingOrder);
+          setInvoiceUrl(sInvoiceUrl);
+          setShowOrderForm(true);
+        }
+      } catch (e) {
+        console.error("Failed to restore form state", e);
+      }
+    }
+  }, []);
+
+  // Handle Camera Restore after OS kills activity
+  useEffect(() => {
+    const checkRestoredResult = async () => {
+      if (typeof window === 'undefined' || !(window as any).Capacitor?.isNativePlatform?.()) return;
+      
+      const { App } = await import("@capacitor/app");
+      const handle = await App.addListener('appRestoredResult', async (result) => {
+        if (result.pluginId === 'Camera' && result.methodName === 'getPhoto' && result.data) {
+          console.log("StorePage: Restored Camera result detected!");
+          // Wait for vendorId if not yet available
+          let attempts = 0;
+          while (!vendorIdRef.current && attempts < 10) {
+            await new Promise(r => setTimeout(r, 500));
+            attempts++;
+          }
+
+          if (!vendorIdRef.current) {
+            console.error("StorePage: Could not restore camera result, vendorId not found");
+            return;
+          }
+
+          if (result.data.path) {
+            try {
+              const response = await fetch(Capacitor.convertFileSrc(result.data.path));
+              const blob = await response.blob();
+              const file = new File([blob], `restored-camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+              await processUpload(file);
+            } catch (err) {
+              console.error("Failed to process restored camera image", err);
+              error("فشل استعادة الصورة الملتقطة");
+            }
+          }
+        }
+      });
+      return () => handle.remove();
+    };
+    checkRestoredResult();
+  }, []); // Only once on mount
 
   const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "" });
 
@@ -518,7 +591,7 @@ function StoreContent() {
         quality: 90,
         allowEditing: false,
         resultType: CameraResultType.Blob,
-        source: CameraSource.Prompt // Allows choosing between Camera or Photos
+        source: CameraSource.Camera // Directly open camera
       });
 
       if (image.blob) {
@@ -532,10 +605,54 @@ function StoreContent() {
     }
   };
 
+  const handleQuickInvoiceUpload = async (order: Order) => {
+    if (!vendorId) return;
+    try {
+      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Blob,
+        source: CameraSource.Camera
+      });
+
+      if (image.blob) {
+        setUploadingInvoice(true);
+        const file = new File([image.blob], `quick-camera-${order.id}.jpg`, { type: "image/jpeg" });
+        const fileName = `${vendorId}/${Date.now()}_quick_${order.id}.jpg`;
+        
+        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        
+        // Update order in DB
+        const { error: updateError } = await updateOrder(order.id, { invoice_url: publicUrl });
+        if (updateError) throw updateError;
+        
+        // Update local state
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, invoiceUrl: publicUrl } : o));
+        success("تم رفع الفاتورة وتحديث الطلب بنجاح");
+      }
+    } catch (err: any) {
+      if (err.message !== "User cancelled photos app") {
+        error("فشل رفع الفاتورة السريع");
+        console.error("Quick upload error:", err);
+      }
+    } finally {
+      setUploadingInvoice(false);
+    }
+  };
+
   const processUpload = async (file: File) => {
+    const currentVendorId = vendorIdRef.current;
+    if (!currentVendorId) {
+      console.warn("processUpload: No vendorId available yet, skipping upload");
+      return;
+    }
     setUploadingInvoice(true);
     try {
-      const fileName = `${vendorId}/${Date.now()}.${file.name.split('.').pop()}`;
+      const fileName = `${currentVendorId}/${Date.now()}.${file.name.split('.').pop()}`;
       const { error: dbError } = await supabase.storage.from('invoices').upload(fileName, file);
       if (dbError) throw dbError;
       const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
@@ -666,6 +783,7 @@ function StoreContent() {
             onCollectDebt={handleCollectDebt}
             onCancelOrder={handleCancelOrder}
             onEditOrder={handleOpenForm}
+            onQuickInvoiceUpload={handleQuickInvoiceUpload}
           />
         ) : activeView === "wallet" ? (
           <WalletView
