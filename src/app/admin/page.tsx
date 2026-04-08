@@ -360,14 +360,14 @@ function AdminContent() {
   }, [mounted, authLoading, fetchData, user, getErrorMessage]);
 
   useEffect(() => {
-    if (allOrders.length > 0 && appConfig) {
+    if (allOrders.length > 0) {
       const profits = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
           const deliveryFee = financials.delivery_fee ?? 0;
-          const driverComm = financials.system_commission ?? (deliveryFee * (appConfig.driver_commission / 100));
-          const vendorComm = financials.vendor_commission ?? (deliveryFee * (appConfig.vendor_commission / 100));
-          const insurance = financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee);
+          const driverComm = financials.system_commission ?? (deliveryFee * 0.15);
+          const vendorComm = financials.vendor_commission ?? (deliveryFee * 0.15);
+          const insurance = financials.insurance_fee ?? 2.0;
           return acc + driverComm + vendorComm + insurance;
         }
         return acc;
@@ -375,14 +375,14 @@ function AdminContent() {
       const fund = allOrders.reduce((acc, order) => {
         if (order.status === "delivered") {
           const financials = order.financials || {};
-          return acc + (financials.insurance_fee ?? (appConfig.safe_ride_fee + appConfig.vendor_fee));
+          return acc + (financials.insurance_fee ?? 2.0);
         }
         return acc;
       }, 0);
       setTotalProfits(profits);
       setInsuranceFund(fund);
     }
-  }, [allOrders, appConfig]);
+  }, [allOrders]);
 
   // 9. UI Handlers
   const handleBroadcast = useCallback(async (msg: string) => {

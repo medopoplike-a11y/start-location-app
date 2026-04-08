@@ -53,64 +53,66 @@ export default function WalletView({ companyCommission, balance, settlementHisto
       <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
 
       {/* Commission Card */}
-      <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden">
+      <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800">
         <div className="relative z-10">
-          <p className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">عمولة الشركة المستحقة</p>
-          <h3 className="text-4xl font-black">
-            {companyCommission.toLocaleString()} <span className="text-lg font-bold">ج.م</span>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">إجمالي مديونية الشركة</p>
+          </div>
+          <h3 className="text-4xl font-black flex items-baseline gap-2">
+            {companyCommission.toLocaleString()} 
+            <span className="text-lg font-bold opacity-40">ج.م</span>
           </h3>
 
           {/* Commission Breakdown */}
           {commissionDetails && (
-            <div className="mt-4 space-y-1.5 bg-white/10 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-4 h-4 text-orange-300" />
-                <p className="text-[11px] font-black text-white/80">تفاصيل العمولة (كل ١٥ يوم)</p>
+            <div className="mt-6 space-y-3 bg-white/5 rounded-[24px] p-5 border border-white/5 backdrop-blur-sm">
+              <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                <AlertCircle className="w-3.5 h-3.5 text-orange-400" />
+                <p className="text-[10px] font-black text-white/60">تفاصيل الحساب المالي (١٥٪ + ١ج)</p>
               </div>
-              <div className="flex justify-between text-[10px] text-white/70 font-bold">
-                {isFixed ? (
-                  <>
-                    <span>عمولة ثابتة ({commissionDetails?.commissionValue} ج.م × {orderCount} طلب)</span>
-                    <span>{commissionValue.toFixed(2)} ج.م</span>
-                  </>
-                ) : (
-                  <>
-                    <span>%{(rate * 100).toFixed(0)} من سعر التوصيل المتفق عليه</span>
-                    <span>{commissionValue.toFixed(2)} ج.م</span>
-                  </>
-                )}
-              </div>
-              <div className="flex justify-between text-[10px] text-white/70 font-bold">
-                <span>{orderCount} طلب × 1 ج.م (تأمين رحلة ثابت)</span>
-                <span>{(orderCount * 1).toFixed(2)} ج.م</span>
-              </div>
-              <div className="flex justify-between text-[10px] text-white font-black border-t border-white/20 pt-1.5">
-                <span>إجمالي رسوم التوصيل</span>
-                <span>{totalFees.toFixed(2)} ج.م</span>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-[11px] font-bold">
+                  <span className="text-white/50">عمولة الشركة (١٥٪)</span>
+                  <span className="text-white">{commissionValue.toFixed(2)} ج.م</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px] font-bold">
+                  <span className="text-white/50">تأمين رحلة (١ج ثابت)</span>
+                  <span className="text-white">{(orderCount * 1).toFixed(2)} ج.م</span>
+                </div>
+                <div className="h-px bg-white/5 my-1" />
+                <div className="flex justify-between items-center text-[11px] font-black text-orange-400">
+                  <span>إجمالي المستحق للشركة</span>
+                  <span>{(commissionValue + (orderCount * 1)).toFixed(2)} ج.م</span>
+                </div>
               </div>
             </div>
           )}
 
           <button
             onClick={onOpenSettlementModal}
-            className="mt-5 w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl text-xs font-bold transition-colors border border-white/10"
+            className="mt-6 w-full bg-orange-500 hover:bg-orange-600 py-4 rounded-2xl text-[11px] font-black transition-all shadow-lg shadow-orange-500/20 active:scale-95 border border-orange-400/20"
           >
-            طلب تسوية مديونية
+            تأكيد سداد المديونية للأدمن
           </button>
         </div>
       </div>
 
       {/* Balance Card */}
-      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
+      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden group hover:border-orange-200 transition-all">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="w-4 h-4 text-orange-500" />
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">مستحقات لدى الطيارين</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">مستحقاتك لدى الطيارين</p>
           </div>
-          <h3 className="text-4xl font-black text-gray-900">
-            {balance.toLocaleString()} <span className="text-lg font-bold text-gray-400">ج.م</span>
+          <h3 className="text-4xl font-black text-gray-900 flex items-baseline gap-2">
+            {balance.toLocaleString()} 
+            <span className="text-lg font-bold text-gray-300">ج.م</span>
           </h3>
-          <p className="text-[10px] text-gray-400 mt-2">المبالغ التي يحملها الطيارين من طلباتك ولم تُحصَّل بعد</p>
+          <p className="text-[10px] text-gray-400 font-bold mt-3 leading-relaxed">
+            هذه هي إجمالي قيمة الأوردرات التي استلمها الطيارين من المحل ولم يقوموا بتسليمها لك بعد.
+          </p>
         </div>
       </div>
 

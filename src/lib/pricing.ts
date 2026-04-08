@@ -15,6 +15,8 @@ export const VENDOR_INSURANCE_FEE = 1.0; // Vendor's insurance fee
 export interface OrderFinancials {
   totalFee: number;
   insuranceFundTotal: number; // Sum of driver + vendor insurance (2 EGP total per order)
+  driverInsurance: number;
+  vendorInsurance: number;
   systemCommission: number; // Driver side (15%)
   vendorCommission: number; // Vendor side (15%)
   driverEarnings: number;
@@ -52,6 +54,8 @@ export const calculateOrderFinancials = (customerCount: number = 1, manualDelive
   return {
     totalFee: Math.round(totalDeliveryFee * 100) / 100,
     insuranceFundTotal: driverInsurance + vendorInsurance,
+    driverInsurance,
+    vendorInsurance,
     systemCommission: driverSystemCommission,
     vendorCommission: vendorSystemCommission,
     driverEarnings,

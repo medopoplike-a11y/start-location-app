@@ -14,7 +14,7 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
+import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
@@ -461,8 +461,8 @@ function StoreContent() {
           .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
           .reduce((sum: number, o: any) => {
             const vndComm = o.financials?.vendor_commission || 0;
-            const insFee = o.financials?.insurance_fee || 0;
-            return sum + vndComm + (insFee / 2);
+            const vndIns = o.financials?.vendor_insurance || (o.financials?.insurance_fee ? o.financials.insurance_fee / 2 : 0);
+            return sum + vndComm + vndIns;
           }, 0);
         
         setCompanyCommission(calculatedCommission);
@@ -600,14 +600,7 @@ function StoreContent() {
     if (!navigator.geolocation) return error("متصفحك لا يدعم تحديد الموقع.");
     navigator.geolocation.getCurrentPosition((position) => {
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-      setFormData(prev => {
-        let fee = prev.deliveryFee;
-        if (vendorLocation) {
-          const dist = calculateDistance(vendorLocation.lat, vendorLocation.lng, coords.lat, coords.lng);
-          fee = Math.ceil(calculateDeliveryFee(dist)).toString();
-        }
-        return { ...prev, customerCoords: coords, deliveryFee: fee };
-      });
+      setFormData(prev => ({ ...prev, customerCoords: coords }));
       success("تم تحديد موقع العميل بنجاح!");
     }, () => error("فشل تحديد الموقع. تأكد من تفعيل الـ GPS."));
   };
@@ -732,7 +725,9 @@ function StoreContent() {
           system_commission: calculated.systemCommission, 
           vendor_commission: calculated.vendorCommission,
           driver_earnings: calculated.driverEarnings, 
-          insurance_fee: calculated.insuranceFundTotal 
+          insurance_fee: calculated.insuranceFundTotal,
+          vendor_insurance: calculated.vendorInsurance,
+          driver_insurance: calculated.driverInsurance
         },
         invoice_url: invoiceUrl || undefined
       };

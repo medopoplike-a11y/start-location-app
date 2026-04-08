@@ -53,59 +53,65 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
-        <PremiumCard
-          title="أرباح الفترة"
-          value={filteredEarnings.toFixed(0)}
-          subtitle="ج.م"
-          icon={<TrendingUp className="text-green-500" />}
-        />
-        <PremiumCard
-          title="مديونية المحلات"
-          value={(vendorDebt > 0 ? vendorDebt : calculatedVendorDebt).toLocaleString()}
-          subtitle="ج.م"
-          icon={<CreditCard className="text-orange-500" />}
-        />
+        <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-900/10">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp className="w-3.5 h-3.5 opacity-60" />
+            <p className="text-[10px] font-black uppercase tracking-wider opacity-60">صافي أرباحك</p>
+          </div>
+          <h3 className="text-3xl font-black">{filteredEarnings.toFixed(0)} <span className="text-xs font-bold opacity-40">ج.م</span></h3>
+          <p className="text-[9px] font-bold opacity-40 mt-1">بعد خصم عمولة الشركة</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <CreditCard className="w-3.5 h-3.5 text-orange-500" />
+            <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">مديونية المحلات</p>
+          </div>
+          <h3 className="text-3xl font-black text-gray-900">{(vendorDebt > 0 ? vendorDebt : calculatedVendorDebt).toLocaleString()} <span className="text-xs font-bold text-gray-300">ج.م</span></h3>
+          <p className="text-[9px] font-bold text-gray-400 mt-1">يجب ردها للمطاعم</p>
+        </div>
       </div>
 
       {/* Commission Box */}
-      <div className="bg-gray-900 border border-gray-800 rounded-[32px] p-6 text-white shadow-xl shadow-slate-200">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-orange-500" />
+      <div className="bg-gray-900 border border-gray-800 rounded-[40px] p-8 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl rounded-full" />
+        
+        <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20">
+              <AlertCircle className="w-6 h-6 text-orange-500" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إجمالي مستحقات الشركة</p>
-              <h3 className="text-2xl font-black text-white">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">إجمالي مديونية الشركة</p>
+              <h3 className="text-3xl font-black text-white">
                 {(systemBalance > 0 ? systemBalance : totalCommission).toFixed(2)} 
-                <span className="text-xs font-bold opacity-50 mr-1">ج.م</span>
+                <span className="text-sm font-bold opacity-30 mr-1.5">ج.م</span>
               </h3>
             </div>
           </div>
           <button 
             onClick={onOpenSettlementModal}
-            className="bg-orange-500 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all border border-orange-400/20"
           >
             تأكيد سداد
           </button>
         </div>
 
-        <div className="h-px bg-white/10 my-4" />
+        <div className="h-px bg-white/5 my-6" />
 
-        <div className="space-y-3">
+        <div className="space-y-4 relative z-10">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-black text-slate-400 uppercase">تفاصيل عمولة الفترة المختارة</p>
-            <span className="text-xs font-black text-orange-500">{totalCommission.toFixed(2)} ج.م</span>
+            <p className="text-[10px] font-black text-white/40 uppercase">تفاصيل الحساب المالي (١٥٪ + ١ج)</p>
           </div>
           
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">%{(commissionRate * 100).toFixed(0)} من التوصيل المتفق عليه</p>
-              <p className="text-xs font-black text-white">{(filteredFees * commissionRate).toFixed(2)} ج.م</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">عمولة النظام (١٥٪)</p>
+              <p className="text-sm font-black text-white">{(filteredFees * commissionRate).toFixed(2)} <span className="text-[10px] opacity-30">ج.م</span></p>
             </div>
-            <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-              <p className="text-[8px] font-black text-slate-500 uppercase mb-1">تأمين رحلة ثابت ({filteredHistory.length} طلب)</p>
-              <p className="text-xs font-black text-white">{(filteredHistory.length * 1.0).toFixed(2)} ج.م</p>
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">تأمين ثابت ({filteredHistory.length} طلب)</p>
+              <p className="text-sm font-black text-white">{(filteredHistory.length * 1.0).toFixed(2)} <span className="text-[10px] opacity-30">ج.م</span></p>
             </div>
           </div>
         </div>
