@@ -196,9 +196,17 @@ export default function OrderDetailsModal({
 
             {/* Vendor (Pickup Point) */}
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-1.5">
-                <Store className="w-3 h-3" /> المحل (نقطة الاستلام)
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                  <Store className="w-3 h-3" /> المحل (نقطة الاستلام)
+                </p>
+                {order.financials?.prep_time && (
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg text-[9px] font-black border border-amber-100">
+                    <Clock className="w-3 h-3" />
+                    {order.financials.prep_time} دقيقة تجهيز
+                  </div>
+                )}
+              </div>
               <div className="flex items-center justify-between mb-2">
                 <p className="font-black text-slate-900">{order.vendor}</p>
                 {order.vendorPhone && (
@@ -211,6 +219,37 @@ export default function OrderDetailsModal({
                   </a>
                 )}
               </div>
+
+              {/* Invoice Preview if exists */}
+              {(order as any).invoiceUrl && (
+                <div className="mt-3 mb-3 p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600">
+                      <Camera className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-600">توجد صورة للفاتورة</span>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      if (Capacitor.isNativePlatform()) {
+                        try {
+                          const { Browser } = await import("@capacitor/browser");
+                          await Browser.open({ url: (order as any).invoiceUrl });
+                        } catch (err) {
+                          window.open((order as any).invoiceUrl, '_blank');
+                        }
+                      } else {
+                        window.open((order as any).invoiceUrl, '_blank');
+                      }
+                    }}
+                    className="text-[10px] font-black text-sky-600 hover:underline flex items-center gap-1"
+                  >
+                    عرض الفاتورة
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
               {/* Vendor Location Navigation */}
               {order.vendorCoords ? (
                 <a

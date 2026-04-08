@@ -41,6 +41,17 @@ export default function DriverApp() {
   const [vendorDebt, setVendorDebt] = useState(0);
   const [systemBalance, setSystemBalance] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
+
+  // Handle Body Scroll Lock when drawer is open
+  useEffect(() => {
+    if (showDrawer) {
+      document.body.classList.add('scroll-lock');
+    } else {
+      document.body.classList.remove('scroll-lock');
+    }
+    return () => document.body.classList.remove('scroll-lock');
+  }, [showDrawer]);
+
   // 4. Pickup Timeout Check (15 minutes)
   useEffect(() => {
     if (!driverId || orders.length === 0) return;
@@ -481,9 +492,24 @@ export default function DriverApp() {
     // Optimistic Update: Update UI immediately
     const originalOrders = [...orders];
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o));
-    toastSuccess("تم قبول الطلب! جاري التحديث...");
 
     try {
+      // 1. Check if order is still pending to avoid race conditions
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('status, driver_id')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError || !currentOrder) {
+        throw new Error("لم يتم العثور على الطلب أو حدث خطأ في الاتصال");
+      }
+
+      if (currentOrder.status !== 'pending' || currentOrder.driver_id) {
+        throw new Error("عذراً، هذا الطلب تم قبوله من قبل طيار آخر.");
+      }
+
+      // 2. Perform the update with a condition (double check)
       const { error: dbError } = await supabase
         .from('orders')
         .update({ 
@@ -491,16 +517,19 @@ export default function DriverApp() {
           driver_id: driverId,
           status_updated_at: new Date().toISOString()
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('status', 'pending'); // Ensure it's still pending during update
 
       if (dbError) throw dbError;
       
+      toastSuccess("تم قبول الطلب بنجاح! بالتوفيق.");
+      
       // Update data in background
       await Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
-    } catch (err) {
+    } catch (err: any) {
       // Rollback on error
       setOrders(originalOrders);
-      toastError("فشل قبول الطلب. حاول مرة أخرى.");
+      toastError(err.message || "فشل قبول الطلب. حاول مرة أخرى.");
       console.error("handleAcceptOrder error:", err);
     }
   };
@@ -624,7 +653,7 @@ export default function DriverApp() {
       <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-col font-sans" dir="rtl">
         <Toast toasts={toasts} onRemove={removeToast} />
 
-        <div className="relative z-10 flex flex-col h-full flex-1">
+        <div className="relative z-10 flex flex-col min-h-full">
 
           <DriverHeader
             driverName={driverName}
@@ -640,7 +669,7 @@ export default function DriverApp() {
             onSync={manualSync}
           />
 
-          <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
+          <main className="p-4 space-y-6 pb-24">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, Maximize2 } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
+import { Capacitor } from "@capacitor/core";
 
 interface ImagePreviewModalProps {
   url: string | null;
@@ -15,6 +16,21 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
   useBackButton(onClose, show);
 
   if (!url) return null;
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!url) return;
+
+    if (Capacitor.isNativePlatform()) {
+      e.preventDefault();
+      try {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url });
+      } catch (err) {
+        window.open(url, '_blank');
+      }
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -44,7 +60,7 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
                 download 
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
+                onClick={handleDownload}
                 className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white active:scale-95 transition-all"
               >
                 <Download className="w-6 h-6" />

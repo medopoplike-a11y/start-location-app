@@ -93,9 +93,20 @@ export const useSync = (userId?: string, onUpdate?: () => void, isAdmin: boolean
     let settlementsSub: RealtimeChannel | undefined;
     let syncChannel: RealtimeChannel | undefined;
 
-    const subscribe = () => {
+    const subscribe = async () => {
+      // Get user role to decide on subscription strategy
+      let userRole: string | null = null;
+      if (userId) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+        userRole = profile?.role || null;
+      }
+
       // 1. Postgres Changes Subscriptions with intelligent filtering
-      ordersSub = subscribeToOrders(triggerUpdate, isAdmin ? undefined : userId);
+      // For drivers, we don't want to filter by vendorId because they need to see ALL pending orders
+      // and orders assigned to them. RLS will handle the security.
+      const orderFilterId = (isAdmin || userRole === 'driver') ? undefined : userId;
+      
+      ordersSub = subscribeToOrders(triggerUpdate, orderFilterId);
       profilesSub = subscribeToProfiles(triggerUpdate, isAdmin ? undefined : userId);
       
       if (isAdmin) {

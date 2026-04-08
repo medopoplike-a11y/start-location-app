@@ -136,12 +136,31 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
   };
   if (driverId) updates.driver_id = driverId;
 
-  return await supabase
-    .from('orders')
-    .update(updates)
-    .eq('id', orderId)
-    .select()
-    .single();
+  // If accepting, ensure it's still pending
+  let query = supabase.from('orders').update(updates).eq('id', orderId);
+  
+  if (status === 'assigned') {
+    query = query.eq('status', 'pending');
+  }
+
+  const result = await query.select().single();
+  
+  // Instant Sync via Broadcast
+  if (!result.error) {
+    const channel = supabase.channel('sync-broadcast');
+    await channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.send({
+          type: 'broadcast',
+          event: 'sync-update',
+          payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
+        });
+        await supabase.removeChannel(channel);
+      }
+    });
+  }
+
+  return result;
 };
 
 /**

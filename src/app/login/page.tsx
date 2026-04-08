@@ -17,7 +17,7 @@ const LoginPage = () => {
   const getRedirectPath = (role: string) => {
     const r = role.toLowerCase();
     if (r === "admin") return "/admin";
-    if (r === "vendor") return "/vendor";
+    if (r === "vendor") return "/store";
     return "/driver";
   };
 
@@ -221,7 +221,7 @@ const LoginPage = () => {
           }
         } catch (redirErr) {
           console.error("LoginPage: Redirection failed", redirErr);
-          window.location.assign("/driver/"); 
+          window.location.assign("/driver"); 
         }
       }, redirectDelay);
     } catch (err: any) {
@@ -233,17 +233,20 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      <div className="silver-live-bg" />
-      
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] animate-pulse-soft" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] animate-pulse-soft" />
+    <div className="min-h-screen bg-[#020617] relative overflow-y-auto overflow-x-hidden font-sans pb-safe pt-safe" dir="rtl">
+      {/* Animated Background */}
+      <div className="fixed inset-0 z-0">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/20 via-slate-900 to-black" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px] animate-pulse delay-700" />
+      </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md z-10"
-      >
+      <main className="relative z-10 min-h-screen flex items-center justify-center p-6 py-12">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
         <div className="glass-morphism p-8 md:p-12 rounded-[3rem] shadow-2xl relative">
           <div className="flex flex-col items-center mb-12">
             <div className="relative mb-6">
@@ -422,7 +425,8 @@ const LoginPage = () => {
             </div>
           </div>
         </div>
-      </motion.div>
+        </motion.div>
+      </main>
     </div>
   );
 };

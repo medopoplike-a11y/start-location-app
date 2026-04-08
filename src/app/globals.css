@@ -13,17 +13,27 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
-    overscroll-behavior-y: none;
     scroll-behavior: smooth;
+    height: 100%;
+    overflow-x: hidden;
   }
   body {
     @apply antialiased;
     color: rgb(var(--foreground-rgb));
     background: #f8fafc;
-    min-height: 100vh;
+    min-height: 100%;
     font-feature-settings: 'pnum';
     line-height: 1.6;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Add utility to lock scroll when drawer is open */
+  .scroll-lock {
+    overflow: hidden !important;
+    touch-action: none;
   }
 
   input, textarea, select {

@@ -68,6 +68,17 @@ function StoreContent() {
   const [loading, setLoading] = useState(true);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Handle Body Scroll Lock when drawer is open
+  useEffect(() => {
+    if (showDrawer) {
+      document.body.classList.add('scroll-lock');
+    } else {
+      document.body.classList.remove('scroll-lock');
+    }
+    return () => document.body.classList.remove('scroll-lock');
+  }, [showDrawer]);
+
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
@@ -329,9 +340,9 @@ function StoreContent() {
           if (role !== 'vendor' && role !== 'admin') {
             console.warn("StorePage: Unauthorized role", role);
             if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-              window.location.assign("/login/");
+              window.location.assign("/login");
             } else {
-              router.replace("/login/");
+              router.replace("/login");
             }
             return;
           }
@@ -993,7 +1004,7 @@ function StoreContent() {
         isSurgeActive={appConfig.surge_pricing_active}
       />
 
-      <main className="flex-1 p-4 space-y-6 pb-24 overflow-y-auto">
+      <main className="p-4 space-y-6 pb-24 min-h-full">
         {activeView === "store" ? (
           <StoreOrdersHub
             orders={orders}
