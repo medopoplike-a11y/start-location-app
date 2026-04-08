@@ -28,9 +28,9 @@
       "presentationOptions": ["badge", "sound", "alert"]
     },
     "Keyboard": {
-      "resize": "native",
+      "resize": "none",
       "style": "dark",
-      "resizeOnFullScreen": true
+      "resizeOnFullScreen": false
     },
     "BackgroundGeolocation": {
       "staleLocationInterval": 10000,
