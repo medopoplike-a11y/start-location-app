@@ -35,6 +35,8 @@ interface StoreViewProps {
   onCancelOrder: (orderId: string) => void;
   onEditOrder: (order: Order) => void;
   onQuickInvoiceUpload?: (order: Order) => void;
+  uploadingInvoice?: boolean;
+  quickUploadOrderId?: string | null;
 }
 
 export default function StoreView({
@@ -54,6 +56,8 @@ export default function StoreView({
   onCancelOrder,
   onEditOrder,
   onQuickInvoiceUpload,
+  uploadingInvoice,
+  quickUploadOrderId
 }: StoreViewProps) {
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
@@ -266,12 +270,21 @@ export default function StoreView({
                       {isEditable && !order.invoiceUrl && onQuickInvoiceUpload && (
                         <motion.button
                           onClick={() => onQuickInvoiceUpload(order)}
+                          disabled={uploadingInvoice && quickUploadOrderId === order.id}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className="flex items-center justify-center bg-orange-500 text-white w-10 h-10 rounded-xl shadow-lg shadow-orange-100 transition-all"
-                          title="تصوير الفاتورة مباشر"
+                          className={`flex items-center justify-center w-10 h-10 rounded-xl shadow-lg transition-all ${
+                            uploadingInvoice && quickUploadOrderId === order.id
+                              ? "bg-slate-100 text-slate-400 shadow-none cursor-not-allowed"
+                              : "bg-orange-500 text-white shadow-orange-100"
+                          }`}
+                          title={uploadingInvoice && quickUploadOrderId === order.id ? "جاري الرفع..." : "تصوير الفاتورة مباشر"}
                         >
-                          <Camera className="w-5 h-5" />
+                          {uploadingInvoice && quickUploadOrderId === order.id ? (
+                            <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                          ) : (
+                            <Camera className="w-5 h-5" />
+                          )}
                         </motion.button>
                       )}
                       {isEditable ? (

@@ -655,18 +655,44 @@ function StoreContent() {
   };
 
   const handleInAppCapture = async (blob: Blob) => {
-    const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+    // Determine the filename based on timestamp
+    const timestamp = Date.now();
     
     if (cameraMode === "form") {
-      await processUpload(file);
+      setUploadingInvoice(true);
+      try {
+        const currentVendorId = vendorIdRef.current;
+        if (!currentVendorId) throw new Error("Vendor ID missing");
+
+        const fileName = `${currentVendorId}/${timestamp}.jpg`;
+        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        setInvoiceUrl(publicUrl);
+        success("تم التقاط ورفع الفاتورة بنجاح");
+      } catch (err) {
+        console.error("Form in-app upload error:", err);
+        error("فشل رفع الفاتورة");
+      } finally {
+        setUploadingInvoice(false);
+      }
     } else if (cameraMode === "quick" && quickUploadOrderId) {
       setUploadingInvoice(true);
       try {
         const currentVendorId = vendorIdRef.current;
-        if (!currentVendorId) return;
+        if (!currentVendorId) throw new Error("Vendor ID missing");
 
-        const fileName = `${currentVendorId}/${Date.now()}_quick_${quickUploadOrderId}.jpg`;
-        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
+        const fileName = `${currentVendorId}/${timestamp}_quick_${quickUploadOrderId}.jpg`;
+        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+        
         if (uploadError) throw uploadError;
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
@@ -674,7 +700,7 @@ function StoreContent() {
         if (updateError) throw updateError;
         
         setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: publicUrl } : o));
-        success("تم رفع الفاتورة وتحديث الطلب بنجاح");
+        success("تم تحديث الطلب بالفاتورة بنجاح");
       } catch (err) {
         console.error("Quick in-app upload error:", err);
         error("فشل رفع الفاتورة السريع");
@@ -683,25 +709,6 @@ function StoreContent() {
         setQuickUploadOrderId(null);
       }
     }
-  };
-
-  const processUpload = async (file: File) => {
-    const currentVendorId = vendorIdRef.current;
-    if (!currentVendorId) {
-      console.warn("processUpload: No vendorId available yet, skipping upload");
-      return;
-    }
-    setUploadingInvoice(true);
-    try {
-      const fileName = `${currentVendorId}/${Date.now()}.${file.name.split('.').pop()}`;
-      const { error: dbError } = await supabase.storage.from('invoices').upload(fileName, file);
-      if (dbError) throw dbError;
-      const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-      setInvoiceUrl(publicUrl);
-      success("تم رفع الفاتورة بنجاح");
-    } catch {
-      error("فشل رفع الفاتورة. حاول مرة أخرى.");
-    } finally { setUploadingInvoice(false); }
   };
 
   const handleUpdateLocation = async () => {
@@ -826,6 +833,8 @@ function StoreContent() {
             onCancelOrder={handleCancelOrder}
             onEditOrder={handleOpenForm}
             onQuickInvoiceUpload={handleQuickInvoiceUpload}
+            uploadingInvoice={uploadingInvoice}
+            quickUploadOrderId={quickUploadOrderId}
           />
         ) : activeView === "wallet" ? (
           <WalletView
