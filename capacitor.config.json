@@ -28,7 +28,7 @@
       "presentationOptions": ["badge", "sound", "alert"]
     },
     "Keyboard": {
-      "resize": "none",
+      "resize": "native",
       "style": "dark",
       "resizeOnFullScreen": true
     },
