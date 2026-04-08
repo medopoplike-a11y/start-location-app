@@ -454,7 +454,7 @@ export default function DriverApp() {
   };
 
   // Sync with useSync hook
-  const { triggerUpdate } = useSync(driverId || undefined, () => {
+  useSync(driverId || undefined, () => {
     if (driverId) {
       void Promise.allSettled([
         withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
@@ -470,7 +470,7 @@ export default function DriverApp() {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
       }
-    } catch (e) {}
+    } catch { }
     const newStatus = !isActive;
     setIsActive(newStatus);
     if (typeof window !== "undefined") {

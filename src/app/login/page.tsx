@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn, getUserProfile } from "@/lib/auth";
+import { signIn } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
