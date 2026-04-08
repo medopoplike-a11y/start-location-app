@@ -4,6 +4,9 @@ import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { Preferences } from "@capacitor/preferences";
+import { KeepAwake } from "@capacitor-community/keep-awake";
+import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
@@ -55,14 +58,48 @@ const [vendorDebt, setVendorDebt] = useState(0);
     }
   };
 
+  // 2. KeepAwake: Prevent screen from turning off while online
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedActive = localStorage.getItem("driver_is_active");
-      if (savedActive !== null) setIsActive(savedActive === "true");
+    if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(() => {});
+      return () => {
+        KeepAwake.allowSleep().catch(() => {});
+      };
     }
+  }, [isActive]);
+
+  // 3. Persistent state for isActive using Native Preferences
+  useEffect(() => {
+    const saveState = async () => {
+      if (Capacitor.isNativePlatform()) {
+        await Preferences.set({ key: 'driver_is_active', value: isActive ? "true" : "false" });
+      } else {
+        localStorage.setItem("driver_is_active", isActive ? "true" : "false");
+      }
+    };
+    saveState();
+  }, [isActive]);
+
+  useEffect(() => {
+    const restoreState = async () => {
+      let savedActive = null;
+      let savedAuto = null;
+      if (Capacitor.isNativePlatform()) {
+        const { value: activeVal } = await Preferences.get({ key: 'driver_is_active' });
+        const { value: autoVal } = await Preferences.get({ key: 'driver_auto_accept' });
+        savedActive = activeVal;
+        savedAuto = autoVal;
+      } else {
+        savedActive = localStorage.getItem("driver_is_active");
+        savedAuto = localStorage.getItem("driver_auto_accept");
+      }
+      if (savedActive !== null) setIsActive(savedActive === "true");
+      if (savedAuto !== null) setAutoAccept(savedAuto === "true");
+    };
+    restoreState();
 
     // Mobile-optimized fallback: Detect Capacitor, extend timeout
-    const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+    const isCapacitor = typeof window !== 'undefined' && Capacitor.isNativePlatform();
     const fallbackMs = isCapacitor ? 15000 : 5000; // 15s mobile, 5s web
     const hardFallback = setTimeout(() => {
       console.log(`DriverPage: Hard fallback triggered (${fallbackMs/1000}s, Capacitor: ${isCapacitor})`);
@@ -305,7 +342,11 @@ const [vendorDebt, setVendorDebt] = useState(0);
     const newStatus = !isActive;
     setIsActive(newStatus);
     if (typeof window !== "undefined") {
-      localStorage.setItem("driver_is_active", newStatus.toString());
+      if (Capacitor.isNativePlatform()) {
+        Preferences.set({ key: 'driver_is_active', value: newStatus.toString() }).catch(() => {});
+      } else {
+        localStorage.setItem("driver_is_active", newStatus.toString());
+      }
     }
     if (driverId) {
       await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
@@ -331,7 +372,11 @@ const [vendorDebt, setVendorDebt] = useState(0);
   const toggleAutoAccept = () => {
     const newAuto = !autoAccept;
     setAutoAccept(newAuto);
-    localStorage.setItem('driver_auto_accept', newAuto.toString());
+    if (Capacitor.isNativePlatform()) {
+      Preferences.set({ key: 'driver_auto_accept', value: newAuto.toString() }).catch(() => {});
+    } else {
+      localStorage.setItem('driver_auto_accept', newAuto.toString());
+    }
     if (newAuto && isActive && driverId && pollInterval === null) {
       // start poll
       const interval = setInterval(async () => {

@@ -34,6 +34,8 @@ const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), 
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
+import { Capacitor } from "@capacitor/core";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
@@ -240,6 +242,16 @@ function AdminContent() {
   const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, () => {
     if (mounted && !authLoading && user) fetchData();
   }, true);
+
+  // KeepAwake: Prevent screen sleep if admin is using mobile to monitor
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(() => {});
+      return () => {
+        KeepAwake.allowSleep().catch(() => {});
+      };
+    }
+  }, [mounted]);
 
   useEffect(() => {
     setMounted(true);
