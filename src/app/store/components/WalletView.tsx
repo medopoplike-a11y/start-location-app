@@ -45,7 +45,7 @@ export default function WalletView({ companyCommission, balance, settlementHisto
   const totalFees = commissionDetails?.totalDeliveryFees ?? 0;
   const orderCount = commissionDetails?.orderCount ?? 0;
   
-  const commissionValue = isFixed ? (commissionDetails?.commissionValue ?? 0) : (totalFees * rate);
+  const commissionValue = isFixed ? ((commissionDetails?.commissionValue ?? 0) * orderCount) : (totalFees * rate);
   const fixedInsurance = orderCount * perOrder;
 
   return (

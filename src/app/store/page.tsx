@@ -426,14 +426,23 @@ function StoreContent() {
 
       if (dbOrders.status === 'fulfilled' && dbOrders.value) {
         setOrders(dbOrders.value.map(mapDBOrderToUI));
-        const deliveredCommission = dbOrders.value
+        
+        // حساب العمولة المستحقة محلياً كاحتياطي في حال تأخر تحديث قاعدة البيانات
+        const calculatedCommission = dbOrders.value
           .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
-          .reduce((sum: number, o: any) => sum + (o.financials?.vendor_commission || 0), 0);
-        setCompanyCommission(deliveredCommission);
+          .reduce((sum: number, o: any) => {
+            const vndComm = o.financials?.vendor_commission || 0;
+            const insFee = o.financials?.insurance_fee || 0;
+            return sum + vndComm + (insFee / 2);
+          }, 0);
+        
+        setCompanyCommission(calculatedCommission);
       }
 
+      // إذا كانت قيمة المحفظة في قاعدة البيانات موجودة، نستخدم القيمة الأكبر لضمان الدقة
       if (walletRes.status === 'fulfilled' && walletRes.value.data) {
-        setCompanyCommission(walletRes.value.data.system_balance || 0);
+        const dbBalance = walletRes.value.data.system_balance || 0;
+        setCompanyCommission(prev => Math.max(prev, dbBalance));
       }
 
       if (settlementsRes.status === 'fulfilled' && settlementsRes.value.data) {
@@ -975,8 +984,8 @@ function StoreContent() {
             balance={balance}
             settlementHistory={settlementHistory}
             commissionDetails={{
-              totalDeliveryFees: orders.filter(o => o.status === "delivered").reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
-              orderCount: orders.filter(o => o.status === "delivered").length,
+              totalDeliveryFees: orders.filter(o => o.status === "delivered" && !o.vendorCollectedAt).reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
+              orderCount: orders.filter(o => o.status === "delivered" && !o.vendorCollectedAt).length,
               commissionRate: appConfig.vendor_commission / 100,
               commissionPerOrder: appConfig.vendor_fee || 1,
               commissionType: appConfig.vendor_commission_type,
