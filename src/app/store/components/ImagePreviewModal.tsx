@@ -39,11 +39,11 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/95 z-[200] flex flex-col"
+          className="fixed inset-0 bg-black/95 z-[200] flex flex-col touch-none"
           onClick={onClose}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 relative z-10">
+          <div className="flex items-center justify-between p-6 relative z-10 safe-top">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center">
                 <Maximize2 className="w-5 h-5 text-white" />
@@ -82,14 +82,21 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="flex-1 flex items-center justify-center p-4"
+            className="flex-1 flex items-center justify-center p-2 md:p-4 overflow-hidden relative"
           >
-            <img
-              src={url}
-              alt="Invoice Preview"
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+            <div className="relative w-full h-full flex items-center justify-center">
+              <img
+                src={url}
+                alt="Invoice Preview"
+                className="max-w-full max-h-full w-auto h-auto object-contain rounded-xl shadow-2xl border border-white/5"
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: 'calc(100vh - 180px)',
+                  display: 'block'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
           </motion.div>
 
           {/* Footer Hint */}

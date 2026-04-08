@@ -10,10 +10,13 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 
 const isSupabaseConfigured = config.isConfigured();
 
 const LoginPage = () => {
+  const { toasts, removeToast } = useToast();
   const getRedirectPath = (role: string) => {
     const r = role.toLowerCase();
     if (r === "admin") return "/admin";
@@ -233,7 +236,9 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-y-auto overflow-x-hidden font-sans pb-safe pt-safe" dir="rtl">
+    <div className="min-h-screen bg-[#020617] relative overflow-y-auto font-sans pb-safe pt-safe" dir="rtl">
+      <Toast toasts={toasts} onRemove={removeToast} />
+      
       {/* Animated Background */}
       <div className="fixed inset-0 z-0">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/20 via-slate-900 to-black" />
@@ -241,7 +246,7 @@ const LoginPage = () => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px] animate-pulse delay-700" />
       </div>
 
-      <main className="relative z-10 min-h-screen flex items-center justify-center p-6 py-12">
+      <main className="relative z-10 min-h-screen w-full flex items-center justify-center p-6 py-12">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

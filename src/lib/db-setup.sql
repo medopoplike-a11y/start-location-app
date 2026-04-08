@@ -188,6 +188,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_details JSONB NOT NULL,
   financials JSONB NOT NULL,
   invoice_url TEXT,
+  status_updated_at TIMESTAMP WITH TIME ZONE,
   vendor_collected_at TIMESTAMP WITH TIME ZONE,
   driver_confirmed_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
@@ -198,6 +199,10 @@ DO $$
 BEGIN 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='invoice_url') THEN
     ALTER TABLE orders ADD COLUMN invoice_url TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='status_updated_at') THEN
+    ALTER TABLE orders ADD COLUMN status_updated_at TIMESTAMP WITH TIME ZONE;
   END IF;
   
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='vendor_collected_at') THEN
