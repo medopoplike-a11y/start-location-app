@@ -15,9 +15,20 @@ export const NativeBridge = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
-      // 1. Handle Back Button
-      await App.addListener('backButton', ({ canGoBack }) => {
-        if (pathname === '/login' || pathname === '/driver' || pathname === '/admin' || pathname === '/store') {
+      // 1. Handle Back Button with support for custom handlers
+      await App.addListener('backButton', () => {
+        // Check if there are any global back button handlers (e.g. for modals)
+        const handlers = (window as any)._backButtonHandlers || [];
+        if (handlers.length > 0) {
+          // Execute the last registered handler (top-most modal)
+          const lastHandler = handlers[handlers.length - 1];
+          lastHandler();
+          return;
+        }
+
+        // Default behavior: minimize if on main routes, else go back
+        const mainRoutes = ['/login', '/driver', '/admin', '/store'];
+        if (mainRoutes.includes(pathname)) {
           App.minimizeApp();
         } else {
           window.history.back();

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, X, RefreshCcw, Check, Loader2 } from "lucide-react";
+import { useBackButton } from "@/hooks/useBackButton";
 
 interface InAppCameraProps {
   show: boolean;
@@ -11,6 +12,7 @@ interface InAppCameraProps {
 }
 
 export default function InAppCamera({ show, onClose, onCapture }: InAppCameraProps) {
+  useBackButton(onClose, show);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);

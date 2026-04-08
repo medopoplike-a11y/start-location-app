@@ -5,6 +5,7 @@ import {
   X, Phone, MapPin, Store, User, Clock, Banknote,
   Truck, CheckCircle, Package, Navigation, AlertCircle
 } from "lucide-react";
+import { useBackButton } from "@/hooks/useBackButton";
 import type { Order } from "../types";
 
 interface OrderDetailsModalProps {
@@ -38,6 +39,8 @@ export default function OrderDetailsModal({
   onDeliver,
   loading = false,
 }: OrderDetailsModalProps) {
+  useBackButton(onClose, !!order);
+
   if (!order) return null;
 
   const currentStep = statusConfig[order.status]?.step ?? 0;

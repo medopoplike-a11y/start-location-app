@@ -3,6 +3,7 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { History, LogOut, MapPin, Settings, Store, Wallet, X } from "lucide-react";
+import { useBackButton } from "@/hooks/useBackButton";
 
 interface StoreDrawerProps {
   showDrawer: boolean;
@@ -23,6 +24,7 @@ export default function StoreDrawer({
   onUpdateLocation,
   onSignOut,
 }: StoreDrawerProps) {
+  useBackButton(onClose, showDrawer);
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {

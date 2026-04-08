@@ -3,6 +3,7 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
 import { Camera, MapPin, X, Loader2, AlertTriangle } from "lucide-react";
+import { useBackButton } from "@/hooks/useBackButton";
 import type { Order } from "../types";
 
 interface FormState {
@@ -46,6 +47,8 @@ export default function OrderFormModal({ hasVendorLocation = true,
   onSave,
   onlineDriversCount = 0,
 }: OrderFormModalProps) {
+  useBackButton(onClose, show);
+
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {

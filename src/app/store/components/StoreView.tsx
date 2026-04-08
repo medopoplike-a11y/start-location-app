@@ -3,7 +3,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
+import ImagePreviewModal from "./ImagePreviewModal";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
 import { translateVendorOrderStatus } from "../utils";
 
@@ -59,6 +61,8 @@ export default function StoreView({
   uploadingInvoice,
   quickUploadOrderId
 }: StoreViewProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
     const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
@@ -255,7 +259,7 @@ export default function StoreView({
                             src={order.invoiceUrl} 
                             alt="Invoice" 
                             className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => window.open(order.invoiceUrl, '_blank')}
+                            onClick={() => setPreviewUrl(order.invoiceUrl || null)}
                           />
                         </div>
                         <div>
@@ -369,6 +373,12 @@ export default function StoreView({
           </AnimatePresence>
         )}
       </section>
+
+      <ImagePreviewModal
+        url={previewUrl}
+        show={!!previewUrl}
+        onClose={() => setPreviewUrl(null)}
+      />
     </div>
   );
 }
