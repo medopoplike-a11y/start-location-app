@@ -168,15 +168,28 @@ export default function OrderDetailsModal({
 
             {/* Routing / Map Buttons */}
             {order.vendorCoords && order.customers && order.customers.length > 0 && (
-              <a
-                href={`https://www.google.com/maps/dir/${order.vendorCoords.lat},${order.vendorCoords.lng}/${order.customers.map(c => c.address).join('/')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-2xl text-xs font-black shadow-sm active:scale-95 transition-all w-full justify-center"
-              >
-                <Navigation className="w-4 h-4" />
-                رسم خط سير السكة (جوجل مابس)
-              </a>
+              <div className="flex gap-3">
+                <a
+                  href={`https://www.google.com/maps/dir/${order.vendorCoords.lat},${order.vendorCoords.lng}/${order.customers.map(c => encodeURIComponent(c.address)).join('/')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-2xl text-[11px] font-black shadow-sm active:scale-95 transition-all justify-center"
+                >
+                  <Navigation className="w-4 h-4" />
+                  رسم خط سير السكة
+                </a>
+                {order.vendorCoords && (
+                  <a
+                    href={`https://maps.google.com/?q=${order.vendorCoords.lat},${order.vendorCoords.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 px-4 py-3 rounded-2xl text-[11px] font-black shadow-sm active:scale-95 transition-all justify-center"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    المحل
+                  </a>
+                )}
+              </div>
             )}
 
             {/* Sikka Total Summary */}
@@ -302,9 +315,19 @@ export default function OrderDetailsModal({
                               لا توجد فاتورة
                             </div>
                           )}
-                          <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                            <Phone size={18} />
-                          </a>
+                          <div className="flex flex-col gap-2">
+                            <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                              <Phone size={18} />
+                            </a>
+                            <a 
+                              href={`https://maps.google.com/?q=${encodeURIComponent(cust.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
+                            >
+                              <MapPin size={18} />
+                            </a>
+                          </div>
                         </div>
                     </div>
 

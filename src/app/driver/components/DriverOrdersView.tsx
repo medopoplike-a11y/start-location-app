@@ -272,20 +272,54 @@ export default function DriverOrdersView({
                     }`} />
 
                     <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 overflow-hidden">
                         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 group-hover:bg-sky-50 transition-colors shrink-0">
                           <Store className="w-6 h-6 text-slate-400 group-hover:text-sky-500 transition-colors" />
                         </div>
-                        <div>
-                          <h3 className="font-black text-slate-900 text-sm">{order.vendor}</h3>
+                        <div className="overflow-hidden">
+                          <h3 className="font-black text-slate-900 text-sm truncate">{order.vendor}</h3>
                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">#{order.id.slice(0, 8)}</p>
+                          {order.vendorPhone && (
+                            <a href={`tel:${order.vendorPhone}`} className="flex items-center gap-1 text-[10px] font-black text-sky-600 mt-0.5">
+                              <Phone className="w-2.5 h-2.5" />
+                              {order.vendorPhone}
+                            </a>
+                          )}
                         </div>
                       </div>
-                      <div className="text-left bg-green-50 px-3 py-2 rounded-2xl border border-green-100">
+                      <div className="text-left bg-green-50 px-3 py-2 rounded-2xl border border-green-100 shrink-0">
                         <p className="text-xs font-black text-green-600">{order.fee}</p>
                         <p className="text-[8px] font-bold text-green-500/60 uppercase">عمولة</p>
                       </div>
                     </div>
+
+                    {/* Customers Quick Info */}
+                    {order.customers && order.customers.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        {order.customers.slice(0, 2).map((c, i) => (
+                          <div key={i} className="flex items-center justify-between bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <span className="w-4 h-4 bg-slate-900 text-white text-[8px] font-black flex items-center justify-center rounded-full shrink-0">{i + 1}</span>
+                              <div className="overflow-hidden">
+                                <p className="text-[10px] font-black text-slate-800 truncate">{c.name}</p>
+                                <p className="text-[9px] font-bold text-slate-400 truncate flex items-center gap-1">
+                                  <MapPin className="w-2 h-2 text-red-400" />
+                                  {c.address}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <a href={`tel:${c.phone}`} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                                <Phone size={12} />
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                        {order.customers.length > 2 && (
+                          <p className="text-[9px] text-center font-bold text-slate-400">+ {order.customers.length - 2} عملاء آخرين (اضغط للتفاصيل)</p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Status & Info */}
                     <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${sc.bg}`}>
