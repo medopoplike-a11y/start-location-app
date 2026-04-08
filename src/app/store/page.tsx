@@ -11,6 +11,8 @@ import {
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials, calculateDeliveryFee } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder } from "@/lib/orders";
@@ -89,32 +91,63 @@ function StoreContent() {
     customerCoords: null as { lat: number, lng: number } | null
   });
 
-  // Persistence: Save form state to localStorage
+  // KeepAwake: Prevent screen from turning off in Store view
   useEffect(() => {
-    if (showOrderForm) {
-      const state = { formData, editingOrder, invoiceUrl, showOrderForm };
-      localStorage.setItem('pending_order_form', JSON.stringify(state));
-    } else {
-      localStorage.removeItem('pending_order_form');
+    if (activeView === "store" && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(() => {});
+      return () => {
+        KeepAwake.allowSleep().catch(() => {});
+      };
     }
+  }, [activeView]);
+
+  // Persistence: Save form state to Native Preferences (more reliable than localStorage)
+  useEffect(() => {
+    const saveState = async () => {
+      if (showOrderForm) {
+        const state = JSON.stringify({ formData, editingOrder, invoiceUrl, showOrderForm });
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.set({ key: 'pending_order_form_v2', value: state });
+        } else {
+          localStorage.setItem('pending_order_form_v2', state);
+        }
+      } else {
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.remove({ key: 'pending_order_form_v2' });
+        } else {
+          localStorage.removeItem('pending_order_form_v2');
+        }
+      }
+    };
+    saveState();
   }, [formData, editingOrder, invoiceUrl, showOrderForm]);
 
-  // Persistence: Restore form state from localStorage
+  // Persistence: Restore form state
   useEffect(() => {
-    const saved = localStorage.getItem('pending_order_form');
-    if (saved) {
-      try {
-        const { formData: sFormData, editingOrder: sEditingOrder, invoiceUrl: sInvoiceUrl, showOrderForm: sShowOrderForm } = JSON.parse(saved);
-        if (sShowOrderForm) {
-          setFormData(sFormData);
-          setEditingOrder(sEditingOrder);
-          setInvoiceUrl(sInvoiceUrl);
-          setShowOrderForm(true);
-        }
-      } catch (e) {
-        console.error("Failed to restore form state", e);
+    const restoreState = async () => {
+      let saved = null;
+      if (Capacitor.isNativePlatform()) {
+        const { value } = await Preferences.get({ key: 'pending_order_form_v2' });
+        saved = value;
+      } else {
+        saved = localStorage.getItem('pending_order_form_v2');
       }
-    }
+
+      if (saved) {
+        try {
+          const { formData: sFormData, editingOrder: sEditingOrder, invoiceUrl: sInvoiceUrl, showOrderForm: sShowOrderForm } = JSON.parse(saved);
+          if (sShowOrderForm) {
+            setFormData(sFormData);
+            setEditingOrder(sEditingOrder);
+            setInvoiceUrl(sInvoiceUrl);
+            setShowOrderForm(true);
+          }
+        } catch (e) {
+          console.error("Failed to restore form state", e);
+        }
+      }
+    };
+    restoreState();
   }, []);
 
   // Handle Camera Restore after OS kills activity
