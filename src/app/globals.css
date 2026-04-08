@@ -13,14 +13,32 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
     scroll-behavior: smooth;
     height: 100%;
-    overflow-x: hidden;
+    overflow: hidden; /* Prevent body scroll on root */
+    background: #f8fafc; /* Match body background for smooth transitions */
   }
+  
+  /* Disable long-press menu on mobile */
+  * {
+    -webkit-touch-callout: none !important;
+  }
+
+  /* Allow selection only in inputs and specific areas */
+  input, textarea, [contenteditable="true"], .selectable, .selectable * {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+  }
+
   body {
     @apply antialiased;
     color: rgb(var(--foreground-rgb));
     background: #f8fafc;
+    height: 100%;
     min-height: 100%;
     font-feature-settings: 'pnum';
     line-height: 1.6;
@@ -28,6 +46,7 @@
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain; /* Prevents pull-to-refresh browser behavior */
   }
 
   /* Add utility to lock scroll when drawer is open */

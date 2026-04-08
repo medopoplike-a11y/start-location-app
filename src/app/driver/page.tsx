@@ -159,20 +159,29 @@ export default function DriverApp() {
 
     const setup = async () => {
       // 1. Try to load initial data from cache for instant display
-      const [cachedName, cachedOrders, cachedStats] = await Promise.all([
+      const [cachedName, cachedOrders, cachedStats, cachedDelivered, cachedHistory] = await Promise.all([
         getCache<string>('driver_name'),
         getCache<Order[]>('driver_orders'),
-        getCache<any>('driver_stats')
+        getCache<any>('driver_stats'),
+        getCache<DBDriverOrder[]>('driver_delivered_orders'),
+        getCache<DBDriverOrder[]>('driver_today_history')
       ]);
 
       if (cachedName) setDriverName(cachedName);
       if (cachedOrders && cachedOrders.length > 0) {
         setOrders(cachedOrders);
-        setLoading(false); // Hide loader if we have data
       }
       if (cachedStats) {
         if (cachedStats.vendorDebt) setVendorDebt(cachedStats.vendorDebt);
         if (cachedStats.todayDeliveryFees) setTodayDeliveryFees(cachedStats.todayDeliveryFees);
+        if (cachedStats.systemBalance) setSystemBalance(cachedStats.systemBalance);
+      }
+      if (cachedDelivered) setDeliveredOrders(cachedDelivered);
+      if (cachedHistory) setTodayHistory(cachedHistory);
+
+      // If we have cached orders or stats, we can hide the loader earlier
+      if ((cachedOrders && cachedOrders.length > 0) || cachedStats) {
+        setLoading(false);
       }
 
       if (authLoading) return; // Wait for AuthProvider
@@ -263,7 +272,12 @@ export default function DriverApp() {
     setLastSyncTime(new Date());
     try {
       const { data: walletData } = await supabase.from('wallets').select('debt, system_balance').eq('user_id', currentDriverId).single();
-      const { data: ordersDebtData } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'in_transit').is('vendor_collected_at', null);
+      const { data: uncollectedDeliveredOrders } = await supabase
+        .from('orders')
+        .select('financials')
+        .eq('driver_id', currentDriverId)
+        .eq('status', 'delivered')
+        .is('vendor_collected_at', null);
       
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
@@ -272,22 +286,32 @@ export default function DriverApp() {
       const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
       if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
+      let finalBalance = systemBalance;
+      let finalDebt = vendorDebt;
+      let finalFees = todayDeliveryFees;
+
       if (walletData) {
-        setSystemBalance(walletData.system_balance || 0);
-        setVendorDebt(walletData.debt || 0);
+        finalBalance = walletData.system_balance || 0;
+        setSystemBalance(finalBalance);
       }
-      if (ordersDebtData) {
-        const debt = ordersDebtData.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
-        setVendorDebt(debt);
-        // Cache stats
-        setCache('driver_stats', { vendorDebt: debt, todayDeliveryFees: todayDeliveryFees });
+      if (uncollectedDeliveredOrders) {
+        finalDebt = uncollectedDeliveredOrders.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
+        setVendorDebt(finalDebt);
       }
       if (todayOrders) {
-        const fees = todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0);
-        setTodayDeliveryFees(fees);
-        // Cache stats update
-        setCache('driver_stats', { vendorDebt: vendorDebt, todayDeliveryFees: fees });
+        finalFees = todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0);
+        setTodayDeliveryFees(finalFees);
       }
+
+      // Update cache in one go
+      setCache('driver_stats', { 
+        vendorDebt: finalDebt, 
+        todayDeliveryFees: finalFees,
+        systemBalance: finalBalance 
+      });
+
+      // Re-add settlementsData processing
+      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('driver_id', currentDriverId).order('created_at', { ascending: false });
       if (settlementsData) {
         void settlementsData.map(s => ({
           id: s.id,
@@ -315,11 +339,34 @@ export default function DriverApp() {
         seen.add(o.id);
         return true;
       });
-      setOrders(merged.map(mapDBOrderToUI));
+      const uiOrders = merged.map(mapDBOrderToUI);
+      setOrders(uiOrders);
+      setCache('driver_orders', uiOrders); // Always cache current orders
     } catch (err) {
       console.error("fetchOrders error:", err);
     }
   }
+
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Monitor network status
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+      import("@capacitor/network").then(({ Network }) => {
+        Network.getStatus().then(status => setIsOnline(status.connected));
+        Network.addListener('networkStatusChange', status => setIsOnline(status.connected));
+      });
+    } else {
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
 
   async function fetchDeliveredOrders(currentDriverId: string) {
     try {
@@ -333,6 +380,7 @@ export default function DriverApp() {
       
       if (error) throw error;
       setDeliveredOrders(data || []);
+      setCache('driver_delivered_orders', data || []);
     } catch (err) {
       console.error("fetchDeliveredOrders error:", err);
     }
@@ -352,6 +400,7 @@ export default function DriverApp() {
       
       if (error) throw error;
       setTodayHistory(data || []);
+      setCache('driver_today_history', data || []);
     } catch (err) {
       console.error("fetchTodayHistory error:", err);
     }
@@ -491,7 +540,9 @@ export default function DriverApp() {
     
     // Optimistic Update: Update UI immediately
     const originalOrders = [...orders];
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o));
+    const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o);
+    setOrders(updatedOrders);
+    setCache('driver_orders', updatedOrders); // Immediate cache update for native feel
 
     try {
       // 1. Check if order is still pending to avoid race conditions
@@ -539,7 +590,9 @@ export default function DriverApp() {
 
     // Optimistic Update
     const originalOrders = [...orders];
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true, priority: 1 } : o));
+    const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true, priority: 1 } : o);
+    setOrders(updatedOrders);
+    setCache('driver_orders', updatedOrders);
     toastSuccess("تم استلام الطلب! في الطريق...");
 
     try {
@@ -558,7 +611,9 @@ export default function DriverApp() {
 
     // Optimistic Update: Remove from active orders
     const originalOrders = [...orders];
-    setOrders(prev => prev.filter(o => o.id !== orderId));
+    const updatedOrders = orders.filter(o => o.id !== orderId);
+    setOrders(updatedOrders);
+    setCache('driver_orders', updatedOrders);
     toastSuccess("تم التوصيل بنجاح! مبروك...");
 
     try {
@@ -652,6 +707,20 @@ export default function DriverApp() {
       <AuthGuard allowedRoles={["driver"]}>
       <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-col font-sans" dir="rtl">
         <Toast toasts={toasts} onRemove={removeToast} />
+        
+        <AnimatePresence>
+          {!isOnline && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-red-500 text-white text-[10px] font-black py-2 px-4 flex items-center justify-center gap-2 sticky top-0 z-[100]"
+            >
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              أنت الآن خارج التغطية - يتم عرض البيانات المخزنة محلياً
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="relative z-10 flex flex-col min-h-full">
 

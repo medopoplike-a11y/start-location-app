@@ -1,10 +1,11 @@
 import { supabase } from './supabaseClient';
 
-export const fetchAdminOrders = async () => {
+export const fetchAdminOrders = async (limit = 100) => {
   const { data, error } = await supabase
     .from('orders')
     .select('*, profiles:vendor_id(full_name, phone, location, area)')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(limit);
   
   if (error) throw error;
   return data;

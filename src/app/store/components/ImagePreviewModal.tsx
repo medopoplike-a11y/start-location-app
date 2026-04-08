@@ -33,12 +33,13 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {show && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           className="fixed inset-0 bg-black/95 z-[200] flex flex-col touch-none"
           onClick={onClose}
         >
@@ -79,15 +80,18 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
 
           {/* Image Container */}
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="flex-1 flex items-center justify-center p-2 md:p-4 overflow-hidden relative"
           >
             <div className="relative w-full h-full flex items-center justify-center">
               <img
                 src={url}
                 alt="Invoice Preview"
+                loading="lazy"
+                decoding="async"
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded-xl shadow-2xl border border-white/5"
                 style={{ 
                   maxWidth: '100%', 

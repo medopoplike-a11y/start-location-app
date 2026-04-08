@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, X, RefreshCw, Check, Zap, ZapOff } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 
 interface CameraScannerProps {
   onCapture: (base64: string) => void;
@@ -20,21 +21,59 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    if (!capturedImage) {
-      startCamera();
-    }
-    return () => stopCamera();
-  }, [capturedImage]);
+    let active = true;
+    const handleNativeCamera = async () => {
+      if (Capacitor.isNativePlatform() && !capturedImage) {
+        try {
+          const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+          const image = await Camera.getPhoto({
+            quality: 90,
+            allowEditing: false,
+            resultType: CameraResultType.Base64,
+            source: CameraSource.Camera,
+            saveToGallery: false
+          });
+          
+          if (!active) return;
+
+          if (image.base64String) {
+            onCapture(image.base64String);
+          } else {
+            onClose();
+          }
+        } catch (e) {
+          console.error("Native camera error:", e);
+          // Fallback to web camera if native fails
+          if (active) startCamera();
+        }
+      } else if (!Capacitor.isNativePlatform()) {
+        if (!capturedImage) {
+          startCamera();
+        }
+      }
+    };
+
+    handleNativeCamera();
+
+    return () => {
+      active = false;
+      stopCamera();
+    };
+  }, []); // Only run on mount for native platform integration
 
   const startCamera = async () => {
+    if (Capacitor.isNativePlatform() && !capturedImage) {
+      // We already tried native camera in useEffect
+      return;
+    }
     stopCamera();
     setError(null);
     try {
       const constraints = {
         video: {
           facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 1280 }, // Lowering resolution for mobile performance
+          height: { ideal: 720 }
         }
       };
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -56,16 +95,15 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
   };
 
   const stopCamera = () => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     if (stream) {
       stream.getTracks().forEach(track => {
         track.stop();
         console.log("CameraScanner: Track stopped", track.label);
       });
       setStream(null);
-    }
-    // Double check all tracks in navigator just in case
-    if (typeof navigator !== 'undefined' && (navigator as any).mediaDevices?.enumerateDevices) {
-      // This is a bit aggressive but ensures no leak
     }
   };
 
