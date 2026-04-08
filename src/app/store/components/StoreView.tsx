@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
 import { PremiumCard } from "@/components/PremiumCard";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
@@ -246,6 +246,26 @@ export default function StoreView({
                       </div>
                     </div>
                   </div>
+
+                  {order.invoiceUrl && (
+                    <div className="mb-6 bg-green-50/50 p-3 rounded-[22px] border border-green-100/50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-green-200 bg-white">
+                          <img 
+                            src={order.invoiceUrl} 
+                            alt="Invoice" 
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => window.open(order.invoiceUrl, '_blank')}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-green-700">تم رفع الفاتورة</p>
+                          <p className="text-[8px] font-bold text-green-600/60 tracking-tight italic">اضغط للمعاينة</p>
+                        </div>
+                      </div>
+                      <FileText className="w-4 h-4 text-green-500 opacity-40" />
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-center pt-5 border-t border-slate-50">
                     <div className="flex items-center gap-3">
