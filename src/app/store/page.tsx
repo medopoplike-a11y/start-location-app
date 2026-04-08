@@ -790,14 +790,48 @@ function StoreContent() {
 
   const handleInAppCapture = async (base64Data: string) => {
     const timestamp = Date.now();
-    // Convert base64 to Uint8Array
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const uint8Array = new Uint8Array(byteNumbers);
     
+    // IMAGE COMPRESSION LOGIC (In-Browser Optimization)
+    const compressImage = (base64: string): Promise<Uint8Array> => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = `data:image/jpeg;base64,${base64}`;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimensions for invoice images
+          const MAX_SIZE = 1024;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Export at 0.7 quality for balance between readability and size
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+          const byteCharacters = atob(compressedBase64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          resolve(new Uint8Array(byteNumbers));
+        };
+      });
+    };
+
     if (cameraMode === "form") {
       // If we have an activeCaptureIndex, update the specific customer
       if (activeCaptureIndex !== null) {
@@ -816,6 +850,7 @@ function StoreContent() {
         const currentVendorId = vendorIdRef.current || user?.id;
         if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
 
+        const uint8Array = await compressImage(base64Data);
         const fileName = `${currentVendorId}/${timestamp}${activeCaptureIndex !== null ? `_cust_${activeCaptureIndex}` : ''}.jpg`;
         
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -868,6 +903,7 @@ function StoreContent() {
         const currentVendorId = vendorIdRef.current || user?.id;
         if (!currentVendorId) throw new Error("معرف المتجر غير متوفر");
 
+        const uint8Array = await compressImage(base64Data);
         const fileName = `${currentVendorId}/${timestamp}_quick_${quickUploadOrderId}.jpg`;
         console.log("Attempting quick upload to storage:", fileName);
 

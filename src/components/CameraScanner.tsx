@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, X, RefreshCw, Check, Zap, ZapOff } from "lucide-react";
+import { Camera, X, RefreshCw, Check } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 
 interface CameraScannerProps {
@@ -18,7 +18,6 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [flash, setFlash] = useState(false);
 
   useEffect(() => {
     startCamera();
@@ -117,19 +116,11 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
           <X className="w-6 h-6" />
         </button>
         <h3 className="text-white font-black text-xs opacity-80">{title}</h3>
-        {!capturedImage && (
-          <button 
-            onClick={() => setFlash(!flash)} 
-            className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all ${flash ? "bg-amber-400 text-black" : "bg-white/10 text-white"}`}
-          >
-            {flash ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
-          </button>
-        )}
-        {capturedImage && <div className="w-10" />}
+        <div className="w-10" />
       </div>
 
       {/* Viewport */}
-      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black">
         {capturedImage ? (
           <img src={capturedImage} className="w-full h-full object-contain" alt="Captured" />
         ) : error ? (
@@ -138,29 +129,12 @@ export default function CameraScanner({ onCapture, onClose, title = "تصوير 
             <button onClick={startCamera} className="bg-white text-black px-6 py-2 rounded-full font-black text-xs">إعادة المحاولة</button>
           </div>
         ) : (
-          <>
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
-            {/* Scanner Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[85%] aspect-[3/4] border-2 border-white/20 rounded-3xl relative">
-                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-amber-400 rounded-tl-xl" />
-                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-amber-400 rounded-tr-xl" />
-                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-amber-400 rounded-bl-xl" />
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-amber-400 rounded-br-xl" />
-                
-                <motion.div 
-                  animate={{ top: ["0%", "100%"] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute left-0 right-0 h-1 bg-amber-400/40 shadow-[0_0_20px_rgba(251,191,36,0.6)]"
-                />
-              </div>
-            </div>
-          </>
+          <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            className="w-full h-full object-contain"
+          />
         )}
       </div>
 
