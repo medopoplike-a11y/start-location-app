@@ -30,6 +30,7 @@ import StoreSettingsView from "./components/SettingsView";
 import StoreDrawer from "./components/StoreDrawer";
 import OrderFormModal from "./components/OrderFormModal";
 import StoreAccountModals from "./components/StoreAccountModals";
+import InAppCamera from "./components/InAppCamera";
 
 export default function StoreApp() {
   return (
@@ -79,6 +80,9 @@ function StoreContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [updatingLocation, setUpdatingLocation] = useState(false);
+  const [showInAppCamera, setShowInAppCamera] = useState(false);
+  const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
+  const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     customer: "",
@@ -646,103 +650,43 @@ function StoreContent() {
   };
 
   const handleCameraCapture = async () => {
-    if (!vendorId) return;
-    try {
-      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
-      const image = await Camera.getPhoto({
-        quality: 60, // Lower quality for better memory stability on low-end devices
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Camera,
-        saveToGallery: false,
-        width: 800, // Reduced from 1024 for even better performance
-      });
-
-      if (image.webPath) {
-        await processUploadFromUri(image.webPath);
-      }
-    } catch (err: any) {
-      if (err.message !== "User cancelled photos app") {
-        error("فشل التقاط الصورة");
-      }
-    }
-  };
-
-  const processUploadFromUri = async (webPath: string) => {
-    setUploadingInvoice(true);
-    try {
-      const response = await fetch(webPath);
-      const blob = await response.blob();
-      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
-      await processUpload(file);
-    } catch (err) {
-      console.error("processUploadFromUri error:", err);
-      error("فشل معالجة الصورة");
-    } finally {
-      setUploadingInvoice(false);
-    }
+    setCameraMode("form");
+    setShowInAppCamera(true);
   };
 
   const handleQuickInvoiceUpload = async (order: Order) => {
-    if (!vendorId) return;
-    try {
-      // Save pending quick upload state in case of reload
-      if (Capacitor.isNativePlatform()) {
-        await Preferences.set({ key: 'pending_quick_upload_id', value: order.id });
-      }
-
-      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
-      const image = await Camera.getPhoto({
-        quality: 60, // Lower quality for better stability
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Camera,
-        saveToGallery: false,
-        width: 800, // Reduced from 1024
-      });
-
-      if (image.webPath) {
-        await processQuickUpload(image.webPath, order.id);
-      }
-    } catch (err: any) {
-      if (err.message !== "User cancelled photos app") {
-        error("فشل رفع الفاتورة السريع");
-        console.error("Quick upload error:", err);
-      }
-      if (Capacitor.isNativePlatform()) {
-        await Preferences.remove({ key: 'pending_quick_upload_id' });
-      }
-    }
+    setQuickUploadOrderId(order.id);
+    setCameraMode("quick");
+    setShowInAppCamera(true);
   };
 
-  const processQuickUpload = async (webPath: string, orderId: string) => {
-    const currentVendorId = vendorIdRef.current;
-    if (!currentVendorId) return;
+  const handleInAppCapture = async (blob: Blob) => {
+    const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+    
+    if (cameraMode === "form") {
+      await processUpload(file);
+    } else if (cameraMode === "quick" && quickUploadOrderId) {
+      setUploadingInvoice(true);
+      try {
+        const currentVendorId = vendorIdRef.current;
+        if (!currentVendorId) return;
 
-    setUploadingInvoice(true);
-    try {
-      const response = await fetch(webPath);
-      const blob = await response.blob();
-      const file = new File([blob], `quick-camera-${orderId}.jpg`, { type: "image/jpeg" });
-      const fileName = `${currentVendorId}/${Date.now()}_quick_${orderId}.jpg`;
-      
-      const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
-      if (uploadError) throw uploadError;
-      
-      const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-      
-      const { error: updateError } = await updateOrder(orderId, { invoice_url: publicUrl });
-      if (updateError) throw updateError;
-      
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, invoiceUrl: publicUrl } : o));
-      success("تم رفع الفاتورة وتحديث الطلب بنجاح");
-    } catch (err) {
-      console.error("processQuickUpload error:", err);
-      error("فشل معالجة الرفع السريع");
-    } finally {
-      setUploadingInvoice(false);
-      if (Capacitor.isNativePlatform()) {
-        await Preferences.remove({ key: 'pending_quick_upload_id' });
+        const fileName = `${currentVendorId}/${Date.now()}_quick_${quickUploadOrderId}.jpg`;
+        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: publicUrl });
+        if (updateError) throw updateError;
+        
+        setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: publicUrl } : o));
+        success("تم رفع الفاتورة وتحديث الطلب بنجاح");
+      } catch (err) {
+        console.error("Quick in-app upload error:", err);
+        error("فشل رفع الفاتورة السريع");
+      } finally {
+        setUploadingInvoice(false);
+        setQuickUploadOrderId(null);
       }
     }
   };
@@ -944,6 +888,12 @@ function StoreContent() {
         onCameraCapture={handleCameraCapture}
         onSave={handleSaveOrder}
         onlineDriversCount={onlineDrivers.length}
+      />
+
+      <InAppCamera 
+        show={showInAppCamera} 
+        onClose={() => setShowInAppCamera(false)} 
+        onCapture={handleInAppCapture} 
       />
 
       <StoreAccountModals
