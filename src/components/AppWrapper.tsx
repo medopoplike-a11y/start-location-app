@@ -21,6 +21,23 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   const lastUpdateRef = React.useRef<string>("");
 
   React.useEffect(() => {
+    // Keyboard Handling for Native Feel
+    if (isNative()) {
+      import("@capacitor/keyboard").then(({ Keyboard }) => {
+        Keyboard.addListener('keyboardDidShow', (info) => {
+          document.body.classList.add('keyboard-is-open');
+          // Add padding if needed or handle scroll to input
+          const activeEl = document.activeElement;
+          if (activeEl) {
+            activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+        Keyboard.addListener('keyboardDidHide', () => {
+          document.body.classList.remove('keyboard-is-open');
+        });
+      });
+    }
+
     setMounted(true);
     
     // Polyfill for showSystemAlert

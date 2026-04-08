@@ -17,16 +17,11 @@
     -webkit-user-select: none;
     user-select: none;
     scroll-behavior: smooth;
-    height: 100%;
-    overflow: hidden; /* Prevent body scroll on root */
-    background: #f8fafc; /* Match body background for smooth transitions */
+    /* Remove overflow: hidden; height: 100% which lock the layout too much on Android */
+    min-height: 100%;
+    background: #f8fafc;
   }
   
-  /* Disable long-press menu on mobile */
-  * {
-    -webkit-touch-callout: none !important;
-  }
-
   /* Allow selection only in inputs and specific areas */
   input, textarea, [contenteditable="true"], .selectable, .selectable * {
     -webkit-user-select: text !important;
@@ -38,15 +33,27 @@
     @apply antialiased;
     color: rgb(var(--foreground-rgb));
     background: #f8fafc;
-    height: 100%;
-    min-height: 100%;
+    min-height: 100vh; /* Use vh for dynamic height */
     font-feature-settings: 'pnum';
     line-height: 1.6;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain; /* Prevents pull-to-refresh browser behavior */
+    overscroll-behavior-y: contain; 
+  }
+
+  /* Keyboard Compatibility Fixes */
+  .keyboard-is-open {
+    height: auto !important;
+    overflow-y: scroll !important;
+  }
+  
+  /* Prevent focus zoom on iOS */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 
   /* Add utility to lock scroll when drawer is open */
