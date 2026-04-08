@@ -37,6 +37,7 @@ interface StoreViewProps {
   onCancelOrder: (orderId: string) => void;
   onEditOrder: (order: Order) => void;
   onQuickInvoiceUpload?: (order: Order) => void;
+  onPreviewImage?: (url: string) => void;
   uploadingInvoice?: boolean;
   quickUploadOrderId?: string | null;
 }
@@ -58,11 +59,10 @@ export default function StoreView({
   onCancelOrder,
   onEditOrder,
   onQuickInvoiceUpload,
+  onPreviewImage,
   uploadingInvoice,
   quickUploadOrderId
 }: StoreViewProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
     const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
@@ -255,12 +255,12 @@ export default function StoreView({
                   {order.customers && order.customers.length > 0 && order.customers.some(c => c.invoice_url) && (
                     <div className="mb-4 flex flex-wrap gap-2">
                       {order.customers.map((cust, idx) => cust.invoice_url && (
-                        <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden border border-orange-100 shadow-sm group/mini">
+                        <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden border border-orange-100 shadow-sm group/mini bg-white/50">
                           <img 
                             src={cust.invoice_url} 
                             alt={`Invoice ${idx}`} 
-                            className="w-full h-full object-cover"
-                            onClick={() => setPreviewUrl(cust.invoice_url || null)}
+                            className="w-full h-full object-contain"
+                            onClick={() => onPreviewImage?.(cust.invoice_url!)}
                           />
                           <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
                             <Eye className="text-white w-3 h-3" />
@@ -398,12 +398,6 @@ export default function StoreView({
           </AnimatePresence>
         )}
       </section>
-
-      <ImagePreviewModal
-        url={previewUrl}
-        show={!!previewUrl}
-        onClose={() => setPreviewUrl(null)}
-      />
     </div>
   );
 }

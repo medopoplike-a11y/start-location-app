@@ -33,6 +33,7 @@ import StoreDrawer from "./components/StoreDrawer";
 import OrderFormView from "./components/OrderFormView";
 import StoreAccountModals from "./components/StoreAccountModals";
 import CameraScanner from "@/components/CameraScanner";
+import ImagePreviewModal from "./components/ImagePreviewModal";
 
 export default function StoreApp() {
   return (
@@ -57,6 +58,7 @@ function StoreContent() {
   }, [vendorId]);
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
@@ -1029,19 +1031,21 @@ function StoreContent() {
       <div className="silver-live-bg" />
     <Toast toasts={toasts} onRemove={removeToast} />
       
-      <StoreHeader
-        vendorName={vendorName}
-        lastSync={lastSync}
-        isSyncing={isSyncing}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onOpenDrawer={() => setShowDrawer(true)}
-        onSync={() => vendorId && updateData(vendorId)}
-        onResetSync={() => setIsSyncing(false)}
-        isSurgeActive={appConfig.surge_pricing_active}
-      />
+      {activeView !== "order-form" && (
+        <StoreHeader
+          vendorName={vendorName}
+          lastSync={lastSync}
+          isSyncing={isSyncing}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onOpenDrawer={() => setShowDrawer(true)}
+          onSync={() => vendorId && updateData(vendorId)}
+          onResetSync={() => setIsSyncing(false)}
+          isSurgeActive={appConfig.surge_pricing_active}
+        />
+      )}
 
-      <main className="p-4 space-y-6 pb-24 min-h-full">
+      <main className={`flex-1 ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
         {activeView === "store" ? (
           <StoreOrdersHub
             orders={orders}
@@ -1062,6 +1066,7 @@ function StoreContent() {
             onQuickInvoiceUpload={handleQuickInvoiceUpload}
             uploadingInvoice={uploadingInvoice}
             quickUploadOrderId={quickUploadOrderId}
+            onPreviewImage={setPreviewUrl}
           />
         ) : activeView === "wallet" ? (
           <WalletView
@@ -1102,6 +1107,7 @@ function StoreContent() {
             onPickCustomerLocation={handlePickCustomerLocation}
             onCameraCapture={handleCameraCapture}
             onSave={handleSaveOrder}
+            onPreviewImage={setPreviewUrl}
           />
         )}
       </main>
@@ -1129,6 +1135,12 @@ function StoreContent() {
           />
         )}
       </AnimatePresence>
+
+      <ImagePreviewModal
+        url={previewUrl}
+        show={!!previewUrl}
+        onClose={() => setPreviewUrl(null)}
+      />
 
       <StoreAccountModals
         showPasswordModal={showPasswordModal}

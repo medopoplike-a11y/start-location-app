@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ListFilter, History, Search, Plus, Activity } from "lucide-react";
 import StoreView from "./StoreView";
 import HistoryView from "./HistoryView";
+import ImagePreviewModal from "./ImagePreviewModal";
 import type { Order, OnlineDriver, VendorLocation } from "../types";
 
 interface StoreOrdersHubProps {
@@ -24,6 +25,7 @@ interface StoreOrdersHubProps {
   onCancelOrder: (orderId: string) => void;
   onEditOrder: (order: Order | null) => void;
   onQuickInvoiceUpload?: (order: Order) => void;
+  onPreviewImage?: (url: string) => void;
   uploadingInvoice?: boolean;
   quickUploadOrderId?: string | null;
 }
@@ -45,6 +47,7 @@ export default function StoreOrdersHub({
   onCancelOrder,
   onEditOrder,
   onQuickInvoiceUpload,
+  onPreviewImage,
   uploadingInvoice,
   quickUploadOrderId
 }: StoreOrdersHubProps) {
@@ -95,13 +98,13 @@ export default function StoreOrdersHub({
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.div
           key={viewMode}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.1 }}
         >
           {viewMode === "active" ? (
             <StoreView
@@ -123,9 +126,13 @@ export default function StoreOrdersHub({
               onQuickInvoiceUpload={onQuickInvoiceUpload}
               uploadingInvoice={uploadingInvoice}
               quickUploadOrderId={quickUploadOrderId}
+              onPreviewImage={onPreviewImage}
             />
           ) : (
-            <HistoryView orders={orders} />
+            <HistoryView 
+              orders={orders} 
+              onPreviewImage={onPreviewImage}
+            />
           )}
         </motion.div>
       </AnimatePresence>

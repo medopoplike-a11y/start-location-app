@@ -43,6 +43,7 @@ interface OrderFormViewProps {
   onPickCustomerLocation: () => void;
   onCameraCapture?: (customerIndex?: number) => void;
   onSave: () => void;
+  onPreviewImage?: (url: string) => void;
 }
 
 export default function OrderFormView({ 
@@ -57,6 +58,7 @@ export default function OrderFormView({
   onPickCustomerLocation,
   onCameraCapture,
   onSave,
+  onPreviewImage,
 }: OrderFormViewProps) {
   useBackButton(onBack, true);
   
@@ -109,9 +111,9 @@ export default function OrderFormView({
   const activeCustomers = formData.customers;
 
   return (
-    <div className="fixed inset-0 bg-[#f3f4f6] z-[60] flex flex-col" dir="rtl">
+    <div className="flex flex-col min-h-screen bg-[#f3f4f6]" dir="rtl">
       {/* Fixed Header */}
-      <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+      <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 bg-gray-50 rounded-xl text-gray-600 active:scale-95 transition-all">
             <ArrowRight size={24} />
@@ -128,7 +130,7 @@ export default function OrderFormView({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+      <div className="flex-1 p-4 space-y-6 pb-32">
         {!hasVendorLocation && !editingOrder && (
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
             <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -269,14 +271,14 @@ export default function OrderFormView({
 
                         <div className="pt-2">
                           {cust.invoiceUrl && (
-                            <div className="mb-2 relative rounded-xl overflow-hidden border border-green-100 aspect-video bg-white shadow-sm group/preview">
+                            <div className="mb-2 relative rounded-xl overflow-hidden border border-gray-100 aspect-[3/4] max-h-48 bg-white shadow-sm group/preview mx-auto w-32">
                               <img 
                                 src={cust.invoiceUrl} 
-                                className="w-full h-full object-cover cursor-pointer" 
+                                className="w-full h-full object-contain cursor-pointer" 
                                 alt="Invoice Preview" 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.open(cust.invoiceUrl, '_blank');
+                                  onPreviewImage?.(cust.invoiceUrl!);
                                 }}
                               />
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">

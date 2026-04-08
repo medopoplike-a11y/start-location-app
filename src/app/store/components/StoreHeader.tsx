@@ -27,7 +27,7 @@ export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQue
   };
 
   return (
-    <header className="bg-white/80 backdrop-blur-xl p-4 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
+    <header className="bg-white/80 backdrop-blur-xl h-20 px-4 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
       <div className="flex items-center gap-3">
         <button 
           onClick={() => {
