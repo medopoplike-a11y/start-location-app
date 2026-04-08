@@ -153,16 +153,17 @@ function StoreContent() {
   // Handle Camera Restore after OS kills activity
   useEffect(() => {
     const checkRestoredResult = async () => {
-      if (typeof window === 'undefined' || !(window as any).Capacitor?.isNativePlatform?.()) return;
+      if (typeof window === 'undefined' || !Capacitor.isNativePlatform()) return;
       
       const { App } = await import("@capacitor/app");
       const handle = await App.addListener('appRestoredResult', async (result) => {
         if (result.pluginId === 'Camera' && result.methodName === 'getPhoto' && result.data) {
           console.log("StorePage: Restored Camera result detected!");
+          
           // Wait for vendorId if not yet available
           let attempts = 0;
-          while (!vendorIdRef.current && attempts < 10) {
-            await new Promise(r => setTimeout(r, 500));
+          while (!vendorIdRef.current && attempts < 15) {
+            await new Promise(r => setTimeout(r, 600));
             attempts++;
           }
 
@@ -171,15 +172,26 @@ function StoreContent() {
             return;
           }
 
-          if (result.data.path) {
+          if (result.data.webPath) {
             try {
-              const response = await fetch(Capacitor.convertFileSrc(result.data.path));
-              const blob = await response.blob();
-              const file = new File([blob], `restored-camera-${Date.now()}.jpg`, { type: "image/jpeg" });
-              await processUpload(file);
+              // Check if it was a quick upload
+              const { value: quickOrderId } = await Preferences.get({ key: 'pending_quick_upload_id' });
+              
+              if (quickOrderId) {
+                console.log("StorePage: Restoring Quick Upload for order:", quickOrderId);
+                await processQuickUpload(result.data.webPath, quickOrderId);
+              } else {
+                console.log("StorePage: Restoring Modal Upload");
+                const response = await fetch(result.data.webPath);
+                const blob = await response.blob();
+                const file = new File([blob], `restored-camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+                await processUpload(file);
+              }
             } catch (err) {
               console.error("Failed to process restored camera image", err);
-              error("فشل استعادة الصورة الملتقطة");
+              error("فشل استعادة ومعالجة الصورة");
+            } finally {
+              await Preferences.remove({ key: 'pending_quick_upload_id' });
             }
           }
         }
@@ -360,13 +372,24 @@ function StoreContent() {
     setBalance(pendingCollection);
   }, [orders]);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const updateData = async (uid: string) => {
     if (!uid || isSyncing) return;
+    
+    // Abort previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsSyncing(true);
     setLastSync(new Date());
 
-    // Safety timeout to ensure isSyncing is always reset
-    const safetyTimeout = setTimeout(() => setIsSyncing(false), 10000);
+    const safetyTimeout = setTimeout(() => {
+      setIsSyncing(false);
+      abortControllerRef.current = null;
+    }, 12000);
 
     try {
       const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.allSettled([
@@ -627,19 +650,16 @@ function StoreContent() {
     try {
       const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
       const image = await Camera.getPhoto({
-        quality: 90,
+        quality: 60, // Lower quality for better memory stability on low-end devices
         allowEditing: false,
-        resultType: CameraResultType.Uri, // Use URI instead of Blob for memory efficiency
+        resultType: CameraResultType.Uri,
         source: CameraSource.Camera,
         saveToGallery: false,
-        width: 1024, // Resize to keep it light
+        width: 800, // Reduced from 1024 for even better performance
       });
 
       if (image.webPath) {
-        const response = await fetch(image.webPath);
-        const blob = await response.blob();
-        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
-        await processUpload(file);
+        await processUploadFromUri(image.webPath);
       }
     } catch (err: any) {
       if (err.message !== "User cancelled photos app") {
@@ -648,46 +668,82 @@ function StoreContent() {
     }
   };
 
+  const processUploadFromUri = async (webPath: string) => {
+    setUploadingInvoice(true);
+    try {
+      const response = await fetch(webPath);
+      const blob = await response.blob();
+      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+      await processUpload(file);
+    } catch (err) {
+      console.error("processUploadFromUri error:", err);
+      error("فشل معالجة الصورة");
+    } finally {
+      setUploadingInvoice(false);
+    }
+  };
+
   const handleQuickInvoiceUpload = async (order: Order) => {
     if (!vendorId) return;
     try {
+      // Save pending quick upload state in case of reload
+      if (Capacitor.isNativePlatform()) {
+        await Preferences.set({ key: 'pending_quick_upload_id', value: order.id });
+      }
+
       const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
       const image = await Camera.getPhoto({
-        quality: 90,
+        quality: 60, // Lower quality for better stability
         allowEditing: false,
-        resultType: CameraResultType.Uri, // Use URI for efficiency
+        resultType: CameraResultType.Uri,
         source: CameraSource.Camera,
         saveToGallery: false,
-        width: 1024,
+        width: 800, // Reduced from 1024
       });
 
       if (image.webPath) {
-        setUploadingInvoice(true);
-        const response = await fetch(image.webPath);
-        const blob = await response.blob();
-        const file = new File([blob], `quick-camera-${order.id}.jpg`, { type: "image/jpeg" });
-        const fileName = `${vendorId}/${Date.now()}_quick_${order.id}.jpg`;
-        
-        const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-        
-        // Update order in DB
-        const { error: updateError } = await updateOrder(order.id, { invoice_url: publicUrl });
-        if (updateError) throw updateError;
-        
-        // Update local state
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, invoiceUrl: publicUrl } : o));
-        success("تم رفع الفاتورة وتحديث الطلب بنجاح");
+        await processQuickUpload(image.webPath, order.id);
       }
     } catch (err: any) {
       if (err.message !== "User cancelled photos app") {
         error("فشل رفع الفاتورة السريع");
         console.error("Quick upload error:", err);
       }
+      if (Capacitor.isNativePlatform()) {
+        await Preferences.remove({ key: 'pending_quick_upload_id' });
+      }
+    }
+  };
+
+  const processQuickUpload = async (webPath: string, orderId: string) => {
+    const currentVendorId = vendorIdRef.current;
+    if (!currentVendorId) return;
+
+    setUploadingInvoice(true);
+    try {
+      const response = await fetch(webPath);
+      const blob = await response.blob();
+      const file = new File([blob], `quick-camera-${orderId}.jpg`, { type: "image/jpeg" });
+      const fileName = `${currentVendorId}/${Date.now()}_quick_${orderId}.jpg`;
+      
+      const { error: uploadError } = await supabase.storage.from('invoices').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+      
+      const { error: updateError } = await updateOrder(orderId, { invoice_url: publicUrl });
+      if (updateError) throw updateError;
+      
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, invoiceUrl: publicUrl } : o));
+      success("تم رفع الفاتورة وتحديث الطلب بنجاح");
+    } catch (err) {
+      console.error("processQuickUpload error:", err);
+      error("فشل معالجة الرفع السريع");
     } finally {
       setUploadingInvoice(false);
+      if (Capacitor.isNativePlatform()) {
+        await Preferences.remove({ key: 'pending_quick_upload_id' });
+      }
     }
   };
 
@@ -809,6 +865,7 @@ function StoreContent() {
         onSearchChange={setSearchQuery}
         onOpenDrawer={() => setShowDrawer(true)}
         onSync={() => vendorId && updateData(vendorId)}
+        onResetSync={() => setIsSyncing(false)}
         isSurgeActive={appConfig.surge_pricing_active}
       />
 

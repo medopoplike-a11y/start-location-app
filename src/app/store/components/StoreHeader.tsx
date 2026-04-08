@@ -13,10 +13,11 @@ interface StoreHeaderProps {
   onSearchChange: (value: string) => void;
   onOpenDrawer: () => void;
   onSync: () => void;
+  onResetSync?: () => void;
   isSurgeActive?: boolean;
 }
 
-export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync, isSurgeActive = false }: StoreHeaderProps) {
+export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync, onResetSync, isSurgeActive = false }: StoreHeaderProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
@@ -55,7 +56,7 @@ export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQue
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} />
+        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} onReset={onResetSync} />
 
         <motion.button
           whileTap={{ scale: 0.9, rotate: 180 }}
