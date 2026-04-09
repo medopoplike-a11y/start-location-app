@@ -66,10 +66,35 @@ function AdminContent() {
   // 2. UI State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState("operations");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
+
+  // 3. Sidebar Menu Groups
+  const menuGroups = [
+    {
+      title: "التشغيل والعمليات",
+      items: [
+        { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
+        { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: "الإدارة والبيانات",
+      items: [
+        { id: "users", label: "المستخدمين", icon: Users },
+        { id: "settlements", label: "التسويات المالية", icon: Wallet },
+        { id: "reports", label: "التقارير المالية", icon: BarChart3 },
+      ]
+    },
+    {
+      title: "الإعدادات",
+      items: [
+        { id: "settings", label: "إعدادات النظام", icon: Settings },
+      ]
+    }
+  ];
 
   // 3. Data State
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
@@ -681,18 +706,45 @@ function AdminContent() {
           <div className="flex-shrink-0 bg-gray-50 p-2 rounded-2xl"><StartLogo className="w-10 h-10" /></div>
           {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-bold text-gray-900 leading-none">START</h1><span className="text-[10px] font-bold text-gray-400 uppercase mt-1">Management</span></div>}
         </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {[
-            { id: "dashboard", label: "لوحة التحكم", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { id: "operations", label: "مركز العمليات", icon: <Zap className="w-5 h-5" />, badge: liveOrders.filter(o => o.status === "جاري البحث").length || (manualMode ? "!" : undefined) },
-            { id: "reports", label: "التقارير", icon: <BarChart3 className="w-5 h-5" /> },
-            { id: "users", label: "إدارة المستخدمين", icon: <Users className="w-5 h-5" /> },
-            { id: "settlements", label: "التسويات المالية", icon: <Wallet className="w-5 h-5" />, badge: settlements.length },
-            { id: "settings", label: "إعدادات النظام", icon: <Settings className="w-5 h-5" /> }
-          ].map(item => (
-            <button key={item.id} onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${activeView === item.id ? "bg-blue-600/10 text-blue-600 font-bold" : "text-gray-500 hover:bg-gray-100"}`}>
-              {item.icon}{sidebarOpen && <span className="text-sm flex-1 text-right">{item.label}</span>}{item.badge ? <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span> : null}
-            </button>
+        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+          {menuGroups.map((group, idx) => (
+            <div key={idx} className="space-y-2">
+              {sidebarOpen && (
+                <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">
+                  {group.title}
+                </p>
+              )}
+              <div className="space-y-1">
+                {group.items.map(item => (
+                  <button 
+                    key={item.id} 
+                    onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} 
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all relative group ${
+                      activeView === item.id 
+                        ? "bg-slate-900 text-white shadow-xl shadow-slate-200" 
+                        : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className={`${activeView === item.id ? "text-white" : "text-slate-400 group-hover:text-slate-900"} transition-colors`}>
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    {sidebarOpen && (
+                      <span className="text-sm font-bold flex-1 text-right">
+                        {item.label}
+                      </span>
+                    )}
+                    {item.id === 'operations' && liveOrders.filter(o => o.status === "جاري البحث").length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-black text-white flex items-center justify-center">
+                          {liveOrders.filter(o => o.status === "جاري البحث").length}
+                        </span>
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="p-4 border-t border-gray-100"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 hover:text-red-500 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-bold flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
@@ -755,6 +807,9 @@ function AdminContent() {
               <OperationsCenter
                 liveOrders={liveOrders}
                 drivers={drivers}
+                onlineDrivers={onlineDrivers}
+                vendors={vendors}
+                allOrders={allOrders}
                 activities={activities}
                 manualMode={manualMode}
                 maintenanceMode={appConfig?.maintenance_mode || false}

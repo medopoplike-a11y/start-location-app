@@ -16,14 +16,23 @@ import {
   LayoutGrid,
   ListFilter
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import OrdersView from "./OrdersView";
 import OrderDistributionView from "./OrderDistributionView";
 import SystemControlView from "./SystemControlView";
-import type { LiveOrderItem, DriverCard, ActivityItem } from "../types";
+import type { LiveOrderItem, DriverCard, ActivityItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
+
+const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-slate-50 animate-pulse flex items-center justify-center text-slate-400 font-black">جاري تحميل الخريطة...</div>
+});
 
 interface OperationsCenterProps {
   liveOrders: LiveOrderItem[];
   drivers: DriverCard[];
+  onlineDrivers: OnlineDriver[];
+  vendors: VendorCard[];
+  allOrders: AdminOrder[];
   activities: ActivityItem[];
   manualMode: boolean;
   maintenanceMode: boolean;
@@ -44,6 +53,9 @@ interface OperationsCenterProps {
 export default function OperationsCenter({
   liveOrders,
   drivers,
+  onlineDrivers,
+  vendors,
+  allOrders,
   activities,
   manualMode,
   maintenanceMode,
@@ -60,7 +72,7 @@ export default function OperationsCenter({
   onCancelOrder,
   onUpdateStatus
 }: OperationsCenterProps) {
-  const [activeTab, setActiveTab] = useState<"monitor" | "distribution" | "system">("monitor");
+  const [activeTab, setActiveTab] = useState<"monitor" | "distribution" | "system" | "map">("map");
   const [broadcastText, setBroadcastText] = useState("");
 
   const pendingOrdersCount = liveOrders.filter(o => o.status === "جاري البحث").length;
@@ -77,7 +89,7 @@ export default function OperationsCenter({
               {manualMode ? <Zap className="w-6 h-6 text-white" /> : <Activity className="w-6 h-6 text-white" />}
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900 leading-tight">مركز العمليات الحية</h2>
+              <h2 className="text-lg font-black text-slate-900 leading-tight">مركز العمليات الموحد</h2>
               <div className="flex items-center gap-2 mt-1">
                 <span className={`w-2 h-2 rounded-full animate-pulse ${manualMode ? "bg-amber-500" : "bg-emerald-500"}`} />
                 <p className="text-[11px] font-bold text-slate-400">
@@ -87,14 +99,23 @@ export default function OperationsCenter({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl">
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تحديث النظام</p>
-              <p className="text-xs font-bold text-slate-700">البيانات متزامنة الآن</p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تحديث النظام</p>
+                <p className="text-xs font-bold text-slate-700">البيانات متزامنة الآن</p>
+              </div>
+              <button onClick={onRefresh} className={`p-2 bg-white rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 transition-all ${actionLoading ? "animate-spin" : ""}`}>
+                <RefreshCw className="w-4 h-4" />
+              </button>
             </div>
-            <button onClick={onRefresh} className={`p-2 bg-white rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 transition-all ${actionLoading ? "animate-spin" : ""}`}>
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            
+            {activeTab === 'map' && (
+              <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                <span className="text-xs font-bold text-blue-700">{onlineDrivers.length} طيار متصل</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -114,13 +135,22 @@ export default function OperationsCenter({
       {/* Main Tab Navigation */}
       <div className="flex flex-wrap gap-2 p-1.5 bg-white/50 backdrop-blur-md border border-slate-100 rounded-2xl w-fit sticky top-20 z-30 shadow-sm">
         <button 
+          onClick={() => setActiveTab("map")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === "map" ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:bg-white"
+          }`}
+        >
+          <Radio className="w-4 h-4" />
+          الخريطة المباشرة
+        </button>
+        <button 
           onClick={() => setActiveTab("monitor")}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
             activeTab === "monitor" ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:bg-white"
           }`}
         >
           <ListFilter className="w-4 h-4" />
-          المراقبة الحية
+          قائمة الطلبات
         </button>
         <button 
           onClick={() => setActiveTab("distribution")}
@@ -140,10 +170,6 @@ export default function OperationsCenter({
           <Settings className="w-4 h-4" />
           إعدادات التشغيل
         </button>
-        <div className="w-px h-6 bg-slate-200 mx-1 my-auto" />
-        <button onClick={onRefresh} className="p-2.5 text-slate-400 hover:text-slate-900 transition-colors">
-          <RefreshCw className={`w-4 h-4 ${actionLoading ? "animate-spin" : ""}`} />
-        </button>
       </div>
 
       {/* Tab Content */}
@@ -156,6 +182,58 @@ export default function OperationsCenter({
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
+            {activeTab === "map" && (
+              <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden h-[600px] relative">
+                <LiveMap
+                  drivers={onlineDrivers.map(d => ({
+                    ...d,
+                    status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
+                    details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
+                  }))}
+                  vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
+                  orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned') && vendors.find(v => v.id_full === o.vendor_id)?.location).map(o => {
+                    const v = vendors.find(v => v.id_full === o.vendor_id)!;
+                    return {
+                      id: o.id,
+                      name: o.vendor_full_name || "محل",
+                      lat: v.location!.lat!,
+                      lng: v.location!.lng!,
+                      status: o.status === 'pending' ? 'جاري البحث عن طيار' : 'تم التعيين - بانتظار التحصيل',
+                      details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
+                    };
+                  })}
+                  zoom={13}
+                  className="h-full w-full"
+                />
+                
+                {/* Map Floating Actions */}
+                <div className="absolute top-6 right-6 z-[10] flex flex-col gap-3">
+                   <button 
+                     onClick={() => setActiveTab('distribution')}
+                     className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-2xl flex items-center gap-3 hover:scale-105 transition-all active:scale-95"
+                   >
+                     <Truck className="w-4 h-4 text-emerald-400" />
+                     بدء التوزيع الآن
+                   </button>
+                </div>
+
+                {/* Legend */}
+                <div className="absolute bottom-6 right-6 z-[10] bg-white/90 backdrop-blur-md p-4 rounded-[28px] border border-white shadow-xl space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full" />
+                    <span className="text-[10px] font-bold text-slate-700">طيار متاح</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full" />
+                    <span className="text-[10px] font-bold text-slate-700">طيار مشغول</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                    <span className="text-[10px] font-bold text-slate-700">طلب نشط</span>
+                  </div>
+                </div>
+              </div>
+            )}
             {activeTab === "monitor" && (
               <OrdersView 
                 liveOrders={liveOrders} 
