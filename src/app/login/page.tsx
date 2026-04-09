@@ -275,13 +275,14 @@ const LoginPage = () => {
                   <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
                   <StartLogo className="w-24 h-24 relative" />
                 </div>
-                <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2 flex items-center gap-2">
+                <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-1 flex items-center gap-2">
                   START
-                  <span className="text-blue-600">APP</span>
+                  <span className="text-blue-600">LOCATION</span>
                 </h1>
                 <div className="flex items-center gap-2">
-                  <span className="ultimate-badge">ULTIMATE</span>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Management</p>
+                  <p className="text-[10px] font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent uppercase tracking-[0.4em]">
+                    Smart Delivery System
+                  </p>
                 </div>
               </motion.div>
             )}
