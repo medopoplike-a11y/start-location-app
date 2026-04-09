@@ -246,7 +246,9 @@ function AdminContent() {
               status: "نشط", 
               location,
               commission_type: (p as any).commission_type,
-              commission_value: (p as any).commission_value
+              commission_value: (p as any).commission_value,
+              billing_type: (p as any).billing_type || 'commission',
+              monthly_salary: (p as any).monthly_salary || 0
             };
           }));
         }
@@ -617,20 +619,17 @@ function AdminContent() {
     }
   }, [addActivity, translateStatus, fetchOrders]);
 
-  const handleUpdateVendorCommission = useCallback(async (vendorId: string, type: 'percentage' | 'fixed', value: number) => {
+  const handleUpdateVendorBilling = useCallback(async (vendorId: string, data: { commission_type?: 'percentage' | 'fixed', commission_value?: number, billing_type?: 'commission' | 'fixed_salary', monthly_salary?: number }) => {
     const { error } = await supabase
       .from('profiles')
-      .update({ 
-        commission_type: type,
-        commission_value: value 
-      })
+      .update(data)
       .eq('id', vendorId);
 
     if (!error) {
-      addActivity(`تعديل نظام العمولة لمحل: ${vendors.find(v => v.id_full === vendorId)?.name}`);
-      setVendors(prev => prev.map(v => v.id_full === vendorId ? { ...v, commission_type: type, commission_value: value } : v));
+      addActivity(`تعديل نظام الفوترة لمحل: ${vendors.find(v => v.id_full === vendorId)?.name}`);
+      setVendors(prev => prev.map(v => v.id_full === vendorId ? { ...v, ...data } : v));
     } else {
-      console.error("Update commission error:", error);
+      console.error("Update billing error:", error);
     }
   }, [vendors, addActivity]);
 
@@ -835,7 +834,7 @@ function AdminContent() {
                 users={allUsers}
                 onAddDriver={() => setShowAddDriver(true)}
                 onAddVendor={() => setShowAddVendor(true)}
-                onUpdateVendorCommission={handleUpdateVendorCommission}
+                onUpdateVendorBilling={handleUpdateVendorBilling}
                 onToggleShiftLock={handleToggleShiftLock}
                 onResetUser={handleResetUser}
               />

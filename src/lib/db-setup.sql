@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   last_location_update TIMESTAMP WITH TIME ZONE,
   push_token TEXT,
   is_locked BOOLEAN DEFAULT FALSE,
+  commission_type TEXT CHECK (commission_type IN ('percentage', 'fixed')) DEFAULT 'percentage',
+  commission_value FLOAT DEFAULT 0,
+  billing_type TEXT CHECK (billing_type IN ('commission', 'fixed_salary')) DEFAULT 'commission',
+  monthly_salary FLOAT DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -39,6 +43,22 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='push_token') THEN
     ALTER TABLE profiles ADD COLUMN push_token TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='commission_type') THEN
+    ALTER TABLE profiles ADD COLUMN commission_type TEXT CHECK (commission_type IN ('percentage', 'fixed')) DEFAULT 'percentage';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='commission_value') THEN
+    ALTER TABLE profiles ADD COLUMN commission_value FLOAT DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='billing_type') THEN
+    ALTER TABLE profiles ADD COLUMN billing_type TEXT CHECK (billing_type IN ('commission', 'fixed_salary')) DEFAULT 'commission';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='monthly_salary') THEN
+    ALTER TABLE profiles ADD COLUMN monthly_salary FLOAT DEFAULT 0;
   END IF;
 END $$;
 

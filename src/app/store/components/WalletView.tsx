@@ -15,6 +15,8 @@ interface WalletViewProps {
     commissionPerOrder: number;
     commissionType?: 'percentage' | 'fixed';
     commissionValue?: number;
+    billingType?: 'commission' | 'fixed_salary';
+    monthlySalary?: number;
   };
   onOpenSettlementModal: () => void;
 }
@@ -39,6 +41,7 @@ export default function WalletView({ companyCommission, balance, settlementHisto
     const ago = new Date(now); ago.setDate(ago.getDate() - 30); return d >= ago;
   });
 
+  const billingType = commissionDetails?.billingType || 'commission';
   const isFixed = commissionDetails?.commissionType === 'fixed';
   const rate = commissionDetails?.commissionRate ?? 0.15;
   const perOrder = commissionDetails?.commissionPerOrder ?? 1;
@@ -57,36 +60,50 @@ export default function WalletView({ companyCommission, balance, settlementHisto
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">إجمالي مديونية الشركة</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+              {billingType === 'fixed_salary' ? "قيمة الراتب المتفق عليه" : "إجمالي مديونية الشركة"}
+            </p>
           </div>
           <h3 className="text-4xl font-black flex items-baseline gap-2">
-            {companyCommission.toLocaleString()} 
+            {billingType === 'fixed_salary' ? (commissionDetails?.monthlySalary || 0).toLocaleString() : companyCommission.toLocaleString()} 
             <span className="text-lg font-bold opacity-40">ج.م</span>
           </h3>
 
           {/* Commission Breakdown */}
-          {commissionDetails && (
+          {commissionDetails && billingType === 'commission' && (
             <div className="mt-6 space-y-3 bg-white/5 rounded-[24px] p-5 border border-white/5 backdrop-blur-sm">
               <div className="flex items-center gap-2 pb-2 border-b border-white/5">
                 <AlertCircle className="w-3.5 h-3.5 text-orange-400" />
-                <p className="text-[10px] font-black text-white/60">تفاصيل الحساب المالي (١٥٪ + ١ج)</p>
+                <p className="text-[10px] font-black text-white/60">تفاصيل الحساب المالي ({isFixed ? `${commissionDetails.commissionValue}ج ثابت` : `${(rate*100).toFixed(0)}%`} + {perOrder}ج)</p>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-[11px] font-bold">
-                  <span className="text-white/50">عمولة الشركة (١٥٪)</span>
+                  <span className="text-white/50">عمولة الشركة {isFixed ? "(ثابتة)" : `(${(rate*100).toFixed(0)}%)`}</span>
                   <span className="text-white">{commissionValue.toFixed(2)} ج.م</span>
                 </div>
                 <div className="flex justify-between items-center text-[11px] font-bold">
-                  <span className="text-white/50">تأمين رحلة (١ج ثابت)</span>
-                  <span className="text-white">{(orderCount * 1).toFixed(2)} ج.م</span>
+                  <span className="text-white/50">تأمين رحلة ({perOrder}ج ثابت)</span>
+                  <span className="text-white">{(orderCount * perOrder).toFixed(2)} ج.م</span>
                 </div>
                 <div className="h-px bg-white/5 my-1" />
                 <div className="flex justify-between items-center text-[11px] font-black text-orange-400">
                   <span>إجمالي المستحق للشركة</span>
-                  <span>{(commissionValue + (orderCount * 1)).toFixed(2)} ج.م</span>
+                  <span>{(commissionValue + (orderCount * perOrder)).toFixed(2)} ج.م</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {commissionDetails && billingType === 'fixed_salary' && (
+            <div className="mt-6 bg-purple-500/10 rounded-[24px] p-5 border border-purple-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-3.5 h-3.5 text-purple-400" />
+                <p className="text-[10px] font-black text-purple-200">نظام الحساب: راتب ثابت</p>
+              </div>
+              <p className="text-[11px] font-bold text-white/60 leading-relaxed">
+                حسابك الحالي مفعل بنظام الراتب الشهري الثابت. يتم سداد المديونية للأدمن بناءً على القيمة المتفق عليها شهرياً بغض النظر عن عدد الطلبات.
+              </p>
             </div>
           )}
 

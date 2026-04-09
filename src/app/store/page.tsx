@@ -282,7 +282,9 @@ function StoreContent() {
     vendor_fee: 1, 
     safe_ride_fee: 1,
     surge_pricing_active: false,
-    surge_pricing_multiplier: 1.0
+    surge_pricing_multiplier: 1.0,
+    billing_type: 'commission' as 'commission' | 'fixed_salary',
+    monthly_salary: 0
   });
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
@@ -365,11 +367,13 @@ function StoreContent() {
             area: profile.area || ""
           });
 
-          // Update appConfig with vendor's specific commission
+          // Update appConfig with vendor's specific billing settings
           setAppConfig(prev => ({
             ...prev,
             vendor_commission_type: (profile as any).commission_type || 'percentage',
             vendor_commission_value: (profile as any).commission_value || 0,
+            billing_type: (profile as any).billing_type || 'commission',
+            monthly_salary: (profile as any).monthly_salary || 0,
             vendor_commission: (profile as any).commission_type === 'percentage' ? ((profile as any).commission_value || 20) : prev.vendor_commission
           }));
           
@@ -455,23 +459,22 @@ function StoreContent() {
 
       if (dbOrders.status === 'fulfilled' && dbOrders.value) {
         setOrders(dbOrders.value.map(mapDBOrderToUI));
-        
-        // حساب العمولة المستحقة محلياً كاحتياطي في حال تأخر تحديث قاعدة البيانات
-        const calculatedCommission = dbOrders.value
-          .filter((o: any) => o.status === 'delivered' && !o.vendor_collected_at)
+      }
+
+      // القيمة الأساسية لمديونية الشركة تأتي من جدول المحافظ لأنه يخصم التسويات المدفوعة سابقاً
+      if (walletRes.status === 'fulfilled' && walletRes.value.data) {
+        const dbBalance = walletRes.value.data.system_balance || 0;
+        setCompanyCommission(dbBalance);
+      } else if (dbOrders.status === 'fulfilled' && dbOrders.value) {
+        // حساب احتياطي فقط في حال فشل جلب بيانات المحفظة
+        const fallbackCommission = dbOrders.value
+          .filter((o: any) => o.status === 'delivered')
           .reduce((sum: number, o: any) => {
             const vndComm = o.financials?.vendor_commission || 0;
             const vndIns = o.financials?.vendor_insurance || (o.financials?.insurance_fee ? o.financials.insurance_fee / 2 : 0);
             return sum + vndComm + vndIns;
           }, 0);
-        
-        setCompanyCommission(calculatedCommission);
-      }
-
-      // إذا كانت قيمة المحفظة في قاعدة البيانات موجودة، نستخدم القيمة الأكبر لضمان الدقة
-      if (walletRes.status === 'fulfilled' && walletRes.value.data) {
-        const dbBalance = walletRes.value.data.system_balance || 0;
-        setCompanyCommission(prev => Math.max(prev, dbBalance));
+        setCompanyCommission(fallbackCommission);
       }
 
       if (settlementsRes.status === 'fulfilled' && settlementsRes.value.data) {
@@ -1080,12 +1083,14 @@ function StoreContent() {
             balance={balance}
             settlementHistory={settlementHistory}
             commissionDetails={{
-              totalDeliveryFees: orders.filter(o => o.status === "delivered" && !o.vendorCollectedAt).reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
-              orderCount: orders.filter(o => o.status === "delivered" && !o.vendorCollectedAt).length,
+              totalDeliveryFees: orders.filter(o => o.status === "delivered").reduce((acc, o) => acc + Number(o.deliveryFee.replace(/[^0-9.-]+/g, "")), 0),
+              orderCount: orders.filter(o => o.status === "delivered").length,
               commissionRate: appConfig.vendor_commission / 100,
               commissionPerOrder: appConfig.vendor_fee || 1,
               commissionType: appConfig.vendor_commission_type,
               commissionValue: appConfig.vendor_commission_value,
+              billingType: appConfig.billing_type,
+              monthlySalary: appConfig.monthly_salary,
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />

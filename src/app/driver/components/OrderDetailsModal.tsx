@@ -170,30 +170,89 @@ export default function OrderDetailsModal({
           {/* Details */}
           <div className="px-6 py-4 space-y-4">
 
-            {/* Routing / Map Buttons */}
-            {order.vendorCoords && order.customers && order.customers.length > 0 && (
-              <div className="flex gap-3">
-                <a
-                  href={`https://www.google.com/maps/dir/${order.vendorCoords.lat},${order.vendorCoords.lng}/${order.customers.map(c => encodeURIComponent(c.address)).join('/')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-2xl text-[11px] font-black shadow-sm active:scale-95 transition-all justify-center"
-                >
-                  <Navigation className="w-4 h-4" />
-                  رسم خط سير السكة
-                </a>
-                {order.vendorCoords && (
+            {/* Vendor (Pickup Point) - Moved higher for visibility */}
+            <div className="bg-sky-50/40 rounded-3xl p-5 border border-sky-100 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-sky-600 shadow-sm border border-sky-50">
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">نقطة الاستلام (المحل)</p>
+                    <h3 className="font-black text-slate-900 text-lg">{order.vendor}</h3>
+                    {order.vendorArea && (
+                      <p className="text-[11px] font-bold text-slate-500 mt-0.5 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-red-400" />
+                        {order.vendorArea}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {order.vendorPhone && (
+                  <a
+                    href={`tel:${order.vendorPhone}`}
+                    className="w-12 h-12 bg-white text-sky-500 border border-sky-100 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
+                    title="اتصال بالمحل"
+                  >
+                    <Phone className="w-5 h-5" />
+                  </a>
+                )}
+              </div>
+
+              {/* Vendor Actions */}
+              <div className="flex gap-2">
+                {order.vendorCoords ? (
                   <a
                     href={`https://maps.google.com/?q=${order.vendorCoords.lat},${order.vendorCoords.lng}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 px-4 py-3 rounded-2xl text-[11px] font-black shadow-sm active:scale-95 transition-all justify-center"
+                    className="flex-1 inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
                   >
-                    <MapPin className="w-4 h-4" />
-                    المحل
+                    <Navigation className="w-4 h-4" />
+                    توجيه للمحل (GPS)
                   </a>
+                ) : (
+                  <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
+                    <MapPin className="w-3.5 h-3.5" />
+                    الموقع غير متاح — اتصل بالمحل
+                  </div>
+                )}
+                
+                {/* Invoice Preview if exists (moved here for vendor context) */}
+                {(order as any).invoiceUrl && (
+                  <button 
+                    onClick={async () => {
+                      if (Capacitor.isNativePlatform()) {
+                        try {
+                          const { Browser } = await import("@capacitor/browser");
+                          await Browser.open({ url: (order as any).invoiceUrl });
+                        } catch (err) {
+                          window.open((order as any).invoiceUrl, '_blank');
+                        }
+                      } else {
+                        window.open((order as any).invoiceUrl, '_blank');
+                      }
+                    }}
+                    className="bg-orange-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-100 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    الفاتورة
+                  </button>
                 )}
               </div>
+            </div>
+
+            {/* Routing / Map Buttons (Only for active sikka) */}
+            {order.status === 'in_transit' && order.vendorCoords && order.customers && order.customers.length > 0 && (
+              <a
+                href={`https://www.google.com/maps/dir/${order.vendorCoords.lat},${order.vendorCoords.lng}/${order.customers.map(c => encodeURIComponent(c.address)).join('/')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-4 rounded-[28px] text-[12px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
+              >
+                <Navigation className="w-5 h-5" />
+                رسم خط سير السكة بالكامل
+              </a>
             )}
 
             {/* Sikka Total Summary */}
@@ -210,81 +269,6 @@ export default function OrderDetailsModal({
                 </div>
               </div>
             )}
-
-            {/* Vendor (Pickup Point) */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                  <Store className="w-3 h-3" /> المحل (نقطة الاستلام)
-                </p>
-                {order.financials?.prep_time && (
-                  <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg text-[9px] font-black border border-amber-100">
-                    <Clock className="w-3 h-3" />
-                    {order.financials.prep_time} دقيقة تجهيز
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-black text-slate-900">{order.vendor}</p>
-                {order.vendorPhone && (
-                  <a
-                    href={`tel:${order.vendorPhone}`}
-                    className="flex items-center gap-2 bg-sky-500 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-sky-100 active:scale-95 transition-all"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    اتصال
-                  </a>
-                )}
-              </div>
-
-              {/* Invoice Preview if exists */}
-              {(order as any).invoiceUrl && (
-                <div className="mt-3 mb-3 p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600">
-                      <Camera className="w-4 h-4" />
-                    </div>
-                    <span className="text-[10px] font-black text-slate-600">توجد صورة للفاتورة</span>
-                  </div>
-                  <button 
-                    onClick={async () => {
-                      if (Capacitor.isNativePlatform()) {
-                        try {
-                          const { Browser } = await import("@capacitor/browser");
-                          await Browser.open({ url: (order as any).invoiceUrl });
-                        } catch (err) {
-                          window.open((order as any).invoiceUrl, '_blank');
-                        }
-                      } else {
-                        window.open((order as any).invoiceUrl, '_blank');
-                      }
-                    }}
-                    className="text-[10px] font-black text-sky-600 hover:underline flex items-center gap-1"
-                  >
-                    عرض الفاتورة
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-
-              {/* Vendor Location Navigation */}
-              {order.vendorCoords ? (
-                <a
-                  href={`https://maps.google.com/?q=${order.vendorCoords.lat},${order.vendorCoords.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 px-4 py-2.5 rounded-xl text-xs font-black shadow-sm active:scale-95 transition-all mt-1 w-full justify-center"
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                  التوجه إلى المحل على الخريطة
-                </a>
-              ) : (
-                <div className="text-[10px] text-slate-400 font-bold mt-1 flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3" />
-                  موقع المحل غير محدد — اتصل بالمحل
-                </div>
-              )}
-            </div>
 
             {/* Customers List */}
             {order.customers && order.customers.length > 0 ? (

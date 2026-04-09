@@ -8,18 +8,25 @@ import type { VendorCard } from "../types";
 interface VendorsViewProps {
   vendors: VendorCard[];
   onAddVendor: () => void;
-  onUpdateVendorCommission?: (vendorId: string, type: 'percentage' | 'fixed', value: number) => Promise<void>;
+  onUpdateVendorBilling?: (vendorId: string, data: any) => Promise<void>;
   onResetUser: (userId: string, userName: string) => void;
 }
 
-export default function VendorsView({ vendors, onAddVendor, onUpdateVendorCommission, onResetUser }: VendorsViewProps) {
-  const [editingCommissionId, setEditingCommissionId] = useState<string | null>(null);
-  const [tempCommission, setTempCommission] = useState<{ type: 'percentage' | 'fixed', value: number }>({ type: 'percentage', value: 0 });
+export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBilling, onResetUser }: VendorsViewProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tempData, setTempData] = useState<{ 
+    billing_type: 'commission' | 'fixed_salary', 
+    commission_type: 'percentage' | 'fixed', 
+    commission_value: number,
+    monthly_salary: number 
+  }>({ billing_type: 'commission', commission_type: 'percentage', commission_value: 0, monthly_salary: 0 });
 
-  const handleUpdateCommission = async (vendorId: string) => {
-    if (!onUpdateVendorCommission) return;
-    await onUpdateVendorCommission(vendorId, tempCommission.type, tempCommission.value);
-    setEditingCommissionId(null);
+  const withLocation = vendors.filter(v => !!(v.location?.lat && v.location?.lng));
+
+  const handleUpdateBilling = async (vendorId: string) => {
+    if (!onUpdateVendorBilling) return;
+    await onUpdateVendorBilling(vendorId, tempData);
+    setEditingId(null);
   };
   return (
     <div className="space-y-6">
@@ -75,43 +82,96 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorCommis
                     <p className="text-sm font-black text-slate-800">{v.balance.toLocaleString()} <span className="text-[10px] font-bold text-slate-400">ج.م</span></p>
                   </div>
                   
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-[9px] font-black text-slate-400 uppercase">نظام العمولة</p>
-                      {editingCommissionId === v.id_full ? (
-                        <div className="flex gap-1">
-                          <button onClick={() => setTempCommission({...tempCommission, type: 'percentage'})} className={`px-2 py-0.5 rounded-lg text-[8px] font-black ${tempCommission.type === 'percentage' ? "bg-blue-500 text-white" : "bg-slate-200 text-slate-500"}`}>%</button>
-                          <button onClick={() => setTempCommission({...tempCommission, type: 'fixed'})} className={`px-2 py-0.5 rounded-lg text-[8px] font-black ${tempCommission.type === 'fixed' ? "bg-blue-500 text-white" : "bg-slate-200 text-slate-500"}`}>ج.م</button>
+                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                    {editingId === v.id_full ? (
+                      <div className="space-y-3">
+                        {/* Billing Type Toggle */}
+                        <div className="flex p-1 bg-slate-200 rounded-xl">
+                          <button 
+                            onClick={() => setTempData({...tempData, billing_type: 'commission'})}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${tempData.billing_type === 'commission' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
+                          >
+                            نظام العمولة
+                          </button>
+                          <button 
+                            onClick={() => setTempData({...tempData, billing_type: 'fixed_salary'})}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${tempData.billing_type === 'fixed_salary' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
+                          >
+                            راتب ثابت
+                          </button>
                         </div>
-                      ) : (
-                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                          {v.commission_type === 'fixed' ? `${v.commission_value || 0} ج.م` : `${v.commission_value || 0}%`}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {editingCommissionId === v.id_full ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <input 
-                          type="number" 
-                          value={tempCommission.value} 
-                          onChange={(e) => setTempCommission({...tempCommission, value: Number(e.target.value)})}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-black outline-none"
-                        />
-                        <button onClick={() => handleUpdateCommission(v.id_full)} className="p-1.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100"><CheckCircle className="w-4 h-4" /></button>
-                        <button onClick={() => setEditingCommissionId(null)} className="p-1.5 bg-slate-200 text-slate-500 rounded-xl"><X className="w-4 h-4" /></button>
+
+                        {tempData.billing_type === 'commission' ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1 bg-slate-200 p-1 rounded-xl">
+                              <button onClick={() => setTempData({...tempData, commission_type: 'percentage'})} className={`px-2 py-1 rounded-lg text-[9px] font-black ${tempData.commission_type === 'percentage' ? "bg-blue-500 text-white" : "text-slate-500"}`}>%</button>
+                              <button onClick={() => setTempData({...tempData, commission_type: 'fixed'})} className={`px-2 py-1 rounded-lg text-[9px] font-black ${tempData.commission_type === 'fixed' ? "bg-blue-500 text-white" : "text-slate-500"}`}>ج.م</button>
+                            </div>
+                            <input 
+                              type="number" 
+                              value={tempData.commission_value} 
+                              onChange={(e) => setTempData({...tempData, commission_value: Number(e.target.value)})}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                              placeholder="القيمة"
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-slate-400 px-1">قيمة الراتب الشهري</p>
+                            <input 
+                              type="number" 
+                              value={tempData.monthly_salary} 
+                              onChange={(e) => setTempData({...tempData, monthly_salary: Number(e.target.value)})}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                              placeholder="مثلاً: 3000"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => handleUpdateBilling(v.id_full)} className="flex-1 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> حفظ التعديل
+                          </button>
+                          <button onClick={() => setEditingId(null)} className="p-2 bg-slate-200 text-slate-500 rounded-xl">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <button 
-                        onClick={() => {
-                          setEditingCommissionId(v.id_full);
-                          setTempCommission({ type: v.commission_type || 'percentage', value: v.commission_value || 0 });
-                        }}
-                        className="text-[9px] font-black text-slate-400 hover:text-blue-500 transition-colors flex items-center gap-1"
-                      >
-                        <Settings className="w-3 h-3" />
-                        تعديل نظام العمولة
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                          <p className="text-[9px] font-black text-slate-400 uppercase">نظام الحساب</p>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${v.billing_type === 'fixed_salary' ? "bg-purple-50 text-purple-600 border-purple-100" : "bg-blue-50 text-blue-600 border-blue-100"}`}>
+                            {v.billing_type === 'fixed_salary' ? "راتب ثابت" : "نظام عمولة"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <p className="text-[9px] font-black text-slate-400 uppercase">القيمة المتفق عليها</p>
+                          <p className="text-xs font-black text-slate-700">
+                            {v.billing_type === 'fixed_salary' 
+                              ? `${v.monthly_salary?.toLocaleString() || 0} ج.م / شهر` 
+                              : (v.commission_type === 'fixed' ? `${v.commission_value || 0} ج.م` : `${v.commission_value || 0}%`)
+                            }
+                          </p>
+                        </div>
+
+                        <button 
+                          onClick={() => {
+                            setEditingId(v.id_full);
+                            setTempData({ 
+                              billing_type: v.billing_type || 'commission',
+                              commission_type: v.commission_type || 'percentage', 
+                              commission_value: v.commission_value || 0,
+                              monthly_salary: v.monthly_salary || 0
+                            });
+                          }}
+                          className="mt-1 text-[9px] font-black text-blue-500 hover:text-blue-700 transition-colors flex items-center gap-1 w-fit"
+                        >
+                          <Settings className="w-3 h-3" />
+                          تعديل نظام الحساب
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

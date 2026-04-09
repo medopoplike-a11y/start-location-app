@@ -400,6 +400,7 @@ export default function DriverApp() {
       vendor: vendorProfile.full_name || "محل غير معروف",
       vendorId: db.vendor_id,
       vendorPhone: vendorProfile.phone || "",
+      vendorArea: vendorProfile.area || "",
       customer: db.customer_details.name,
       customerPhone: db.customer_details.phone || "",
       address: db.customer_details.address,

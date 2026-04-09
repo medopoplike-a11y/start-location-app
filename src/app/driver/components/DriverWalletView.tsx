@@ -240,6 +240,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                   
                   const vendorName = vendorProfile.full_name || "محل غير معروف";
                   const vendorPhone = vendorProfile.phone || "";
+                  const vendorArea = vendorProfile.area || "";
                   const amount = order.financials?.order_value || 0;
                   const deliveryFee = order.financials?.delivery_fee || 0;
                   const already = !!order.driver_confirmed_at;
@@ -258,6 +259,12 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                           </div>
                           <div>
                             <h4 className="font-black text-slate-900">{vendorName}</h4>
+                            {vendorArea && (
+                              <p className="text-[10px] font-bold text-slate-500 mt-0.5 flex items-center gap-1">
+                                <MapPin className="w-2.5 h-2.5 text-red-400" />
+                                {vendorArea}
+                              </p>
+                            )}
                             <p className="text-[9px] font-bold text-slate-400">#{order.id.slice(0, 8)}</p>
                           </div>
                         </div>

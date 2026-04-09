@@ -283,6 +283,12 @@ export default function DriverOrdersView({
                         </div>
                         <div className="overflow-hidden">
                           <h3 className="font-black text-slate-900 text-sm truncate">{order.vendor}</h3>
+                          {order.vendorArea && (
+                            <p className="text-[10px] font-bold text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-2.5 h-2.5 text-red-400" />
+                              {order.vendorArea}
+                            </p>
+                          )}
                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">#{order.id.slice(0, 8)}</p>
                           {order.vendorPhone && (
                             <a href={`tel:${order.vendorPhone}`} className="flex items-center gap-1 text-[10px] font-black text-sky-600 mt-0.5">

@@ -16,6 +16,7 @@ export interface Order {
   priority: number;
   statusUpdatedAt?: string;
   vendorPhone?: string;
+  vendorArea?: string;
   customerPhone?: string;
   vendorCollectedAt?: string | null;
   driverConfirmedAt?: string | null;

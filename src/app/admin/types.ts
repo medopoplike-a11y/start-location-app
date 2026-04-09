@@ -70,6 +70,8 @@ export interface VendorCard {
   location?: { lat?: number; lng?: number } | null;
   commission_type?: 'percentage' | 'fixed';
   commission_value?: number;
+  billing_type?: 'commission' | 'fixed_salary';
+  monthly_salary?: number;
 }
 
 export interface AppUser {
