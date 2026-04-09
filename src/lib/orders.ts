@@ -198,10 +198,15 @@ export const subscribeToProfiles = (callback: (payload?: any) => void, profileId
   // For global profile changes (like online status and location)
   return channel
     .on('postgres_changes', { 
-      event: 'UPDATE', 
+      event: '*', 
       schema: 'public', 
       table: 'profiles'
     }, (payload) => {
+      if (payload.event === 'DELETE' || payload.event === 'INSERT') {
+        callback(payload);
+        return;
+      }
+
       const oldData = payload.old as any;
       const newData = payload.new as any;
       
@@ -210,6 +215,7 @@ export const subscribeToProfiles = (callback: (payload?: any) => void, profileId
       // 2. location changed (crucial for admin map)
       // 3. is_locked changed
       if (
+        !oldData || 
         oldData.is_online !== newData.is_online || 
         JSON.stringify(oldData.location) !== JSON.stringify(newData.location) ||
         oldData.is_locked !== newData.is_locked
@@ -262,13 +268,17 @@ export const assignOrderToNearestDriver = async (
   vendorLocation?: { lat: number; lng: number }
 ): Promise<{ success: boolean; driverName?: string; error?: string }> => {
   // 1. Get all online drivers with auto_accept enabled
+  // Heartbeat check: only consider drivers who updated their location in the last 10 minutes
+  const fiveMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
   const { data: onlineDrivers, error: driversError } = await supabase
     .from('profiles')
-    .select('id, full_name, location, is_locked')
+    .select('id, full_name, location, is_locked, last_location_update')
     .eq('role', 'driver')
     .eq('is_online', true)
     .eq('auto_accept', true)
-    .eq('is_locked', false);
+    .eq('is_locked', false)
+    .gt('last_location_update', fiveMinsAgo);
 
   if (driversError || !onlineDrivers?.length) {
     return { success: false, error: 'لا يوجد طيارين متاحين الآن' };

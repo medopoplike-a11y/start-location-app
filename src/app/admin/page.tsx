@@ -204,7 +204,15 @@ function AdminContent() {
         const typedProfiles = profiles as ProfileRow[];
         setCache('admin_profiles', typedProfiles); // Cache profiles
         const online = typedProfiles
-          .filter((p) => (p.role || '').toLowerCase() === 'driver' && p.is_online)
+          .filter((p) => {
+            const role = (p.role || '').toLowerCase();
+            if (role !== 'driver' || !p.is_online) return false;
+            
+            // Heartbeat: 10 mins threshold
+            const lastUpdate = new Date(p.last_location_update || 0).getTime();
+            const now = Date.now();
+            return now - lastUpdate < 10 * 60 * 1000;
+          })
           .map((p) => {
           let loc = p.location;
           if (typeof loc === 'string') {
@@ -307,7 +315,11 @@ function AdminContent() {
             let loc = p.location;
             if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
             
-            if (!p.is_online) return prev.filter(d => d.id !== p.id);
+            const lastUpdate = new Date(p.last_location_update || 0).getTime();
+            const now = Date.now();
+            const isFresh = now - lastUpdate < 10 * 60 * 1000;
+            
+            if (!p.is_online || !isFresh) return prev.filter(d => d.id !== p.id);
             
             const updatedDriver = {
               id: p.id,
@@ -321,16 +333,16 @@ function AdminContent() {
             if (existing) return prev.map(d => d.id === p.id ? updatedDriver as OnlineDriver : d);
             return [...prev, updatedDriver as OnlineDriver];
           });
-          return; // Skip full fetch for driver location/status updates
+          // Do not return here, we want fetchData() to update other stats too
         } else if (p.role === 'vendor') {
           // Optimization: Instant update for vendor location if it changes
-          setAllVendors(prev => {
-            const existing = prev.find(v => v.id === p.id);
+          setVendors(prev => {
+            const existing = prev.find(v => v.id_full === p.id);
             let loc = p.location;
             if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
             
             if (existing && loc) {
-              return prev.map(v => v.id === p.id ? { ...v, lat: loc.lat, lng: loc.lng } : v);
+              return prev.map(v => v.id_full === p.id ? { ...v, location: loc } : v);
             }
             return prev;
           });

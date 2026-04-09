@@ -18,16 +18,16 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerUpdate = useCallback((payload?: any) => {
-    // Faster debounce for real-time feel (100ms instead of 300ms)
+    // Faster debounce for real-time feel (50ms instead of 100ms)
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
     syncTimeoutRef.current = setTimeout(() => {
       setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      setTimeout(() => setIsSyncing(false), 500);
+      setTimeout(() => setIsSyncing(false), 300); // Shorter feedback
       syncTimeoutRef.current = null;
-    }, 100); 
+    }, 50); 
   }, []);
 
   useEffect(() => {
@@ -170,9 +170,10 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         const { App } = await import("@capacitor/app");
         appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App active, resubscribing...");
+            console.log("useSync: App active, resubscribing and forcing full sync...");
+            unsubscribe(); // Clean up first
             subscribe();
-            triggerUpdate(); // Sync immediately on return
+            triggerUpdate({ force: true }); // Sync immediately on return
           } else {
             console.log("useSync: App background, unsubscribing to save battery...");
             unsubscribe();
