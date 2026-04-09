@@ -368,19 +368,72 @@ export default function DriverApp() {
     }
   }, []);
 
+  function mapDBOrderToUI(db: any): Order {
+    const distanceValue = db.distance || 2.5;
+    
+    // Robustly handle joined profile data (Supabase can return it under 'profiles', 'vendor', or aliased keys)
+    const rawProfiles = db.profiles || db.vendor || db.profile;
+    const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+    
+    // Safely parse location if it's a string
+    let vendorCoords = vendorProfile.location || null;
+    if (typeof vendorCoords === 'string') {
+      try { vendorCoords = JSON.parse(vendorCoords); } catch { vendorCoords = null; }
+    }
+    
+    let customerCoords = db.customer_details?.coords || null;
+    if (typeof customerCoords === 'string') {
+      try { customerCoords = JSON.parse(customerCoords); } catch { customerCoords = null; }
+    }
+
+    return {
+      id: db.id,
+      vendor: vendorProfile.full_name || "محل غير معروف",
+      vendorId: db.vendor_id,
+      vendorPhone: vendorProfile.phone || "",
+      vendorArea: vendorProfile.area || "",
+      customer: db.customer_details?.name || "عميل غير معروف",
+      customerPhone: db.customer_details?.phone || "",
+      address: db.customer_details?.address || "عنوان غير محدد",
+      distanceValue: distanceValue,
+      distance: `${distanceValue} كم`,
+      fee: `${db.financials?.delivery_fee || 0} ج.م`,
+      status: db.status,
+      coords: vendorCoords,
+      vendorCoords,
+      customerCoords,
+      prepTime: db.financials?.prep_time || "15",
+      isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
+      priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : 3),
+      statusUpdatedAt: db.status_updated_at || db.created_at || undefined,
+      vendorCollectedAt: db.vendor_collected_at,
+      driverConfirmedAt: db.driver_confirmed_at,
+      orderValue: db.financials?.order_value || 0,
+      customers: db.customer_details?.customers || [],
+      financials: {
+        order_value: db.financials?.order_value,
+        delivery_fee: db.financials?.delivery_fee,
+        system_commission: db.financials?.system_commission,
+        driver_earnings: db.financials?.driver_earnings,
+        prep_time: db.financials?.prep_time,
+      },
+    };
+  }
+
   async function fetchActiveDebtOrders(currentDriverId: string) {
     try {
       const { data, error } = await supabase
         .from('orders')
         .select('*, profiles:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
-        .in('status', ['in_transit', 'delivered']) // Include in_transit to show debt on pickup
-        .is('vendor_collected_at', null) // Only show orders where debt is not yet collected by vendor
+        .in('status', ['in_transit', 'delivered']) 
+        .is('vendor_collected_at', null) 
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setActiveDebtOrders(data || []);
-      setCache('driver_active_debt_orders', data || []);
+      const mapped = (data || []).map(mapDBOrderToUI);
+      setActiveDebtOrders(mapped as any);
+      setCache('driver_active_debt_orders', mapped);
     } catch (err) {
       console.error("fetchActiveDebtOrders error:", err);
     }
@@ -399,54 +452,12 @@ export default function DriverApp() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setTodayHistory(data || []);
-      setCache('driver_today_history', data || []);
+      const mapped = (data || []).map(mapDBOrderToUI);
+      setTodayHistory(mapped as any);
+      setCache('driver_today_history', mapped);
     } catch (err) {
       console.error("fetchTodayHistory error:", err);
     }
-  }
-
-  function mapDBOrderToUI(db: DBDriverOrder): Order {
-    const distanceValue = db.distance || 2.5;
-    
-    // Handle both array and object responses from Supabase joins
-    const rawProfiles = (db as any).profiles;
-    const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
-    
-    const vendorCoords = vendorProfile.location || null;
-    const customerCoords = db.customer_details.coords || null;
-    return {
-      id: db.id,
-      vendor: vendorProfile.full_name || "محل غير معروف",
-      vendorId: db.vendor_id,
-      vendorPhone: vendorProfile.phone || "",
-      vendorArea: vendorProfile.area || "",
-      customer: db.customer_details.name,
-      customerPhone: db.customer_details.phone || "",
-      address: db.customer_details.address,
-      distanceValue: distanceValue,
-      distance: `${distanceValue} كم`,
-      fee: `${db.financials.delivery_fee} ج.م`,
-      status: db.status,
-      coords: vendorCoords,
-      vendorCoords,
-      customerCoords,
-      prepTime: db.financials.prep_time,
-      isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
-      priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : 3),
-      statusUpdatedAt: db.status_updated_at || db.created_at || undefined,
-      vendorCollectedAt: db.vendor_collected_at,
-      driverConfirmedAt: db.driver_confirmed_at,
-      orderValue: db.financials.order_value,
-      customers: db.customer_details.customers || [],
-      financials: {
-        order_value: db.financials.order_value,
-        delivery_fee: db.financials.delivery_fee,
-        system_commission: db.financials.system_commission,
-        driver_earnings: db.financials.driver_earnings,
-        prep_time: db.financials.prep_time,
-      },
-    };
   }
 
   const manualSync = async () => {

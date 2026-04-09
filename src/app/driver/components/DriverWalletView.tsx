@@ -11,8 +11,8 @@ interface WalletProps {
   vendorDebt: number;
   systemBalance: number;
   orders: Order[];
-  deliveredOrders: DBDriverOrder[];
-  allHistory: DBDriverOrder[];
+  deliveredOrders: Order[];
+  allHistory: Order[];
   onConfirmPayment: (orderId: string) => Promise<void>;
   onOpenSettlementModal: () => void;
 }
@@ -29,8 +29,8 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
 
   const now = new Date();
   const filteredHistory = (allHistory || []).filter((o) => {
-    if (!o.created_at) return filter === "today";
-    const d = new Date(o.created_at);
+    if (!o.statusUpdatedAt) return filter === "today";
+    const d = new Date(o.statusUpdatedAt);
     if (filter === "today") return d.toDateString() === now.toDateString();
     if (filter === "15days") { const ago = new Date(now); ago.setDate(ago.getDate() - 15); return d >= ago; }
     const ago = new Date(now); ago.setDate(ago.getDate() - 30); return d >= ago;
@@ -168,14 +168,9 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                     <span>عمولة</span>
                   </div>
                   {filteredHistory.slice(0, 30).map((order, idx) => {
-                        const fee = order.financials?.delivery_fee || 0;
-                        const earn = order.financials?.driver_earnings || 0;
+                        const fee = (order.financials?.delivery_fee || 0);
+                        const earn = (order.financials?.driver_earnings || 0);
                         const comm = fee * commissionRate + commissionPerOrder;
-                        
-                        // Handle both array and object responses from Supabase joins
-                        const rawProfiles = (order as any).profiles;
-                        const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
-                        const vName = vendorProfile.full_name || "محل";
                         
                         return (
                       <motion.div
@@ -185,7 +180,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                         transition={{ delay: idx * 0.04 }}
                         className="grid grid-cols-[1fr_auto_auto_auto] gap-3 py-3 border-b border-gray-50 items-center"
                       >
-                        <span className="font-semibold text-xs truncate">#{order.id.slice(0, 6)} {vName}</span>
+                        <span className="font-semibold text-xs truncate">#{order.id.slice(0, 6)} {order.vendor}</span>
                         <span className="font-black text-sky-600 text-xs">{fee.toFixed(0)}</span>
                         <span className="font-black text-green-600 text-xs">+{earn.toFixed(1)}</span>
                         <span className="font-black text-orange-500 text-xs">-{comm.toFixed(1)}</span>
@@ -234,16 +229,12 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                   </p>
                 </div>
                 {deliveredOrders.map((order, idx) => {
-                  // Handle both array and object responses from Supabase joins
-                  const rawProfiles = (order as any).profiles;
-                  const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
-                  
-                  const vendorName = vendorProfile.full_name || "محل غير معروف";
-                  const vendorPhone = vendorProfile.phone || "";
-                  const vendorArea = vendorProfile.area || "";
-                  const amount = order.financials?.order_value || 0;
+                  const vendorName = order.vendor || "محل غير معروف";
+                  const vendorPhone = order.vendorPhone || "";
+                  const vendorArea = order.vendorArea || "";
+                  const amount = order.orderValue || 0;
                   const deliveryFee = order.financials?.delivery_fee || 0;
-                  const already = !!order.driver_confirmed_at;
+                  const already = !!order.driverConfirmedAt;
                   return (
                     <motion.div
                       key={order.id}
@@ -278,7 +269,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                       <div className="grid grid-cols-3 gap-2 mb-3 bg-slate-50 rounded-xl p-3">
                         <div className="text-center">
                           <p className="text-[8px] text-slate-400 font-bold">العميل</p>
-                          <p className="text-[10px] font-black text-slate-700 truncate">{order.customer_details?.name}</p>
+                          <p className="text-[10px] font-black text-slate-700 truncate">{order.customer}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-[8px] text-slate-400 font-bold">التوصيل</p>

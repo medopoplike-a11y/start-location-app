@@ -6,7 +6,7 @@ import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone
 import type { DBDriverOrder } from "../types";
 
 interface DriverHistoryViewProps {
-  history: DBDriverOrder[];
+  history: Order[];
   onPreviewImage?: (url: string) => void;
 }
 
@@ -19,8 +19,8 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
   const now = new Date();
 
   const filtered = history.filter((o) => {
-    if (!o.created_at) return filter === "today";
-    const d = new Date(o.created_at);
+    if (!o.statusUpdatedAt) return filter === "today";
+    const d = new Date(o.statusUpdatedAt);
     if (filter === "today") {
       return d.toDateString() === now.toDateString();
     } else if (filter === "15days") {
@@ -36,7 +36,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
 
   const totalEarnings = filtered.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
   const totalDeliveryFees = filtered.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
-  const totalOrderValue = filtered.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
+  const totalOrderValue = filtered.reduce((acc, o) => acc + (o.orderValue || 0), 0);
 
   // Commission = 15% of delivery fee + 1 EGP per order
   const commissionRate = 0.15;
@@ -127,17 +127,13 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
           {/* Order List */}
           <div className="space-y-3">
             {filtered.map((order, idx) => {
-              // Handle both array and object responses from Supabase joins
-              const rawProfiles = (order as any).profiles;
-              const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
-              
-              const vendorName = vendorProfile.full_name || "محل غير معروف";
-              const vendorPhone = vendorProfile.phone || "";
+              const vendorName = order.vendor || "محل غير معروف";
+              const vendorPhone = order.vendorPhone || "";
               const earnings = order.financials?.driver_earnings || 0;
-              const orderValue = order.financials?.order_value || 0;
+              const orderValue = order.orderValue || 0;
               const deliveryFee = order.financials?.delivery_fee || 0;
               const commission = deliveryFee * commissionRate + commissionPerOrder;
-              const settled = !!order.vendor_collected_at;
+              const settled = !!order.vendorCollectedAt;
               const isExpanded = expandedId === order.id;
 
               return (
@@ -163,7 +159,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                         </div>
                         <p className="text-[9px] text-slate-400 font-bold">
                           #{order.id.slice(0, 8)}
-                          {order.created_at && ` • ${new Date(order.created_at).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}`}
+                          {order.statusUpdatedAt && ` • ${new Date(order.statusUpdatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}`}
                         </p>
                       </div>
                     </div>
@@ -196,51 +192,46 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                             <p className="text-[10px] font-black text-slate-500 uppercase mb-1">العميل</p>
                             <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
                               <MapPin className="w-3.5 h-3.5 text-red-400" />
-                              {order.customer_details?.address}
+                              {order.address}
                             </div>
-                            {order.customer_details?.phone && (
-                              <a href={`tel:${order.customer_details.phone}`} className="flex items-center gap-2 text-xs text-sky-600 font-bold mt-1">
-                                <Phone className="w-3.5 h-3.5" />
-                                {order.customer_details.phone}
-                              </a>
-                            )}
                           </div>
-                          
-                          {order.customer_details?.invoice_url && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onPreviewImage?.(order.customer_details!.invoice_url!);
-                              }}
-                              className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
-                            >
-                              <img src={order.customer_details.invoice_url} className="w-full h-full object-cover" alt="Invoice" />
-                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/inv:opacity-100 transition-opacity flex items-center justify-center">
-                                <Eye size={10} className="text-white" />
-                              </div>
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {order.customers?.[0]?.invoice_url && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onPreviewImage?.(order.customers![0].invoice_url!);
+                                }}
+                                className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                              >
+                                <img src={order.customers[0].invoice_url} className="w-full h-full object-cover" alt="Inv" />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Eye size={12} className="text-white" />
+                                </div>
+                              </button>
+                            )}
+                            <a href={`tel:${order.customerPhone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                              <Phone size={14} />
+                            </a>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Financials Breakdown */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-green-50 rounded-[14px] p-3 text-center">
-                          <p className="text-[9px] text-green-600 font-bold uppercase">صافي ربحك</p>
-                          <p className="text-sm font-black text-green-700">+{earnings.toFixed(2)} ج.م</p>
+                      {/* Financial details */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-50 rounded-[20px] p-3.5 border border-slate-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase mb-1">صافي ربحك</p>
+                          <p className="text-sm font-black text-green-600">+{earnings.toFixed(2)} ج.م</p>
                         </div>
-                        <div className="bg-orange-50 rounded-[14px] p-3 text-center">
-                          <p className="text-[9px] text-orange-600 font-bold uppercase">عمولة الشركة</p>
-                          <p className="text-sm font-black text-orange-700">-{commission.toFixed(2)} ج.م</p>
+                        <div className="bg-slate-50 rounded-[20px] p-3.5 border border-slate-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase mb-1">عمولة الشركة</p>
+                          <p className="text-sm font-black text-orange-500">-{commission.toFixed(2)} ج.م</p>
                         </div>
-                        <div className="bg-sky-50 rounded-[14px] p-3 text-center">
-                          <p className="text-[9px] text-sky-600 font-bold uppercase">سعر التوصيل</p>
-                          <p className="text-sm font-black text-sky-700">{deliveryFee.toFixed(2)} ج.م</p>
-                        </div>
-                        <div className="bg-slate-50 rounded-[14px] p-3 text-center">
-                          <p className="text-[9px] text-slate-500 font-bold uppercase">قيمة الطلب</p>
-                          <p className="text-sm font-black text-slate-700">{orderValue.toFixed(2)} ج.م</p>
-                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between px-3 pt-1">
+                        <p className="text-[10px] font-bold text-slate-400">إجمالي ما تم تحصيله من العميل:</p>
+                        <p className="text-xs font-black text-slate-700">{(orderValue + deliveryFee).toLocaleString()} ج.م</p>
                       </div>
 
                       {/* Vendor contact */}
