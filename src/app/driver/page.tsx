@@ -49,6 +49,12 @@ export default function DriverApp() {
   const [requestingSettlement, setRequestingSettlement] = useState(false);
   const backgroundWatcherRef = useRef<string | null>(null);
   const foregroundWatcherRef = useRef<string | null>(null);
+  const ordersRef = useRef<Order[]>([]);
+
+  // Keep ordersRef in sync with orders state
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {
@@ -486,6 +492,18 @@ export default function DriverApp() {
   };
 
   const toggleAutoAccept = async () => {
+    // If turning on, check if already at limit
+    if (!autoAccept) {
+      const currentCustomersCount = orders
+        .filter(o => o.status === 'assigned' || o.status === 'in_transit')
+        .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
+      
+      if (currentCustomersCount >= 3) {
+        toastError("لا يمكنك تفعيل القبول التلقائي لأنك وصلت للحد الأقصى (3 عملاء).");
+        return;
+      }
+    }
+
     const newAuto = !autoAccept;
     setAutoAccept(newAuto);
     if (Capacitor.isNativePlatform()) {
@@ -506,8 +524,8 @@ export default function DriverApp() {
       console.log("Starting auto-accept poll...");
       interval = setInterval(async () => {
         try {
-          // Check current customer count to respect the limit (max 3)
-          const currentCustomersCount = orders
+          // Use ordersRef to get the latest orders instead of captured state
+          const currentCustomersCount = ordersRef.current
             .filter(o => o.status === 'assigned' || o.status === 'in_transit')
             .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
 
