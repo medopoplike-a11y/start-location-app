@@ -17,23 +17,15 @@
     -webkit-user-select: none;
     user-select: none;
     scroll-behavior: smooth;
-    /* Remove overflow: hidden; height: 100% which lock the layout too much on Android */
     min-height: 100%;
-    background: #f8fafc;
+    background: #f1f5f9;
   }
   
-  /* Allow selection only in inputs and specific areas */
-  input, textarea, [contenteditable="true"], .selectable, .selectable * {
-    -webkit-user-select: text !important;
-    user-select: text !important;
-    -webkit-touch-callout: default !important;
-  }
-
   body {
     @apply antialiased;
     color: rgb(var(--foreground-rgb));
-    background: #f8fafc;
-    min-height: 100vh; /* Use vh for dynamic height */
+    background: transparent;
+    min-height: 100vh;
     font-feature-settings: 'pnum';
     line-height: 1.6;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -95,17 +87,6 @@
 
 .ultimate-badge {
   @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg shadow-blue-500/20;
-}
-
-.silver-live-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: 
-    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.03) 0%, transparent 50%),
-    #f8fafc;
-  pointer-events: none;
 }
 
 /* Animations */

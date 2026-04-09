@@ -661,9 +661,7 @@ function AdminContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-right relative overflow-hidden" dir="rtl">
-      <div className="silver-live-bg" />
-
+    <div className="min-h-screen bg-slate-50 flex font-sans text-right relative overflow-hidden" dir="rtl">
       {/* Sidebar */}
       <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 backdrop-blur-xl border-l border-white/20 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
         <div className="p-6 flex items-center gap-4 border-b border-gray-50 h-24">
