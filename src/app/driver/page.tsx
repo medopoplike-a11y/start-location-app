@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -10,7 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
+import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -47,6 +47,7 @@ export default function DriverApp() {
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
+  const backgroundWatcherRef = useRef<string | null>(null);
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {
@@ -92,7 +93,7 @@ export default function DriverApp() {
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [lastLocationUpdate, setLastLocationUpdate] = useState<number>(0);
-  const [deliveredOrders, setDeliveredOrders] = useState<DBDriverOrder[]>([]);
+  const [activeDebtOrders, setActiveDebtOrders] = useState<DBDriverOrder[]>([]);
   const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
   const [isSurgeActive, setIsSurgeActive] = useState(false);
 
@@ -112,11 +113,23 @@ export default function DriverApp() {
   useEffect(() => {
     if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
       KeepAwake.keepAwake().catch(() => {});
+      
+      // Start background tracking if online
+      if (driverId && !backgroundWatcherRef.current) {
+        startBackgroundTracking(driverId).then(id => {
+          if (id) backgroundWatcherRef.current = id;
+        });
+      }
+
       return () => {
         KeepAwake.allowSleep().catch(() => {});
+        if (backgroundWatcherRef.current) {
+          stopBackgroundTracking(backgroundWatcherRef.current);
+          backgroundWatcherRef.current = null;
+        }
       };
     }
-  }, [isActive]);
+  }, [isActive, driverId]);
 
   // 3. Persistent state for isActive using Native Preferences
   useEffect(() => {
@@ -163,84 +176,47 @@ export default function DriverApp() {
     }, fallbackMs);
 
     const setup = async () => {
-      // 1. Try to load initial data from cache for instant display
-      const [cachedName, cachedOrders, cachedStats, cachedDelivered, cachedHistory] = await Promise.all([
-        getCache<string>('driver_name'),
+      const [cachedOrders, cachedStats, cachedDebt, cachedHistory] = await Promise.all([
         getCache<Order[]>('driver_orders'),
         getCache<any>('driver_stats'),
-        getCache<DBDriverOrder[]>('driver_delivered_orders'),
+        getCache<DBDriverOrder[]>('driver_active_debt_orders'),
         getCache<DBDriverOrder[]>('driver_today_history')
       ]);
-
-      if (cachedName) setDriverName(cachedName);
-      if (cachedOrders && cachedOrders.length > 0) {
-        setOrders(cachedOrders);
-      }
-      if (cachedStats) {
-        if (cachedStats.vendorDebt) setVendorDebt(cachedStats.vendorDebt);
-        if (cachedStats.todayDeliveryFees) setTodayDeliveryFees(cachedStats.todayDeliveryFees);
-        if (cachedStats.systemBalance) setSystemBalance(cachedStats.systemBalance);
-      }
-      if (cachedDelivered) setDeliveredOrders(cachedDelivered);
+      
+      if (cachedOrders) setOrders(cachedOrders);
+      if (cachedDebt) setActiveDebtOrders(cachedDebt);
       if (cachedHistory) setTodayHistory(cachedHistory);
-
-      // If we have cached orders or stats, we can hide the loader earlier
-      if ((cachedOrders && cachedOrders.length > 0) || cachedStats) {
-        setLoading(false);
+      if (cachedStats) {
+        setVendorDebt(cachedStats.vendorDebt || 0);
+        setTodayDeliveryFees(cachedStats.todayDeliveryFees || 0);
+        setSystemBalance(cachedStats.systemBalance || 0);
       }
 
-      if (authLoading) return; // Wait for AuthProvider
+      if (authLoading) return;
+      if (!user) { setLoading(false); return; }
+      
+      const currentDriverId = user.id;
+      setDriverId(currentDriverId);
+      setDriverName(user.user_metadata?.full_name || "كابتن سكة");
 
-      // Prevent redundant setup if we already have the driverId set
-      if (driverId === (user?.id || null) && driverName !== "كابتن") {
-        return;
+      await Promise.allSettled([
+        fetchOrders(currentDriverId),
+        fetchStats(currentDriverId),
+        fetchActiveDebtOrders(currentDriverId),
+        fetchTodayHistory(currentDriverId)
+      ]);
+
+      // Ensure Online status is synced with DB if isActive is true
+      if (isActive) {
+        await supabase.from('profiles').update({ is_online: true }).eq('id', currentDriverId);
       }
 
-      try {
-        // Use user and profile from AuthProvider if available
-        if (user && authProfile) {
-          if (driverId !== user.id || driverName !== (authProfile.full_name || "كابتن")) {
-            console.log("DriverPage: Using profile from AuthProvider");
-            setDriverId(user.id);
-            setDriverName(authProfile.full_name || "كابتن");
-            toastSuccess(`أهلاً بك يا كابتن ${authProfile.full_name || ""}!`);
-            
-            void Promise.allSettled([
-              withTimeout('fetchOrders', fetchOrders(), 10000),
-              withTimeout('fetchStats', fetchStats(user.id), 10000),
-              withTimeout('fetchDelivered', fetchDeliveredOrders(user.id), 10000),
-              withTimeout('fetchHistory', fetchTodayHistory(user.id), 10000),
-            ]);
-          }
-          setLoading(false);
-          return;
-        }
-
-        // Only if AuthProvider failed or didn't provide data
-        console.log("DriverPage: Falling back to manual fetch");
-        const currentUser = await withTimeout('getCurrentUser', getCurrentUser(), isCapacitor ? 10000 : 5000);
-        if (currentUser) {
-          const profile = await withTimeout('getUserProfile', getUserProfile(currentUser.id, currentUser.email), isCapacitor ? 10000 : 5000);
-          if (profile) {
-            setDriverId(currentUser.id);
-            setDriverName(profile.full_name || "كابتن");
-            void Promise.allSettled([
-              withTimeout('fetchOrders', fetchOrders(), 10000),
-              withTimeout('fetchStats', fetchStats(currentUser.id), 10000)
-            ]);
-          }
-        }
-      } catch (e) {
-        console.error("DriverPage: Setup error", e);
-      } finally {
-        clearTimeout(hardFallback);
-        setLoading(false);
-      }
+      setLoading(false);
     };
 
     setup();
     return () => clearTimeout(hardFallback);
-  }, [user, authProfile, authLoading]);
+  }, [user, authProfile, authLoading, isActive]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation || !driverId || !isActive) return;
@@ -263,9 +239,8 @@ export default function DriverApp() {
         }).eq('id', driverId);
       },
       (error) => {
-        if (error.code === 1) {
-          setIsActive(false);
-        }
+        console.warn("Geolocation watch error:", error);
+        // Don't auto-offline on temporary errors
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
@@ -277,11 +252,11 @@ export default function DriverApp() {
     setLastSyncTime(new Date());
     try {
       const { data: walletData } = await supabase.from('wallets').select('debt, system_balance').eq('user_id', currentDriverId).single();
-      const { data: uncollectedDeliveredOrders } = await supabase
+      const { data: uncollectedOrders } = await supabase
         .from('orders')
         .select('financials')
         .eq('driver_id', currentDriverId)
-        .eq('status', 'delivered')
+        .in('status', ['in_transit', 'delivered']) // Include in_transit to show debt on pickup
         .is('vendor_collected_at', null);
       
       const startOfToday = new Date();
@@ -299,8 +274,8 @@ export default function DriverApp() {
         finalBalance = walletData.system_balance || 0;
         setSystemBalance(finalBalance);
       }
-      if (uncollectedDeliveredOrders) {
-        finalDebt = uncollectedDeliveredOrders.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
+      if (uncollectedOrders) {
+        finalDebt = uncollectedOrders.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
         setVendorDebt(finalDebt);
       }
       if (todayOrders) {
@@ -373,21 +348,21 @@ export default function DriverApp() {
     }
   }, []);
 
-  async function fetchDeliveredOrders(currentDriverId: string) {
+  async function fetchActiveDebtOrders(currentDriverId: string) {
     try {
       const { data, error } = await supabase
         .from('orders')
         .select('*, profiles:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
-        .eq('status', 'delivered')
+        .in('status', ['in_transit', 'delivered']) // Include in_transit to show debt on pickup
         .is('vendor_collected_at', null) // Only show orders where debt is not yet collected by vendor
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setDeliveredOrders(data || []);
-      setCache('driver_delivered_orders', data || []);
+      setActiveDebtOrders(data || []);
+      setCache('driver_active_debt_orders', data || []);
     } catch (err) {
-      console.error("fetchDeliveredOrders error:", err);
+      console.error("fetchActiveDebtOrders error:", err);
     }
   }
 
@@ -413,7 +388,11 @@ export default function DriverApp() {
 
   function mapDBOrderToUI(db: DBDriverOrder): Order {
     const distanceValue = db.distance || 2.5;
-    const vendorProfile = db.profiles || {};
+    
+    // Handle both array and object responses from Supabase joins
+    const rawProfiles = (db as any).profiles;
+    const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+    
     const vendorCoords = vendorProfile.location || null;
     const customerCoords = db.customer_details.coords || null;
     return {
@@ -454,7 +433,7 @@ export default function DriverApp() {
     void Promise.allSettled([
       withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
       withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
-      withTimeout('sync.fetchDelivered', fetchDeliveredOrders(driverId), 15000),
+      withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000),
       withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
     ]);
   };
@@ -465,7 +444,7 @@ export default function DriverApp() {
       void Promise.allSettled([
         withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
         withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
-        withTimeout('sync.fetchDelivered', fetchDeliveredOrders(driverId), 15000),
+        withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000),
         withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
       ]);
     }
@@ -638,7 +617,7 @@ export default function DriverApp() {
       void Promise.allSettled([
         fetchOrders(driverId), 
         fetchStats(driverId),
-        fetchDeliveredOrders(driverId),
+        fetchActiveDebtOrders(driverId),
         fetchTodayHistory(driverId)
       ]);
     } catch (err) {
@@ -691,7 +670,7 @@ export default function DriverApp() {
       if (error) throw error;
       
       toastSuccess('تم تأكيد تسليم المبلغ! بانتظار تأكيد المحل.');
-      void fetchDeliveredOrders(driverId);
+      void fetchActiveDebtOrders(driverId);
     } catch (err) {
       console.error('Confirm Payment failed:', err);
     }
@@ -809,7 +788,7 @@ export default function DriverApp() {
                       vendorDebt={vendorDebt}
                       systemBalance={systemBalance}
                       orders={orders}
-                      deliveredOrders={deliveredOrders}
+                      deliveredOrders={activeDebtOrders}
                       allHistory={todayHistory}
                       onConfirmPayment={handleConfirmPayment}
                       onOpenSettlementModal={() => setShowSettlementModal(true)}

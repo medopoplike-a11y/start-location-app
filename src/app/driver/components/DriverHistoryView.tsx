@@ -127,8 +127,12 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
           {/* Order List */}
           <div className="space-y-3">
             {filtered.map((order, idx) => {
-              const vendorName = order.profiles?.full_name || "محل";
-              const vendorPhone = order.profiles?.phone || "";
+              // Handle both array and object responses from Supabase joins
+              const rawProfiles = (order as any).profiles;
+              const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+              
+              const vendorName = vendorProfile.full_name || "محل غير معروف";
+              const vendorPhone = vendorProfile.phone || "";
               const earnings = order.financials?.driver_earnings || 0;
               const orderValue = order.financials?.order_value || 0;
               const deliveryFee = order.financials?.delivery_fee || 0;

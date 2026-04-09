@@ -168,11 +168,16 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                     <span>عمولة</span>
                   </div>
                   {filteredHistory.slice(0, 30).map((order, idx) => {
-                    const fee = order.financials?.delivery_fee || 0;
-                    const earn = order.financials?.driver_earnings || 0;
-                    const comm = fee * commissionRate + commissionPerOrder;
-                    const vName = order.profiles?.full_name || "محل";
-                    return (
+                        const fee = order.financials?.delivery_fee || 0;
+                        const earn = order.financials?.driver_earnings || 0;
+                        const comm = fee * commissionRate + commissionPerOrder;
+                        
+                        // Handle both array and object responses from Supabase joins
+                        const rawProfiles = (order as any).profiles;
+                        const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+                        const vName = vendorProfile.full_name || "محل";
+                        
+                        return (
                       <motion.div
                         key={order.id}
                         initial={{ opacity: 0 }}
@@ -229,8 +234,12 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                   </p>
                 </div>
                 {deliveredOrders.map((order, idx) => {
-                  const vendorName = order.profiles?.full_name || "محل";
-                  const vendorPhone = order.profiles?.phone || "";
+                  // Handle both array and object responses from Supabase joins
+                  const rawProfiles = (order as any).profiles;
+                  const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+                  
+                  const vendorName = vendorProfile.full_name || "محل غير معروف";
+                  const vendorPhone = vendorProfile.phone || "";
                   const amount = order.financials?.order_value || 0;
                   const deliveryFee = order.financials?.delivery_fee || 0;
                   const already = !!order.driver_confirmed_at;

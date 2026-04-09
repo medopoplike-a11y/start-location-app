@@ -351,3 +351,22 @@ export const startBackgroundTracking = async (userId: string) => {
   }
 };
 
+/**
+ * إيقاف تتبع الموقع في الخلفية
+ */
+export const stopBackgroundTracking = async (watcherId: string) => {
+  if (!isNative() || !watcherId) return;
+
+  try {
+    const plugins = (Capacitor as unknown as { Plugins?: Record<string, unknown> }).Plugins;
+    const BackgroundGeolocation = plugins?.BackgroundGeolocation as any;
+
+    if (BackgroundGeolocation?.removeWatcher) {
+      await BackgroundGeolocation.removeWatcher({ id: watcherId });
+      console.log('Native: Background tracking stopped');
+    }
+  } catch (e) {
+    console.error('Stop Background Tracking Failed:', e);
+  }
+};
+

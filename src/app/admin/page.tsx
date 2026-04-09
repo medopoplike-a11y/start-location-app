@@ -133,26 +133,39 @@ function AdminContent() {
         const typedData = data as AdminOrder[];
         setAllOrders(typedData);
         setCache('admin_orders', typedData); // Cache orders
-        const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => ({
-          id: o.id.slice(0, 8),
-          id_full: o.id,
-          vendor: o.vendor_full_name || "محل غير معروف",
-          customer: o.customer_details?.name || "عميل",
-          status: translateStatus(o.status),
-          driver: o.driver_id ? "تم التعيين" : null,
-          driver_id: o.driver_id,
-          amount: o.financials?.order_value || 0,
-          delivery_fee: o.financials?.delivery_fee || 0,
-          created_at: o.created_at,
-          customers: o.customer_details?.customers
-        }));
+        const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => {
+          // Handle both array and object responses from Supabase joins
+          const rawProfiles = (o as any).profiles;
+          const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+          const vName = vendorProfile.full_name || o.vendor_full_name || "محل غير معروف";
+          
+          return {
+            id: o.id.slice(0, 8),
+            id_full: o.id,
+            vendor: vName,
+            customer: o.customer_details?.name || "عميل",
+            status: translateStatus(o.status),
+            driver: o.driver_id ? "تم التعيين" : null,
+            driver_id: o.driver_id,
+            amount: o.financials?.order_value || 0,
+            delivery_fee: o.financials?.delivery_fee || 0,
+            created_at: o.created_at,
+            customers: o.customer_details?.customers
+          };
+        });
         setLiveOrders(live);
-        setActivities(typedData.slice(0, 5).map((o) => ({
-          id: o.id,
-          type: 'order',
-          text: `طلب جديد من ${o.vendor_full_name || "محل"} بقيمة ${o.financials?.order_value} ج.م`,
-          time: new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-        })));
+        setActivities(typedData.slice(0, 5).map((o) => {
+          const rawProfiles = (o as any).profiles;
+          const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+          const vName = vendorProfile.full_name || o.vendor_full_name || "محل";
+          
+          return {
+            id: o.id,
+            type: 'order',
+            text: `طلب جديد من ${vName} بقيمة ${o.financials?.order_value} ج.م`,
+            time: new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+          };
+        }));
       }
     } catch (err) {
       console.error("Admin: Error fetching orders:", err);
