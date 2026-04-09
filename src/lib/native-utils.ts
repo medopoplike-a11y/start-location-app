@@ -310,8 +310,8 @@ export const startBackgroundTracking = async (userId: string) => {
         backgroundMessage: "جاري تتبع موقعك لتقديم أفضل خدمة توصيل...",
         backgroundTitle: "تطبيق ستارت نشط",
         requestPermissions: true,
-        staleLocationInterval: 30000,
-        distanceFilter: 10
+        staleLocationInterval: 10000, // Reduced to 10 seconds for faster updates
+        distanceFilter: 5 // Reduced to 5 meters for higher precision
       },
       async (location, error) => {
         if (error) {
@@ -367,6 +367,62 @@ export const stopBackgroundTracking = async (watcherId: string) => {
     }
   } catch (e) {
     console.error('Stop Background Tracking Failed:', e);
+  }
+};
+
+/**
+ * تتبع الموقع اللحظي في الواجهة (Foreground)
+ * يستخدم Geolocation.watchPosition لتحديثات سريعة جداً عند فتح التطبيق
+ */
+export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    
+    const watchId = await Geolocation.watchPosition(
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      },
+      async (position, err) => {
+        if (err || !position) return;
+        
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        if (onUpdate) onUpdate({ lat, lng });
+
+        // Update Supabase immediately
+        await supabase
+          .from('profiles')
+          .update({
+            location: {
+              lat,
+              lng,
+              heading: position.coords.heading,
+              speed: position.coords.speed,
+              accuracy: position.coords.accuracy
+            },
+            is_online: true,
+            last_location_update: new Date().toISOString()
+          })
+          .eq('id', userId);
+      }
+    );
+    
+    return watchId;
+  } catch (e) {
+    console.error('Foreground tracking failed:', e);
+    return null;
+  }
+};
+
+export const stopForegroundTracking = async (watchId: string) => {
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    await Geolocation.clearWatch({ id: watchId });
+  } catch (e) {
+    console.error('Stop foreground tracking failed:', e);
   }
 };
 

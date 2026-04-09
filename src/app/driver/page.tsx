@@ -10,7 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking } from "@/lib/native-utils";
+import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -48,6 +48,7 @@ export default function DriverApp() {
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
   const backgroundWatcherRef = useRef<string | null>(null);
+  const foregroundWatcherRef = useRef<string | null>(null);
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {
@@ -109,7 +110,7 @@ export default function DriverApp() {
     }
   };
 
-  // 2. KeepAwake: Prevent screen from turning off while online
+  // 2. KeepAwake & Tracking: Prevent screen from turning off while online
   useEffect(() => {
     if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
       KeepAwake.keepAwake().catch(() => {});
@@ -121,11 +122,24 @@ export default function DriverApp() {
         });
       }
 
+      // Start rapid foreground tracking if online
+      if (driverId && !foregroundWatcherRef.current) {
+        startForegroundTracking(driverId, (loc) => {
+          setDriverLocation(loc);
+        }).then(id => {
+          if (id) foregroundWatcherRef.current = id;
+        });
+      }
+
       return () => {
         KeepAwake.allowSleep().catch(() => {});
         if (backgroundWatcherRef.current) {
           stopBackgroundTracking(backgroundWatcherRef.current);
           backgroundWatcherRef.current = null;
+        }
+        if (foregroundWatcherRef.current) {
+          stopForegroundTracking(foregroundWatcherRef.current);
+          foregroundWatcherRef.current = null;
         }
       };
     }
@@ -492,9 +506,27 @@ export default function DriverApp() {
       console.log("Starting auto-accept poll...");
       interval = setInterval(async () => {
         try {
+          // Check current customer count to respect the limit (max 3)
+          const currentCustomersCount = orders
+            .filter(o => o.status === 'assigned' || o.status === 'in_transit')
+            .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
+
+          if (currentCustomersCount >= 3) {
+            console.log("Auto-accept: Max customers reached (3)");
+            return;
+          }
+
           const newOrders = await getAvailableOrders();
           if (newOrders.length > 0) {
             const firstOrder = newOrders[0];
+            
+            // Check if the order we are about to accept would put us over the limit
+            const orderCustomers = Array.isArray(firstOrder.customer_details?.customers) ? firstOrder.customer_details.customers.length : 1;
+            if (currentCustomersCount + orderCustomers > 3) {
+              console.log("Auto-accept: Accepting this order would exceed the 3-customer limit");
+              return;
+            }
+
             // Check if already assigned or status changed
             if (firstOrder.driver_id || firstOrder.status !== 'pending') return;
             
@@ -533,6 +565,16 @@ export default function DriverApp() {
       return;
     }
     
+    // 1. Check current customer count (limit to 3)
+    const currentCustomersCount = orders
+      .filter(o => o.status === 'assigned' || o.status === 'in_transit')
+      .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
+
+    if (currentCustomersCount >= 3) {
+      toastError("لقد وصلت للحد الأقصى من العملاء (3). يرجى توصيل الطلبات الحالية أولاً.");
+      return;
+    }
+
     // Optimistic Update: Update UI immediately
     const originalOrders = [...orders];
     const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o);

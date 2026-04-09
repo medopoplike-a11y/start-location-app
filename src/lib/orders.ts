@@ -287,16 +287,15 @@ export const assignOrderToNearestDriver = async (
   // 2. Count active customers (deliveries) per driver
   const { data: activeOrders } = await supabase
     .from('orders')
-    .select('driver_id, customers')
+    .select('driver_id, customer_details')
     .in('status', ['assigned', 'in_transit'])
     .not('driver_id', 'is', null);
 
   const customerCount: Record<string, number> = {};
-  (activeOrders || []).forEach((o) => {
+  (activeOrders || []).forEach((o: any) => {
     if (o.driver_id) {
-      // Each order has a 'customers' JSONB array. 
-      // If 'customers' is missing or empty, it counts as 1 (single order).
-      const count = Array.isArray(o.customers) ? o.customers.length : 1;
+      // Each order has a 'customers' array inside 'customer_details'
+      const count = Array.isArray(o.customer_details?.customers) ? o.customer_details.customers.length : 1;
       customerCount[o.driver_id] = (customerCount[o.driver_id] || 0) + count;
     }
   });
