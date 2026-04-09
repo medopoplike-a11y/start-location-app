@@ -329,23 +329,38 @@ export default function DriverApp() {
   async function fetchOrders(explicitDriverId?: string) {
     const activeDriverId = explicitDriverId ?? driverId;
     try {
-      const [pending, active] = await Promise.all([
+      const [pending, active, completedToday] = await Promise.all([
         getAvailableOrders(),
         activeDriverId ? getDriverActiveOrders(activeDriverId) : Promise.resolve([]),
+        activeDriverId ? fetchTodayHistoryData(activeDriverId) : Promise.resolve([]),
       ]);
+      
       const seen = new Set<string>();
-      const merged = [...active, ...pending].filter((o) => {
+      const merged = [...active, ...pending, ...completedToday].filter((o) => {
         if (seen.has(o.id)) return false;
         seen.add(o.id);
         return true;
       });
+      
       const uiOrders = merged.map(mapDBOrderToUI);
       setOrders(uiOrders);
-      setCache('driver_orders', uiOrders); // Always cache current orders
+      setCache('driver_orders', uiOrders);
     } catch (err) {
       console.error("fetchOrders error:", err);
     }
   }
+
+  async function fetchTodayHistoryData(currentDriverId: string) {
+     const today = new Date();
+     today.setHours(0, 0, 0, 0);
+     const { data } = await supabase
+       .from('orders')
+       .select('*, vendor:vendor_id(full_name, phone, location, area)')
+       .eq('driver_id', currentDriverId)
+       .eq('status', 'delivered')
+       .gte('created_at', today.toISOString());
+     return data || [];
+   }
 
   const [isOnline, setIsOnline] = useState(true);
 
@@ -404,7 +419,7 @@ export default function DriverApp() {
       customerCoords,
       prepTime: db.financials?.prep_time || "15",
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
-      priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : 3),
+      priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : (db.status === 'pending' ? 3 : 4)),
       statusUpdatedAt: db.status_updated_at || db.created_at || undefined,
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
@@ -424,7 +439,7 @@ export default function DriverApp() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, profiles:vendor_id(full_name, phone, location, area)')
+        .select('*, vendor:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
         .in('status', ['in_transit', 'delivered']) 
         .is('vendor_collected_at', null) 
@@ -446,7 +461,7 @@ export default function DriverApp() {
       
       const { data, error } = await supabase
         .from('orders')
-        .select('*, profiles:vendor_id(full_name, phone, location, area)')
+        .select('*, vendor:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
         .gte('created_at', today.toISOString())
         .order('created_at', { ascending: false });

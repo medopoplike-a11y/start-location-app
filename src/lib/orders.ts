@@ -47,7 +47,7 @@ type OrderMessage = Record<string, unknown>;
 export const getAvailableOrders = async () => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*, profiles:vendor_id(full_name, phone, location, area)')
+    .select('*, vendor:vendor_id(full_name, phone, location, area)')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
@@ -64,7 +64,7 @@ export const getAvailableOrders = async () => {
 export const getDriverActiveOrders = async (driverId: string) => {
   const { data, error } = await supabase
     .from('orders')
-    .select('*, profiles:vendor_id(full_name, phone, location, area)')
+    .select('*, vendor:vendor_id(full_name, phone, location, area)')
     .eq('driver_id', driverId)
     .in('status', ['assigned', 'in_transit'])
     .order('created_at', { ascending: false });

@@ -83,6 +83,7 @@ export default function OrderDetailsModal({
       }
       return "تأكيد التوصيل للعميل";
     }
+    if (order.status === "delivered")  return "طلب مكتمل ✓";
     return null;
   };
 
