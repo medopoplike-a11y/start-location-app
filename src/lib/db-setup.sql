@@ -478,6 +478,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 14. إضافة فهارس لتحسين الأداء (Indexes)
+CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON orders(driver_id);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_is_online ON profiles(is_online) WHERE is_online = true;
+
 -- 10. جدول إعدادات التطبيق والتحديثات التلقائية
 CREATE TABLE IF NOT EXISTS app_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
