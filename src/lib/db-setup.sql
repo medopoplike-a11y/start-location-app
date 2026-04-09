@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   national_id TEXT,
   location JSONB,
   is_online BOOLEAN DEFAULT FALSE,
+  auto_accept BOOLEAN DEFAULT FALSE,
   last_location_update TIMESTAMP WITH TIME ZONE,
   push_token TEXT,
   is_locked BOOLEAN DEFAULT FALSE,
@@ -22,6 +23,10 @@ DO $$
 BEGIN 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='is_online') THEN
     ALTER TABLE profiles ADD COLUMN is_online BOOLEAN DEFAULT FALSE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='auto_accept') THEN
+    ALTER TABLE profiles ADD COLUMN auto_accept BOOLEAN DEFAULT FALSE;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='last_location_update') THEN
@@ -105,12 +110,12 @@ BEGIN
 
   -- إنشاء أو تحديث الملف الشخصي
   INSERT INTO public.profiles (
-    id, email, full_name, role, phone, area, vehicle_type, national_id, location, is_locked
+    id, email, full_name, role, phone, area, vehicle_type, national_id, location, is_locked, auto_accept
   )
   VALUES (
     new.id, new.email, user_full_name, user_role, 
     user_phone, user_area, user_vehicle_type, user_national_id, 
-    new.raw_user_meta_data->'location', false
+    new.raw_user_meta_data->'location', false, false
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { Store, TrendingUp, TrendingDown, Truck, Clock, MapPin, Power, ListChecks } from "lucide-react";
+import { Store, TrendingUp, TrendingDown, Truck, Clock, MapPin, Power, ListChecks, Phone, Eye } from "lucide-react";
 import { PremiumCard } from "@/components/PremiumCard";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";

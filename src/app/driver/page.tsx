@@ -89,7 +89,6 @@ export default function DriverApp() {
     return () => clearInterval(interval);
   }, [driverId, orders, toastSuccess]);
 
-  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const [isRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [lastLocationUpdate, setLastLocationUpdate] = useState<number>(0);
@@ -439,6 +438,7 @@ export default function DriverApp() {
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
       orderValue: db.financials.order_value,
+      customers: db.customer_details.customers || [],
       financials: {
         order_value: db.financials.order_value,
         delivery_fee: db.financials.delivery_fee,
@@ -489,25 +489,9 @@ export default function DriverApp() {
     if (driverId) {
       await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
     }
-    if (newStatus && autoAccept && pollInterval === null) {
-      const interval = setInterval(async () => {
-        if (driverId) {
-          const newOrders = await getAvailableOrders();
-          if (newOrders.length > 0) {
-            const firstOrder = newOrders[0];
-            await updateOrderStatus(firstOrder.id, 'assigned', driverId);
-            toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
-          }
-        }
-      }, 5000);
-      setPollInterval(interval);
-    } else if (!newStatus && pollInterval) {
-      clearInterval(pollInterval);
-      setPollInterval(null);
-    }
   };
 
-  const toggleAutoAccept = () => {
+  const toggleAutoAccept = async () => {
     const newAuto = !autoAccept;
     setAutoAccept(newAuto);
     if (Capacitor.isNativePlatform()) {
@@ -515,28 +499,53 @@ export default function DriverApp() {
     } else {
       localStorage.setItem('driver_auto_accept', newAuto.toString());
     }
-    if (newAuto && isActive && driverId && pollInterval === null) {
-      // start poll
-      const interval = setInterval(async () => {
-        if (!isActive || !driverId) {
-          clearInterval(interval);
-          setPollInterval(null);
-          return;
-        }
-        const newOrders = await getAvailableOrders();
-        if (newOrders.length > 0) {
-          const firstOrder = newOrders[0];
-          // Check if already assigned to someone else
-          if (firstOrder.driver_id) return;
-          
-          await updateOrderStatus(firstOrder.id, 'assigned', driverId);
-          toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
-          void fetchOrders(driverId);
-        }
-      }, 5000);
-      setPollInterval(interval);
+    if (driverId) {
+      await supabase.from('profiles').update({ auto_accept: newAuto }).eq('id', driverId);
     }
   };
+
+  // Manage Polling for Auto-Accept
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (isActive && autoAccept && driverId) {
+      console.log("Starting auto-accept poll...");
+      interval = setInterval(async () => {
+        try {
+          const newOrders = await getAvailableOrders();
+          if (newOrders.length > 0) {
+            const firstOrder = newOrders[0];
+            // Check if already assigned or status changed
+            if (firstOrder.driver_id || firstOrder.status !== 'pending') return;
+            
+            const { error } = await supabase
+              .from('orders')
+              .update({ 
+                status: 'assigned', 
+                driver_id: driverId,
+                status_updated_at: new Date().toISOString()
+              })
+              .eq('id', firstOrder.id)
+              .eq('status', 'pending');
+
+            if (!error) {
+              toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
+              void fetchOrders(driverId);
+            }
+          }
+        } catch (err) {
+          console.error("Auto-accept poll error:", err);
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (interval) {
+        console.log("Stopping auto-accept poll...");
+        clearInterval(interval);
+      }
+    };
+  }, [isActive, autoAccept, driverId]);
 
   const handleAcceptOrder = async (orderId: string) => {
     if (!driverId) {

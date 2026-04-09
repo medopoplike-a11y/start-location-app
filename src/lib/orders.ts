@@ -261,12 +261,13 @@ export const assignOrderToNearestDriver = async (
   orderId: string,
   vendorLocation?: { lat: number; lng: number }
 ): Promise<{ success: boolean; driverName?: string; error?: string }> => {
-  // 1. Get all online drivers
+  // 1. Get all online drivers with auto_accept enabled
   const { data: onlineDrivers, error: driversError } = await supabase
     .from('profiles')
     .select('id, full_name, location, is_locked')
     .eq('role', 'driver')
     .eq('is_online', true)
+    .eq('auto_accept', true)
     .eq('is_locked', false);
 
   if (driversError || !onlineDrivers?.length) {
