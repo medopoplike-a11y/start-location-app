@@ -1,13 +1,13 @@
 // GitHub Push Confirmation - April 2026
 "use client";
 
-import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
-  Plus, MapPin, AlertTriangle, ArrowRight
+  Plus, AlertTriangle
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -18,7 +18,7 @@ import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
+import { getCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";

@@ -20,9 +20,7 @@ import {
   Zap,
   AlertTriangle,
   Loader2,
-  BarChart3,
-  Sun,
-  Moon
+  BarChart3
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { ThemeToggle } from "@/components/ThemeToggle";

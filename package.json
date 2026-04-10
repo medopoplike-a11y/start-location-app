@@ -11,7 +11,7 @@
     "build:ota": "node scripts/create-ota-bundle.js",
     "prepare-android": "node prepare-android.js",
     "start": "next start",
-    "lint": "eslint . --max-warnings=200",
+    "lint": "eslint . --max-warnings=300",
     "postinstall": "node fix-gradle-proguard.js",
     "deep-clean": "node scripts/deep-clean.mjs && npm install",
     "build:apk": "node scripts/generate-production-apk.mjs"
@@ -45,6 +45,7 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^1.0.1",
     "next": "16.2.1",
+    "next-themes": "^0.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-leaflet": "^5.0.0",

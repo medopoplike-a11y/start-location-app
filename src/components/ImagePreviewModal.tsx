@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Maximize2 } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -12,15 +12,7 @@ interface ImagePreviewModalProps {
 }
 
 export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewModalProps) {
-  const [displayUrl, setDisplayUrl] = useState<string | null>(url);
   const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    if (url) {
-      setDisplayUrl(url);
-      setIsClosing(false);
-    }
-  }, [url]);
 
   const handleClose = () => {
     if (isClosing) return;
@@ -33,7 +25,7 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
 
   return (
     <AnimatePresence onExitComplete={() => setIsClosing(false)}>
-      {show && displayUrl && (
+      {show && url && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
