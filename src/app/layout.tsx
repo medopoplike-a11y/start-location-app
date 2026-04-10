@@ -38,11 +38,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className="bg-[#f3f4f6]" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
-      <body className={`${cairo.className} bg-[#f3f4f6] dark:bg-[#0f172a] text-gray-900 dark:text-slate-100`}>
+      <body className={`${cairo.className} overflow-x-hidden transition-colors duration-500`}>
 
         {/* Removed heavy backgrounds */}
 

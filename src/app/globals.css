@@ -8,12 +8,14 @@
   --trust-gold: #f59e0b;
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.3);
+  --page-bg: #f8fafc;
 }
 
 .dark {
   --foreground-rgb: 248, 250, 252;
-  --glass-bg: rgba(15, 23, 42, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --page-bg: #020617;
 }
 
 @layer base {
@@ -24,13 +26,13 @@
     user-select: none;
     scroll-behavior: smooth;
     min-height: 100%;
-    @apply bg-[#f3f4f6] dark:bg-[#0f172a];
+    background-color: var(--page-bg);
   }
   
   body {
-    @apply antialiased transition-colors duration-300;
+    @apply antialiased transition-colors duration-500;
     color: rgb(var(--foreground-rgb));
-    background: transparent;
+    background-color: var(--page-bg);
     min-height: 100vh;
     font-feature-settings: 'pnum';
     line-height: 1.6;
@@ -41,25 +43,13 @@
     overscroll-behavior-y: contain; 
   }
 
-  /* Prevent focus zoom on iOS */
-  @media screen and (max-width: 768px) {
-    input, select, textarea {
-      font-size: 16px !important;
-    }
-  }
-
-  /* Add utility to lock scroll when drawer is open */
-  .scroll-lock {
-    overflow: hidden !important;
-    touch-action: none;
-  }
-
+  /* Glassmorphism Input Style */
   input, textarea, select {
-    @apply rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-bold text-slate-800 dark:text-slate-200 transition-all backdrop-blur-md outline-none;
+    @apply rounded-2xl bg-white/40 dark:bg-slate-900/40 border border-white/20 dark:border-white/5 px-4 py-3 text-sm font-bold text-slate-800 dark:text-slate-200 transition-all backdrop-blur-xl outline-none shadow-inner;
   }
 
   input:focus, textarea:focus, select:focus {
-    @apply border-blue-400 dark:border-blue-500 ring-4 ring-blue-500/10 bg-white dark:bg-slate-800;
+    @apply border-blue-400/50 dark:border-blue-500/50 ring-4 ring-blue-500/10 bg-white/60 dark:bg-slate-800/60;
   }
 
   button {
@@ -69,13 +59,47 @@
 
 .glass-morphism {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
 }
 
 .premium-card {
-  @apply bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all hover:shadow-2xl hover:shadow-slate-300/50 hover:-translate-y-1;
+  @apply glass-morphism rounded-[2.5rem] transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1.5;
+}
+
+/* Background Effects */
+.glass-glow-blue {
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+}
+
+.glass-glow-emerald {
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+}
+
+.ultimate-badge {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg shadow-blue-500/20;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300/50 dark:bg-slate-700/50 rounded-full backdrop-blur-md;
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
 
 .premium-glow {

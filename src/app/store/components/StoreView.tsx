@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText, Phone } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
@@ -215,13 +215,13 @@ export default function StoreView({
 
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-all shrink-0">
+                      <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-700 group-hover:bg-slate-900 dark:group-hover:bg-slate-100 group-hover:text-white dark:group-hover:text-slate-900 transition-all shrink-0">
                         <Store className="w-7 h-7" />
                       </div>
                       <div>
-                        <h3 className="font-black text-slate-900 group-hover:text-sky-600 transition-colors">{order.customer}</h3>
+                        <h3 className="font-black text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{order.customer}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 tracking-tighter">#{order.id.slice(0, 8)}</span>
+                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700 tracking-tighter">#{order.id.slice(0, 8)}</span>
                           <span className={`text-[9px] px-3 py-1 rounded-full font-black border ${getStatusStyle(order.status)}`}>
                             {translateVendorOrderStatus(order.status)}
                           </span>
@@ -229,24 +229,24 @@ export default function StoreView({
                       </div>
                     </div>
                     <div className="text-left">
-                      <p className="text-xs font-black text-slate-900">{order.amount}</p>
-                      <p className="text-[8px] font-black text-slate-400 tracking-widest uppercase">الإجمالي</p>
+                      <p className="text-xs font-black text-slate-900 dark:text-slate-100">{order.amount}</p>
+                      <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">الإجمالي</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="bg-slate-50/50 p-3.5 rounded-[22px] border border-slate-100/50 flex items-center gap-3">
-                      <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm"><MapPin className="w-3.5 h-3.5 text-red-500" /></div>
+                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-3.5 rounded-[22px] border border-slate-100/50 dark:border-slate-700/50 flex items-center gap-3">
+                      <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm"><MapPin className="w-3.5 h-3.5 text-red-500" /></div>
                       <div className="overflow-hidden">
-                        <p className="text-[9px] font-bold text-slate-400 tracking-tight">العنوان</p>
-                        <p className="text-[10px] font-black text-slate-700 truncate">{order.address}</p>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-tight">العنوان</p>
+                        <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 truncate">{order.address}</p>
                       </div>
                     </div>
-                    <div className="bg-slate-50/50 p-3.5 rounded-[22px] border border-slate-100/50 flex items-center gap-3">
-                      <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm"><Clock className="w-3.5 h-3.5 text-sky-500" /></div>
+                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-3.5 rounded-[22px] border border-slate-100/50 dark:border-slate-700/50 flex items-center gap-3">
+                      <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm"><Clock className="w-3.5 h-3.5 text-sky-500" /></div>
                       <div>
-                        <p className="text-[9px] font-bold text-slate-400 tracking-tight">وقت الطلب</p>
-                        <p className="text-[10px] font-black text-slate-700">{order.time}</p>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-tight">وقت الطلب</p>
+                        <p className="text-[10px] font-black text-slate-700 dark:text-slate-200">{order.time}</p>
                       </div>
                     </div>
                   </div>
@@ -298,20 +298,31 @@ export default function StoreView({
 
                   <div className="flex justify-between items-center pt-5 border-t border-slate-50">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 relative group-hover:border-sky-200 transition-all overflow-hidden">
+                      <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center border border-slate-100 dark:border-slate-700 relative group-hover:border-sky-200 transition-all overflow-hidden">
                         {order.driver ? (
-                          <div className="bg-slate-900 w-full h-full flex items-center justify-center text-white text-xs font-black uppercase">
+                          <div className="bg-slate-900 dark:bg-slate-700 w-full h-full flex items-center justify-center text-white text-xs font-black uppercase">
                             {order.driver.charAt(0)}
                           </div>
                         ) : (
-                          <Truck className="w-5 h-5 text-slate-200 animate-pulse" />
+                          <Truck className="w-5 h-5 text-slate-200 dark:text-slate-700 animate-pulse" />
                         )}
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold text-slate-400">الطيار</p>
-                        <p className={`text-xs font-black ${order.driver ? "text-slate-800" : "text-sky-500 animate-pulse"}`}>
-                          {order.driver || "بانتظار الموافقة..."}
-                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">الطيار</p>
+                        <div className="flex flex-col">
+                          <p className={`text-xs font-black ${order.driver ? "text-slate-800 dark:text-slate-200" : "text-sky-500 animate-pulse"}`}>
+                            {order.driver || "بانتظار الموافقة..."}
+                          </p>
+                          {order.driverPhone && (
+                            <a 
+                              href={`tel:${order.driverPhone}`}
+                              className="text-[10px] font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1 mt-0.5"
+                            >
+                              <Phone className="w-2.5 h-2.5" />
+                              {order.driverPhone}
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
 
