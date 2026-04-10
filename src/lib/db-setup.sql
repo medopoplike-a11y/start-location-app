@@ -596,13 +596,20 @@ ON CONFLICT (id) DO NOTHING;
 -- تفعيل RLS لجدول app_config
 ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
 
--- السماح للجميع بقراءة الإعدادات
-CREATE POLICY "Anyone can view app config" ON app_config FOR SELECT USING (true);
+DO $$ 
+BEGIN
+  -- السماح للجميع بقراءة الإعدادات
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view app config' AND tablename = 'app_config') THEN
+    CREATE POLICY "Anyone can view app config" ON app_config FOR SELECT USING (true);
+  END IF;
 
--- السماح للأدمن فقط بتحديث الإعدادات
-CREATE POLICY "Admins can update app config" ON app_config FOR UPDATE USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-);
+  -- السماح للأدمن فقط بتحديث الإعدادات
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can update app config' AND tablename = 'app_config') THEN
+    CREATE POLICY "Admins can update app config" ON app_config FOR UPDATE USING (
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+  END IF;
+END $$;
 
 -- دالة لتصفير كافة بيانات النظام (الطلبات والتسويات والمحافظ)
 CREATE OR REPLACE FUNCTION reset_all_system_data_admin()
