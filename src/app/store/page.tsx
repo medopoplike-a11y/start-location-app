@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
-  Plus
+  Plus, MapPin, AlertTriangle, ArrowRight
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -701,6 +701,10 @@ function StoreContent() {
 
       const orderData = {
         vendor_id: vendorId,
+        vendor_name: vendorName,
+        vendor_phone: settingsData.phone,
+        vendor_area: settingsData.area,
+        vendor_location: vendorLocation,
         driver_id: null,
         status: 'pending' as const,
         distance,
@@ -1041,17 +1045,39 @@ function StoreContent() {
     <Toast toasts={toasts} onRemove={removeToast} />
       
       {activeView !== "order-form" && (
-        <StoreHeader
-          vendorName={vendorName}
-          lastSync={lastSync}
-          isSyncing={isSyncing}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onOpenDrawer={() => setShowDrawer(true)}
-          onSync={() => vendorId && updateData(vendorId)}
-          onResetSync={() => setIsSyncing(false)}
-          isSurgeActive={appConfig.surge_pricing_active}
-        />
+        <>
+          <StoreHeader
+            vendorName={vendorName}
+            lastSync={lastSync}
+            isSyncing={isSyncing}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onOpenDrawer={() => setShowDrawer(true)}
+            onSync={() => vendorId && updateData(vendorId)}
+            onResetSync={() => setIsSyncing(false)}
+            isSurgeActive={appConfig.surge_pricing_active}
+          />
+          
+          {(!vendorLocation || !settingsData.phone || !settingsData.area) && activeView === "store" && (
+            <div className="mx-4 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-pulse shadow-sm">
+              <div className="bg-amber-100 p-2.5 rounded-xl shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-black text-amber-900">بيانات المطعم غير مكتملة</p>
+                <p className="text-[10px] text-amber-700 font-bold leading-tight">
+                  الرجاء ضبط الموقع ورقم الهاتف والمنطقة ليتمكن الطيار من الوصول إليك بسهولة.
+                </p>
+              </div>
+              <button 
+                onClick={() => setActiveView("settings")}
+                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-[11px] font-black shadow-lg shadow-amber-200 transition-all active:scale-95"
+              >
+                ضبط الآن
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <main className={`flex-1 ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>

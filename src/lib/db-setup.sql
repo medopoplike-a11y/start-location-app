@@ -88,10 +88,7 @@ BEGIN
   -- السماح للمستخدمين برؤية الملفات الشخصية ذات الصلة (المطاعم والطيارين والأدمن)
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view relevant profiles') THEN
     CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (
-      auth.uid() = id OR 
-      role = 'driver' OR 
-      role = 'vendor' OR
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      true
     );
   END IF;
   
@@ -216,6 +213,10 @@ CREATE TABLE IF NOT EXISTS orders (
   status_updated_at TIMESTAMP WITH TIME ZONE,
   vendor_collected_at TIMESTAMP WITH TIME ZONE,
   driver_confirmed_at TIMESTAMP WITH TIME ZONE,
+  vendor_name TEXT,
+  vendor_phone TEXT,
+  vendor_area TEXT,
+  vendor_location JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -236,6 +237,22 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='driver_confirmed_at') THEN
     ALTER TABLE orders ADD COLUMN driver_confirmed_at TIMESTAMP WITH TIME ZONE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='vendor_name') THEN
+    ALTER TABLE orders ADD COLUMN vendor_name TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='vendor_phone') THEN
+    ALTER TABLE orders ADD COLUMN vendor_phone TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='vendor_area') THEN
+    ALTER TABLE orders ADD COLUMN vendor_area TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='vendor_location') THEN
+    ALTER TABLE orders ADD COLUMN vendor_location JSONB;
   END IF;
 END $$;
 

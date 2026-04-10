@@ -33,6 +33,10 @@ export interface Order {
     insurance_fee: number;
   };
   invoice_url?: string;
+  vendor_name?: string;
+  vendor_phone?: string;
+  vendor_area?: string;
+  vendor_location?: { lat: number, lng: number } | null;
   created_at?: string;
   status_updated_at?: string;
   vendor_collected_at?: string | null;

@@ -386,12 +386,17 @@ export default function DriverApp() {
   function mapDBOrderToUI(db: any): Order {
     const distanceValue = db.distance || 2.5;
     
-    // Robustly handle joined profile data (Supabase can return it under 'profiles', 'vendor', or aliased keys)
+    // Robustly handle joined profile data
     const rawProfiles = db.profiles || db.vendor || db.profile;
     const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
     
+    // Fallback to top-level fields if join data is missing
+    const vendorName = vendorProfile.full_name || db.vendor_name || "محل غير معروف";
+    const vendorPhone = vendorProfile.phone || db.vendor_phone || "";
+    const vendorArea = vendorProfile.area || db.vendor_area || "";
+    
     // Safely parse location if it's a string
-    let vendorCoords = vendorProfile.location || null;
+    let vendorCoords = vendorProfile.location || db.vendor_location || null;
     if (typeof vendorCoords === 'string') {
       try { vendorCoords = JSON.parse(vendorCoords); } catch { vendorCoords = null; }
     }
@@ -403,10 +408,10 @@ export default function DriverApp() {
 
     return {
       id: db.id,
-      vendor: vendorProfile.full_name || "محل غير معروف",
+      vendor: vendorName,
       vendorId: db.vendor_id,
-      vendorPhone: vendorProfile.phone || "",
-      vendorArea: vendorProfile.area || "",
+      vendorPhone: vendorPhone,
+      vendorArea: vendorArea,
       customer: db.customer_details?.name || "عميل غير معروف",
       customerPhone: db.customer_details?.phone || "",
       address: db.customer_details?.address || "عنوان غير محدد",
