@@ -18,9 +18,10 @@ interface DriverOperationsHubProps {
   autoAccept: boolean;
   onToggleAutoAccept: () => void;
   onAcceptOrder: (orderId: string) => void;
-  onPickupOrder: (orderId: string) => void;
-  onDeliverOrder: (orderId: string) => void;
-  onDeliverCustomer?: (orderId: string, customerIndex: number) => void;
+  onPickupOrder: (orderId: string) => Promise<void>;
+  onDeliverOrder: (orderId: string) => Promise<void>;
+  onConfirmPayment: (orderId: string) => Promise<void>;
+  onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
 }
 
@@ -37,6 +38,7 @@ export default function DriverOperationsHub({
   onAcceptOrder,
   onPickupOrder,
   onDeliverOrder,
+  onConfirmPayment,
   onDeliverCustomer,
   onPreviewImage
 }: DriverOperationsHubProps) {
@@ -109,6 +111,7 @@ export default function DriverOperationsHub({
               onAcceptOrder={onAcceptOrder}
               onPickupOrder={onPickupOrder}
               onDeliverOrder={onDeliverOrder}
+              onConfirmPayment={onConfirmPayment}
               onDeliverCustomer={onDeliverCustomer}
               onPreviewImage={onPreviewImage}
             />

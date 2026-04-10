@@ -29,6 +29,7 @@ interface DriverOrdersViewProps {
   onAcceptOrder: (orderId: string) => Promise<void>;
   onPickupOrder: (orderId: string) => Promise<void>;
   onDeliverOrder: (orderId: string) => Promise<void>;
+  onConfirmPayment: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
 }
@@ -52,6 +53,7 @@ export default function DriverOrdersView({
   onAcceptOrder,
   onPickupOrder,
   onDeliverOrder,
+  onConfirmPayment,
   onDeliverCustomer,
   onPreviewImage,
 }: DriverOrdersViewProps) {
@@ -78,6 +80,13 @@ export default function DriverOrdersView({
     await onDeliverOrder(orderId);
     setActionLoading(false);
     setSelectedOrder(null);
+  };
+
+  const handleConfirmPayment = async (orderId: string) => {
+    setActionLoading(true);
+    await onConfirmPayment(orderId);
+    setActionLoading(false);
+    setSelectedOrder((prev) => prev ? { ...prev, driverConfirmedAt: new Date().toISOString() } : null);
   };
 
   const filteredOrders = orders.filter(o => {
@@ -420,16 +429,17 @@ export default function DriverOrdersView({
       {/* Order Details Modal */}
       {selectedOrder && (
         <OrderDetailsModal
-          order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-          onAccept={handleAccept}
-          onPickup={handlePickup}
-          onDeliver={handleDeliver}
-          onDeliverCustomer={onDeliverCustomer}
-          onPreviewImage={onPreviewImage}
-          isActive={isActive}
-          loading={actionLoading}
-        />
+            order={selectedOrder}
+            onClose={() => setSelectedOrder(null)}
+            onAccept={handleAccept}
+            onPickup={handlePickup}
+            onDeliver={handleDeliver}
+            onConfirmPayment={handleConfirmPayment}
+            onDeliverCustomer={onDeliverCustomer}
+            onPreviewImage={onPreviewImage}
+            isActive={isActive}
+            loading={actionLoading}
+          />
       )}
     </>
   );

@@ -273,6 +273,24 @@ BEGIN
   END IF;
 END $$;
 
+-- تحديث تلقائي للطلبات التي لم تستلم خلال 15 دقيقة
+CREATE OR REPLACE FUNCTION auto_reassign_timed_out_orders()
+RETURNS void AS $$
+BEGIN
+  UPDATE orders
+  SET 
+    driver_id = NULL,
+    status = 'pending',
+    status_updated_at = NOW()
+  WHERE 
+    status = 'assigned' 
+    AND status_updated_at < (NOW() - INTERVAL '15 minutes');
+END;
+$$ LANGUAGE plpgsql;
+
+-- ملاحظة: يفضل تشغيل هذه الدالة بواسطة cron job أو أداة خارجية مثل Supabase Edge Functions
+-- ولكن الكود في التطبيق (Driver Page) يقوم بنفس الوظيفة للمستخدمين النشطين حالياً.
+
 -- تفعيل RLS لجدول الطلبات
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 

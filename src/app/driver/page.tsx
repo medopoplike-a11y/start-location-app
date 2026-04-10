@@ -750,21 +750,23 @@ export default function DriverApp() {
   };
 
   const handleConfirmPayment = async (orderId: string) => {
-    if (!driverId) return;
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ driver_confirmed_at: new Date().toISOString() })
-        .eq('id', orderId)
-        .eq('driver_id', driverId)
-        .eq('status', 'delivered');
-      
+      const { data, error } = await supabase.rpc('confirm_driver_payment', {
+        p_order_id: orderId,
+        p_driver_id: driverId
+      });
+
       if (error) throw error;
       
-      toastSuccess('تم تأكيد تسليم المبلغ! بانتظار تأكيد المحل.');
-      void fetchActiveDebtOrders(driverId);
-    } catch (err) {
-      console.error('Confirm Payment failed:', err);
+      toastSuccess("تم تأكيد تسليم المبلغ للمحل بنجاح");
+      
+      // Update local state
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driverConfirmedAt: new Date().toISOString() } : o));
+      fetchActiveDebtOrders(driverId!);
+      fetchStats(driverId!);
+    } catch (err: any) {
+      console.error("Error confirming payment:", err);
+      toastError(err.message || "فشل تأكيد تسليم المبلغ");
     }
   };
 
@@ -871,6 +873,7 @@ export default function DriverApp() {
                       onAcceptOrder={handleAcceptOrder}
                       onPickupOrder={handlePickupOrder}
                       onDeliverOrder={handleDeliverOrder}
+                      onConfirmPayment={handleConfirmPayment}
                       onDeliverCustomer={handleDeliverCustomer}
                       onPreviewImage={setPreviewUrl}
                     />

@@ -14,6 +14,7 @@ interface OrderDetailsModalProps {
   onAccept: (orderId: string) => Promise<void>;
   onPickup: (orderId: string) => Promise<void>;
   onDeliver: (orderId: string) => Promise<void>;
+  onConfirmPayment: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
   isActive?: boolean;
@@ -40,6 +41,7 @@ export default function OrderDetailsModal({
   onAccept,
   onPickup,
   onDeliver,
+  onConfirmPayment,
   onDeliverCustomer,
   onPreviewImage,
   isActive = false,
@@ -70,6 +72,8 @@ export default function OrderDetailsModal({
       } else {
         await onDeliver(order.id);
       }
+    } else if (order.status === "delivered" && !order.driverConfirmedAt) {
+      await onConfirmPayment(order.id);
     }
   };
 
@@ -83,7 +87,10 @@ export default function OrderDetailsModal({
       }
       return "تأكيد التوصيل للعميل";
     }
-    if (order.status === "delivered")  return "طلب مكتمل ✓";
+    if (order.status === "delivered") {
+      if (order.driverConfirmedAt) return "بانتظار تأكيد المحل ✓";
+      return "تأكيد تسليم المبلغ للمحل";
+    }
     return null;
   };
 
@@ -91,6 +98,10 @@ export default function OrderDetailsModal({
     if (order.status === "pending")    return "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200";
     if (order.status === "assigned")   return "bg-sky-500 hover:bg-sky-600 shadow-sky-200";
     if (order.status === "in_transit") return "bg-indigo-500 hover:bg-indigo-600 shadow-indigo-200";
+    if (order.status === "delivered") {
+      if (order.driverConfirmedAt) return "bg-amber-500 hover:bg-amber-600 shadow-amber-200";
+      return "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200";
+    }
     return "";
   };
 
@@ -421,7 +432,7 @@ export default function OrderDetailsModal({
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleAction}
-                disabled={loading || !isActive || (order.status === "in_transit" && order.customers && order.customers.length > 0 && !order.customers.every(c => c.status === 'delivered'))}
+                disabled={loading || !isActive || (order.status === "in_transit" && order.customers && order.customers.length > 0 && !order.customers.every(c => c.status === 'delivered')) || (order.status === "delivered" && !!order.driverConfirmedAt)}
                 className={`w-full py-5 rounded-2xl text-white font-black text-sm shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${actionColor()}`}
               >
                 {loading ? (

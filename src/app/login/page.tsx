@@ -275,9 +275,9 @@ const LoginPage = () => {
                   <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
                   <StartLogo className="w-24 h-24 relative" />
                 </div>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight mb-1 flex items-center gap-2 italic" dir="ltr">
+                <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight mb-1 flex items-center gap-2 italic" dir="ltr">
                   Start
-                  <span className="text-blue-600 font-black not-italic">Location</span>
+                  <span className="text-emerald-600 font-black not-italic">Location</span>
                 </h1>
                 <div className="flex items-center gap-2">
                   <p className="text-[11px] font-medium text-slate-400 tracking-[0.2em] italic">
