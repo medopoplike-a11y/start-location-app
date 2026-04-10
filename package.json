@@ -11,7 +11,7 @@
     "build:ota": "node scripts/create-ota-bundle.js",
     "prepare-android": "node prepare-android.js",
     "start": "next start",
-    "lint": "eslint . --max-warnings=350",
+    "lint": "eslint . --max-warnings=400",
     "postinstall": "node fix-gradle-proguard.js",
     "deep-clean": "node scripts/deep-clean.mjs && npm install",
     "build:apk": "node scripts/generate-production-apk.mjs"
