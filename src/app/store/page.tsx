@@ -1024,25 +1024,26 @@ function StoreContent() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-[#f3f4f6] p-6 space-y-8" dir="rtl">
-      <div className="bg-white/40 h-16 rounded-2xl animate-pulse mb-6" />
-      <div className="grid grid-cols-2 gap-4">
-        <CardSkeleton />
-        <CardSkeleton />
-      </div>
-      <CardSkeleton className="mt-4" />
-      <div className="space-y-4 mt-8">
-        <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
-        <OrderSkeleton />
-        <OrderSkeleton />
-      </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 space-y-8 flex flex-col items-center justify-center transition-colors duration-500" dir="rtl">
+      <motion.div 
+        animate={{ rotate: 360 }} 
+        transition={{ duration: 2, repeat: Infinity, ease: "linear" }} 
+        className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" 
+      />
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">جاري تحميل لوحة المتجر...</h2>
+      <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans selection:bg-brand-orange/10" dir="rtl">
-      <div className="silver-live-bg" />
-    <Toast toasts={toasts} onRemove={removeToast} />
+    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-orange/10 transition-colors duration-500 relative" dir="rtl">
+      {/* Background Gradients for Glass Effect */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 dark:bg-blue-600/5 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/5 dark:bg-emerald-600/5 blur-[120px] animate-pulse" />
+      </div>
+
+      <Toast toasts={toasts} onRemove={removeToast} />
       
       {activeView !== "order-form" && (
         <>

@@ -728,12 +728,16 @@ function AdminContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-hidden transition-colors duration-300" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-hidden transition-colors duration-500" dir="rtl">
       {/* Sidebar */}
-      <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border-l border-white/20 dark:border-slate-800/50 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col transition-colors">
-        <div className="p-6 flex items-center gap-4 border-b border-gray-50 dark:border-slate-800 h-24">
-          <div className="flex-shrink-0 bg-gray-50 dark:bg-slate-800 p-2 rounded-2xl"><StartLogo className="w-10 h-10" /></div>
-          {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 leading-none">START</h1><span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase mt-1">Management</span></div>}
+      <motion.aside 
+        initial={false} 
+        animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} 
+        className="glass-panel border-l border-white/20 dark:border-slate-800/50 fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500"
+      >
+        <div className="p-6 flex items-center gap-4 border-b border-gray-100 dark:border-slate-800 h-24">
+          <div className="flex-shrink-0 bg-white/50 dark:bg-slate-800/50 p-2 rounded-2xl backdrop-blur-md border border-white/40 dark:border-slate-700/40 shadow-sm"><StartLogo className="w-10 h-10" /></div>
+          {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-black text-gray-900 dark:text-slate-100 leading-none tracking-tighter">START</h1><span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase mt-1">Management</span></div>}
         </div>
         <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
           {menuGroups.map((group, idx) => (
@@ -750,15 +754,15 @@ function AdminContent() {
                     onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} 
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all relative group ${
                       activeView === item.id 
-                        ? "bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white shadow-xl shadow-slate-200 dark:shadow-none" 
-                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        ? "bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white shadow-xl shadow-slate-900/20" 
+                        : "text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-slate-800/40"
                     }`}
                   >
-                    <div className={`${activeView === item.id ? (activeView.includes('dark') ? "text-slate-900" : "text-white dark:text-slate-900") : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-colors`}>
+                    <div className={`${activeView === item.id ? "text-white dark:text-slate-900" : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-colors`}>
                       <item.icon className="w-5 h-5" />
                     </div>
                     {sidebarOpen && (
-                      <span className="text-sm font-bold flex-1 text-right">
+                      <span className="text-sm font-black flex-1 text-right">
                         {item.label}
                       </span>
                     )}
@@ -776,24 +780,24 @@ function AdminContent() {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-100 dark:border-slate-800"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-bold flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
+        <div className="p-4 border-t border-gray-100 dark:border-slate-800"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-black flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
       </motion.aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
-        <header className="glass-morphism dark:bg-slate-900/50 dark:border-slate-800 h-20 px-8 flex items-center justify-between sticky top-0 z-50 transition-colors">
+        <header className="glass-panel h-20 px-8 flex items-center justify-between sticky top-0 z-50 transition-all duration-500">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors lg:hidden"
+              className="p-2 hover:bg-white/40 dark:hover:bg-slate-800/40 rounded-xl transition-colors lg:hidden"
             >
               <Menu className="w-6 h-6 text-slate-600 dark:text-slate-400" />
             </button>
             <div className="flex flex-col">
-              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2 italic">
                 لوحة التحكم
-                <span className="ultimate-badge">ULTIMATE</span>
+                <span className="premium-badge">ULTIMATE</span>
               </h1>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Control Center</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">Control Center</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -819,7 +823,7 @@ function AdminContent() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 bg-transparent">
           <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
         <DashboardView 

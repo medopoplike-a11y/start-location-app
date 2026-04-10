@@ -815,8 +815,8 @@ export default function DriverApp() {
   );
 
     return (
-      <AuthGuard allowedRoles={["driver"]}>
-      <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50 flex flex-col font-sans" dir="rtl">
+    <AuthGuard allowedRoles={["driver"]}>
+      <div className="min-h-screen flex flex-col transition-colors duration-500 relative font-sans" dir="rtl">
         <Toast toasts={toasts} onRemove={removeToast} />
         
         <AnimatePresence>
@@ -833,8 +833,13 @@ export default function DriverApp() {
           )}
         </AnimatePresence>
 
-        <div className="relative z-10 flex flex-col min-h-full">
+        {/* Background Gradients for Glass Effect */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 dark:bg-blue-600/5 blur-[120px] animate-pulse" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/5 dark:bg-emerald-600/5 blur-[120px] animate-pulse" />
+        </div>
 
+        <div className="relative z-10 flex flex-col min-h-full">
           <DriverHeader
             driverName={driverName}
             lastSyncTime={lastSyncTime}
@@ -849,7 +854,7 @@ export default function DriverApp() {
             onSync={manualSync}
           />
 
-          <main className="p-4 space-y-6 pb-24">
+          <main className="p-4 space-y-6 pb-24 relative z-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

@@ -1,35 +1,16 @@
-import * as React from "react";
+import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
-import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
-// import ParticlesBackground from "@/components/ParticlesBackground";
 
-
-const cairo = Cairo({ 
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "700"],
-});
+const cairo = Cairo({ subsets: ["arabic"] });
 
 export const metadata: Metadata = {
   title: "Start Location",
-  description: "Smart Delivery Management System",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Start Location",
-  },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#0ea5e9",
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
+  description: "Start Location Application",
 };
 
 export default function RootLayout({
@@ -42,19 +23,13 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
-      <body className={`${cairo.className} overflow-x-hidden transition-colors duration-500`}>
-
-        {/* Removed heavy backgrounds */}
-
+      <body className={cairo.className}>
         <Script id="kill-sw" strategy="afterInteractive">
           {`
-            // Safer cleanup for Capacitor
             try {
               if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
                 navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                  for(let registration of registrations) {
-                    registration.unregister();
-                  }
+                  for(let registration of registrations) registration.unregister();
                 });
               }
               if (typeof window !== 'undefined' && 'caches' in window) {
