@@ -62,11 +62,28 @@ BEGIN
   END IF;
 END $$;
 
--- تفعيل Real-time لكافة الجداول الحساسة
-alter publication supabase_realtime add table orders;
-alter publication supabase_realtime add table wallets;
-alter publication supabase_realtime add table profiles;
-alter publication supabase_realtime add table settlements;
+-- تفعيل Real-time لكافة الجداول الحساسة بشكل آمن
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'orders') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'wallets') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE wallets;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'settlements') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE settlements;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  -- تجاهل الأخطاء في حال كانت الـ Publication غير موجودة أو الصلاحيات محدودة
+  RAISE NOTICE 'Could not update publication: %', SQLERRM;
+END $$;
 
 -- التأكد من تفعيل Replica Identity Full لضمان وصول كافة الحقول في الـ Payload
 alter table public.orders replica identity full;
