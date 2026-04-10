@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
 // import ParticlesBackground from "@/components/ParticlesBackground";
@@ -37,11 +38,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className="bg-[#f3f4f6]" data-scroll-behavior="smooth">
+    <html lang="ar" dir="rtl" className="bg-[#f3f4f6]" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
-      <body className={`${cairo.className} bg-[#f3f4f6] text-gray-900`}>
+      <body className={`${cairo.className} bg-[#f3f4f6] dark:bg-[#0f172a] text-gray-900 dark:text-slate-100`}>
 
         {/* Removed heavy backgrounds */}
 
@@ -66,11 +67,13 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <AuthProvider>
-          <AppWrapper>
-            {children}
-          </AppWrapper>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <AppWrapper>
+              {children}
+            </AppWrapper>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

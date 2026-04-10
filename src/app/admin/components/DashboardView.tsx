@@ -55,7 +55,7 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
             </span>
           </div>
           
-          <div className="flex-1 bg-white/60 backdrop-blur-xl border border-slate-100 rounded-[32px] p-4 shadow-sm overflow-hidden relative min-h-[300px]">
+          <div className="flex-1 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-100 dark:border-slate-800 rounded-[32px] p-4 shadow-sm overflow-hidden relative min-h-[300px]">
             <div className="absolute top-0 right-0 bottom-0 w-1 bg-sky-500/20" />
             <div className="space-y-3">
               <AnimatePresence mode="popLayout">
@@ -66,22 +66,22 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
                       initial={{ opacity: 0, x: 20 }} 
                       animate={{ opacity: 1, x: 0 }} 
                       exit={{ opacity: 0, y: -10 }} 
-                      className="group bg-white/40 p-3 rounded-2xl border border-white/60 hover:border-sky-100 hover:bg-white/80 transition-all cursor-default"
+                      className="group bg-white/40 dark:bg-slate-800/40 p-3 rounded-2xl border border-white/60 dark:border-slate-700/60 hover:border-sky-100 dark:hover:border-sky-900 hover:bg-white/80 dark:hover:bg-slate-800 transition-all cursor-default"
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-1 w-1.5 h-1.5 rounded-full bg-sky-500 group-hover:scale-125 transition-transform" />
                         <div className="flex-1 space-y-1">
-                          <p className="text-[11px] font-bold text-slate-700 leading-relaxed">{log.text}</p>
+                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">{log.text}</p>
                           <div className="flex items-center gap-1.5">
-                            <Bell className="w-2.5 h-2.5 text-slate-300" />
-                            <span className="text-[9px] font-black text-slate-400 uppercase">{log.time}</span>
+                            <Bell className="w-2.5 h-2.5 text-slate-300 dark:text-slate-600" />
+                            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">{log.time}</span>
                           </div>
                         </div>
                       </div>
                     </motion.div>
                   ))
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+                  <div className="flex flex-col items-center justify-center py-20 text-slate-300 dark:text-slate-700">
                     <Activity className="w-8 h-8 opacity-20 mb-2" />
                     <p className="text-[10px] font-bold">لا يوجد نشاط حالي</p>
                   </div>
@@ -94,22 +94,22 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
         {/* Stats Grid */}
         <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* System Health Widget */}
-          <div className={`xl:col-span-3 bg-white border-2 rounded-[32px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 transition-all ${
-            systemHealth.status === 'congested' ? "border-red-200 bg-red-50/30 shadow-red-50 shadow-lg" :
-            systemHealth.status === 'busy' ? "border-amber-200 bg-amber-50/30" : "border-emerald-100 bg-emerald-50/30"
+          <div className={`xl:col-span-3 bg-white dark:bg-slate-900 border-2 rounded-[32px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 transition-all ${
+            systemHealth.status === 'congested' ? "border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/20 shadow-red-50 dark:shadow-none shadow-lg" :
+            systemHealth.status === 'busy' ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20" : "border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/30 dark:bg-emerald-950/20"
           }`}>
             <div className="flex items-center gap-4">
               <div className={`w-14 h-14 rounded-[22px] flex items-center justify-center ${
-                systemHealth.status === 'congested' ? "bg-red-500 shadow-red-200 shadow-xl" :
-                systemHealth.status === 'busy' ? "bg-amber-500 shadow-amber-200 shadow-xl" : "bg-emerald-500 shadow-emerald-200 shadow-xl"
+                systemHealth.status === 'congested' ? "bg-red-500 shadow-red-200 shadow-xl dark:shadow-none" :
+                systemHealth.status === 'busy' ? "bg-amber-500 shadow-amber-200 shadow-xl dark:shadow-none" : "bg-emerald-500 shadow-emerald-200 shadow-xl dark:shadow-none"
               }`}>
                 <Activity className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">حالة تشغيل النظام</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">حالة تشغيل النظام</h4>
                 <p className={`text-[11px] font-bold ${
-                  systemHealth.status === 'congested' ? "text-red-600" :
-                  systemHealth.status === 'busy' ? "text-amber-600" : "text-emerald-600"
+                  systemHealth.status === 'congested' ? "text-red-600 dark:text-red-400" :
+                  systemHealth.status === 'busy' ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
                 }`}>
                   {systemHealth.status === 'congested' ? "ازدحام شديد — يرجى تفعيل وضع Surge" :
                    systemHealth.status === 'busy' ? "ضغط عمل مرتفع — يرجى المراقبة" : "النظام يعمل بكفاءة مثالية"}
@@ -117,23 +117,23 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
               </div>
             </div>
 
-            <div className="flex items-center gap-8 bg-white/60 p-4 rounded-3xl border border-white/80">
+            <div className="flex items-center gap-8 bg-white/60 dark:bg-slate-800/60 p-4 rounded-3xl border border-white/80 dark:border-slate-700/80">
               <div className="text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">طلبات نشطة</p>
-                <p className="text-xl font-black text-slate-900">{systemHealth.activeOrdersCount}</p>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1">طلبات نشطة</p>
+                <p className="text-xl font-black text-slate-900 dark:text-slate-100">{systemHealth.activeOrdersCount}</p>
               </div>
-              <div className="w-px h-8 bg-slate-100" />
+              <div className="w-px h-8 bg-slate-100 dark:bg-slate-700" />
               <div className="text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">طيارين متاحين</p>
-                <p className="text-xl font-black text-slate-900">{systemHealth.onlineDriversCount}</p>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1">طيارين متاحين</p>
+                <p className="text-xl font-black text-slate-900 dark:text-slate-100">{systemHealth.onlineDriversCount}</p>
               </div>
-              <div className="w-px h-8 bg-slate-100" />
+              <div className="w-px h-8 bg-slate-100 dark:bg-slate-700" />
               <div className={`text-center px-4 py-1.5 rounded-2xl ${
-                systemHealth.ratio > 2 ? "bg-red-100" : systemHealth.ratio > 1 ? "bg-amber-100" : "bg-emerald-100"
+                systemHealth.ratio > 2 ? "bg-red-100 dark:bg-red-900/30" : systemHealth.ratio > 1 ? "bg-amber-100 dark:bg-amber-900/30" : "bg-emerald-100 dark:bg-emerald-900/30"
               }`}>
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">النسبة</p>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-0.5">النسبة</p>
                 <p className={`text-sm font-black ${
-                  systemHealth.ratio > 2 ? "text-red-600" : systemHealth.ratio > 1 ? "text-amber-600" : "text-emerald-600"
+                  systemHealth.ratio > 2 ? "text-red-600 dark:text-red-400" : systemHealth.ratio > 1 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
                 }`}>
                   {systemHealth.ratio.toFixed(1)}
                 </p>

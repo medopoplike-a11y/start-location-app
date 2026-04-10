@@ -10,6 +10,12 @@
   --glass-border: rgba(255, 255, 255, 0.3);
 }
 
+.dark {
+  --foreground-rgb: 248, 250, 252;
+  --glass-bg: rgba(15, 23, 42, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
@@ -18,11 +24,11 @@
     user-select: none;
     scroll-behavior: smooth;
     min-height: 100%;
-    background: #f1f5f9;
+    @apply bg-[#f3f4f6] dark:bg-[#0f172a];
   }
   
   body {
-    @apply antialiased;
+    @apply antialiased transition-colors duration-300;
     color: rgb(var(--foreground-rgb));
     background: transparent;
     min-height: 100vh;
@@ -49,11 +55,11 @@
   }
 
   input, textarea, select {
-    @apply rounded-2xl bg-white/80 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-800 transition-all backdrop-blur-md outline-none;
+    @apply rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-bold text-slate-800 dark:text-slate-200 transition-all backdrop-blur-md outline-none;
   }
 
   input:focus, textarea:focus, select:focus {
-    @apply border-blue-400 ring-4 ring-blue-500/10 bg-white;
+    @apply border-blue-400 dark:border-blue-500 ring-4 ring-blue-500/10 bg-white dark:bg-slate-800;
   }
 
   button {
@@ -69,7 +75,7 @@
 }
 
 .premium-card {
-  @apply bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 transition-all hover:shadow-2xl hover:shadow-slate-300/50 hover:-translate-y-1;
+  @apply bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all hover:shadow-2xl hover:shadow-slate-300/50 hover:-translate-y-1;
 }
 
 .premium-glow {

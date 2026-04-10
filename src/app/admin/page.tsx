@@ -20,9 +20,12 @@ import {
   Zap,
   AlertTriangle,
   Loader2,
-  BarChart3
+  BarChart3,
+  Sun,
+  Moon
 } from "lucide-react";
 import dynamic from 'next/dynamic';
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const DashboardView = dynamic(() => import("./components/DashboardView"), { 
   ssr: false,
@@ -727,18 +730,18 @@ function AdminContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-right relative overflow-hidden" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-hidden transition-colors duration-300" dir="rtl">
       {/* Sidebar */}
-      <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 backdrop-blur-xl border-l border-white/20 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col">
-        <div className="p-6 flex items-center gap-4 border-b border-gray-50 h-24">
-          <div className="flex-shrink-0 bg-gray-50 p-2 rounded-2xl"><StartLogo className="w-10 h-10" /></div>
-          {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-bold text-gray-900 leading-none">START</h1><span className="text-[10px] font-bold text-gray-400 uppercase mt-1">Management</span></div>}
+      <motion.aside initial={false} animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border-l border-white/20 dark:border-slate-800/50 fixed lg:relative z-[70] h-screen overflow-hidden shadow-sm flex flex-col transition-colors">
+        <div className="p-6 flex items-center gap-4 border-b border-gray-50 dark:border-slate-800 h-24">
+          <div className="flex-shrink-0 bg-gray-50 dark:bg-slate-800 p-2 rounded-2xl"><StartLogo className="w-10 h-10" /></div>
+          {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 leading-none">START</h1><span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase mt-1">Management</span></div>}
         </div>
         <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
           {menuGroups.map((group, idx) => (
             <div key={idx} className="space-y-2">
               {sidebarOpen && (
-                <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">
+                <p className="px-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">
                   {group.title}
                 </p>
               )}
@@ -749,11 +752,11 @@ function AdminContent() {
                     onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} 
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all relative group ${
                       activeView === item.id 
-                        ? "bg-slate-900 text-white shadow-xl shadow-slate-200" 
-                        : "text-slate-500 hover:bg-slate-50"
+                        ? "bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white shadow-xl shadow-slate-200 dark:shadow-none" 
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
-                    <div className={`${activeView === item.id ? "text-white" : "text-slate-400 group-hover:text-slate-900"} transition-colors`}>
+                    <div className={`${activeView === item.id ? (activeView.includes('dark') ? "text-slate-900" : "text-white dark:text-slate-900") : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-colors`}>
                       <item.icon className="w-5 h-5" />
                     </div>
                     {sidebarOpen && (
@@ -775,43 +778,44 @@ function AdminContent() {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-100"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 hover:text-red-500 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-bold flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
+        <div className="p-4 border-t border-gray-100 dark:border-slate-800"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-bold flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
       </motion.aside>
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
-        <header className="glass-morphism h-20 px-8 flex items-center justify-between sticky top-0 z-50">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
+        <header className="glass-morphism dark:bg-slate-900/50 dark:border-slate-800 h-20 px-8 flex items-center justify-between sticky top-0 z-50 transition-colors">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-slate-100 rounded-xl transition-colors lg:hidden"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors lg:hidden"
             >
-              <Menu className="w-6 h-6 text-slate-600" />
+              <Menu className="w-6 h-6 text-slate-600 dark:text-slate-400" />
             </button>
             <div className="flex flex-col">
-              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
                 لوحة التحكم
                 <span className="ultimate-badge">ULTIMATE</span>
               </h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Control Center</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Control Center</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {manualMode && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-2xl">
-                <Zap className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-[10px] font-black text-amber-700 uppercase">وضع يدوي</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
+                <Zap className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase">وضع يدوي</span>
               </div>
             )}
             {appConfig?.maintenance_mode && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-2xl">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] font-black text-red-600 uppercase">صيانة</span>
+                <span className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase">صيانة</span>
               </div>
             )}
-            <button onClick={() => setActiveView("operations")} className="p-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all">
+            <button onClick={() => setActiveView("operations")} className="p-2.5 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400 rounded-xl border border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all">
               <Zap className="w-4 h-4" />
             </button>
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-200">
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-200 dark:shadow-none">
               {user?.email?.[0].toUpperCase()}
             </div>
           </div>
