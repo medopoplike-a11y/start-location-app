@@ -295,11 +295,11 @@ export default function DriverApp() {
         setSystemBalance(finalBalance);
       }
       if (uncollectedOrders) {
-        finalDebt = uncollectedOrders.reduce((acc, order) => acc + (order.financials.order_value || 0), 0);
+        finalDebt = uncollectedOrders.reduce((acc, order) => acc + (order.financials?.order_value || 0), 0);
         setVendorDebt(finalDebt);
       }
       if (todayOrders) {
-        finalFees = todayOrders.reduce((acc, order) => acc + (order.financials.delivery_fee || 0), 0);
+        finalFees = todayOrders.reduce((acc, order) => acc + (order.financials?.delivery_fee || 0), 0);
         setTodayDeliveryFees(finalFees);
       }
 

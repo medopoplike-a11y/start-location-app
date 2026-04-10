@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, BarChart3, Download, Phone, CreditCard, CheckCircle, Clock, Banknote, Store, AlertCircle } from "lucide-react";
+import { TrendingUp, BarChart3, Download, Phone, CreditCard, CheckCircle, Clock, Banknote, Store, AlertCircle, MapPin } from "lucide-react";
 import { PremiumCard } from "@/components/PremiumCard";
 import type { Order, DBDriverOrder } from "../types";
 
