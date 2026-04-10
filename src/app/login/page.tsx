@@ -245,65 +245,66 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="h-screen bg-[#020617] relative overflow-hidden font-sans" dir="rtl">
+    <div className="h-screen bg-[#020617] relative overflow-hidden font-sans flex flex-col items-center justify-center p-6" dir="rtl">
       <Toast toasts={toasts} onRemove={removeToast} />
       
-      {/* Animated Background */}
+      {/* Animated Background - Deep Glass Glow */}
       <div className="fixed inset-0 z-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/20 via-slate-900 to-black" />
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px] animate-pulse delay-700" />
+        <div className="absolute top-0 left-0 w-full h-full bg-[#020617]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[140px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/10 rounded-full blur-[140px] animate-pulse delay-1000" />
       </div>
 
-      <main className="relative z-10 h-full w-full flex flex-col items-center justify-center p-6 pb-safe pt-safe overflow-y-auto">
-        <div className="w-full max-w-md space-y-8 py-12">
+      <main className="relative z-10 w-full max-w-md">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="glass-panel p-8 md:p-12 rounded-[3.5rem] shadow-2xl relative overflow-hidden group"
         >
-        <div className="glass-morphism p-8 md:p-12 rounded-[3rem] shadow-2xl relative">
+          {/* Internal Glow Effect */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-700" />
+          
           <AnimatePresence>
             {!isKeyboardOpen && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="flex flex-col items-center mb-12"
+                className="flex flex-col items-center mb-12 relative z-10"
               >
                 <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
-                  <StartLogo className="w-24 h-24 relative" />
+                  <div className="absolute inset-0 bg-blue-500/30 blur-3xl rounded-full scale-150 animate-pulse" />
+                  <StartLogo className="w-24 h-24 relative drop-shadow-2xl" />
                 </div>
-                <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight mb-1 flex items-center gap-2 italic" dir="ltr">
-                  Start
-                  <span className="text-emerald-600 font-black not-italic">Location</span>
+                <h1 className="text-4xl font-black tracking-tighter mb-1 flex items-center gap-2 italic" dir="ltr">
+                  <span className="text-white drop-shadow-sm">Start</span>
+                  <span className="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent not-italic">Location</span>
                 </h1>
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-medium text-slate-400 tracking-[0.2em] italic">
-                    Smart Delivery System
-                  </p>
-                </div>
+                <p className="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase opacity-80">
+                  Smart Delivery System
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
 
           {diagInfo && (
-            <div className="mb-4 p-3 bg-black/40 border border-blue-500/30 rounded-xl text-[10px] font-mono text-blue-300 text-center animate-pulse">
+            <div className="mb-6 p-3 bg-blue-500/5 border border-blue-500/20 rounded-2xl text-[10px] font-black text-blue-400 text-center backdrop-blur-md animate-pulse">
               {diagInfo}
             </div>
           )}
 
           {!isSupabaseConfigured && (
-            <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200 backdrop-blur-md">
-              ⚠️ تنبيه النظام: Supabase غير مهيأ.
+            <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[10px] font-black text-red-400 backdrop-blur-md flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              تنبيه النظام: الاتصال غير مستقر حالياً
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-6 relative z-10">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-                <Mail className="w-3 h-3" />
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-4 flex items-center gap-2">
+                <Mail className="w-3 h-3 text-blue-500" />
                 البريد الإلكتروني
               </label>
               <div className="relative group">
@@ -314,17 +315,17 @@ const LoginPage = () => {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="user@example.com"
-                  className="w-full bg-slate-900/40 border border-white/5 pl-5 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
+                  className="w-full bg-white/5 border border-white/5 pl-5 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-blue-500/30 rounded-[1.5rem] font-bold"
                 />
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors">
                   <Mail className="w-5 h-5" />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-                <Lock className="w-3 h-3" />
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-4 flex items-center gap-2">
+                <Lock className="w-3 h-3 text-emerald-500" />
                 كلمة المرور
               </label>
               <div className="relative group">
@@ -335,31 +336,33 @@ const LoginPage = () => {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-900/40 border border-white/5 pl-14 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:border-blue-500/50 rounded-2xl"
+                  className="w-full bg-white/5 border border-white/5 pl-14 pr-12 py-4 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-emerald-500/30 rounded-[1.5rem] font-bold"
                 />
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors">
                   <Lock className="w-5 h-5" />
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors"
+                  className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 px-2">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-900/40 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="rememberMe" className="text-xs font-bold text-slate-400">
-                تذكر البريد الإلكتروني
+            <div className="flex items-center gap-3 px-2">
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-5 h-5 rounded-lg border-white/10 bg-white/5 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer"
+                />
+              </div>
+              <label htmlFor="rememberMe" className="text-[11px] font-black text-slate-400 cursor-pointer hover:text-slate-300 transition-colors">
+                تذكر بيانات الدخول
               </label>
             </div>
 
@@ -367,10 +370,10 @@ const LoginPage = () => {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className={`rounded-2xl px-4 py-3 text-xs font-bold flex items-center gap-3 ${
+                className={`rounded-2xl px-4 py-4 text-[11px] font-black flex items-center gap-3 backdrop-blur-xl border ${
                   error 
-                    ? "bg-red-500/10 text-red-400 border border-red-500/20" 
-                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    ? "bg-red-500/10 text-red-400 border-red-500/20" 
+                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 }`}
               >
                 {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
@@ -378,83 +381,57 @@ const LoginPage = () => {
               </motion.div>
             )}
 
-            {error && error.includes("مهلة") && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    localStorage.clear();
-                    window.location.reload();
-                  }
-                }}
-                className="w-full bg-slate-800 text-slate-300 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-700 transition-all border border-slate-700"
-              >
-                إعادة ضبط اتصال السيرفر (Reset Session)
-              </button>
-            )}
-
             <button
               type="submit"
               disabled={loading}
-              className={`w-full relative overflow-hidden rounded-2xl py-4 text-sm font-black text-white transition-all shadow-lg ${
+              className={`w-full relative overflow-hidden rounded-[1.5rem] py-5 text-sm font-black text-white transition-all shadow-2xl active:scale-[0.98] ${
                 !isSupabaseConfigured 
-                  ? "bg-red-600" 
-                  : "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:shadow-emerald-500/25 active:scale-[0.98]"
+                  ? "bg-red-600/80" 
+                  : "bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 shadow-blue-500/20"
               } disabled:opacity-50`}
             >
-              {loading ? "جاري التحقق..." : "تسجيل الدخول"}
+              <div className="relative z-10 flex items-center justify-center gap-2">
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>جاري التحقق...</span>
+                  </>
+                ) : (
+                  <span>دخول للنظام الآمن</span>
+                )}
+              </div>
+              {/* Shine Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             </button>
           </form>
 
           {!isKeyboardOpen && (
-            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
+            <div className="mt-10 pt-6 border-t border-white/5 flex flex-col gap-4 relative z-10">
               <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{VERSION}</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-                    <span className="text-[7px] font-black text-green-500/80 uppercase">نظام الدخول الذكي: مستقر تماماً</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500" : "bg-red-500"}`} />
-                  <span className="text-[9px] text-slate-500">{isSupabaseConfigured ? "متصل" : "غير متصل"}</span>
+                <span className="text-[10px] font-black text-slate-600 tracking-[0.2em] uppercase">{VERSION}</span>
+                <div className="flex items-center gap-2 bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/10">
+                  <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
+                  <span className="text-[8px] font-black text-emerald-500/80 uppercase">System Encrypted</span>
                 </div>
               </div>
-              <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+              
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm group/ota hover:bg-white/10 transition-all cursor-pointer" onClick={() => checkConnection()}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">حالة التحديث OTA</p>
-                  <button 
-                    disabled={otaStatus.includes("جاري")}
-                    onClick={async () => {
-                      setOtaStatus("جاري الفحص الإجباري...");
-                      try {
-                        const { checkForAutoUpdate } = await import("@/lib/native-utils");
-                        const res = await checkForAutoUpdate(true);
-                        if (res.available) {
-                          setOtaStatus(`تم العثور على تحديث v${res.version} - جاري التثبيت...`);
-                        } else if (res.reason === 'COOLDOWN') {
-                          setOtaStatus("يرجى الانتظار 5 دقائق بين كل فحص يدوي.");
-                        } else {
-                          setOtaStatus(`لا توجد نسخ جديدة (DB: ${res.version || "???"}) - السبب: ${res.reason || "غير معروف"}`);
-                        }
-                      } catch (e: any) {
-                        setOtaStatus(`فشل الفحص: ${e.message}`);
-                      }
-                    }}
-                    className={`text-[7px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md hover:bg-blue-500/40 transition-all active:scale-95 ${otaStatus.includes("جاري") ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    فحص إجباري الآن
-                  </button>
+                  <p className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest group-hover/ota:text-blue-400 transition-colors">Cloud Connectivity</p>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? "bg-green-500 shadow-lg shadow-green-500/50" : "bg-red-500"}`} />
                 </div>
-                <p className="text-[10px] text-slate-400 font-bold">{otaStatus}</p>
+                <p className="text-[10px] text-slate-500 font-black group-hover/ota:text-slate-400 transition-colors">{otaStatus}</p>
               </div>
             </div>
           )}
-        </div>
         </motion.div>
-        </div>
       </main>
+
+      <style jsx global>{`
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 };
