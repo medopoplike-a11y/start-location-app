@@ -337,7 +337,8 @@ export const startBackgroundTracking = async (userId: string) => {
                   accuracy: location.accuracy
                 },
                 is_online: true,
-                last_location_update: new Date().toISOString()
+                last_location_update: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               })
               .eq('id', userId);
           });
@@ -404,7 +405,8 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
               accuracy: position.coords.accuracy
             },
             is_online: true,
-            last_location_update: new Date().toISOString()
+            last_location_update: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('id', userId);
       }

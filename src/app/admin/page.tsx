@@ -306,6 +306,8 @@ function AdminContent() {
   // 8. Lifecycle & Sync Hooks
   const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, (payload) => {
     if (mounted && !authLoading && user) {
+      let shouldFetchFull = true;
+
       // Delta Sync Optimization: Update specific states based on payload to avoid full re-fetch
       if (payload && payload.table === 'profiles' && payload.new) {
         const p = payload.new;
@@ -319,6 +321,7 @@ function AdminContent() {
             const now = Date.now();
             const isFresh = now - lastUpdate < 10 * 60 * 1000;
             
+            // If the driver is offline or not fresh, remove them from the list
             if (!p.is_online || !isFresh) return prev.filter(d => d.id !== p.id);
             
             const updatedDriver = {
@@ -330,10 +333,18 @@ function AdminContent() {
             };
             
             if (updatedDriver.lat === null || updatedDriver.lng === null) return prev.filter(d => d.id !== p.id);
-            if (existing) return prev.map(d => d.id === p.id ? updatedDriver as OnlineDriver : d);
+            
+            // If already exists and location hasn't changed, don't trigger re-render
+            if (existing && existing.lat === updatedDriver.lat && existing.lng === updatedDriver.lng && existing.lastSeen === updatedDriver.lastSeen) {
+              return prev;
+            }
+            
+            if (existing) return prev.map(d => d.id === p.id ? { ...existing, ...updatedDriver } as OnlineDriver : d);
             return [...prev, updatedDriver as OnlineDriver];
           });
-          // Do not return here, we want fetchData() to update other stats too
+          
+          // Optimization: If only location/online status of a driver changed, don't re-fetch EVERYTHING
+          shouldFetchFull = false;
         } else if (p.role === 'vendor') {
           // Optimization: Instant update for vendor location if it changes
           setVendors(prev => {
@@ -346,12 +357,18 @@ function AdminContent() {
             }
             return prev;
           });
-          // Note: for vendors we still might want to fetchData for other data, so no early return
+          // Vendors might have other data like balance that needs full fetch, but location alone doesn't
+          shouldFetchFull = false; 
         }
+      } else if (payload && payload.table === 'wallets') {
+        // Optimization: For wallet updates, we definitely want fresh stats, but maybe only fetch stats?
+        shouldFetchFull = true;
       }
       
-      // If it's an order update, we can also optimize later, but for now full fetch is safer for data consistency
-      fetchData();
+      // If it's an order update, a new user, or other critical change, do full fetch
+      if (shouldFetchFull) {
+        fetchData();
+      }
     }
   }, true);
 

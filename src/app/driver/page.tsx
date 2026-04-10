@@ -244,8 +244,8 @@ export default function DriverApp() {
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
-        // Limit updates to once every 20 seconds to save battery
-        if (now - lastLocationUpdate < 20000) return;
+        // Limit updates to once every 10 seconds to save battery (improved for admin real-time view)
+        if (now - lastLocationUpdate < 10000) return;
         
         const newLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
         setDriverLocation(newLocation);
