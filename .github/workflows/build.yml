@@ -28,7 +28,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '21'
+        node-version: '22'
 
     - name: Set up JDK
       uses: actions/setup-java@v4
@@ -150,7 +150,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '21'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
