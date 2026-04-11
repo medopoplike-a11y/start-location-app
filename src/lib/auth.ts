@@ -228,6 +228,50 @@ export const updateUserProfile = async (userId: string, updates: Partial<Omit<Us
   }
 };
 
+export const updateUserAccount = async (updates: { email?: string; password?: string; full_name?: string; phone?: string; area?: string; vehicle_type?: string }) => {
+  try {
+    // 1. Update Auth Metadata and Credentials
+    const authUpdates: any = {};
+    if (updates.email) authUpdates.email = updates.email;
+    if (updates.password) authUpdates.password = updates.password;
+    
+    const metadata: any = {};
+    if (updates.full_name) metadata.full_name = updates.full_name;
+    if (updates.phone) metadata.phone = updates.phone;
+    if (updates.area) metadata.area = updates.area;
+    if (updates.vehicle_type) metadata.vehicle_type = updates.vehicle_type;
+    
+    if (Object.keys(metadata).length > 0) {
+      authUpdates.data = metadata;
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.updateUser(authUpdates);
+    if (authError) throw authError;
+
+    // 2. Update Profile Table
+    if (authData.user) {
+      const profileUpdates: any = {};
+      if (updates.full_name) profileUpdates.full_name = updates.full_name;
+      if (updates.phone) profileUpdates.phone = updates.phone;
+      if (updates.email) profileUpdates.email = updates.email;
+      if (updates.area) profileUpdates.area = updates.area;
+      if (updates.vehicle_type) profileUpdates.vehicle_type = updates.vehicle_type;
+
+      if (Object.keys(profileUpdates).length > 0) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(profileUpdates)
+          .eq('id', authData.user.id);
+        if (profileError) console.error("Profile sync error:", profileError);
+      }
+    }
+
+    return { data: authData, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+};
+
 export const getCurrentSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   return session;

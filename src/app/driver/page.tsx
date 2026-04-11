@@ -22,8 +22,10 @@ import DriverHeader from "./components/DriverHeader";
 import DriverOperationsHub from "./components/DriverOperationsHub";
 import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
+import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
-import { Wallet, X, Loader2 } from "lucide-react";
+import { Wallet, X, Loader2, Settings } from "lucide-react";
+import { updateUserAccount } from "@/lib/auth";
 
 export default function DriverApp() {
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
@@ -39,7 +41,7 @@ export default function DriverApp() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"orders" | "wallet">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "settings">("orders");
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
   const [vendorDebt, setVendorDebt] = useState<number>(0);
   const [systemBalance, setSystemBalance] = useState<number>(0);
@@ -47,6 +49,8 @@ export default function DriverApp() {
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsData, setSettingsData] = useState({ name: "", phone: "", email: "", password: "" });
   const backgroundWatcherRef = useRef<string | null>(null);
   const foregroundWatcherRef = useRef<string | null>(null);
   const ordersRef = useRef<Order[]>([]);
@@ -218,6 +222,12 @@ export default function DriverApp() {
       const currentDriverId = user.id;
       setDriverId(currentDriverId);
       setDriverName(user.user_metadata?.full_name || "كابتن سكة");
+      setSettingsData({
+        name: user.user_metadata?.full_name || "",
+        phone: user.user_metadata?.phone || "",
+        email: user.email || "",
+        password: ""
+      });
 
       await Promise.allSettled([
         fetchOrders(currentDriverId),
@@ -325,6 +335,30 @@ export default function DriverApp() {
       console.error("Error fetching stats:", err);
     }
   }
+
+  const handleUpdateProfile = async () => {
+    if (!driverId) return;
+    setSavingSettings(true);
+    try {
+      const { error: dbError } = await updateUserAccount({
+        full_name: settingsData.name,
+        phone: settingsData.phone,
+        email: settingsData.email,
+        password: settingsData.password
+      });
+      if (!dbError) {
+        setDriverName(settingsData.name);
+        toastSuccess("تم تحديث الملف الشخصي بنجاح!");
+        setActiveTab("orders");
+      } else {
+        throw dbError;
+      }
+    } catch (err: any) {
+      toastError(`حدث خطأ أثناء التحديث: ${err.message || "حاول مرة أخرى"}`);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   async function fetchOrders(explicitDriverId?: string) {
     const activeDriverId = explicitDriverId ?? driverId;
@@ -893,6 +927,14 @@ export default function DriverApp() {
                       onConfirmPayment={handleConfirmPayment}
                       onOpenSettlementModal={() => setShowSettlementModal(true)}
                     />
+                  ) : activeTab === "settings" ? (
+                    <DriverSettingsView
+                      settingsData={settingsData}
+                      savingSettings={savingSettings}
+                      onBack={() => setActiveTab("orders")}
+                      onSettingsDataChange={setSettingsData}
+                      onSave={handleUpdateProfile}
+                    />
                   ) : (
                     <div className="text-center py-20">
                       <motion.div 
@@ -914,7 +956,7 @@ export default function DriverApp() {
           onClose={() => setShowDrawer(false)}
           onSelectOrders={() => { setActiveTab("orders"); setShowDrawer(false); }}
           onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
-          onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
+          onSelectSettings={() => { setActiveTab("settings"); setShowDrawer(false); }}
           onSignOut={handleSignOut}
         />
 

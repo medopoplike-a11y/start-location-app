@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Truck, Wallet, LogOut } from "lucide-react";
+import { X, Truck, Wallet, LogOut, Settings } from "lucide-react";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 interface DriverDrawerProps {
@@ -9,6 +9,7 @@ interface DriverDrawerProps {
   onClose: () => void;
   onSelectOrders: () => void;
   onSelectWallet: () => void;
+  onSelectSettings: () => void;
   onSignOut: () => void;
 }
 
@@ -17,6 +18,7 @@ export default function DriverDrawer({
   onClose,
   onSelectOrders,
   onSelectWallet,
+  onSelectSettings,
   onSignOut,
 }: DriverDrawerProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
@@ -37,6 +39,7 @@ export default function DriverDrawer({
             <div className="flex-1 p-4 space-y-2">
               <button onClick={() => { triggerHaptic(); onSelectOrders(); }} className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors"><Truck className="w-5 h-5 text-slate-400" /><span className="text-sm font-bold text-slate-700">الطلبات والمهام</span></button>
               <button onClick={() => { triggerHaptic(); onSelectWallet(); }} className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors"><Wallet className="w-5 h-5 text-slate-400" /><span className="text-sm font-bold text-slate-700">المحفظة والأرباح</span></button>
+              <button onClick={() => { triggerHaptic(); onSelectSettings(); }} className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors"><Settings className="w-5 h-5 text-slate-400" /><span className="text-sm font-bold text-slate-700">إعدادات الحساب</span></button>
             </div>
             <div className="p-4 border-t border-slate-100"><button onClick={() => {
               triggerHaptic(ImpactStyle.Medium);

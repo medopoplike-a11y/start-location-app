@@ -6,6 +6,8 @@ interface SettingsData {
   name: string;
   phone: string;
   area: string;
+  email?: string;
+  password?: string;
 }
 
 interface StoreSettingsViewProps {
@@ -105,6 +107,26 @@ export default function StoreSettingsView({
             disabled={savingSettings}
             value={settingsData.phone}
             onChange={(e) => onSettingsDataChange({ ...settingsData, phone: e.target.value })}
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-gray-400 block mb-2">البريد الإلكتروني</label>
+          <input
+            type="email"
+            disabled={savingSettings}
+            value={settingsData.email || ""}
+            onChange={(e) => onSettingsDataChange({ ...settingsData, email: e.target.value })}
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-gray-400 block mb-2">كلمة مرور جديدة (اتركها فارغة إذا لا تريد التغيير)</label>
+          <input
+            type="password"
+            disabled={savingSettings}
+            value={settingsData.password || ""}
+            onChange={(e) => onSettingsDataChange({ ...settingsData, password: e.target.value })}
             className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
           />
         </div>

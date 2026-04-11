@@ -231,7 +231,7 @@ function StoreContent() {
     checkRestoredResult();
   }, []); // Only once on mount
 
-  const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "" });
+  const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "", email: "", password: "" });
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
 
@@ -364,7 +364,9 @@ function StoreContent() {
           setSettingsData({ 
             name: profile.full_name || "", 
             phone: profile.phone || "",
-            area: profile.area || ""
+            area: profile.area || "",
+            email: profile.email || "",
+            password: ""
           });
 
           // Update appConfig with vendor's specific billing settings
@@ -585,19 +587,26 @@ function StoreContent() {
   const handleUpdateProfile = async () => {
     if (!vendorId) return;
     setSavingSettings(true);
-    const { error: dbError } = await updateUserProfile(vendorId, {
-      full_name: settingsData.name,
-      phone: settingsData.phone,
-      area: settingsData.area
-    });
-    if (!dbError) {
-      setVendorName(settingsData.name);
-      success("تم تحديث الملف الشخصي بنجاح!");
-      setActiveView("store");
-    } else {
-      error("حدث خطأ أثناء تحديث الملف الشخصي.");
+    try {
+      const { error: dbError } = await updateUserAccount({
+        full_name: settingsData.name,
+        phone: settingsData.phone,
+        area: settingsData.area,
+        email: settingsData.email,
+        password: settingsData.password
+      });
+      if (!dbError) {
+        setVendorName(settingsData.name);
+        success("تم تحديث الملف الشخصي بنجاح!");
+        setActiveView("store");
+      } else {
+        throw dbError;
+      }
+    } catch (err: any) {
+      error(`حدث خطأ أثناء التحديث: ${err.message || "حاول مرة أخرى"}`);
+    } finally {
+      setSavingSettings(false);
     }
-    setSavingSettings(false);
   };
 
   const handlePickCustomerLocation = () => {

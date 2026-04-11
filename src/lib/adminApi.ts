@@ -100,12 +100,11 @@ export const updateAdminAppConfig = async (config: Record<string, unknown>) => {
   const { data, error } = await supabase
     .from('app_config')
     .update(config)
-    .eq('id', (config.id as string) || '1') // Assuming a single config row
+    .eq('id', (config.id as string) || '1')
     .select()
     .single();
   
   if (error && error.code === 'PGRST116') {
-    // If no row exists, insert
     const { data: inserted, error: insError } = await supabase
       .from('app_config')
       .insert([config])
@@ -114,6 +113,66 @@ export const updateAdminAppConfig = async (config: Record<string, unknown>) => {
     if (insError) throw insError;
     return inserted;
   }
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createAdminOrder = async (orderData: any) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .insert([orderData])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateAdminOrder = async (orderId: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .update(updates)
+    .eq('id', orderId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteAdminOrder = async (orderId: string) => {
+  const { error } = await supabase
+    .from('orders')
+    .delete()
+    .eq('id', orderId);
+  
+  if (error) throw error;
+  return true;
+};
+
+export const fetchUserOrderHistory = async (userId: string, role: 'driver' | 'vendor') => {
+  const query = supabase
+    .from('orders')
+    .select('*, vendor:vendor_id(full_name, phone), driver:driver_id(full_name, phone)')
+    .order('created_at', { ascending: false });
+  
+  if (role === 'driver') {
+    query.eq('driver_id', userId);
+  } else {
+    query.eq('vendor_id', userId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
+
+export const fetchAllOrdersAdmin = async () => {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, vendor:vendor_id(full_name, phone), driver:driver_id(full_name, phone)')
+    .order('created_at', { ascending: false });
   
   if (error) throw error;
   return data;

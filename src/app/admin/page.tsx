@@ -20,7 +20,8 @@ import {
   Zap,
   AlertTriangle,
   Loader2,
-  BarChart3
+  BarChart3,
+  FileText
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -34,12 +35,13 @@ const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: f
 const ReportsView = dynamic(() => import("./components/ReportsView"), { ssr: false });
 const UserManagementView = dynamic(() => import("./components/UserManagementView"), { ssr: false });
 const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), { ssr: false });
+const OrderHistoryView = dynamic(() => import("./components/OrderHistoryView"), { ssr: false });
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling, updateUserAdmin, deleteUserByAdmin } from "@/lib/adminApi";
+import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling, updateUserAdmin, deleteUserByAdmin, deleteAdminOrder } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
@@ -78,6 +80,7 @@ function AdminContent() {
       title: "التشغيل والعمليات",
       items: [
         { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
+        { id: "order-history", label: "سجل الطلبات والفواتير", icon: FileText },
         { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
       ]
     },
@@ -715,6 +718,20 @@ function AdminContent() {
     try { await signOut(); } catch (error) { console.error('Sign out failed:', error); }
   }, []);
 
+  const handleDeleteAdminOrder = useCallback(async (orderId: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذا الطلب نهائياً من السجل؟")) return;
+    try {
+      setActionLoading(true);
+      await deleteAdminOrder(orderId);
+      addActivity(`تم حذف الطلب #${orderId.slice(0, 8)}`);
+      fetchData();
+    } catch (e) {
+      alert("خطأ في حذف الطلب");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [addActivity, fetchData]);
+
   // 10. Derived State
   const systemHealth = useMemo(() => {
     const activeOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').length;
@@ -874,16 +891,28 @@ function AdminContent() {
         <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 bg-transparent">
           <Suspense fallback={<AppLoader />}>
             {activeView === "dashboard" && (
-        <DashboardView 
-          activityLog={activityLog} 
-          stats={stats} 
-          onlineDrivers={onlineDrivers} 
-          vendors={vendors}
-          liveOrders={liveOrders}
-          allOrders={allOrders}
-          systemHealth={systemHealth}
-        />
-      )}
+              <DashboardView 
+                activityLog={activityLog} 
+                stats={stats} 
+                onlineDrivers={onlineDrivers} 
+                vendors={vendors} 
+                liveOrders={liveOrders} 
+                allOrders={allOrders}
+                systemHealth={systemHealth}
+              />
+            )}
+            {activeView === "order-history" && (
+              <OrderHistoryView
+                orders={allOrders}
+                onEditOrder={(order) => {
+                  alert("ميزة التعديل التفصيلي قيد التطوير - يمكنك استخدام تغيير الحالة من مركز العمليات حالياً");
+                }}
+                onDeleteOrder={handleDeleteAdminOrder}
+                onCreateOrder={() => {
+                  alert("يرجى إنشاء الطلبات من حساب المطعم لضمان دقة البيانات المالية حالياً");
+                }}
+              />
+            )}
 
             {activeView === "operations" && (
               <OperationsCenter
