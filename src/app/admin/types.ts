@@ -57,6 +57,9 @@ export interface DriverCard {
   earnings: number;
   debt: number;
   totalOrders: number;
+  max_active_orders?: number;
+  billing_type?: 'commission' | 'fixed_salary';
+  monthly_salary?: number;
 }
 
 export interface VendorCard {

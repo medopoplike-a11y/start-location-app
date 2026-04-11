@@ -119,3 +119,15 @@ export const updateAdminAppConfig = async (config: Record<string, unknown>) => {
   return data;
 };
 
+export const updateProfileBilling = async (profileId: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', profileId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+

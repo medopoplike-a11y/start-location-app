@@ -60,6 +60,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='monthly_salary') THEN
     ALTER TABLE profiles ADD COLUMN monthly_salary FLOAT DEFAULT 0;
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='max_active_orders') THEN
+    ALTER TABLE profiles ADD COLUMN max_active_orders INTEGER DEFAULT 3;
+  END IF;
 END $$;
 
 -- تفعيل Real-time لكافة الجداول الحساسة بشكل آمن

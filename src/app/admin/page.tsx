@@ -39,7 +39,7 @@ const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock } from "@/lib/adminApi";
+import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
@@ -240,7 +240,19 @@ function AdminContent() {
           setTotalSystemDebt(typedWallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
           setDrivers(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
             const w = typedWallets.find((wal) => wal.user_id === p.id);
-            return { id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", status: p.is_locked ? "محظور" : "نشط", isShiftLocked: !!p.is_locked, earnings: w?.balance || 0, debt: (w?.debt || 0) + (w?.system_balance || 0), totalOrders: 0 };
+            return { 
+              id: p.id.slice(0, 8), 
+              id_full: p.id, 
+              name: p.full_name || "بدون اسم", 
+              status: p.is_locked ? "محظور" : "نشط", 
+              isShiftLocked: !!p.is_locked, 
+              earnings: w?.balance || 0, 
+              debt: (w?.debt || 0) + (w?.system_balance || 0), 
+              totalOrders: 0,
+              max_active_orders: p.max_active_orders || 3,
+              billing_type: p.billing_type || 'commission',
+              monthly_salary: p.monthly_salary || 0
+            };
           }));
           setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
             const w = typedWallets.find((wal) => wal.user_id === p.id);
@@ -649,19 +661,23 @@ function AdminContent() {
     }
   }, [addActivity, translateStatus, fetchOrders]);
 
-  const handleUpdateVendorBilling = useCallback(async (vendorId: string, data: { commission_type?: 'percentage' | 'fixed', commission_value?: number, billing_type?: 'commission' | 'fixed_salary', monthly_salary?: number }) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update(data)
-      .eq('id', vendorId);
-
-    if (!error) {
-      addActivity(`تعديل نظام الفوترة لمحل: ${vendors.find(v => v.id_full === vendorId)?.name}`);
-      setVendors(prev => prev.map(v => v.id_full === vendorId ? { ...v, ...data } : v));
-    } else {
-      console.error("Update billing error:", error);
+  const handleUpdateProfileBilling = useCallback(async (userId: string, data: any) => {
+    try {
+      setActionLoading(true);
+      await updateProfileBilling(userId, data);
+      addActivity(`تعديل إعدادات الحساب لمستخدم: ${allUsers.find(u => u.id === userId)?.full_name || userId}`);
+      
+      // Update local state for drivers and vendors
+      setDrivers(prev => prev.map(d => d.id_full === userId ? { ...d, ...data } : d));
+      setVendors(prev => prev.map(v => v.id_full === userId ? { ...v, ...data } : v));
+      
+      fetchData(); // Refresh to ensure all data is in sync
+    } catch (e) {
+      alert(`خطأ في تحديث البيانات: ${getErrorMessage(e)}`);
+    } finally {
+      setActionLoading(false);
     }
-  }, [vendors, addActivity]);
+  }, [allUsers, addActivity, fetchData, getErrorMessage]);
 
   const handleSignOut = useCallback(async () => {
     try { await signOut(); } catch (error) { console.error('Sign out failed:', error); }
@@ -869,7 +885,8 @@ function AdminContent() {
                 users={allUsers}
                 onAddDriver={() => setShowAddDriver(true)}
                 onAddVendor={() => setShowAddVendor(true)}
-                onUpdateVendorBilling={handleUpdateVendorBilling}
+                onUpdateVendorBilling={handleUpdateProfileBilling}
+                onUpdateDriverBilling={handleUpdateProfileBilling}
                 onToggleShiftLock={handleToggleShiftLock}
                 onResetUser={handleResetUser}
               />

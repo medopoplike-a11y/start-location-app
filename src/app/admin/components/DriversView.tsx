@@ -1,19 +1,34 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle, Settings, CheckCircle, X } from "lucide-react";
+import { useState } from "react";
 import type { DriverCard } from "../types";
 
 interface DriversViewProps {
   drivers: DriverCard[];
   onAddDriver: () => void;
+  onUpdateDriverBilling?: (driverId: string, data: any) => Promise<void>;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onResetUser: (userId: string, userName: string) => void;
 }
 
-export default function DriversView({ drivers, onAddDriver, onToggleShiftLock, onResetUser }: DriversViewProps) {
+export default function DriversView({ drivers, onAddDriver, onUpdateDriverBilling, onToggleShiftLock, onResetUser }: DriversViewProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tempData, setTempData] = useState<{ 
+    billing_type: 'commission' | 'fixed_salary', 
+    monthly_salary: number,
+    max_active_orders: number
+  }>({ billing_type: 'commission', monthly_salary: 0, max_active_orders: 3 });
+
   const activeDrivers = drivers.filter(d => !d.isShiftLocked);
   const lockedDrivers = drivers.filter(d => d.isShiftLocked);
+
+  const handleUpdateBilling = async (driverId: string) => {
+    if (!onUpdateDriverBilling) return;
+    await onUpdateDriverBilling(driverId, tempData);
+    setEditingId(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -73,6 +88,96 @@ export default function DriversView({ drivers, onAddDriver, onToggleShiftLock, o
                   <p className="text-[9px] font-black text-slate-400 uppercase mb-1">المديونية</p>
                   <p className="text-sm font-black text-slate-800">{d.debt.toLocaleString()} <span className="text-[10px] font-bold text-slate-400">ج.م</span></p>
                 </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
+                {editingId === d.id_full ? (
+                  <div className="space-y-3">
+                    <div className="flex p-1 bg-slate-200 rounded-xl">
+                      <button 
+                        onClick={() => setTempData({...tempData, billing_type: 'commission'})}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${tempData.billing_type === 'commission' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
+                      >
+                        نظام العمولة
+                      </button>
+                      <button 
+                        onClick={() => setTempData({...tempData, billing_type: 'fixed_salary'})}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${tempData.billing_type === 'fixed_salary' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
+                      >
+                        راتب ثابت
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-black text-slate-400 px-1 uppercase">الحد الأقصى للطلبات</p>
+                      <input 
+                        type="number" 
+                        value={tempData.max_active_orders} 
+                        onChange={(e) => setTempData({...tempData, max_active_orders: Number(e.target.value)})}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                        placeholder="الحد الأقصى (مثلاً: 3)"
+                      />
+                    </div>
+
+                    {tempData.billing_type === 'fixed_salary' && (
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 px-1 uppercase">الراتب الشهري</p>
+                        <input 
+                          type="number" 
+                          value={tempData.monthly_salary} 
+                          onChange={(e) => setTempData({...tempData, monthly_salary: Number(e.target.value)})}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                          placeholder="الراتب الشهري"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => handleUpdateBilling(d.id_full)} className="flex-1 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" /> حفظ التعديل
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="p-2 bg-slate-200 text-slate-500 rounded-xl">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[9px] font-black text-slate-400 uppercase">نظام الحساب</p>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${d.billing_type === 'fixed_salary' ? "bg-purple-50 text-purple-600 border-purple-100" : "bg-blue-50 text-blue-600 border-blue-100"}`}>
+                        {d.billing_type === 'fixed_salary' ? "راتب ثابت" : "نظام عمولة"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <p className="text-[9px] font-black text-slate-400 uppercase">الحد الأقصى</p>
+                      <p className="text-xs font-black text-slate-700">{d.max_active_orders || 3} طلبات</p>
+                    </div>
+
+                    {d.billing_type === 'fixed_salary' && (
+                      <div className="flex justify-between items-center">
+                        <p className="text-[9px] font-black text-slate-400 uppercase">الراتب</p>
+                        <p className="text-xs font-black text-slate-700">{d.monthly_salary?.toLocaleString() || 0} ج.م</p>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => {
+                        setEditingId(d.id_full);
+                        setTempData({ 
+                          billing_type: d.billing_type || 'commission',
+                          monthly_salary: d.monthly_salary || 0,
+                          max_active_orders: d.max_active_orders || 3
+                        });
+                      }}
+                      className="mt-1 text-[9px] font-black text-blue-500 hover:text-blue-700 transition-colors flex items-center gap-1 w-fit"
+                    >
+                      <Settings className="w-3 h-3" />
+                      تعديل الإعدادات
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">

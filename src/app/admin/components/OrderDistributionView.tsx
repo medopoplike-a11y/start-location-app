@@ -16,9 +16,17 @@ export default function OrderDistributionView({ liveOrders, drivers, onAssign }:
   const [assigning, setAssigning] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
 
-  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending" || o.status === "تم التعيين" || o.status === "في الطريق");
+  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
   const availableDrivers = drivers.filter(d => !d.isShiftLocked);
   const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
+
+  // Advanced Sorting for Manual Distribution Helpers
+  const sortedDrivers = [...availableDrivers].sort((a, b) => {
+    // 1. Fewer active orders first (Load balance suggestion)
+    const aActive = a.totalOrders || 0; // In a real app, this would be current active orders
+    const bActive = b.totalOrders || 0;
+    return aActive - bActive;
+  });
 
   const handleAssign = async (driverId: string, driverName: string) => {
     if (!selectedOrderId) return;
@@ -172,7 +180,7 @@ export default function OrderDistributionView({ liveOrders, drivers, onAssign }:
                 )}
               </AnimatePresence>
 
-              {availableDrivers.map((driver, i) => (
+              {sortedDrivers.map((driver, i) => (
                 <motion.button
                   key={driver.id}
                   initial={{ opacity: 0, x: 8 }}
@@ -191,7 +199,7 @@ export default function OrderDistributionView({ liveOrders, drivers, onAssign }:
                         <p className="text-sm font-black text-slate-900">{driver.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <MapPin className="w-3 h-3 text-slate-300" />
-                          <span className="text-[9px] font-bold text-slate-400">{driver.totalOrders} طلب اليوم</span>
+                          <span className="text-[9px] font-bold text-slate-400">الحد: {driver.max_active_orders || 3}</span>
                         </div>
                       </div>
                     </div>

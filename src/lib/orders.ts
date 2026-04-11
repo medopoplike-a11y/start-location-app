@@ -295,30 +295,45 @@ export const assignOrderToNearestDriver = async (
     .in('status', ['assigned', 'in_transit'])
     .not('driver_id', 'is', null);
 
-  const customerCount: Record<string, number> = {};
+  const activeCustomerCounts: Record<string, number> = {};
   (activeOrders || []).forEach((o: any) => {
     if (o.driver_id) {
       // Each order has a 'customers' array inside 'customer_details'
       const count = Array.isArray(o.customer_details?.customers) ? o.customer_details.customers.length : 1;
-      customerCount[o.driver_id] = (customerCount[o.driver_id] || 0) + count;
+      activeCustomerCounts[o.driver_id] = (activeCustomerCounts[o.driver_id] || 0) + count;
     }
   });
 
-  // 3. Filter drivers under the max limit (Current total customers < 3)
-  // Logic: If a driver has a trip with 3 or more (up to 5), they are full.
-  // If they have only 1 or 2 customers total, they can take one more trip to reach 3.
-  const MAX_CUSTOMERS_PER_DRIVER = 3;
-  const available = onlineDrivers.filter((d) => (customerCount[d.id] || 0) < MAX_CUSTOMERS_PER_DRIVER);
+  // 3. Filter drivers under the max limit (Default: 3 active customers)
+  // Logic: Each driver can have their own 'max_active_orders' setting in their profile
+  const { data: driverConfigs } = await supabase
+    .from('profiles')
+    .select('id, max_active_orders')
+    .in('id', onlineDrivers.map(d => d.id));
+
+  const maxOrdersMap: Record<string, number> = {};
+  (driverConfigs || []).forEach(d => {
+    maxOrdersMap[d.id] = d.max_active_orders || 3; // Default to 3 if not set
+  });
+
+  const available = onlineDrivers.filter((d) => (activeCustomerCounts[d.id] || 0) < (maxOrdersMap[d.id] || 3));
 
   if (!available.length) {
-    return { success: false, error: 'جميع الطيارين مشغولون (الحد الأقصى 3 عملاء)' };
+    return { success: false, error: 'جميع الطيارين مشغولون (وصلوا للحد الأقصى للطلبات)' };
   }
 
   // 4. Advanced sorting:
-  // - First priority: Nearest distance to vendor
-  // - Second priority: Driver with fewest active customers
+  // - First priority: Driver with FEWEST active customers (Load balancing)
+  // - Second priority: Nearest distance to vendor (Efficiency)
   const sorted = available.sort((a, b) => {
-    // 1. Distance check (Primary)
+    // 1. Customer count check (Primary - Load Balancing)
+    const aCustomers = activeCustomerCounts[a.id] || 0;
+    const bCustomers = activeCustomerCounts[b.id] || 0;
+    if (aCustomers !== bCustomers) {
+      return aCustomers - bCustomers;
+    }
+
+    // 2. Distance check (Secondary - Efficiency)
     if (vendorLocation && a.location && b.location) {
       try {
         const aLoc = typeof a.location === 'string' ? JSON.parse(a.location) : a.location;
@@ -327,15 +342,12 @@ export const assignOrderToNearestDriver = async (
         if (aLoc?.lat && aLoc?.lng && bLoc?.lat && bLoc?.lng) {
           const distA = haversineKm(vendorLocation, aLoc);
           const distB = haversineKm(vendorLocation, bLoc);
-          if (Math.abs(distA - distB) > 0.1) return distA - distB; // 100m tolerance
+          return distA - distB;
         }
       } catch (e) {}
     }
 
-    // 2. Customer count check (Secondary)
-    const aCustomers = customerCount[a.id] || 0;
-    const bCustomers = customerCount[b.id] || 0;
-    return aCustomers - bCustomers;
+    return 0;
   });
 
   const best = sorted[0];

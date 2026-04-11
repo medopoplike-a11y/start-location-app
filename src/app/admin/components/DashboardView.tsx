@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
 import { Bell, Map as MapIcon, Activity, Truck } from "lucide-react";
-import type { ActivityLogItem, OnlineDriver, VendorCard } from "../types";
+import type { ActivityLogItem, OnlineDriver, VendorCard, LiveOrderItem, AdminOrder } from "../types";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
   ssr: false,
