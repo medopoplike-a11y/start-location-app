@@ -80,12 +80,12 @@ export default function OperationsCenter({
         
         {/* LEFT COLUMN: Pinned Real-time Monitor */}
         <div className="w-full lg:w-80 shrink-0 space-y-4 lg:sticky lg:top-4">
-          <div className="bg-slate-900 rounded-[32px] p-6 text-white shadow-2xl shadow-slate-200">
+          <div className="drawer-glass rounded-[32px] p-6 text-slate-900 dark:text-white shadow-2xl">
              <div className="flex items-center justify-between mb-6">
                <div className="flex flex-col">
-                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">مركز التحكم الموحد</h3>
+                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">مركز التحكم الموحد</h3>
                  <div className="flex items-center gap-2">
-                   <Monitor className="w-4 h-4 text-emerald-400" />
+                   <Monitor className="w-4 h-4 text-blue-500 dark:text-emerald-400" />
                    <span className="text-sm font-black">حالة النظام الآن</span>
                  </div>
                </div>
@@ -97,17 +97,17 @@ export default function OperationsCenter({
              
              <div className="space-y-6">
                {/* Auto-Retry Switch */}
-               <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
+               <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5">
                  <div className="flex items-center justify-between mb-3">
-                   <span className="text-[11px] font-bold text-slate-300">التوزيع التلقائي الذكي</span>
+                   <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">التوزيع التلقائي الذكي</span>
                    <button 
                      onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
-                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none ${autoRetryEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none ${autoRetryEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
                    >
                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md ${autoRetryEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                    </button>
                  </div>
-                 <p className="text-[9px] text-slate-500 font-medium leading-relaxed">
+                 <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
                    {autoRetryEnabled 
                      ? "النظام يقوم حالياً بالبحث عن طيارين وتعيينهم تلقائياً لكل الطلبات المعلقة." 
                      : "التوزيع التلقائي متوقف. يجب تعيين الطلبات يدوياً للطيارين."}
@@ -116,12 +116,12 @@ export default function OperationsCenter({
 
                {/* Quick Stats Grid */}
                <div className="grid grid-cols-2 gap-3">
-                 <div className="bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50 flex flex-col items-center justify-center text-center">
-                    <p className="text-[9px] font-black text-slate-500 uppercase mb-1">طلبات معلقة</p>
+                 <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3 border border-black/5 dark:border-white/5 flex flex-col items-center justify-center text-center">
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1">طلبات معلقة</p>
                     <p className={`text-xl font-black ${pendingOrdersCount > 0 ? "text-amber-500" : "text-slate-400"}`}>{pendingOrdersCount}</p>
                  </div>
-                 <div className="bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50 flex flex-col items-center justify-center text-center">
-                    <p className="text-[9px] font-black text-slate-500 uppercase mb-1">كابتن متصل</p>
+                 <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3 border border-black/5 dark:border-white/5 flex flex-col items-center justify-center text-center">
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1">كابتن متصل</p>
                     <p className="text-xl font-black text-emerald-500">{activeDriversCount}</p>
                  </div>
                </div>
@@ -129,28 +129,28 @@ export default function OperationsCenter({
                <button 
                  onClick={onRefresh}
                  disabled={actionLoading}
-                 className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+                 className="w-full py-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-600/20 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
                >
-                 <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? "animate-spin text-emerald-400" : "text-slate-400"}`} />
+                 <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? "animate-spin" : ""}`} />
                  تحديث البيانات فوراً
                </button>
              </div>
           </div>
 
           {/* Activity Widget */}
-          <div className="bg-white border border-slate-100 rounded-[32px] p-6 shadow-sm hidden lg:block">
+          <div className="drawer-glass rounded-[32px] p-6 shadow-sm hidden lg:block">
              <div className="flex items-center justify-between mb-4">
-               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">آخر التحركات</h3>
+               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">آخر التحركات</h3>
                <Activity className="w-3.5 h-3.5 text-blue-500" />
              </div>
              <div className="space-y-4">
                {activities.slice(0, 4).map((act, i) => (
                  <div key={i} className="flex gap-3 relative pb-4 last:pb-0">
-                   {i !== 3 && <div className="absolute top-3 right-[3px] w-0.5 h-full bg-slate-50" />}
+                   {i !== 3 && <div className="absolute top-3 right-[3px] w-0.5 h-full bg-slate-100 dark:bg-slate-800" />}
                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 z-10" />
                    <div>
-                     <p className="text-[11px] font-bold text-slate-700 leading-tight">{act.text}</p>
-                     <p className="text-[9px] text-slate-400 mt-1">{act.time}</p>
+                     <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight">{act.text}</p>
+                     <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1">{act.time}</p>
                    </div>
                  </div>
                ))}
@@ -162,20 +162,20 @@ export default function OperationsCenter({
         <div className="flex-1 w-full space-y-6">
           
           {/* Main Workspace Navigation (Pinned) */}
-          <div className="flex flex-wrap gap-2 p-1.5 bg-white/80 backdrop-blur-xl border border-slate-100 rounded-2xl w-fit shadow-lg sticky top-4 z-40">
+          <div className="flex flex-wrap gap-2 p-1.5 drawer-glass rounded-2xl w-fit shadow-lg sticky top-4 z-40">
             <button 
               onClick={() => setActiveTab("map")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "map" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+                activeTab === "map" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
               }`}
             >
-              <Radio className={`w-4 h-4 ${activeTab === "map" ? "text-emerald-400" : ""}`} />
+              <Radio className={`w-4 h-4 ${activeTab === "map" ? "text-white" : ""}`} />
               الخريطة المباشرة
             </button>
             <button 
               onClick={() => setActiveTab("monitor")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "monitor" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+                activeTab === "monitor" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
               }`}
             >
               <ListFilter className="w-4 h-4" />
@@ -184,7 +184,7 @@ export default function OperationsCenter({
             <button 
               onClick={() => setActiveTab("distribution")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "distribution" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+                activeTab === "distribution" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
               }`}
             >
               <Truck className="w-4 h-4" />
@@ -195,7 +195,7 @@ export default function OperationsCenter({
             <button 
               onClick={() => setActiveTab("system")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "system" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+                activeTab === "system" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
               }`}
             >
               <Settings className="w-4 h-4" />
@@ -214,7 +214,7 @@ export default function OperationsCenter({
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 {activeTab === "map" && (
-                  <div className="bg-white rounded-[40px] border border-slate-100 shadow-xl overflow-hidden h-[650px] relative">
+                  <div className="glass-panel rounded-[40px] shadow-xl overflow-hidden h-[650px] relative border-none">
                     <LiveMap
                       drivers={onlineDrivers.map(d => ({
                         ...d,
@@ -239,13 +239,13 @@ export default function OperationsCenter({
                     
                     {/* Map Pinned Stats Overlay */}
                     <div className="absolute bottom-8 right-8 z-10 flex flex-col gap-3">
-                       <div className="bg-white/90 backdrop-blur-md p-5 rounded-[32px] border border-white shadow-2xl space-y-3 min-w-[160px]">
+                       <div className="drawer-glass p-5 rounded-[32px] shadow-2xl space-y-3 min-w-[160px]">
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2">
                               <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                              <span className="text-[10px] font-black text-slate-700">متاح</span>
+                              <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">متاح</span>
                             </div>
-                            <span className="text-xs font-black text-slate-900">{onlineDrivers.filter(d => !allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))).length}</span>
+                            <span className="text-xs font-black text-slate-900 dark:text-white">{onlineDrivers.filter(d => !allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))).length}</span>
                           </div>
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2">

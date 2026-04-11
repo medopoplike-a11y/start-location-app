@@ -830,17 +830,24 @@ function AdminContent() {
       <motion.aside 
         initial={false} 
         animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} 
-        className="glass-panel border-l border-white/20 dark:border-slate-800/50 fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500"
+        className="drawer-glass fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500"
       >
-        <div className="p-6 flex items-center gap-4 border-b border-gray-100 dark:border-slate-800 h-24">
-          <div className="flex-shrink-0 bg-white/50 dark:bg-slate-800/50 p-2 rounded-2xl backdrop-blur-md border border-white/40 dark:border-slate-700/40 shadow-sm"><StartLogo className="w-10 h-10" /></div>
-          {sidebarOpen && <div className="flex flex-col"><h1 className="text-xl font-black text-gray-900 dark:text-slate-100 leading-none tracking-tighter">START</h1><span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase mt-1">Management</span></div>}
+        <div className="p-6 flex items-center gap-4 border-b border-white/10 dark:border-slate-800/50 h-24">
+          <div className="flex-shrink-0 bg-white/50 dark:bg-slate-800/50 p-2 rounded-2xl backdrop-blur-md border border-white/40 dark:border-slate-700/40 shadow-sm">
+            <StartLogo className="w-10 h-10" />
+          </div>
+          {sidebarOpen && (
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none tracking-tighter italic">START</h1>
+              <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase mt-1 tracking-widest">Management</span>
+            </div>
+          )}
         </div>
         <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
           {menuGroups.map((group, idx) => (
-            <div key={idx} className="space-y-2">
+            <div key={idx} className="space-y-3">
               {sidebarOpen && (
-                <p className="px-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">
+                <p className="px-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1 opacity-60">
                   {group.title}
                 </p>
               )}
@@ -851,11 +858,11 @@ function AdminContent() {
                     onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} 
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all relative group ${
                       activeView === item.id 
-                        ? "bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white shadow-xl shadow-slate-900/20" 
-                        : "text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-slate-800/40"
+                        ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" 
+                        : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
                     }`}
                   >
-                    <div className={`${activeView === item.id ? "text-white dark:text-slate-900" : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-colors`}>
+                    <div className={`${activeView === item.id ? "text-white" : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-colors`}>
                       <item.icon className="w-5 h-5" />
                     </div>
                     {sidebarOpen && (
@@ -877,7 +884,15 @@ function AdminContent() {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-100 dark:border-slate-800"><button onClick={handleSignOut} className="w-full flex items-center gap-4 p-4 text-gray-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-2xl transition-all">{sidebarOpen && <span className="text-sm font-black flex-1 text-right">تسجيل الخروج</span>}<LogOut className="w-5 h-5" /></button></div>
+        <div className="p-4 border-t border-white/10 dark:border-slate-800/50">
+          <button 
+            onClick={handleSignOut} 
+            className="w-full flex items-center gap-4 p-4 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
+          >
+            {sidebarOpen && <span className="text-sm font-black flex-1 text-right">تسجيل الخروج</span>}
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
       </motion.aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">

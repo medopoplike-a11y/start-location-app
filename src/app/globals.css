@@ -48,40 +48,72 @@
   border-radius: 1.5rem !important;
 }
 
-/* Prevent layout shifts */
-.grid, .flex {
-  min-width: 0;
-  min-height: 0;
+/* Specific Drawer Glass Style */
+.drawer-glass {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  border-left: 1px solid var(--glass-border) !important;
+  box-shadow: -10px 0 50px rgba(0,0,0,0.15) !important;
 }
 
-/* RTL Support for common components */
-.flex-row-reverse {
-  flex-direction: row-reverse !important;
+.dark .drawer-glass {
+  background: rgba(15, 23, 42, 0.98) !important;
 }
 
-/* Typography safety */
-p, span, h1, h2, h3, h4, h5, h6 {
-  word-break: keep-all;
-  overflow-wrap: break-word;
-  line-height: 1.5;
+/* Premium Card with internal spacing safety */
+.premium-card {
+  @apply glass-card;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Inputs normalization */
-input, textarea, select {
-  -webkit-appearance: none;
-  background-color: var(--glass-bg) !important;
-  border: 1.5px solid var(--glass-border) !important;
-  border-radius: 1rem;
-  padding: 0.85rem 1rem !important;
-  font-size: 1rem !important;
-  width: 100%;
-  color: var(--foreground) !important;
+.premium-card-header {
+  @apply p-5 border-b border-white/10 dark:border-white/5 flex items-center justify-between;
 }
 
-input:focus {
-  outline: none;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+.premium-card-body {
+  @apply p-5 space-y-4;
+}
+
+/* Fix for icons and small elements alignment */
+.lucide, .icon-container {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Fix for overlapping fields */
+.field-container {
+  @apply flex flex-col gap-2 w-full;
+}
+
+.field-label {
+  @apply text-[10px] font-black text-slate-400 uppercase tracking-widest px-1;
+}
+
+/* Ensure no overlap in flex items */
+.flex-nowrap {
+  flex-wrap: nowrap !important;
+}
+
+.gap-safe {
+  gap: 1rem !important;
+}
+
+/* Mobile-specific adjustments to prevent crowding */
+@media (max-width: 640px) {
+  .glass-card, .glass-panel {
+    border-radius: 1.25rem !important;
+  }
+  
+  .p-10 { @apply p-6; }
+  .p-8 { @apply p-5; }
+  .p-6 { @apply p-4; }
 }
 
 /* Scrollbar */
