@@ -1,23 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #3b82f6;
+  --color-brand-secondary: #ef4444;
+  --color-brand-warning: #f59e0b;
+  --color-brand-success: #10b981;
+  --color-brand-dark: #0f172a;
+  --color-brand-card: #1e293b;
+  --color-brand-border: #334155;
+  --color-brand-muted: #475569;
+  
+  --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.1);
+  --shadow-card-lift: 0 10px 30px rgba(0,0,0,0.1), 0 1px 8px rgba(0,0,0,0.06);
+}
 
 :root {
   --page-bg: #f8fafc;
   --foreground: #0f172a;
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.5);
   --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 .dark {
   --page-bg: #020617;
   --foreground: #f8fafc;
-  --glass-bg: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(15, 23, 42, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
   --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
+/* Base resets and layout fixes */
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -27,7 +40,6 @@
   html, body {
     direction: rtl;
     text-align: right;
-    transition: color 500ms ease-in-out, background-color 500ms ease-in-out;
     background-color: var(--page-bg) !important;
     color: var(--foreground) !important;
     min-height: 100vh;
@@ -36,53 +48,61 @@
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-family: inherit;
   }
 }
 
-/* Glassmorphism Fix for Mobile WebView */
+/* Component stability for mobile WebView */
 .glass-panel, .glass-card {
   background: var(--glass-bg) !important;
-  backdrop-filter: blur(12px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  backdrop-filter: blur(8px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(150%) !important;
   border: 1px solid var(--glass-border) !important;
   box-shadow: var(--card-shadow) !important;
-  /* Fallback for old Android engines */
-  background-color: white !important;
+  border-radius: 1.5rem !important;
+  overflow: hidden;
 }
 
-.dark .glass-panel, .dark .glass-card {
-  background-color: #0f172a !important;
+/* Fix for icons and images in Tailwind 4 */
+svg, img {
+  display: inline-block;
+  vertical-align: middle;
 }
 
-/* Fix for Grid & Flex Overlapping */
+/* Ensure grid/flex containers don't collapse */
 .grid, .flex {
-  min-width: 0;
-  min-height: 0;
+  display: flex !important;
+}
+.grid {
+  display: grid !important;
 }
 
-/* Prevent text overflow in Arabic */
+/* Safety for text rendering */
 p, span, h1, h2, h3, h4, h5, h6 {
   word-break: keep-all;
   overflow-wrap: break-word;
   line-height: 1.5;
 }
 
-/* Premium Inputs Mobile Fix */
+/* Form inputs normalization for mobile */
 input, textarea, select {
   -webkit-appearance: none;
-  background-color: white !important;
-  border: 1.5px solid #e2e8f0 !important;
-  border-radius: 1rem;
-  padding: 0.85rem 1rem !important;
-  font-size: 0.95rem !important;
-  width: 100% !important;
-  display: block !important;
+  background-color: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 1rem !important;
+  width: 100%;
+  color: var(--foreground) !important;
 }
 
-.dark input, .dark textarea, .dark select {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  color: white !important;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 10px;
 }
 
 input:focus {
