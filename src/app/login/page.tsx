@@ -161,21 +161,9 @@ const LoginPage = () => {
 
       setTimeout(async () => {
         try {
-          let role = data.user.user_metadata?.role || "";
-          if (!role) {
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
-            role = profile?.role || "";
-          }
-          const finalRole = (role || "driver").toLowerCase();
-          const target = getRedirectPath(finalRole);
-          
-          if (typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform?.()) {
-            window.location.href = target;
-          } else {
-            router.replace(target);
-          }
+          router.replace("/welcome");
         } catch (redirErr) {
-          window.location.assign("/driver"); 
+          window.location.assign("/welcome"); 
         }
       }, redirectDelay);
     } catch (err: any) {
@@ -217,8 +205,8 @@ const LoginPage = () => {
                   <StartLogo className="w-24 h-24 relative drop-shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform duration-700 group-hover:scale-110" />
                 </div>
                 <h1 className="text-4xl font-black tracking-tighter mb-1 flex items-center gap-3 italic" dir="ltr">
-                  <span className="text-white">Start</span>
-                  <span className="bg-gradient-to-r from-blue-400 via-emerald-400 to-blue-400 bg-[length:200%_auto] animate-[shimmer_4s_linear_infinite] bg-clip-text text-transparent not-italic">Location</span>
+                  <span className="text-white text-shadow-glow">Start</span>
+                  <span className="text-blue-400 not-italic">Location</span>
                 </h1>
                 <div className="flex items-center gap-2 opacity-60">
                   <div className="h-px w-4 bg-slate-500" />
@@ -251,11 +239,8 @@ const LoginPage = () => {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="user@example.com"
-                  className="w-full bg-white/5 border border-white/10 pr-14 pl-6 py-5 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-blue-500/40 rounded-2xl font-bold text-sm shadow-inner"
+                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-blue-500/40 rounded-2xl font-bold text-sm shadow-inner"
                 />
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors pointer-events-none">
-                  <Mail className="w-5 h-5" />
-                </div>
               </div>
             </div>
 
@@ -274,11 +259,8 @@ const LoginPage = () => {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-white/5 border border-white/10 pr-14 pl-14 py-5 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-emerald-500/40 rounded-2xl font-bold text-sm shadow-inner"
+                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-emerald-500/40 rounded-2xl font-bold text-sm shadow-inner"
                 />
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors pointer-events-none">
-                  <Lock className="w-5 h-5" />
-                </div>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -346,22 +328,25 @@ const LoginPage = () => {
               
               <button 
                 type="button"
-                onClick={checkConnection}
+                onClick={() => {
+                  const event = new CustomEvent('retryUpdate');
+                  window.dispatchEvent(event);
+                }}
                 className="w-full group/ota relative overflow-hidden"
               >
                 <div className="p-4 bg-white/5 rounded-[24px] border border-white/10 backdrop-blur-xl transition-all group-hover/ota:bg-white/10 group-hover/ota:border-blue-500/30 flex items-center justify-between shadow-lg">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-400 group-hover/ota:bg-blue-600 group-hover/ota:text-white transition-all duration-500">
-                      <Globe className="w-5 h-5" />
+                      <RefreshCw className="w-5 h-5" />
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-0.5">اتصال السحابة</p>
-                      <p className="text-[11px] text-slate-300 font-black group-hover/ota:text-white transition-colors">{otaStatus}</p>
+                      <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-0.5">تحديث النظام</p>
+                      <p className="text-[11px] text-slate-300 font-black group-hover/ota:text-white transition-colors">جلب آخر إصدار متوفر</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <div className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-red-500 animate-pulse"}`} />
-                    <RefreshCw className="w-3 h-3 text-slate-600 group-hover/ota:rotate-180 transition-transform duration-700" />
+                    <Download className="w-3 h-3 text-slate-600 group-hover/ota:translate-y-0.5 transition-transform duration-300" />
                   </div>
                 </div>
               </button>
