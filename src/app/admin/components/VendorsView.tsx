@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Store, MapPin, MapPinOff, RotateCcw, Plus, CheckCircle, X, Settings } from "lucide-react";
+import { Store, MapPin, MapPinOff, RotateCcw, Plus, CheckCircle, X, Settings, UserCog, Mail, Phone, Lock, Trash2 } from "lucide-react";
 import type { VendorCard } from "../types";
 
 interface VendorsViewProps {
   vendors: VendorCard[];
   onAddVendor: () => void;
   onUpdateVendorBilling?: (vendorId: string, data: any) => Promise<void>;
+  onUpdateUserDetails?: (userId: string, updates: any) => Promise<void>;
+  onDeleteUser?: (userId: string, userName: string) => Promise<void>;
   onResetUser: (userId: string, userName: string) => void;
 }
 
-export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBilling, onResetUser }: VendorsViewProps) {
+export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBilling, onUpdateUserDetails, onDeleteUser, onResetUser }: VendorsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingDetailsId, setEditingDetailsId] = useState<string | null>(null);
   const [tempData, setTempData] = useState<{ 
     billing_type: 'commission' | 'fixed_salary', 
     commission_type: 'percentage' | 'fixed', 
@@ -21,12 +24,25 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
     monthly_salary: number 
   }>({ billing_type: 'commission', commission_type: 'percentage', commission_value: 0, monthly_salary: 0 });
 
+  const [tempDetails, setTempDetails] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    password: ""
+  });
+
   const withLocation = vendors.filter(v => !!(v.location?.lat && v.location?.lng));
 
   const handleUpdateBilling = async (vendorId: string) => {
     if (!onUpdateVendorBilling) return;
     await onUpdateVendorBilling(vendorId, tempData);
     setEditingId(null);
+  };
+
+  const handleUpdateDetails = async (vendorId: string) => {
+    if (!onUpdateUserDetails) return;
+    await onUpdateUserDetails(vendorId, tempDetails);
+    setEditingDetailsId(null);
   };
   return (
     <div className="space-y-6">
@@ -66,15 +82,111 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                       <Store className="w-5 h-5 text-orange-500" />
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-sm">{v.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-slate-900 text-sm">{v.name}</p>
+                        <button 
+                          onClick={() => {
+                            setEditingDetailsId(v.id_full);
+                            setTempDetails({
+                              full_name: v.name,
+                              email: (v as any).email || "",
+                              phone: (v as any).phone || "",
+                              password: ""
+                            });
+                          }}
+                          className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-500 transition-colors"
+                          title="تعديل بيانات المستخدم"
+                        >
+                          <UserCog className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       <div className={`flex items-center gap-1.5 mt-0.5 ${hasLocation ? "text-emerald-500" : "text-red-400"}`}>
                         {hasLocation ? <MapPin className="w-3 h-3" /> : <MapPinOff className="w-3 h-3" />}
                         <span className="text-[10px] font-black">{hasLocation ? "موقع محدد" : "لا يوجد موقع"}</span>
                       </div>
                     </div>
                   </div>
-                  <span className="text-[9px] font-black text-slate-300 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">#{v.id}</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[9px] font-black text-slate-300 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">#{v.id}</span>
+                    <button 
+                      onClick={() => onDeleteUser?.(v.id_full, v.name)}
+                      className="p-1 hover:bg-red-50 rounded-lg text-slate-300 hover:text-red-500 transition-colors"
+                      title="حذف الحساب نهائياً"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {editingDetailsId === v.id_full && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-3 mb-2">
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-1">تعديل الملف الشخصي</p>
+                        
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <UserCog className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input 
+                              type="text" 
+                              value={tempDetails.full_name}
+                              onChange={(e) => setTempDetails({...tempDetails, full_name: e.target.value})}
+                              placeholder="الاسم بالكامل"
+                              className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div className="relative">
+                            <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input 
+                              type="email" 
+                              value={tempDetails.email}
+                              onChange={(e) => setTempDetails({...tempDetails, email: e.target.value})}
+                              placeholder="البريد الإلكتروني"
+                              className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div className="relative">
+                            <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input 
+                              type="tel" 
+                              value={tempDetails.phone}
+                              onChange={(e) => setTempDetails({...tempDetails, phone: e.target.value})}
+                              placeholder="رقم الهاتف"
+                              className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div className="relative">
+                            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input 
+                              type="password" 
+                              value={tempDetails.password}
+                              onChange={(e) => setTempDetails({...tempDetails, password: e.target.value})}
+                              placeholder="كلمة سر جديدة (اتركها فارغة إذا لا تريد التغيير)"
+                              className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <button 
+                            onClick={() => handleUpdateDetails(v.id_full)}
+                            className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black shadow-lg shadow-blue-100 flex items-center justify-center gap-1"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> حفظ البيانات
+                          </button>
+                          <button onClick={() => setEditingDetailsId(null)} className="p-2 bg-white border border-slate-200 text-slate-500 rounded-xl">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
                   <div className="flex justify-between items-center">

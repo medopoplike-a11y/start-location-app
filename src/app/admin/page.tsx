@@ -39,7 +39,7 @@ const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling } from "@/lib/adminApi";
+import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling, updateUserAdmin, deleteUserByAdmin } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
@@ -249,8 +249,11 @@ function AdminContent() {
               earnings: w?.balance || 0, 
               debt: (w?.debt || 0) + (w?.system_balance || 0), 
               totalOrders: 0,
+              email: p.email,
+              phone: p.phone,
               max_active_orders: p.max_active_orders || 3,
               billing_type: p.billing_type || 'commission',
+              commission_value: p.commission_value || 15,
               monthly_salary: p.monthly_salary || 0
             };
           }));
@@ -266,6 +269,8 @@ function AdminContent() {
               balance: (w?.debt || 0) + (w?.system_balance || 0), 
               status: "نشط", 
               location,
+              email: p.email,
+              phone: p.phone,
               commission_type: (p as any).commission_type,
               commission_value: (p as any).commission_value,
               billing_type: (p as any).billing_type || 'commission',
@@ -679,6 +684,33 @@ function AdminContent() {
     }
   }, [allUsers, addActivity, fetchData, getErrorMessage]);
 
+  const handleUpdateUserDetails = useCallback(async (userId: string, updates: any) => {
+    try {
+      setActionLoading(true);
+      await updateUserAdmin(userId, updates);
+      addActivity(`تم تحديث بيانات المستخدم: ${updates.full_name || userId}`);
+      fetchData();
+    } catch (e) {
+      alert(`خطأ في تحديث البيانات: ${getErrorMessage(e)}`);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [addActivity, fetchData, getErrorMessage]);
+
+  const handleDeleteUser = useCallback(async (userId: string, userName: string) => {
+    if (!confirm(`هل أنت متأكد من حذف حساب ${userName} بالكامل؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    try {
+      setActionLoading(true);
+      await deleteUserByAdmin(userId);
+      addActivity(`تم حذف حساب المستخدم: ${userName}`);
+      fetchData();
+    } catch (e) {
+      alert(`خطأ في حذف المستخدم: ${getErrorMessage(e)}`);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [addActivity, fetchData, getErrorMessage]);
+
   const handleSignOut = useCallback(async () => {
     try { await signOut(); } catch (error) { console.error('Sign out failed:', error); }
   }, []);
@@ -887,6 +919,8 @@ function AdminContent() {
                 onAddVendor={() => setShowAddVendor(true)}
                 onUpdateVendorBilling={handleUpdateProfileBilling}
                 onUpdateDriverBilling={handleUpdateProfileBilling}
+                onUpdateUserDetails={handleUpdateUserDetails}
+                onDeleteUser={handleDeleteUser}
                 onToggleShiftLock={handleToggleShiftLock}
                 onResetUser={handleResetUser}
               />

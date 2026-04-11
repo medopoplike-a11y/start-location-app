@@ -28,10 +28,12 @@ export interface PricingConfig {
   vendorCommissionPct?: number;
   driverInsuranceFee?: number;
   vendorInsuranceFee?: number;
-  // New settings for per-vendor customization
+  // New settings for per-user customization
   billingType?: 'commission' | 'fixed_salary';
+  driverBillingType?: 'commission' | 'fixed_salary';
   vendorCommissionType?: 'percentage' | 'fixed';
   vendorCommissionValue?: number;
+  driverCommissionValue?: number;
 }
 
 export const calculateOrderFinancials = (customerCount: number = 1, manualDeliveryFees: number[] = [], config?: PricingConfig): OrderFinancials => {
@@ -39,9 +41,16 @@ export const calculateOrderFinancials = (customerCount: number = 1, manualDelive
   const totalDeliveryFee = manualDeliveryFees.reduce((sum, fee) => sum + (fee || 0), 0);
   
   // 1. Driver Side Calculations
-  const driverCommPct = (config?.driverCommissionPct ?? 15) / 100;
-  const driverInsurance = customerCount * (config?.driverInsuranceFee ?? 1.0);
-  const driverSystemCommission = Math.round(totalDeliveryFee * driverCommPct * 100) / 100;
+  let driverSystemCommission = 0;
+  const driverInsurance = customerCount * 1.0; // Strictly 1 EGP per customer
+
+  if (config?.driverBillingType !== 'fixed_salary') {
+    const driverPct = (config?.driverCommissionValue ?? config?.driverCommissionPct ?? 15) / 100;
+    driverSystemCommission = Math.round(totalDeliveryFee * driverPct * 100) / 100;
+  } else {
+    // Fixed salary drivers pay 0 commission per order
+    driverSystemCommission = 0;
+  }
 
   // 2. Vendor Side Calculations
   let vendorSystemCommission = 0;
@@ -63,7 +72,7 @@ export const calculateOrderFinancials = (customerCount: number = 1, manualDelive
     vendorSystemCommission = 0; 
   }
 
-  // Driver Earnings: Total delivery fee minus their 15% commission and their 1 EGP insurance
+  // Driver Earnings: Total delivery fee minus their commission and their insurance
   const driverEarnings = Math.round((totalDeliveryFee - driverSystemCommission - driverInsurance) * 100) / 100;
 
   return {

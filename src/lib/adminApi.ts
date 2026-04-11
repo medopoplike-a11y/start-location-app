@@ -131,3 +131,34 @@ export const updateProfileBilling = async (profileId: string, updates: any) => {
   return data;
 };
 
+export const deleteUserByAdmin = async (userId: string) => {
+  // 1. Delete associated data (handled by cascading or manual cleanup)
+  // Wallets, profiles, settlements should be linked to user id.
+  
+  // Note: deleting the user from auth.users requires service role or a specialized RPC.
+  // For this project, we'll use a RPC that deletes from profiles/wallets and then auth.
+  const { data, error } = await supabase.rpc('delete_user_complete', { target_user_id: userId });
+  
+  if (error) {
+    // Fallback: manual deletion of data if RPC is not available
+    await supabase.from('wallets').delete().eq('user_id', userId);
+    await supabase.from('profiles').delete().eq('id', userId);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const updateUserAdmin = async (userId: string, updates: { email?: string; password?: string; full_name?: string; phone?: string }) => {
+  const { data, error } = await supabase.rpc('update_user_admin', { 
+    target_user_id: userId,
+    new_email: updates.email,
+    new_password: updates.password,
+    new_full_name: updates.full_name,
+    new_phone: updates.phone
+  });
+  
+  if (error) throw error;
+  return data;
+};
+
