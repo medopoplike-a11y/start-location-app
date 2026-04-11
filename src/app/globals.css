@@ -60,7 +60,7 @@
   }
 }
 
-/* Component stability for mobile WebView */
+/* Glassmorphism Classes */
 .glass-panel, .glass-card {
   background: var(--glass-bg) !important;
   backdrop-filter: blur(12px) saturate(180%) !important;
@@ -71,7 +71,6 @@
   overflow: hidden;
 }
 
-/* Specific Drawer Glass Style */
 .drawer-glass {
   background: var(--glass-bg) !important;
   backdrop-filter: blur(24px) saturate(200%) !important;
@@ -125,7 +124,7 @@ input:focus {
   border-radius: 10px;
 }
 
-/* Premium Badge Utility */
+/* Premium Badge */
 .premium-badge {
   background: linear-gradient(to right, #2563eb, #4f46e5);
   color: white;

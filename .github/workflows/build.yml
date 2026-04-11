@@ -49,6 +49,9 @@ jobs:
         rm -rf node_modules package-lock.json
         npm install --legacy-peer-deps
 
+    - name: Run Lint
+      run: npm run lint
+
     - name: Build Next.js with Supabase
       run: |
         npm run export
