@@ -444,6 +444,8 @@ DECLARE
     sys_comm FLOAT;
     vnd_comm FLOAT;
     ins_fee FLOAT;
+    drv_ins FLOAT;
+    vnd_ins FLOAT;
 BEGIN
     -- استخراج القيم المالية من الـ JSONB مع التحويل الآمن
     order_val := COALESCE((new.financials->>'order_value')::FLOAT, 0);
@@ -451,6 +453,8 @@ BEGIN
     sys_comm := COALESCE((new.financials->>'system_commission')::FLOAT, 0);
     vnd_comm := COALESCE((new.financials->>'vendor_commission')::FLOAT, 0);
     ins_fee := COALESCE((new.financials->>'insurance_fee')::FLOAT, 0);
+    drv_ins := COALESCE((new.financials->>'driver_insurance')::FLOAT, ins_fee / 2);
+    vnd_ins := COALESCE((new.financials->>'vendor_insurance')::FLOAT, ins_fee / 2);
 
     -- 1. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
@@ -458,14 +462,14 @@ BEGIN
         UPDATE public.wallets 
         SET 
             balance = balance + drv_earnings,
-            -- ملاحظة: مديونية المحل (debt) تمت معالجتها بالفعل عند الاستلام (in_transit)
-            system_balance = system_balance + sys_comm + (ins_fee / 2)
+            -- مديونية المحل (debt) تمت معالجتها بالفعل عند الاستلام (in_transit)
+            system_balance = system_balance + sys_comm + drv_ins
         WHERE user_id = new.driver_id;
 
-        -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة 20% + نصيب المحل من التأمين)
+        -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة + نصيب المحل من التأمين)
         UPDATE public.wallets
         SET
-            system_balance = system_balance + vnd_comm + (ins_fee / 2)
+            system_balance = system_balance + vnd_comm + vnd_ins
         WHERE user_id = new.vendor_id;
     END IF;
 

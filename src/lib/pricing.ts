@@ -28,25 +28,40 @@ export interface PricingConfig {
   vendorCommissionPct?: number;
   driverInsuranceFee?: number;
   vendorInsuranceFee?: number;
+  // New settings for per-vendor customization
+  billingType?: 'commission' | 'fixed_salary';
+  vendorCommissionType?: 'percentage' | 'fixed';
+  vendorCommissionValue?: number;
 }
 
 export const calculateOrderFinancials = (customerCount: number = 1, manualDeliveryFees: number[] = [], config?: PricingConfig): OrderFinancials => {
   // Total delivery fee is the sum of all manual delivery fees for each customer
   const totalDeliveryFee = manualDeliveryFees.reduce((sum, fee) => sum + (fee || 0), 0);
   
-  // Default 15% for both sides as requested
+  // 1. Driver Side Calculations
   const driverCommPct = (config?.driverCommissionPct ?? 15) / 100;
-  const vendorCommPct = (config?.vendorCommissionPct ?? 15) / 100;
-  
-  // 1 EGP insurance fee per customer from each side
   const driverInsurance = customerCount * (config?.driverInsuranceFee ?? 1.0);
-  const vendorInsurance = customerCount * (config?.vendorInsuranceFee ?? 1.0);
-  
-  // System Commission from Driver side (15% of delivery fee)
   const driverSystemCommission = Math.round(totalDeliveryFee * driverCommPct * 100) / 100;
 
-  // System Commission from Vendor side (15% of delivery fee)
-  const vendorSystemCommission = Math.round(totalDeliveryFee * vendorCommPct * 100) / 100;
+  // 2. Vendor Side Calculations
+  let vendorSystemCommission = 0;
+  // Strictly 1 EGP per customer from vendor side
+  const vendorInsurance = customerCount * 1.0; 
+
+  // If vendor is on fixed salary, they don't pay per-order commission
+  if (config?.billingType !== 'fixed_salary') {
+    if (config?.vendorCommissionType === 'fixed') {
+      // Fixed commission per ORDER (not per customer, but could be adjusted if needed)
+      vendorSystemCommission = config.vendorCommissionValue || 0;
+    } else {
+      // Percentage of delivery fee
+      const vendorPct = (config?.vendorCommissionValue ?? config?.vendorCommissionPct ?? 15) / 100;
+      vendorSystemCommission = Math.round(totalDeliveryFee * vendorPct * 100) / 100;
+    }
+  } else {
+    // Fixed salary vendors pay 0 commission, but STILL pay insurance per order
+    vendorSystemCommission = 0; 
+  }
 
   // Driver Earnings: Total delivery fee minus their 15% commission and their 1 EGP insurance
   const driverEarnings = Math.round((totalDeliveryFee - driverSystemCommission - driverInsurance) * 100) / 100;
@@ -59,6 +74,6 @@ export const calculateOrderFinancials = (customerCount: number = 1, manualDelive
     systemCommission: driverSystemCommission,
     vendorCommission: vendorSystemCommission,
     driverEarnings,
-    vendorFee: vendorSystemCommission + vendorInsurance // Total owed by vendor to company
+    vendorFee: vendorSystemCommission + vendorInsurance // Total owed by vendor to company for this order
   };
 };

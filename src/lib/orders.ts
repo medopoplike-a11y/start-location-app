@@ -324,7 +324,7 @@ export const assignOrderToNearestDriver = async (
         const aLoc = typeof a.location === 'string' ? JSON.parse(a.location) : a.location;
         const bLoc = typeof b.location === 'string' ? JSON.parse(b.location) : b.location;
         
-        if (aLoc.lat && aLoc.lng && bLoc.lat && bLoc.lng) {
+        if (aLoc?.lat && aLoc?.lng && bLoc?.lat && bLoc?.lng) {
           const distA = haversineKm(vendorLocation, aLoc);
           const distB = haversineKm(vendorLocation, bLoc);
           if (Math.abs(distA - distB) > 0.1) return distA - distB; // 100m tolerance

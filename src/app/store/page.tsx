@@ -384,14 +384,15 @@ function StoreContent() {
           try {
             const { data: configData } = await supabase.from('app_config').select('*').maybeSingle();
             if (configData && isMounted) {
-              setAppConfig({
+              setAppConfig(prev => ({
+                ...prev,
                 driver_commission: configData.driver_commission || 15,
                 vendor_commission: configData.vendor_commission || 20,
                 vendor_fee: configData.vendor_fee || 1,
                 safe_ride_fee: configData.safe_ride_fee || 1,
                 surge_pricing_active: !!configData.surge_pricing_active,
                 surge_pricing_multiplier: configData.surge_pricing_multiplier || 1.0
-              });
+              }));
             }
           } catch (configErr) {
             console.error("Fetch config failed", configErr);

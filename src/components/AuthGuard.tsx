@@ -44,39 +44,44 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
   }, [loading]);
 
   useEffect(() => {
-    if (loading) {
-      console.log("AuthGuard: Still loading auth state...");
-      return;
-    }
+    let timeoutId: NodeJS.Timeout | undefined;
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.log("AuthGuard: Still loading auth state...");
+        return;
+      }
 
-    const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
-    console.log("AuthGuard: State Check", { user: !!user, userRole, authorized, pathname });
+      const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+      console.log("AuthGuard: State Check", { user: !!user, userRole, authorized, pathname });
 
-    if (!user) {
-      console.log("AuthGuard: No user session, redirecting to login");
-      // Use window.location as fallback for router issues
-      const loginUrl = "/login"; // Removed trailing slash
-      if (isNative) window.location.assign(loginUrl);
-      else if (router) router.replace(loginUrl);
-      else window.location.assign(loginUrl);
-    } else if (userRole && !authorized) {
-      console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
-      const loginUrl = "/login";
-      if (isNative) window.location.assign(loginUrl);
-      else if (router) router.replace(loginUrl);
-      else window.location.assign(loginUrl);
-    } else if (!userRole) {
-      console.log("AuthGuard: User logged in but role not found yet, waiting...");
-      const timeoutId = setTimeout(() => {
-        if (!userRole) {
-          console.error("AuthGuard: Role discovery timeout, forcing login");
-          const loginUrl = "/login";
-          if (isNative) window.location.assign(loginUrl);
-          else router.replace(loginUrl);
-        }
-      }, isNative ? 30000 : 15000);
-      return () => clearTimeout(timeoutId);
-    }
+      if (!user) {
+        console.log("AuthGuard: No user session, redirecting to login");
+        const loginUrl = "/login";
+        if (isNative) window.location.assign(loginUrl);
+        else if (router) router.replace(loginUrl);
+        else window.location.assign(loginUrl);
+      } else if (userRole && !authorized) {
+        console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
+        const loginUrl = "/login";
+        if (isNative) window.location.assign(loginUrl);
+        else if (router) router.replace(loginUrl);
+        else window.location.assign(loginUrl);
+      } else if (!userRole) {
+        console.log("AuthGuard: User logged in but role not found yet, waiting...");
+        timeoutId = setTimeout(() => {
+          if (!userRole) {
+            console.error("AuthGuard: Role discovery timeout, forcing login");
+            const loginUrl = "/login";
+            if (isNative) window.location.assign(loginUrl);
+            else router.replace(loginUrl);
+          }
+        }, isNative ? 30000 : 15000);
+      }
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);
 
   // Prevent hardware/browser back button from navigating away from the app
