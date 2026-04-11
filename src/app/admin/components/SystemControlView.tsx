@@ -3,20 +3,19 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Zap, Shield, AlertTriangle, RotateCcw, Power, Users, Truck,
-  ToggleLeft, ToggleRight, Clock, CheckCircle2, XCircle, Loader2,
-  Activity, Lock, Unlock, RefreshCw
+  Shield, AlertTriangle, Truck,
+  CheckCircle2, Activity, Lock, Unlock, RefreshCw
 } from "lucide-react";
 import type { DriverCard } from "../types";
 
 interface SystemControlViewProps {
-  manualMode: boolean;
+  autoRetryEnabled: boolean;
   maintenanceMode: boolean;
   drivers: DriverCard[];
   actionLoading: boolean;
-  onToggleManualMode: (val: boolean) => void;
+  onToggleAutoRetry: (val: boolean) => void;
   onToggleMaintenance: (val: boolean) => void;
-  onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
+  onToggleShiftLock?: (driverId: string, currentStatus: boolean) => void;
   onLockAllDrivers: () => void;
   onUnlockAllDrivers: () => void;
   onGlobalReset: () => void;
@@ -25,13 +24,12 @@ interface SystemControlViewProps {
 }
 
 export default function SystemControlView({
-  manualMode,
+  autoRetryEnabled,
   maintenanceMode,
   drivers,
   actionLoading,
-  onToggleManualMode,
+  onToggleAutoRetry,
   onToggleMaintenance,
-  onToggleShiftLock,
   onLockAllDrivers,
   onUnlockAllDrivers,
   onGlobalReset,
@@ -48,7 +46,7 @@ export default function SystemControlView({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-black text-slate-900">التحكم في النظام</h2>
-          <p className="text-xs text-slate-400 font-bold mt-0.5">إدارة وتشغيل النظام يدوياً في أوقات الضغط</p>
+          <p className="text-xs text-slate-400 font-bold mt-0.5">إدارة وتشغيل العمليات المركزية</p>
         </div>
         <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 text-slate-600 text-sm font-black hover:bg-slate-200 transition-all">
           <RefreshCw className="w-4 h-4" />
@@ -58,44 +56,43 @@ export default function SystemControlView({
 
       {/* System Mode Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Manual Mode */}
+        {/* Auto-Retry Loop Control */}
         <motion.div
-          className={`rounded-[28px] p-6 border-2 transition-all ${manualMode ? "bg-amber-50 border-amber-300 shadow-lg shadow-amber-50" : "bg-white border-slate-100"}`}
+          className={`rounded-[28px] p-6 border-2 transition-all ${autoRetryEnabled ? "bg-emerald-50 border-emerald-300 shadow-lg shadow-emerald-50" : "bg-white border-slate-100"}`}
           whileHover={{ scale: 1.01 }}
         >
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${manualMode ? "bg-amber-500" : "bg-slate-100"}`}>
-                <Zap className={`w-6 h-6 ${manualMode ? "text-white" : "text-slate-400"}`} />
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${autoRetryEnabled ? "bg-emerald-500" : "bg-slate-100"}`}>
+                <Activity className={`w-6 h-6 ${autoRetryEnabled ? "text-white" : "text-slate-400"}`} />
               </div>
               <div>
-                <p className="font-black text-slate-900">وضع التشغيل اليدوي</p>
-                <p className="text-[11px] text-slate-400 font-bold mt-0.5">للتحكم الكامل في التوزيع أثناء أوقات الضغط</p>
+                <p className="font-black text-slate-900">التوزيع التلقائي الذكي</p>
+                <p className="text-[11px] text-slate-400 font-bold mt-0.5">البحث المستمر عن طيارين للطلبات المعلقة</p>
               </div>
             </div>
             <button
-              onClick={() => onToggleManualMode(!manualMode)}
-              className={`relative w-14 h-7 rounded-full transition-all ${manualMode ? "bg-amber-500" : "bg-slate-200"}`}
+              onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
+              className={`relative w-14 h-7 rounded-full transition-all ${autoRetryEnabled ? "bg-emerald-500" : "bg-slate-200"}`}
             >
               <motion.div
-                animate={{ right: manualMode ? 4 : "auto", left: manualMode ? "auto" : 4 }}
+                animate={{ right: autoRetryEnabled ? 4 : "auto", left: autoRetryEnabled ? "auto" : 4 }}
                 className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm"
               />
             </button>
           </div>
-          {manualMode && (
-            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-100 rounded-2xl p-3">
+          {autoRetryEnabled ? (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-emerald-100 rounded-2xl p-3">
               <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-amber-700" />
-                <p className="text-xs font-black text-amber-700">وضع يدوي نشط — ستتم الطلبات بتوجيه مباشر منك</p>
+                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                <p className="text-xs font-black text-emerald-700">النظام يعمل حالياً على توزيع الطلبات تلقائياً</p>
               </div>
             </motion.div>
-          )}
-          {!manualMode && (
-            <div className="bg-slate-50 rounded-2xl p-3">
+          ) : (
+            <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <p className="text-xs font-black text-slate-500">التوزيع التلقائي يعمل بشكل طبيعي</p>
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <p className="text-xs font-black text-amber-600">التوزيع التلقائي متوقف - يجب التوزيع يدوياً</p>
               </div>
             </div>
           )}
@@ -112,8 +109,8 @@ export default function SystemControlView({
                 <Shield className={`w-6 h-6 ${maintenanceMode ? "text-white" : "text-slate-400"}`} />
               </div>
               <div>
-                <p className="font-black text-slate-900">وضع الصيانة</p>
-                <p className="text-[11px] text-slate-400 font-bold mt-0.5">إيقاف النظام مؤقتاً لإجراء الصيانة</p>
+                <p className="font-black text-slate-900">وضع الصيانة الكاملة</p>
+                <p className="text-[11px] text-slate-400 font-bold mt-0.5">إغلاق التطبيق أمام جميع المستخدمين</p>
               </div>
             </div>
             <button
@@ -127,168 +124,96 @@ export default function SystemControlView({
             </button>
           </div>
           {maintenanceMode && (
-            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-red-100 rounded-2xl p-3">
+            <div className="bg-red-100 rounded-2xl p-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-700" />
-                <p className="text-xs font-black text-red-700">النظام في وضع الصيانة — المستخدمون لا يمكنهم الوصول</p>
-              </div>
-            </motion.div>
-          )}
-          {!maintenanceMode && (
-            <div className="bg-slate-50 rounded-2xl p-3">
-              <div className="flex items-center gap-2">
-                <Power className="w-4 h-4 text-emerald-500" />
-                <p className="text-xs font-black text-slate-500">النظام يعمل بشكل طبيعي</p>
+                <p className="text-xs font-black text-red-700">وضع الصيانة نشط — لا يمكن لأي مستخدم تسجيل الدخول</p>
               </div>
             </div>
           )}
         </motion.div>
       </div>
 
-      {/* Driver Shift Controls */}
-      <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-black text-slate-900 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-sky-500" />
-              التحكم في شيفت المناديب
-            </h3>
-            <p className="text-[11px] text-slate-400 font-bold mt-0.5">
-              {activeDrivers.length} نشط · {lockedDrivers.length} محظور
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={onUnlockAllDrivers}
-              disabled={actionLoading}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-black hover:bg-emerald-100 transition-all disabled:opacity-50"
-            >
-              <Unlock className="w-3.5 h-3.5" />
-              فتح الكل
-            </button>
-            <button
-              onClick={onLockAllDrivers}
-              disabled={actionLoading}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-50 text-red-700 border border-red-100 text-xs font-black hover:bg-red-100 transition-all disabled:opacity-50"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              قفل الكل
-            </button>
-          </div>
+      {/* Fleet Quick Controls */}
+      <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
+        <div className="flex items-center gap-3">
+          <Truck className="w-5 h-5 text-slate-400" />
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">إدارة الأسطول السريعة</h3>
         </div>
 
-        {drivers.length === 0 ? (
-          <div className="text-center py-8 text-slate-300">
-            <Truck className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm font-bold">لا يوجد مناديب</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {drivers.map((d, i) => (
-              <motion.div
-                key={d.id_full}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className={`flex items-center justify-between p-4 rounded-2xl border ${d.isShiftLocked ? "bg-red-50/50 border-red-100" : "bg-emerald-50/30 border-emerald-100"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${d.isShiftLocked ? "bg-red-100" : "bg-emerald-100"}`}>
-                    <Truck className={`w-4 h-4 ${d.isShiftLocked ? "text-red-500" : "text-emerald-600"}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-slate-800">{d.name}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {d.isShiftLocked
-                        ? <XCircle className="w-3 h-3 text-red-400" />
-                        : <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                      <span className={`text-[10px] font-black ${d.isShiftLocked ? "text-red-400" : "text-emerald-600"}`}>
-                        {d.isShiftLocked ? "محظور" : "نشط"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => onToggleShiftLock(d.id_full, d.isShiftLocked)}
-                  disabled={actionLoading}
-                  className={`p-2 rounded-xl transition-all disabled:opacity-50 ${d.isShiftLocked ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-red-100 text-red-600 hover:bg-red-200"}`}
-                >
-                  {d.isShiftLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* System Stats Quick View */}
-      <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm">
-        <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
-          <Users className="w-4 h-4 text-indigo-500" />
-          حالة النظام الحالية
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-emerald-600">{activeDrivers.length}</p>
-            <p className="text-[10px] font-black text-emerald-500 uppercase mt-1">طيار نشط</p>
-          </div>
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-red-500">{lockedDrivers.length}</p>
-            <p className="text-[10px] font-black text-red-400 uppercase mt-1">طيار محظور</p>
-          </div>
-          <div className={`border rounded-2xl p-4 text-center ${manualMode ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
-            {manualMode
-              ? <Zap className="w-6 h-6 text-amber-500 mx-auto mb-1" />
-              : <CheckCircle2 className="w-6 h-6 text-slate-300 mx-auto mb-1" />}
-            <p className={`text-[10px] font-black uppercase ${manualMode ? "text-amber-600" : "text-slate-400"}`}>
-              {manualMode ? "يدوي" : "تلقائي"}
-            </p>
-          </div>
-          <div className={`border rounded-2xl p-4 text-center ${maintenanceMode ? "bg-red-50 border-red-200" : "bg-slate-50 border-slate-100"}`}>
-            {maintenanceMode
-              ? <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-1" />
-              : <Power className="w-6 h-6 text-emerald-500 mx-auto mb-1" />}
-            <p className={`text-[10px] font-black uppercase ${maintenanceMode ? "text-red-500" : "text-emerald-500"}`}>
-              {maintenanceMode ? "صيانة" : "يعمل"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-white border border-red-100 rounded-[28px] p-6 shadow-sm">
-        <h3 className="font-black text-red-600 mb-2 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4" />
-          منطقة الخطر
-        </h3>
-        <p className="text-xs text-slate-400 font-bold mb-4">سيؤدي هذا إلى حذف جميع الطلبات والمعاملات المالية. لا يمكن التراجع عن هذا الإجراء.</p>
-        {!confirmReset ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={() => setConfirmReset(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-red-50 text-red-600 border border-red-200 text-sm font-black hover:bg-red-100 transition-all"
+            onClick={onLockAllDrivers}
+            className="flex items-center justify-between p-5 rounded-[24px] bg-slate-50 border border-slate-100 hover:bg-red-50 hover:border-red-100 transition-all group"
           >
-            <RotateCcw className="w-4 h-4" />
-            تصفير شامل للنظام
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-red-500">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-black text-slate-900">حظر جميع الطيارين</p>
+                <p className="text-[10px] text-slate-400 font-bold">إيقاف استقبال طلبات جديدة فوراً</p>
+              </div>
+            </div>
+            <span className="text-xs font-black text-slate-300 group-hover:text-red-400">{activeDrivers.length} نشط</span>
           </button>
-        ) : (
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-black text-red-700">هل أنت متأكد تماماً؟</p>
-            <button
-              onClick={() => { onGlobalReset(); setConfirmReset(false); }}
-              disabled={actionLoading}
-              className="px-4 py-2.5 rounded-2xl bg-red-600 text-white text-sm font-black hover:bg-red-700 transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              نعم، تصفير الآن
-            </button>
-            <button
-              onClick={() => setConfirmReset(false)}
-              className="px-4 py-2.5 rounded-2xl bg-slate-100 text-slate-600 text-sm font-black hover:bg-slate-200 transition-all"
-            >
-              إلغاء
-            </button>
-          </div>
-        )}
+
+          <button
+            onClick={onUnlockAllDrivers}
+            className="flex items-center justify-between p-5 rounded-[24px] bg-slate-50 border border-slate-100 hover:bg-emerald-50 hover:border-emerald-100 transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-emerald-500">
+                <Unlock className="w-5 h-5" />
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-black text-slate-900">فك حظر الجميع</p>
+                <p className="text-[10px] text-slate-400 font-bold">السماح لجميع الطيارين باستقبال الطلبات</p>
+              </div>
+            </div>
+            <span className="text-xs font-black text-slate-300 group-hover:text-emerald-400">{lockedDrivers.length} محظور</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Broadcast Message */}
+      <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-xl shadow-slate-200 space-y-6">
+        <div className="flex items-center gap-3">
+          <Activity className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">إرسال تعميم للنظام</h3>
+        </div>
+        <div className="relative">
+          <textarea
+            value={broadcastText}
+            onChange={(e) => setBroadcastText(e.target.value)}
+            placeholder="اكتب رسالة تظهر لجميع الطيارين والمطاعم الآن..."
+            className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-xs font-bold outline-none focus:border-emerald-500 h-24 resize-none"
+          />
+          <button
+            onClick={() => { onBroadcastMessage(broadcastText); setBroadcastText(""); }}
+            disabled={!broadcastText.trim()}
+            className="absolute bottom-3 left-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-6 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+          >
+            إرسال الآن
+          </button>
+        </div>
+      </div>
+
+      {/* Global Reset */}
+      <div className="bg-red-50 border-2 border-red-100 rounded-[32px] p-8 space-y-6">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-500" />
+          <h3 className="text-sm font-black text-red-900 uppercase tracking-widest">منطقة الخطر</h3>
+        </div>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <p className="text-xs font-bold text-red-700 text-right">سيتم حذف جميع الطلبات والنشاطات وتصفير المحافظ. هذا الإجراء لا يمكن التراجع عنه أبداً.</p>
+          <button
+            onClick={() => confirmReset ? onGlobalReset() : setConfirmReset(true)}
+            className={`px-8 py-4 rounded-2xl font-black text-xs transition-all active:scale-95 ${confirmReset ? "bg-red-600 text-white shadow-xl shadow-red-200" : "bg-white border border-red-200 text-red-600 hover:bg-red-50"}`}
+          >
+            {confirmReset ? "هل أنت متأكد؟ اضغط للتأكيد النهائي" : "تصفير النظام بالكامل"}
+          </button>
+        </div>
       </div>
     </div>
   );

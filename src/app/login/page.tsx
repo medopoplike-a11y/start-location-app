@@ -50,18 +50,21 @@ const LoginPage = () => {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-    // Check for logged_out param
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('logged_out') === 'true') {
-        console.log("LoginPage: Detected explicit logout, blocking auto-redirect");
-        setIsLoggedOut(true);
-        // Clear param without reload
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+    const timer = setTimeout(() => {
+      setMounted(true);
+      // Check for logged_out param
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('logged_out') === 'true') {
+          console.log("LoginPage: Detected explicit logout, blocking auto-redirect");
+          setIsLoggedOut(true);
+          // Clear param without reload
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Watch for authentication from AuthProvider
@@ -96,16 +99,22 @@ const LoginPage = () => {
 
   // Load remembered email
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedEmail = localStorage.getItem('remembered_email');
-      if (savedEmail) setEmail(savedEmail);
-    }
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        const savedEmail = localStorage.getItem('remembered_email');
+        if (savedEmail) setEmail(savedEmail);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
-      setOtaStatus("نظام التحديث التلقائي نشط");
-    }
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+        setOtaStatus("نظام التحديث التلقائي نشط");
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const checkConnection = async () => {

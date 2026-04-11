@@ -3,18 +3,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Zap, 
   Activity, 
   Truck, 
-  Store, 
   Settings, 
   RefreshCw, 
   Radio,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
-  LayoutGrid,
-  ListFilter
+  ListFilter,
+  Monitor
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import OrdersView from "./OrdersView";
@@ -34,10 +30,10 @@ interface OperationsCenterProps {
   vendors: VendorCard[];
   allOrders: AdminOrder[];
   activities: ActivityItem[];
-  manualMode: boolean;
+  autoRetryEnabled: boolean;
   maintenanceMode: boolean;
   actionLoading: boolean;
-  onToggleManualMode: (val: boolean) => void;
+  onToggleAutoRetry: (val: boolean) => void;
   onToggleMaintenance: (val: boolean) => void;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onLockAllDrivers: () => void;
@@ -57,10 +53,10 @@ export default function OperationsCenter({
   vendors,
   allOrders,
   activities,
-  manualMode,
+  autoRetryEnabled,
   maintenanceMode,
   actionLoading,
-  onToggleManualMode,
+  onToggleAutoRetry,
   onToggleMaintenance,
   onToggleShiftLock,
   onLockAllDrivers,
@@ -73,232 +69,258 @@ export default function OperationsCenter({
   onUpdateStatus
 }: OperationsCenterProps) {
   const [activeTab, setActiveTab] = useState<"monitor" | "distribution" | "system" | "map">("map");
-  const [broadcastText, setBroadcastText] = useState("");
 
-  const pendingOrdersCount = liveOrders.filter(o => o.status === "جاري البحث").length;
-  const activeDriversCount = drivers.filter(d => !d.isShiftLocked).length;
+  const pendingOrdersCount = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending").length;
+  const activeDriversCount = onlineDrivers.length;
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Dynamic Header Controls */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        {/* Main Status & Quick Broadcast */}
-        <div className="xl:col-span-3 bg-white border border-slate-100 rounded-[32px] p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${manualMode ? "bg-amber-500 shadow-amber-100 shadow-xl" : "bg-emerald-500 shadow-emerald-100 shadow-xl"}`}>
-              {manualMode ? <Zap className="w-6 h-6 text-white" /> : <Activity className="w-6 h-6 text-white" />}
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-900 leading-tight">مركز العمليات الموحد</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`w-2 h-2 rounded-full animate-pulse ${manualMode ? "bg-amber-500" : "bg-emerald-500"}`} />
-                <p className="text-[11px] font-bold text-slate-400">
-                  {manualMode ? "الوضع اليدوي نشط - تحكم كامل" : "الوضع التلقائي - مراقبة فقط"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl">
-              <div className="text-right">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تحديث النظام</p>
-                <p className="text-xs font-bold text-slate-700">البيانات متزامنة الآن</p>
-              </div>
-              <button onClick={onRefresh} className={`p-2 bg-white rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 transition-all ${actionLoading ? "animate-spin" : ""}`}>
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-            
-            {activeTab === 'map' && (
-              <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                <span className="text-xs font-bold text-blue-700">{onlineDrivers.length} طيار متصل</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-4 shadow-sm grid grid-cols-2 gap-3">
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 flex flex-col items-center justify-center">
-            <p className="text-xl font-black text-amber-600 leading-none">{pendingOrdersCount}</p>
-            <p className="text-[9px] font-black text-amber-500 uppercase mt-1">انتظار</p>
-          </div>
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex flex-col items-center justify-center">
-            <p className="text-xl font-black text-emerald-600 leading-none">{activeDriversCount}</p>
-            <p className="text-[9px] font-black text-emerald-500 uppercase mt-1">طيار متاح</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Tab Navigation */}
-      <div className="flex flex-wrap gap-2 p-1.5 bg-white/50 backdrop-blur-md border border-slate-100 rounded-2xl w-fit sticky top-20 z-30 shadow-sm">
-        <button 
-          onClick={() => setActiveTab("map")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-            activeTab === "map" ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:bg-white"
-          }`}
-        >
-          <Radio className="w-4 h-4" />
-          الخريطة المباشرة
-        </button>
-        <button 
-          onClick={() => setActiveTab("monitor")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-            activeTab === "monitor" ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:bg-white"
-          }`}
-        >
-          <ListFilter className="w-4 h-4" />
-          قائمة الطلبات
-        </button>
-        <button 
-          onClick={() => setActiveTab("distribution")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-            activeTab === "distribution" ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:bg-white"
-          }`}
-        >
-          <Truck className="w-4 h-4" />
-          توزيع الطلبات {pendingOrdersCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />}
-        </button>
-        <button 
-          onClick={() => setActiveTab("system")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-            activeTab === "system" ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:bg-white"
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          إعدادات التشغيل
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      <div className="relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === "map" && (
-              <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden h-[600px] relative">
-                <LiveMap
-                  drivers={onlineDrivers.map(d => ({
-                    ...d,
-                    status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
-                    details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
-                  }))}
-                  vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
-                  orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned') && vendors.find(v => v.id_full === o.vendor_id)?.location).map(o => {
-                    const v = vendors.find(v => v.id_full === o.vendor_id)!;
-                    return {
-                      id: o.id,
-                      name: o.vendor_full_name || "محل",
-                      lat: v.location!.lat!,
-                      lng: v.location!.lng!,
-                      status: o.status === 'pending' ? 'جاري البحث عن طيار' : 'تم التعيين - بانتظار التحصيل',
-                      details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
-                    };
-                  })}
-                  zoom={13}
-                  className="h-full w-full"
-                />
-                
-                {/* Map Floating Actions */}
-                <div className="absolute top-6 right-6 z-[10] flex flex-col gap-3">
+      {/* Integrated Dashboard Layout */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        
+        {/* LEFT COLUMN: Pinned Real-time Monitor */}
+        <div className="w-full lg:w-80 shrink-0 space-y-4 lg:sticky lg:top-4">
+          <div className="bg-slate-900 rounded-[32px] p-6 text-white shadow-2xl shadow-slate-200">
+             <div className="flex items-center justify-between mb-6">
+               <div className="flex flex-col">
+                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">مركز التحكم الموحد</h3>
+                 <div className="flex items-center gap-2">
+                   <Monitor className="w-4 h-4 text-emerald-400" />
+                   <span className="text-sm font-black">حالة النظام الآن</span>
+                 </div>
+               </div>
+               <div className="flex h-2 w-2 relative">
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+               </div>
+             </div>
+             
+             <div className="space-y-6">
+               {/* Auto-Retry Switch */}
+               <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
+                 <div className="flex items-center justify-between mb-3">
+                   <span className="text-[11px] font-bold text-slate-300">التوزيع التلقائي الذكي</span>
                    <button 
-                     onClick={() => setActiveTab('distribution')}
-                     className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-2xl flex items-center gap-3 hover:scale-105 transition-all active:scale-95"
+                     onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
+                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none ${autoRetryEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
                    >
-                     <Truck className="w-4 h-4 text-emerald-400" />
-                     بدء التوزيع الآن
+                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md ${autoRetryEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                    </button>
-                </div>
+                 </div>
+                 <p className="text-[9px] text-slate-500 font-medium leading-relaxed">
+                   {autoRetryEnabled 
+                     ? "النظام يقوم حالياً بالبحث عن طيارين وتعيينهم تلقائياً لكل الطلبات المعلقة." 
+                     : "التوزيع التلقائي متوقف. يجب تعيين الطلبات يدوياً للطيارين."}
+                 </p>
+               </div>
 
-                {/* Legend */}
-                <div className="absolute bottom-6 right-6 z-[10] bg-white/90 backdrop-blur-md p-4 rounded-[28px] border border-white shadow-xl space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-700">طيار متاح</span>
+               {/* Quick Stats Grid */}
+               <div className="grid grid-cols-2 gap-3">
+                 <div className="bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50 flex flex-col items-center justify-center text-center">
+                    <p className="text-[9px] font-black text-slate-500 uppercase mb-1">طلبات معلقة</p>
+                    <p className={`text-xl font-black ${pendingOrdersCount > 0 ? "text-amber-500" : "text-slate-400"}`}>{pendingOrdersCount}</p>
+                 </div>
+                 <div className="bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50 flex flex-col items-center justify-center text-center">
+                    <p className="text-[9px] font-black text-slate-500 uppercase mb-1">كابتن متصل</p>
+                    <p className="text-xl font-black text-emerald-500">{activeDriversCount}</p>
+                 </div>
+               </div>
+
+               <button 
+                 onClick={onRefresh}
+                 disabled={actionLoading}
+                 className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+               >
+                 <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? "animate-spin text-emerald-400" : "text-slate-400"}`} />
+                 تحديث البيانات فوراً
+               </button>
+             </div>
+          </div>
+
+          {/* Activity Widget */}
+          <div className="bg-white border border-slate-100 rounded-[32px] p-6 shadow-sm hidden lg:block">
+             <div className="flex items-center justify-between mb-4">
+               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">آخر التحركات</h3>
+               <Activity className="w-3.5 h-3.5 text-blue-500" />
+             </div>
+             <div className="space-y-4">
+               {activities.slice(0, 4).map((act, i) => (
+                 <div key={i} className="flex gap-3 relative pb-4 last:pb-0">
+                   {i !== 3 && <div className="absolute top-3 right-[3px] w-0.5 h-full bg-slate-50" />}
+                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 z-10" />
+                   <div>
+                     <p className="text-[11px] font-bold text-slate-700 leading-tight">{act.text}</p>
+                     <p className="text-[9px] text-slate-400 mt-1">{act.time}</p>
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Dynamic Content & Tab Switching */}
+        <div className="flex-1 w-full space-y-6">
+          
+          {/* Main Workspace Navigation (Pinned) */}
+          <div className="flex flex-wrap gap-2 p-1.5 bg-white/80 backdrop-blur-xl border border-slate-100 rounded-2xl w-fit shadow-lg sticky top-4 z-40">
+            <button 
+              onClick={() => setActiveTab("map")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+                activeTab === "map" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <Radio className={`w-4 h-4 ${activeTab === "map" ? "text-emerald-400" : ""}`} />
+              الخريطة المباشرة
+            </button>
+            <button 
+              onClick={() => setActiveTab("monitor")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+                activeTab === "monitor" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <ListFilter className="w-4 h-4" />
+              مراقبة العمليات
+            </button>
+            <button 
+              onClick={() => setActiveTab("distribution")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+                activeTab === "distribution" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <Truck className="w-4 h-4" />
+              التوزيع اليدوي {pendingOrdersCount > 0 && (
+                <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-pulse">{pendingOrdersCount}</span>
+              )}
+            </button>
+            <button 
+              onClick={() => setActiveTab("system")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+                activeTab === "system" ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              تحكم النظام
+            </button>
+          </div>
+
+          {/* Workspace Content */}
+          <div className="relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                {activeTab === "map" && (
+                  <div className="bg-white rounded-[40px] border border-slate-100 shadow-xl overflow-hidden h-[650px] relative">
+                    <LiveMap
+                      drivers={onlineDrivers.map(d => ({
+                        ...d,
+                        status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
+                        details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
+                      }))}
+                      vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
+                      orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned') && vendors.find(v => v.id_full === o.vendor_id)?.location).map(o => {
+                        const v = vendors.find(v => v.id_full === o.vendor_id)!;
+                        return {
+                          id: o.id,
+                          name: o.vendor_full_name || "محل",
+                          lat: v.location!.lat!,
+                          lng: v.location!.lng!,
+                          status: o.status === 'pending' ? 'جاري البحث عن طيار' : 'تم التعيين - بانتظار التحصيل',
+                          details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
+                        };
+                      })}
+                      zoom={13}
+                      className="h-full w-full"
+                    />
+                    
+                    {/* Map Pinned Stats Overlay */}
+                    <div className="absolute bottom-8 right-8 z-10 flex flex-col gap-3">
+                       <div className="bg-white/90 backdrop-blur-md p-5 rounded-[32px] border border-white shadow-2xl space-y-3 min-w-[160px]">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                              <span className="text-[10px] font-black text-slate-700">متاح</span>
+                            </div>
+                            <span className="text-xs font-black text-slate-900">{onlineDrivers.filter(d => !allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))).length}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                              <span className="text-[10px] font-black text-slate-700">مشغول</span>
+                            </div>
+                            <span className="text-xs font-black text-slate-900">{onlineDrivers.filter(d => allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))).length}</span>
+                          </div>
+                          <div className="h-px bg-slate-100 my-1" />
+                          <button 
+                            onClick={() => setActiveTab('distribution')}
+                            className="w-full py-2.5 bg-slate-900 text-white rounded-2xl text-[9px] font-black flex items-center justify-center gap-2 hover:bg-black transition-all active:scale-95"
+                          >
+                            <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                            توزيع الطلبات
+                          </button>
+                       </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-amber-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-700">طيار مشغول</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-700">طلب نشط</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {activeTab === "monitor" && (
-              <OrdersView 
-                liveOrders={liveOrders} 
-                activities={activities} 
-                onCancelOrder={onCancelOrder} 
-                onUpdateStatus={onUpdateStatus}
-              />
-            )}
-            {activeTab === "distribution" && (
-              <OrderDistributionView 
-                liveOrders={liveOrders} 
-                drivers={drivers} 
-                onAssign={onAssign} 
-              />
-            )}
-            {activeTab === "system" && (
-              <SystemControlView
-                manualMode={manualMode}
-                maintenanceMode={maintenanceMode}
-                drivers={drivers}
-                actionLoading={actionLoading}
-                onToggleManualMode={onToggleManualMode}
-                onToggleMaintenance={onToggleMaintenance}
-                onToggleShiftLock={onToggleShiftLock}
-                onLockAllDrivers={onLockAllDrivers}
-                onUnlockAllDrivers={onUnlockAllDrivers}
-                onGlobalReset={onGlobalReset}
-                onRefresh={onRefresh}
-                onBroadcastMessage={onBroadcastMessage}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+                )}
+                {activeTab === "monitor" && (
+                  <OrdersView 
+                    liveOrders={liveOrders} 
+                    activities={activities} 
+                    onCancelOrder={onCancelOrder} 
+                    onUpdateStatus={onUpdateStatus}
+                  />
+                )}
+                {activeTab === "distribution" && (
+                  <OrderDistributionView 
+                    liveOrders={liveOrders} 
+                    drivers={drivers} 
+                    onAssign={onAssign} 
+                  />
+                )}
+                {activeTab === "system" && (
+                  <SystemControlView
+                    maintenanceMode={maintenanceMode}
+                    onToggleMaintenance={onToggleMaintenance}
+                    onLockAllDrivers={onLockAllDrivers}
+                    onUnlockAllDrivers={onUnlockAllDrivers}
+                    onGlobalReset={onGlobalReset}
+                    onBroadcastMessage={onBroadcastMessage}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
 
-      {/* Floating Alert Bar (If Manual or Maintenance) */}
+      {/* Persistent System Status Bar */}
       <AnimatePresence>
-        {(manualMode || maintenanceMode) && (
+        {maintenanceMode && (
           <motion.div 
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             exit={{ y: 100 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] w-full max-w-md px-4"
           >
-            <div className={`p-4 rounded-[28px] shadow-2xl flex items-center justify-between border ${
-              maintenanceMode ? "bg-red-600 border-red-500 text-white" : "bg-amber-500 border-amber-400 text-white"
-            }`}>
+            <div className="p-4 rounded-[28px] shadow-2xl flex items-center justify-between border bg-red-600 border-red-500 text-white">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  {maintenanceMode ? <AlertTriangle className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                  <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-black uppercase">
-                    {maintenanceMode ? "وضع الصيانة نشط" : "التحكم اليدوي مفعل"}
-                  </p>
-                  <p className="text-[10px] font-bold text-white/80">
-                    {maintenanceMode ? "لا يمكن للمستخدمين الدخول حالياً" : "سيتم توزيع الطلبات بمعرفتك فقط"}
-                  </p>
+                  <p className="text-sm font-black uppercase">وضع الصيانة نشط</p>
+                  <p className="text-[10px] font-bold text-white/80 tracking-tight">لا يمكن للمستخدمين دخول النظام حالياً</p>
                 </div>
               </div>
               <button 
-                onClick={() => maintenanceMode ? onToggleMaintenance(false) : onToggleManualMode(false)}
+                onClick={() => onToggleMaintenance(false)}
                 className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-[10px] font-black transition-all"
               >
-                إيقاف
+                إيقاف الصيانة
               </button>
             </div>
           </motion.div>

@@ -20,7 +20,7 @@
 
 @layer base {
   html, body {
-    @apply transition-colors duration-500 ease-in-out;
+    transition: color 500ms ease-in-out, background-color 500ms ease-in-out;
     background-color: var(--page-bg) !important;
     color: var(--foreground) !important;
     min-height: 100vh;
@@ -40,17 +40,38 @@
 }
 
 .glass-card {
-  @apply glass-panel rounded-[2.5rem] transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/10;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  border-radius: 2.5rem;
+  transition: all 500ms;
+}
+
+.glass-card:hover {
+  transform: translateY(-0.25rem);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(59, 130, 246, 0.1) !important;
 }
 
 /* Premium Inputs */
 input, textarea, select {
-  @apply glass-panel rounded-2xl px-4 py-3 text-sm font-bold outline-none transition-all;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  outline: none;
+  transition: all 500ms;
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 input:focus {
-  @apply ring-4 ring-blue-500/10 border-blue-400/50 !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+  border-color: rgba(96, 165, 250, 0.5) !important;
 }
 
 /* Scrollbar */
@@ -58,10 +79,18 @@ input:focus {
   width: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-400/20 rounded-full backdrop-blur-md;
+  background-color: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+  backdrop-filter: blur(4px);
 }
 
 /* Custom Badges */
 .premium-badge {
-  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase;
+  background: linear-gradient(to right, #2563eb, #4f46e5);
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
 }

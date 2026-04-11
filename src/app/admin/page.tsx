@@ -72,7 +72,8 @@ function AdminContent() {
   const [activeView, setActiveView] = useState("operations");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [manualMode, setManualMode] = useState(false);
+  const [autoRetryEnabled, setAutoRetryEnabled] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   // 3. Sidebar Menu Groups
   const menuGroups = [
@@ -153,6 +154,37 @@ function AdminContent() {
       return String(value || 0);
     }
   }, []);
+
+  // 7. Auto-Dispatch Loop (Simultaneous with manual)
+  useEffect(() => {
+    if (!autoRetryEnabled || activeView !== "operations") return;
+
+    const retryAutoDispatch = async () => {
+      const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
+      if (pendingOrders.length === 0) return;
+
+      console.log(`[Auto-Dispatch] Found ${pendingOrders.length} pending orders. Retrying...`);
+      
+      for (const order of pendingOrders) {
+        try {
+          // Find vendor location for this order
+          const vendor = vendors.find(v => v.name === order.vendor || v.id_full === (order as any).vendor_id);
+          const vLoc = vendor?.location ? { lat: vendor.location.lat!, lng: vendor.location.lng! } : undefined;
+          
+          const { assignOrderToNearestDriver } = await import("@/lib/orders");
+          const result = await assignOrderToNearestDriver(order.id_full, vLoc);
+          if (result.success) {
+            addActivity(`توزيع تلقائي: تم تعيين الطلب #${order.id} للطيار ${result.driverName}`);
+          }
+        } catch (err) {
+          console.error(`[Auto-Dispatch] Error for order ${order.id}:`, err);
+        }
+      }
+    };
+
+    const interval = setInterval(retryAutoDispatch, 15000); // Retry every 15 seconds
+    return () => clearInterval(interval);
+  }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
 
   // 7. Data Fetching Functions
   const fetchOrders = useCallback(async () => {
@@ -867,10 +899,10 @@ function AdminContent() {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            {manualMode && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
-                <Zap className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase">وضع يدوي</span>
+            {autoRetryEnabled && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tighter">التوزيع التلقائي نشط</span>
               </div>
             )}
             {appConfig?.maintenance_mode && (
@@ -922,10 +954,10 @@ function AdminContent() {
                 vendors={vendors}
                 allOrders={allOrders}
                 activities={activities}
-                manualMode={manualMode}
+                autoRetryEnabled={autoRetryEnabled}
                 maintenanceMode={appConfig?.maintenance_mode || false}
                 actionLoading={actionLoading}
-                onToggleManualMode={setManualMode}
+                onToggleAutoRetry={setAutoRetryEnabled}
                 onToggleMaintenance={handleToggleMaintenance}
                 onToggleShiftLock={handleToggleShiftLock}
                 onLockAllDrivers={handleLockAllDrivers}

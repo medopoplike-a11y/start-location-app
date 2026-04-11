@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle, Settings, CheckCircle, X, UserCog, Mail, Phone, Lock, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { DriverCard } from "../types";
 
 interface DriversViewProps {
