@@ -19,7 +19,14 @@
 }
 
 @layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+  
   html, body {
+    direction: rtl;
+    text-align: right;
     transition: color 500ms ease-in-out, background-color 500ms ease-in-out;
     background-color: var(--page-bg) !important;
     color: var(--foreground) !important;
@@ -27,46 +34,55 @@
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Glassmorphism Core */
-.glass-panel {
+/* Glassmorphism Fix for Mobile WebView */
+.glass-panel, .glass-card {
   background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
   border: 1px solid var(--glass-border) !important;
   box-shadow: var(--card-shadow) !important;
+  /* Fallback for old Android engines */
+  background-color: white !important;
 }
 
-.glass-card {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--card-shadow) !important;
-  border-radius: 2.5rem;
-  transition: all 500ms;
+.dark .glass-panel, .dark .glass-card {
+  background-color: #0f172a !important;
 }
 
-.glass-card:hover {
-  transform: translateY(-0.25rem);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(59, 130, 246, 0.1) !important;
+/* Fix for Grid & Flex Overlapping */
+.grid, .flex {
+  min-width: 0;
+  min-height: 0;
 }
 
-/* Premium Inputs */
+/* Prevent text overflow in Arabic */
+p, span, h1, h2, h3, h4, h5, h6 {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
+/* Premium Inputs Mobile Fix */
 input, textarea, select {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid var(--glass-border) !important;
+  -webkit-appearance: none;
+  background-color: white !important;
+  border: 1.5px solid #e2e8f0 !important;
   border-radius: 1rem;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  outline: none;
-  transition: all 500ms;
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  padding: 0.85rem 1rem !important;
+  font-size: 0.95rem !important;
+  width: 100% !important;
+  display: block !important;
+}
+
+.dark input, .dark textarea, .dark select {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: white !important;
 }
 
 input:focus {
