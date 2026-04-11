@@ -155,73 +155,80 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className={`fixed bottom-6 left-6 right-6 z-[9999] bg-white/90 backdrop-blur-2xl p-4 rounded-[28px] shadow-2xl border flex items-center gap-4 ${
-              updateStatus === "error" ? "border-red-100" : "border-blue-100"
-            }`}
+            className={`fixed bottom-8 left-6 right-6 z-[9999] drawer-glass p-6 rounded-[32px] shadow-2xl flex flex-col gap-4 border-none`}
             dir="rtl"
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              updateStatus === "ready" ? "bg-green-50 text-green-600" : 
-              updateStatus === "error" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
-            }`}>
-              {updateStatus === "downloading" && <Download className="w-5 h-5 animate-bounce" />}
-              {updateStatus === "ready" && <CheckCircle className="w-5 h-5" />}
-              {updateStatus === "error" && <AlertTriangle className="w-5 h-5" />}
-            </div>
-            
-            <div className="flex-1">
-              <p className="text-xs font-black text-gray-900">
-                {updateStatus === "downloading" ? `جاري تحديث النظام (${progress}%)` : 
-                 updateStatus === "ready" ? "تم تحميل تحديث جديد" :
-                 updateStatus === "error" ? "فشل التحديث" : "جاري فحص التحديثات..."}
-              </p>
-              <p className="text-[10px] font-bold text-gray-400">
-                {updateStatus === "error" ? errorMessage : `إصدار ${version || "جديد"}`}
-              </p>
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${
+                updateStatus === "ready" ? "bg-emerald-500 text-white shadow-emerald-200" : 
+                updateStatus === "error" ? "bg-red-500 text-white shadow-red-200" : "bg-blue-600 text-white shadow-blue-200"
+              }`}>
+                {updateStatus === "downloading" && <Download className="w-6 h-6 animate-bounce" />}
+                {updateStatus === "ready" && <CheckCircle className="w-6 h-6" />}
+                {updateStatus === "error" && <AlertTriangle className="w-6 h-6" />}
+              </div>
+              
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-black text-slate-900 dark:text-white">
+                  {updateStatus === "downloading" ? `جاري تحديث النظام (${progress}%)` : 
+                   updateStatus === "ready" ? "تم تحميل تحديث جديد بنجاح" :
+                   updateStatus === "error" ? "فشل تحديث النظام" : "جاري فحص التحديثات..."}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 rounded-md text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                    Version {version || "Current"}
+                  </span>
+                  {updateStatus === "error" && (
+                    <span className="text-[10px] font-bold text-red-500 truncate max-w-[150px]">
+                      {errorMessage}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {updateStatus === "ready" && (
-              <button
-                onClick={async () => {
-                  try {
-                    const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-                    if (bundleId) {
-                      await CapacitorUpdater.set({ id: bundleId });
+            <div className="flex gap-3 mt-2">
+              {updateStatus === "ready" && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                      if (bundleId) {
+                        await CapacitorUpdater.set({ id: bundleId });
+                      }
+                      await CapacitorUpdater.reload();
+                    } catch (e) {
+                      window.location.reload();
                     }
-                    await CapacitorUpdater.reload();
-                  } catch (e) {
-                    window.location.reload();
-                  }
-                }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[11px] font-black shadow-lg shadow-blue-100 active:scale-95 transition-all"
-              >
-                تحديث الآن
-              </button>
-            )}
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-blue-200 active:scale-95 transition-all uppercase tracking-wider"
+                >
+                  تطبيق التحديث الآن
+                </button>
+              )}
 
-            {updateStatus === "error" && (
-              <div className="flex gap-2">
+              {updateStatus === "error" && (
                 <button
                   onClick={() => {
                     setUpdateStatus("idle");
-                    // Delay slightly before retrying
                     setTimeout(() => {
                       const event = new CustomEvent('retryUpdate');
                       window.dispatchEvent(event);
                     }, 100);
                   }}
-                  className="bg-red-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-lg shadow-red-100 active:scale-95 transition-all"
+                  className="flex-1 bg-red-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-red-200 active:scale-95 transition-all"
                 >
                   إعادة المحاولة
                 </button>
-                <button
-                  onClick={() => setUpdateStatus("idle")}
-                  className="text-gray-400 hover:text-gray-600 text-[10px] font-bold"
-                >
-                  إغلاق
-                </button>
-              </div>
-            )}
+              )}
+
+              <button
+                onClick={() => setUpdateStatus("idle")}
+                className="px-6 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 rounded-2xl text-xs font-black hover:bg-slate-200 transition-colors"
+              >
+                {updateStatus === "ready" ? "لاحقاً" : "إغلاق"}
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
