@@ -84,7 +84,9 @@ jobs:
       working-directory: ./android
       run: |
         chmod +x gradlew
-        ./gradlew assembleRelease --stacktrace --no-daemon --info -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+        # Absolute stability: Clean first, then build with 1 worker, no daemon, and no build cache
+        ./gradlew clean --no-daemon
+        ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=1 --no-build-cache -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
       env:
         RELEASE_STORE_FILE: release-key.keystore
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
