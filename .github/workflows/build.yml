@@ -45,7 +45,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20' # Use Node 20 for better stability with older Next.js
+        node-version: '22' # Required by Capacitor CLI
         cache: 'npm'
 
     - name: Install dependencies
