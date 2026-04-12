@@ -251,80 +251,59 @@ export const startBackgroundTracking = async (userId: string) => {
 
   try {
     const plugins = (Capacitor as unknown as { Plugins?: Record<string, unknown> }).Plugins;
-    const BackgroundGeolocation = plugins?.BackgroundGeolocation as
-      | {
-          addWatcher: (
-            options: {
-              backgroundMessage: string;
-              backgroundTitle: string;
-              requestPermissions: boolean;
-              staleLocationInterval: number;
-              distanceFilter: number;
-            },
-            callback: (
-              location?: {
-                latitude: number;
-                longitude: number;
-                bearing: number | null;
-                speed: number | null;
-                accuracy: number;
-              },
-              error?: { code?: string }
-            ) => void
-          ) => Promise<string>;
-          openSettings: () => void;
-        }
-      | undefined;
+    const BackgroundGeolocation = plugins?.BackgroundGeolocation as any;
 
     if (!BackgroundGeolocation) {
       console.warn('BackgroundGeolocation plugin not available.');
       return;
     }
 
-    const watcherId = await BackgroundGeolocation.addWatcher(
-      {
-        backgroundMessage: "جاري تتبع موقعك لتقديم أفضل خدمة توصيل...",
-        backgroundTitle: "تطبيق ستارت نشط",
-        requestPermissions: true,
-        staleLocationInterval: 10000, // Reduced to 10 seconds for faster updates
-        distanceFilter: 5 // Reduced to 5 meters for higher precision
-      },
-      async (location, error) => {
-        if (error) {
-          if (error.code === "NOT_AUTHORIZED") {
-            if (window.confirm("التطبيق يحتاج إذن الموقع في الخلفية للعمل بشكل صحيح. هل تود الذهاب للإعدادات؟")) {
-              BackgroundGeolocation.openSettings();
+    // Wrap the addWatcher in a timeout to prevent native hanging
+    const watcherId = await Promise.race([
+      BackgroundGeolocation.addWatcher(
+        {
+          backgroundMessage: "جاري تتبع موقعك لتقديم أفضل خدمة توصيل...",
+          backgroundTitle: "تطبيق ستارت نشط",
+          requestPermissions: true,
+          staleLocationInterval: 10000,
+          distanceFilter: 5
+        },
+        async (location: any, error: any) => {
+          if (error) {
+            console.warn("BG Watcher Error:", error);
+            return;
+          }
+
+          if (location) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({
+                  location: {
+                    lat: location.latitude,
+                    lng: location.longitude,
+                    heading: location.bearing,
+                    speed: location.speed,
+                    accuracy: location.accuracy
+                  },
+                  is_online: true,
+                  last_location_update: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', userId);
+            } catch (e) {
+              console.warn("BG Supabase Update Failed", e);
             }
           }
-          return;
         }
-
-        if (location) {
-          // استخدام القفل لضمان تسلسل تحديثات الموقع
-          await supabaseLock.runExclusive(async () => {
-            await supabase
-              .from('profiles')
-              .update({
-                location: {
-                  lat: location.latitude,
-                  lng: location.longitude,
-                  heading: location.bearing,
-                  speed: location.speed,
-                  accuracy: location.accuracy
-                },
-                is_online: true,
-                last_location_update: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', userId);
-          });
-        }
-      }
-    );
+      ),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 5000))
+    ]);
 
     return watcherId;
   } catch (e) {
     console.error('Background Tracking Failed:', e);
+    return null;
   }
 };
 

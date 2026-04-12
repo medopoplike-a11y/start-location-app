@@ -124,57 +124,76 @@ export default function DriverApp() {
 
   // 2. KeepAwake & Tracking: Prevent screen from turning off while online
   useEffect(() => {
-    let bgId: string | null = null;
-    let fgId: string | null = null;
+    let isMounted = true;
+    
+    const startTrackingSequence = async () => {
+      if (!isActive || !driverId || !Capacitor.isNativePlatform() || !isMounted) return;
 
-    const startTracking = async () => {
-      if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform() && driverId) {
-        try {
-          // Prevent multiple starts
-          if (backgroundWatcherRef.current || foregroundWatcherRef.current) return;
+      try {
+        console.log("Native Tracking: Initializing sequence...");
+        
+        // 1. Keep Awake
+        await KeepAwake.keepAwake().catch(err => console.warn("KeepAwake error:", err));
+        
+        if (!isMounted) return;
 
-          await KeepAwake.keepAwake().catch(() => {});
-          
-          // Start background tracking if online
+        // 2. Background Tracking (Plugin-based)
+        if (!backgroundWatcherRef.current) {
           const bId = await startBackgroundTracking(driverId);
-          if (bId) {
-            bgId = bId;
+          if (isMounted && bId) {
             backgroundWatcherRef.current = bId;
+            console.log("Native Tracking: Background watcher started", bId);
           }
-
-          // Start rapid foreground tracking if online
-          const fId = await startForegroundTracking(driverId, (loc) => {
-            setDriverLocation(loc);
-          });
-          if (fId) {
-            fgId = fId;
-            foregroundWatcherRef.current = fId;
-          }
-        } catch (err) {
-          console.error("Tracking sequence failed:", err);
         }
+
+        if (!isMounted) return;
+
+        // 3. Foreground Tracking (Geolocation API)
+        if (!foregroundWatcherRef.current) {
+          const fId = await startForegroundTracking(driverId, (loc) => {
+            if (isMounted) setDriverLocation(loc);
+          });
+          if (isMounted && fId) {
+            foregroundWatcherRef.current = fId;
+            console.log("Native Tracking: Foreground watcher started", fId);
+          }
+        }
+      } catch (err) {
+        console.error("Native Tracking: Fatal sequence error", err);
       }
     };
 
-    startTracking();
+    const stopTrackingSequence = async () => {
+      console.log("Native Tracking: Stopping sequence...");
+      
+      try {
+        await KeepAwake.allowSleep().catch(() => {});
+        
+        if (backgroundWatcherRef.current) {
+          const id = backgroundWatcherRef.current;
+          backgroundWatcherRef.current = null;
+          await stopBackgroundTracking(id).catch(err => console.error("Stop BG error:", err));
+        }
+        
+        if (foregroundWatcherRef.current) {
+          const id = foregroundWatcherRef.current;
+          foregroundWatcherRef.current = null;
+          await stopForegroundTracking(id).catch(err => console.error("Stop FG error:", err));
+        }
+      } catch (err) {
+        console.error("Native Tracking: Stop error", err);
+      }
+    };
+
+    if (isActive) {
+      startTrackingSequence();
+    } else {
+      stopTrackingSequence();
+    }
 
     return () => {
-      if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
-        KeepAwake.allowSleep().catch(() => {});
-        
-        const stopTracking = async () => {
-          if (backgroundWatcherRef.current) {
-            await stopBackgroundTracking(backgroundWatcherRef.current).catch(() => {});
-            backgroundWatcherRef.current = null;
-          }
-          if (foregroundWatcherRef.current) {
-            await stopForegroundTracking(foregroundWatcherRef.current).catch(() => {});
-            foregroundWatcherRef.current = null;
-          }
-        };
-        
-        stopTracking();
-      }
+      isMounted = false;
+      stopTrackingSequence();
     };
   }, [isActive, driverId]);
 
