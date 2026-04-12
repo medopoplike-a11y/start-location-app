@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera, Eye } from "lucide-react";
 import type { ActivityItem, LiveOrderItem } from "../types";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 interface OrdersViewProps {
   liveOrders: LiveOrderItem[];
@@ -26,6 +27,7 @@ export default function OrdersView({ liveOrders, activities, onCancelOrder, onUp
   const [filter, setFilter] = useState("الكل");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const allOrders = [...liveOrders];
   const filtered = filter === "الكل" ? allOrders : allOrders.filter(o => o.status === filter);
@@ -197,15 +199,13 @@ export default function OrdersView({ liveOrders, activities, onCancelOrder, onUp
                             className="w-full h-full object-cover transition-transform duration-700 group-hover/admin-invoice:scale-110 opacity-90 group-hover/admin-invoice:opacity-100"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity" />
-                          <a 
-                            href={order.invoice_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
+                          <button 
+                            onClick={() => setPreviewUrl(order.invoice_url!)}
                             className="absolute inset-0 opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-[10px] font-black uppercase tracking-widest"
                           >
                             <Eye size={16} className="animate-pulse" />
                             عرض الفاتورة
-                          </a>
+                          </button>
                         </div>
                       )}
 
@@ -225,9 +225,12 @@ export default function OrdersView({ liveOrders, activities, onCancelOrder, onUp
                                 <div className="flex items-center gap-3">
                                   <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/10">{c.deliveryFee} ج.م</span>
                                   {c.invoice_url && (
-                                    <a href={c.invoice_url} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/10 hover:bg-amber-500 hover:text-white transition-all">
+                                    <button 
+                                      onClick={() => setPreviewUrl(c.invoice_url!)}
+                                      className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/10 hover:bg-amber-500 hover:text-white transition-all"
+                                    >
                                       <Camera size={12} />
-                                    </a>
+                                    </button>
                                   )}
                                   <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)] ${c.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
                                 </div>
@@ -320,6 +323,12 @@ export default function OrdersView({ liveOrders, activities, onCancelOrder, onUp
           )}
         </div>
       </div>
+
+      <ImagePreviewModal 
+        url={previewUrl}
+        show={!!previewUrl}
+        onClose={() => setPreviewUrl(null)}
+      />
     </div>
   );
 }

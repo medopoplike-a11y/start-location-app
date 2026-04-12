@@ -37,9 +37,50 @@ const LoginPage = () => {
   const [diagInfo, setDiagInfo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص حالة النظام...");
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchLatestVersion = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_config')
+          .select('latest_version')
+          .eq('id', 1)
+          .single();
+        if (data && !error) {
+          setLatestVersion(data.latest_version);
+        }
+      } catch (e) {
+        console.error("Failed to fetch latest version:", e);
+      }
+    };
+    fetchLatestVersion();
+  }, []);
+
+  const handleUpdateCheck = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    
+    // Trigger the actual update logic in AppWrapper via custom event
+    const event = new CustomEvent('retryUpdate');
+    window.dispatchEvent(event);
+    
+    // Refresh the latest version from DB
+    try {
+      const { data } = await supabase
+        .from('app_config')
+        .select('latest_version')
+        .eq('id', 1)
+        .single();
+      if (data) setLatestVersion(data.latest_version);
+    } catch (e) {}
+    
+    setTimeout(() => setCheckingUpdate(false), 2000);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -238,8 +279,7 @@ const LoginPage = () => {
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="user@example.com"
-                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-blue-500/40 rounded-2xl font-bold text-sm shadow-inner"
+                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white outline-none transition-all focus:bg-white/10 focus:border-blue-500/40 rounded-2xl font-bold text-sm shadow-inner dark:bg-slate-900/50 dark:text-white"
                 />
               </div>
             </div>
@@ -258,8 +298,7 @@ const LoginPage = () => {
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white placeholder:text-slate-600 outline-none transition-all focus:bg-white/10 focus:border-emerald-500/40 rounded-2xl font-bold text-sm shadow-inner"
+                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white outline-none transition-all focus:bg-white/10 focus:border-emerald-500/40 rounded-2xl font-bold text-sm shadow-inner dark:bg-slate-900/50 dark:text-white"
                 />
                 <button
                   type="button"
@@ -328,25 +367,34 @@ const LoginPage = () => {
               
               <button 
                 type="button"
-                onClick={() => {
-                  const event = new CustomEvent('retryUpdate');
-                  window.dispatchEvent(event);
-                }}
-                className="w-full group/ota relative overflow-hidden"
+                onClick={handleUpdateCheck}
+                disabled={checkingUpdate}
+                className="w-full group/ota relative overflow-hidden disabled:opacity-50"
               >
                 <div className="p-4 bg-white/5 rounded-[24px] border border-white/10 backdrop-blur-xl transition-all group-hover/ota:bg-white/10 group-hover/ota:border-blue-500/30 flex items-center justify-between shadow-lg">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-400 group-hover/ota:bg-blue-600 group-hover/ota:text-white transition-all duration-500">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 ${
+                      checkingUpdate ? "bg-blue-600 animate-spin text-white" : "bg-blue-600/10 text-blue-400 group-hover/ota:bg-blue-600 group-hover/ota:text-white"
+                    }`}>
                       <RefreshCw className="w-5 h-5" />
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-0.5">تحديث النظام</p>
-                      <p className="text-[11px] text-slate-300 font-black group-hover/ota:text-white transition-colors">جلب آخر إصدار متوفر</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] text-slate-300 font-black group-hover/ota:text-white transition-colors">
+                          {checkingUpdate ? "جاري الفحص..." : "جلب آخر إصدار متوفر"}
+                        </p>
+                        {latestVersion && latestVersion !== VERSION && (
+                          <span className="bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded-md animate-pulse">
+                            New {latestVersion}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <div className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-red-500 animate-pulse"}`} />
-                    <Download className="w-3 h-3 text-slate-600 group-hover/ota:translate-y-0.5 transition-transform duration-300" />
+                    <Download className={`w-3 h-3 text-slate-600 group-hover/ota:translate-y-0.5 transition-transform duration-300 ${checkingUpdate ? "animate-bounce" : ""}`} />
                   </div>
                 </div>
               </button>

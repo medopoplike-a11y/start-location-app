@@ -7,7 +7,7 @@ import { StartLogo } from "@/components/StartLogo";
 import { useAuth } from "@/components/AuthProvider";
 import { ShieldCheck, Sparkles, Star, Zap } from "lucide-react";
 import Particles from "react-tsparticles";
-import { loadSlim } from "tsparticles-slim";
+import { loadSlim } from "@tsparticles/slim";
 import type { Engine } from "tsparticles-engine";
 
 export default function WelcomePage() {
@@ -16,7 +16,7 @@ export default function WelcomePage() {
   const [phase, setPhase] = useState<"intro" | "greeting" | "syncing" | "final">("intro");
 
   const particlesInit = useCallback(async (engine: Engine) => {
-    await loadSlim(engine);
+    await loadSlim(engine as any);
   }, []);
 
   const getRedirectPath = (role: string) => {
@@ -48,7 +48,7 @@ export default function WelcomePage() {
   return (
     <div className="h-screen bg-[#020617] flex flex-col items-center justify-center relative overflow-hidden font-sans select-none" dir="rtl">
       
-      {/* 1. Masterpiece Background: Particles & Gradients */}
+      {/* 1. Masterpiece Background: Advanced Particles & Premium Gradients */}
       <Particles
         id="tsparticles"
         init={particlesInit}
@@ -56,133 +56,218 @@ export default function WelcomePage() {
           background: { color: { value: "transparent" } },
           fpsLimit: 120,
           particles: {
-            color: { value: ["#3b82f6", "#10b981", "#6366f1"] },
-            links: { color: "#3b82f6", distance: 150, enable: true, opacity: 0.1, width: 1 },
-            move: { enable: true, speed: 0.6, direction: "none", random: true, straight: false, outModes: { default: "out" } },
-            number: { density: { enable: true, area: 800 }, value: 40 },
-            opacity: { value: 0.3 },
-            shape: { type: "circle" },
-            size: { value: { min: 1, max: 3 } },
+            color: { value: ["#eab308", "#ffffff", "#3b82f6"] },
+            links: { 
+              color: "#eab308", 
+              distance: 150, 
+              enable: true, 
+              opacity: 0.05, 
+              width: 0.5 
+            },
+            move: { 
+              enable: true, 
+              speed: 0.4, 
+              direction: "none", 
+              random: true, 
+              straight: false, 
+              outModes: { default: "out" } 
+            },
+            number: { density: { enable: true, area: 800 }, value: 60 },
+            opacity: { 
+              value: { min: 0.1, max: 0.5 },
+              animation: { enable: true, speed: 1, minimumValue: 0.1, sync: false }
+            },
+            shape: { type: ["circle", "star"] },
+            size: { value: { min: 0.5, max: 2 } },
+          },
+          interactivity: {
+            events: {
+              onHover: { enable: true, mode: "bubble" },
+            },
+            modes: {
+              bubble: { distance: 200, duration: 2, opacity: 0.8, size: 4 },
+            }
           },
           detectRetina: true,
         }}
         className="absolute inset-0 z-0"
       />
 
+      {/* Premium Ambient Glows */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-emerald-600/10 rounded-full blur-[120px] animate-pulse delay-700" />
+        <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[80%] bg-blue-600/5 rounded-full blur-[160px] animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[80%] h-[80%] bg-amber-600/5 rounded-full blur-[160px] animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)]" />
       </div>
 
       {/* 2. Main Content Container */}
       <div className="relative z-10 w-full max-w-lg px-8 flex flex-col items-center">
         <AnimatePresence mode="wait">
           
-          {/* Phase 1: Logo Intro */}
+          {/* Phase 1: Masterpiece Logo Intro */}
           {phase === "intro" && (
             <motion.div
               key="intro"
-              initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 1.5, filter: "blur(20px)" }}
-              transition={{ duration: 1, ease: [0.34, 1.56, 0.64, 1] }}
+              initial={{ opacity: 0, scale: 0.8, filter: "blur(20px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, scale: 1.2, filter: "blur(40px)", y: -20 }}
+              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
               className="flex flex-col items-center"
             >
-              <div className="relative">
-                <div className="absolute inset-0 bg-blue-500/30 blur-[60px] rounded-full scale-125" />
-                <StartLogo className="w-40 h-42 relative drop-shadow-[0_0_50px_rgba(59,130,246,0.6)]" />
+              <div className="relative group">
+                {/* Outer Rotating Halo */}
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-[-40px] border border-white/5 rounded-full"
+                />
+                <motion.div 
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-[-25px] border border-dashed border-amber-500/10 rounded-full"
+                />
+                
+                {/* Main Logo with Intense Glow */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-blue-500/20 blur-[80px] rounded-full scale-150 animate-pulse" />
+                  <div className="absolute inset-0 bg-amber-500/10 blur-[40px] rounded-full scale-110" />
+                  <StartLogo className="w-44 h-46 relative drop-shadow-[0_0_60px_rgba(59,130,246,0.4)] transition-transform duration-700 group-hover:scale-105" />
+                </div>
               </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="mt-12 flex flex-col items-center gap-2"
+              >
+                <span className="text-[11px] font-black text-amber-500/60 uppercase tracking-[0.6em] ml-[-0.6em]">Premium Experience</span>
+                <div className="h-[1px] w-12 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+              </motion.div>
             </motion.div>
           )}
 
-          {/* Phase 2: Personalized Greeting */}
+          {/* Phase 2: Personalized Luxury Greeting */}
           {phase === "greeting" && (
             <motion.div
               key="greeting"
-              initial={{ opacity: 0, y: 40, filter: "blur(10px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -40, filter: "blur(10px)" }}
-              transition={{ duration: 0.8, ease: "circOut" }}
-              className="glass-panel p-10 w-full border-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.7)] flex flex-col items-center text-center space-y-8"
+              initial={{ opacity: 0, y: 60, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -60, scale: 1.05, filter: "blur(20px)" }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="glass-panel p-12 w-full border-white/5 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] flex flex-col items-center text-center space-y-10 overflow-hidden group"
             >
+              {/* Subtle background highlight */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+              
               <motion.div 
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-emerald-500 rounded-[28px] flex items-center justify-center shadow-2xl shadow-blue-500/20 rotate-3"
+                animate={{ y: [0, -12, 0], rotate: [3, -3, 3] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="w-24 h-24 bg-gradient-to-br from-slate-800 to-slate-950 rounded-[32px] flex items-center justify-center shadow-2xl relative border border-white/10"
               >
-                <StartLogo className="w-12 h-12 text-white" />
+                <div className="absolute inset-0 bg-blue-500/5 blur-xl rounded-full" />
+                <StartLogo className="w-14 h-14 text-white z-10" />
+                {/* Corner Accents */}
+                <div className="absolute top-2 right-2 w-2 h-2 border-t border-r border-amber-500/40" />
+                <div className="absolute bottom-2 left-2 w-2 h-2 border-b border-l border-amber-500/40" />
               </motion.div>
 
-              <div className="space-y-4">
+              <div className="space-y-6 relative">
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="flex items-center justify-center gap-2"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex items-center justify-center gap-3"
                 >
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Access Authorized</span>
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-amber-500/50" />
+                  <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-amber-500/70 uppercase tracking-[0.4em]">Verified Partner</span>
+                  <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                  <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-amber-500/50" />
                 </motion.div>
 
-                <h2 className="text-4xl font-black text-white tracking-tight leading-tight">
-                  مرحباً بك مجدداً،<br/>
-                  <span className="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+                <h2 className="text-5xl font-black text-white tracking-tight leading-tight">
+                  أهلاً بك،<br/>
+                  <span className="bg-gradient-to-r from-white via-blue-200 to-amber-200 bg-clip-text text-transparent">
                     {profile?.full_name?.split(' ')[0] || "شريك النجاح"}
                   </span>
                 </h2>
                 
-                <p className="text-slate-400 font-medium text-sm leading-relaxed max-w-[280px] mx-auto">
-                  نسعد برؤيتك مرة أخرى في منصة <span className="text-white font-black">START</span> المتكاملة
+                <p className="text-slate-400 font-medium text-base leading-relaxed max-w-[300px] mx-auto opacity-80">
+                  نحن نقدّر حضورك في <span className="text-white font-black tracking-widest border-b border-amber-500/30">START</span> القمة
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <div className="flex flex-col items-start">
-                  <span className="text-[9px] font-black text-slate-500 uppercase leading-none">Security Status</span>
-                  <span className="text-[11px] font-black text-white mt-1 uppercase tracking-wider">End-to-End Encrypted</span>
+              <div className="flex items-center gap-4 px-8 py-4 bg-white/[0.03] border border-white/5 rounded-2xl backdrop-blur-md relative group/status">
+                <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover/status:opacity-100 transition-opacity rounded-2xl" />
+                <div className="relative">
+                  <ShieldCheck className="w-6 h-6 text-emerald-500" />
+                  <motion.div 
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 bg-emerald-500 rounded-full -z-10"
+                  />
+                </div>
+                <div className="flex flex-col items-start relative">
+                  <span className="text-[10px] font-black text-slate-500 uppercase leading-none tracking-widest">Security Layer</span>
+                  <span className="text-[12px] font-black text-white mt-1 uppercase tracking-tighter">Active & Secure</span>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* Phase 3: System Syncing */}
+          {/* Phase 3: System Syncing - Masterpiece Edition */}
           {phase === "syncing" && (
             <motion.div
               key="syncing"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              className="flex flex-col items-center space-y-8"
+              initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
+              className="flex flex-col items-center space-y-12"
             >
-              <div className="relative w-24 h-24">
+              <div className="relative w-32 h-32">
+                {/* Multiple orbital rings */}
                 <motion.div 
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-0 border-[3px] border-t-blue-500 border-r-transparent border-b-emerald-500 border-l-transparent rounded-full"
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 border-[2px] border-t-amber-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full shadow-[0_0_20px_rgba(234,179,8,0.2)]"
                 />
                 <motion.div 
                   animate={{ rotate: -360 }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-2 border border-dashed border-slate-700 rounded-full"
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-4 border border-dashed border-slate-800 rounded-full"
+                />
+                <motion.div 
+                  animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-8 bg-blue-500/10 rounded-full blur-xl"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Zap className="w-8 h-8 text-blue-400 fill-blue-400/20 animate-pulse" />
+                  <Zap className="w-10 h-10 text-amber-500 fill-amber-500/10 animate-pulse" />
                 </div>
               </div>
               
-              <div className="flex flex-col items-center gap-2">
-                <p className="text-white font-black text-xs uppercase tracking-[0.4em] animate-pulse">
-                  Syncing Workspace
-                </p>
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center">
+                  <p className="text-white font-black text-sm uppercase tracking-[0.6em] ml-[-0.6em] mb-1">
+                    جاري المزامنة
+                  </p>
+                  <p className="text-amber-500/60 font-bold text-[9px] uppercase tracking-[0.3em] ml-[-0.3em]">
+                    Optimizing Environment
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  {[0, 1, 2, 3, 4].map((i) => (
                     <motion.div
                       key={i}
-                      animate={{ opacity: [0.2, 1, 0.2] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                      className="w-1 h-1 bg-blue-500 rounded-full"
+                      animate={{ 
+                        scaleY: [1, 2, 1],
+                        opacity: [0.3, 1, 0.3],
+                        backgroundColor: i % 2 === 0 ? "#eab308" : "#3b82f6"
+                      }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.1 }}
+                      className="w-[3px] h-4 rounded-full"
                     />
                   ))}
                 </div>
@@ -198,17 +283,23 @@ export default function WelcomePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.5, duration: 1 }}
-        className="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-4"
+        className="absolute bottom-12 flex flex-col items-center gap-4 z-10"
       >
-        <div className="h-px w-32 bg-gradient-to-r from-transparent via-slate-800 to-transparent" />
-        <div className="flex flex-col items-center">
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.6em] mb-2">Developed By</p>
-          <div className="flex items-center gap-3 scale-110">
-            <StartLogo className="w-6 h-6 grayscale opacity-50" />
-            <div className="flex items-center gap-1.5 italic">
-              <span className="text-slate-400 font-black text-sm tracking-tighter">START</span>
-              <span className="text-blue-600 font-black text-sm tracking-tighter">LOCATION</span>
-            </div>
+        <div className="flex items-center gap-3 opacity-60">
+          <div className="w-8 h-[1px] bg-gradient-to-r from-transparent to-white/20" />
+          <span className="text-[10px] font-black text-white uppercase tracking-[0.5em] ml-[-0.5em]">Exclusive Version</span>
+          <div className="w-8 h-[1px] bg-gradient-to-l from-transparent to-white/20" />
+        </div>
+        
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end">
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Powered By</span>
+            <span className="text-[11px] font-black text-white/80 tracking-widest">QUANTUM CORE</span>
+          </div>
+          <div className="w-[1px] h-6 bg-white/10" />
+          <div className="flex flex-col items-start">
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Version</span>
+            <span className="text-[11px] font-black text-amber-500/80 tracking-widest">0.6.0.PRO</span>
           </div>
         </div>
       </motion.div>

@@ -138,7 +138,6 @@ export default function StoreSettingsView({
             value={settingsData.area}
             onChange={(e) => onSettingsDataChange({ ...settingsData, area: e.target.value })}
             className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
-            placeholder="مثال: مدينة الشروق، المعادي..."
           />
         </div>
         <button

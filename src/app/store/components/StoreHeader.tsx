@@ -5,6 +5,7 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
 import { Menu, RefreshCw, Search } from "lucide-react";
+import RatingBadge from "@/components/RatingBadge";
 
 interface StoreHeaderProps {
   vendorName: string;
@@ -16,9 +17,23 @@ interface StoreHeaderProps {
   onSync: () => void;
   onResetSync?: () => void;
   isSurgeActive?: boolean;
+  rating?: number;
+  ratingCount?: number;
 }
 
-export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQuery, onSearchChange, onOpenDrawer, onSync, onResetSync, isSurgeActive = false }: StoreHeaderProps) {
+export default function StoreHeader({ 
+  vendorName, 
+  lastSync, 
+  isSyncing, 
+  searchQuery, 
+  onSearchChange, 
+  onOpenDrawer, 
+  onSync, 
+  onResetSync, 
+  isSurgeActive = false,
+  rating = 0,
+  ratingCount = 0
+}: StoreHeaderProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
@@ -53,7 +68,10 @@ export default function StoreHeader({ vendorName, lastSync, isSyncing, searchQue
               </motion.div>
             )}
           </div>
-          <p className="text-[10px] text-gray-400 dark:text-slate-500">لوحة تحكم المحل</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-gray-400 dark:text-slate-500">لوحة تحكم المحل</p>
+            <RatingBadge rating={rating} count={ratingCount} size="sm" />
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-2">

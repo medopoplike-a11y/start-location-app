@@ -186,7 +186,6 @@ export default function SystemControlView({
           <textarea
             value={broadcastText}
             onChange={(e) => setBroadcastText(e.target.value)}
-            placeholder="اكتب رسالة تظهر لجميع الطيارين والمطاعم الآن..."
             className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-xs font-bold outline-none focus:border-emerald-500 h-24 resize-none"
           />
           <button

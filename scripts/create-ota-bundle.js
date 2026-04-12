@@ -27,30 +27,44 @@ if (!fs.existsSync(publicDir)) {
 const output = fs.createWriteStream(zipPath);
 const archive = archiver('zip', { zlib: { level: 9 } });
 
-output.on('close', () => {
-  console.log(`Created ${zipPath} (${archive.pointer()} total bytes)`);
-  
-  // Copy to public directory so Vercel can serve it
-  try {
-    fs.copyFileSync(zipPath, publicZipPath);
-    console.log(`✅ Copied update.zip to public/ for Vercel deployment`);
-  } catch (err) {
-    console.error(`❌ Failed to copy update.zip to public: ${err.message}`);
-  }
-});
+// Wrap the script in a promise to ensure it waits for the archive to finalize
+async function createBundle() {
+  return new Promise((resolve, reject) => {
+    output.on('close', () => {
+      console.log(`Created ${zipPath} (${archive.pointer()} total bytes)`);
+      
+      // Copy to public directory so Vercel can serve it
+      try {
+        fs.copyFileSync(zipPath, publicZipPath);
+        console.log(`✅ Copied update.zip to public/ for Vercel deployment`);
+        resolve();
+      } catch (err) {
+        console.error(`❌ Failed to copy update.zip to public: ${err.message}`);
+        reject(err);
+      }
+    });
 
-archive.on('warning', (err) => {
-  if (err.code === 'ENOENT') {
-    console.warn(err.message);
-  } else {
-    throw err;
-  }
-});
+    archive.on('warning', (err) => {
+      if (err.code === 'ENOENT') {
+        console.warn(err.message);
+      } else {
+        reject(err);
+      }
+    });
 
-archive.on('error', (err) => {
-  throw err;
-});
+    archive.on('error', (err) => {
+      reject(err);
+    });
 
-archive.pipe(output);
-archive.directory(outDir, false);
-archive.finalize();
+    archive.pipe(output);
+    archive.directory(outDir, false);
+    archive.finalize();
+  });
+}
+
+createBundle().then(() => {
+  console.log('✅ Bundle creation completed');
+}).catch((err) => {
+  console.error('❌ Bundle creation failed:', err.message);
+  process.exit(1);
+});

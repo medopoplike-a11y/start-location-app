@@ -230,23 +230,62 @@ export const updateUserProfile = async (userId: string, updates: Partial<Omit<Us
 
 export const updateUserAccount = async (updates: { email?: string; password?: string; full_name?: string; phone?: string; area?: string; vehicle_type?: string }) => {
   try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw userError || new Error('User not found');
+
     // 1. Update Auth Metadata and Credentials
     const authUpdates: any = {};
-    if (updates.email) authUpdates.email = updates.email;
+    if (updates.email && updates.email !== user.email) authUpdates.email = updates.email;
     if (updates.password) authUpdates.password = updates.password;
     
-    const metadata: any = {};
+    const metadata: any = user.user_metadata || {};
     if (updates.full_name) metadata.full_name = updates.full_name;
     if (updates.phone) metadata.phone = updates.phone;
     if (updates.area) metadata.area = updates.area;
     if (updates.vehicle_type) metadata.vehicle_type = updates.vehicle_type;
     
-    if (Object.keys(metadata).length > 0) {
-      authUpdates.data = metadata;
+    authUpdates.data = metadata;
+
+    const { error: authError } = await supabase.auth.updateUser(authUpdates);
+    if (authError) throw authError;
+
+    // 2. Update Public Profile in DB
+    const profileUpdates: any = {};
+    if (updates.full_name) profileUpdates.full_name = updates.full_name;
+    if (updates.phone) profileUpdates.phone = updates.phone;
+    if (updates.area) profileUpdates.area = updates.area;
+    if (updates.vehicle_type) profileUpdates.vehicle_type = updates.vehicle_type;
+    if (updates.email) profileUpdates.email = updates.email;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', user.id);
+      if (profileError) throw profileError;
     }
 
-    const { data: authData, error: authError } = await supabase.auth.updateUser(authUpdates);
-    if (authError) throw authError;
+    return { error: null };
+  } catch (error) {
+    console.error('updateUserAccount error:', error);
+    return { error: error as Error };
+  }
+};
+
+export const submitRating = async (orderId: string, fromId: string, toId: string, rating: number, comment?: string) => {
+  try {
+    const { error } = await supabase.from('ratings').insert([{
+      order_id: orderId,
+      from_user_id: fromId,
+      to_user_id: toId,
+      rating,
+      comment
+    }]);
+    return { error };
+  } catch (error) {
+    return { error: error as Error };
+  }
+};
 
     // 2. Update Profile Table
     if (authData.user) {

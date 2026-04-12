@@ -3,10 +3,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Phone, MapPin, Store, User, Clock, Banknote,
-  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, ExternalLink
+  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, Star
 } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
 import type { Order } from "../types";
+import { submitRating } from "@/lib/auth";
 
 interface OrderDetailsModalProps {
   order: Order | null;
@@ -233,15 +234,11 @@ export default function OrderDetailsModal({
                 {/* Invoice Preview if exists (moved here for vendor context) */}
                 {(order as any).invoiceUrl && (
                   <button 
-                    onClick={async () => {
-                      if (Capacitor.isNativePlatform()) {
-                        try {
-                          const { Browser } = await import("@capacitor/browser");
-                          await Browser.open({ url: (order as any).invoiceUrl });
-                        } catch (err) {
-                          window.open((order as any).invoiceUrl, '_blank');
-                        }
+                    onClick={() => {
+                      if (onPreviewImage) {
+                        onPreviewImage((order as any).invoiceUrl);
                       } else {
+                        // Fallback if no previewer provided
                         window.open((order as any).invoiceUrl, '_blank');
                       }
                     }}
@@ -267,20 +264,54 @@ export default function OrderDetailsModal({
               </a>
             )}
 
-            {/* Sikka Total Summary */}
-            {order.customers && order.customers.length > 0 && (
-              <div className="bg-slate-900 rounded-[32px] p-5 text-white shadow-xl shadow-slate-200 flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إجمالي المديونية للمحل</p>
-                  <p className="text-xl font-black text-white">{totalOrderValue} <span className="text-xs font-bold opacity-60">ج.م</span></p>
-                </div>
-                <div className="w-px h-10 bg-white/10" />
-                <div className="space-y-1 text-left">
-                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">صافي ربح السكة</p>
-                  <p className="text-xl font-black text-orange-500">{totalDeliveryFee} <span className="text-xs font-bold opacity-60">ج.م</span></p>
-                </div>
-              </div>
-            )}
+                {/* Sikka Total Summary */}
+                {order.customers && order.customers.length > 0 && (
+                  <div className="bg-slate-900 rounded-[32px] p-5 text-white shadow-xl shadow-slate-200 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إجمالي المديونية للمحل</p>
+                      <p className="text-xl font-black text-white">{totalOrderValue} <span className="text-xs font-bold opacity-60">ج.م</span></p>
+                    </div>
+                    <div className="w-px h-10 bg-white/10" />
+                    <div className="space-y-1 text-left">
+                      <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">صافي ربح السكة</p>
+                      <p className="text-xl font-black text-orange-500">{totalDeliveryFee} <span className="text-xs font-bold opacity-60">ج.م</span></p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Vendor Rating (Visible after delivery) */}
+                {order.status === 'delivered' && (
+                  <div className="bg-white border border-slate-100 rounded-[32px] p-6 space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs font-black text-slate-700">تقييمك للمحل</p>
+                    </div>
+                    <div className="flex justify-center gap-3">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => {
+                            const comment = prompt("أضف تعليقاً (اختياري):") || "";
+                            submitRating(order.id, order.driverId || "", order.vendorId, star, comment)
+                              .then(({ error }) => {
+                                if (!error) {
+                                  alert("تم إرسال تقييمك بنجاح! شكراً لك.");
+                                  onClose();
+                                }
+                                else alert("فشل إرسال التقييم: " + error.message);
+                              });
+                          }}
+                          className="w-10 h-10 rounded-2xl bg-slate-50 hover:bg-amber-500 hover:text-white text-slate-300 transition-all flex items-center justify-center"
+                        >
+                          <Star size={20} fill="currentColor" />
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-center text-slate-400 font-bold">رأيك يساعدنا في تحسين جودة التعامل مع المحلات</p>
+                  </div>
+                )}
 
             {/* Customers List */}
             {order.customers && order.customers.length > 0 ? (

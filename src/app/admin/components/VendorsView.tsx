@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Store, MapPin, MapPinOff, RotateCcw, Plus, CheckCircle, X, Settings, UserCog, Mail, Phone, Lock, Trash2 } from "lucide-react";
+import { Store, MapPin, MapPinOff, RotateCcw, Plus, CheckCircle, X, Settings, UserCog, Mail, Phone, Lock, Trash2, Star } from "lucide-react";
 import type { VendorCard } from "../types";
+import RatingBadge from "@/components/RatingBadge";
 
 interface VendorsViewProps {
   vendors: VendorCard[];
@@ -84,6 +85,7 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-black text-slate-900 text-sm">{v.name}</p>
+                        <RatingBadge rating={v.rating || 0} size="sm" />
                         <button 
                           onClick={() => {
                             setEditingDetailsId(v.id_full);
@@ -136,7 +138,6 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                               type="text" 
                               value={tempDetails.full_name}
                               onChange={(e) => setTempDetails({...tempDetails, full_name: e.target.value})}
-                              placeholder="الاسم بالكامل"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -146,7 +147,6 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                               type="email" 
                               value={tempDetails.email}
                               onChange={(e) => setTempDetails({...tempDetails, email: e.target.value})}
-                              placeholder="البريد الإلكتروني"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -156,7 +156,6 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                               type="tel" 
                               value={tempDetails.phone}
                               onChange={(e) => setTempDetails({...tempDetails, phone: e.target.value})}
-                              placeholder="رقم الهاتف"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -166,7 +165,6 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                               type="password" 
                               value={tempDetails.password}
                               onChange={(e) => setTempDetails({...tempDetails, password: e.target.value})}
-                              placeholder="كلمة سر جديدة (اتركها فارغة إذا لا تريد التغيير)"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -224,7 +222,6 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                               value={tempData.commission_value} 
                               onChange={(e) => setTempData({...tempData, commission_value: Number(e.target.value)})}
                               className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
-                              placeholder="القيمة"
                             />
                           </div>
                         ) : (
@@ -235,7 +232,6 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                               value={tempData.monthly_salary} 
                               onChange={(e) => setTempData({...tempData, monthly_salary: Number(e.target.value)})}
                               className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
-                              placeholder="مثلاً: 3000"
                             />
                           </div>
                         )}

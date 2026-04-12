@@ -35,7 +35,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.latest_version}
             onChange={(e) => setAppConfig({ ...appConfig, latest_version: e.target.value })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="latest version"
           />
         </label>
 
@@ -45,7 +44,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.min_version}
             onChange={(e) => setAppConfig({ ...appConfig, min_version: e.target.value })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="min version"
           />
         </label>
 
@@ -55,7 +53,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.bundle_url}
             onChange={(e) => setAppConfig({ ...appConfig, bundle_url: e.target.value })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="https://example.com/update.zip"
           />
         </label>
 
@@ -65,7 +62,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.update_message}
             onChange={(e) => setAppConfig({ ...appConfig, update_message: e.target.value })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100 min-h-[96px]"
-            placeholder="رسالة تظهر للمستخدم عند توفر تحديث"
           />
         </label>
 
@@ -95,7 +91,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.maintenance_message}
             onChange={(e) => setAppConfig({ ...appConfig, maintenance_message: e.target.value })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100 min-h-[96px]"
-            placeholder="رسالة تظهر عند تفعيل الصيانة"
           />
         </label>
 
@@ -105,7 +100,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.driver_commission}
             onChange={(e) => setAppConfig({ ...appConfig, driver_commission: Number(e.target.value) || 0 })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="driver commission"
             type="number"
           />
         </label>
@@ -116,7 +110,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.vendor_commission}
             onChange={(e) => setAppConfig({ ...appConfig, vendor_commission: Number(e.target.value) || 0 })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="vendor commission"
             type="number"
           />
         </label>
@@ -127,7 +120,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.vendor_fee}
             onChange={(e) => setAppConfig({ ...appConfig, vendor_fee: Number(e.target.value) || 0 })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="vendor fee"
             type="number"
           />
         </label>
@@ -138,7 +130,6 @@ export default function AppConfigView({ appConfig, actionLoading, setAppConfig, 
             value={appConfig.safe_ride_fee}
             onChange={(e) => setAppConfig({ ...appConfig, safe_ride_fee: Number(e.target.value) || 0 })}
             className="bg-gray-50 p-3 rounded-xl border border-gray-100"
-            placeholder="safe ride fee"
             type="number"
           />
         </label>

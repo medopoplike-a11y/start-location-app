@@ -1,9 +1,10 @@
 "use client";
 
-import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle, Settings, CheckCircle, X, UserCog, Mail, Phone, Lock, Trash2 } from "lucide-react";
+import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle, Settings, CheckCircle, X, UserCog, Mail, Phone, Lock, Trash2, Star } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { DriverCard } from "../types";
+import RatingBadge from "@/components/RatingBadge";
 
 interface DriversViewProps {
   drivers: DriverCard[];
@@ -88,6 +89,7 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-black text-slate-900 text-sm">{d.name}</p>
+                        <RatingBadge rating={d.rating || 0} size="sm" />
                         <button 
                           onClick={() => {
                             setEditingDetailsId(d.id_full);
@@ -140,7 +142,6 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                               type="text" 
                               value={tempDetails.full_name}
                               onChange={(e) => setTempDetails({...tempDetails, full_name: e.target.value})}
-                              placeholder="الاسم بالكامل"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -150,7 +151,6 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                               type="email" 
                               value={tempDetails.email}
                               onChange={(e) => setTempDetails({...tempDetails, email: e.target.value})}
-                              placeholder="البريد الإلكتروني"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -160,7 +160,6 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                               type="tel" 
                               value={tempDetails.phone}
                               onChange={(e) => setTempDetails({...tempDetails, phone: e.target.value})}
-                              placeholder="رقم الهاتف"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -170,7 +169,6 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                               type="password" 
                               value={tempDetails.password}
                               onChange={(e) => setTempDetails({...tempDetails, password: e.target.value})}
-                              placeholder="كلمة سر جديدة (اتركها فارغة إذا لا تريد التغيير)"
                               className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:border-blue-400"
                             />
                           </div>
@@ -222,41 +220,38 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-[9px] font-black text-slate-400 px-1 uppercase">الحد الأقصى للطلبات</p>
-                      <input 
-                        type="number" 
-                        value={tempData.max_active_orders} 
-                        onChange={(e) => setTempData({...tempData, max_active_orders: Number(e.target.value)})}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
-                        placeholder="الحد الأقصى (مثلاً: 3)"
-                      />
-                    </div>
+                        <p className="text-[9px] font-black text-slate-400 px-1 uppercase">الحد الأقصى للطلبات</p>
+                        <input 
+                          type="number" 
+                          value={tempData.max_active_orders} 
+                          onChange={(e) => setTempData({...tempData, max_active_orders: Number(e.target.value)})}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                        />
+                      </div>
 
-                        {tempData.billing_type === 'commission' ? (
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1 bg-slate-200 p-1 rounded-xl">
-                              <span className="px-2 py-1 rounded-lg text-[9px] font-black bg-blue-500 text-white">%</span>
+                          {tempData.billing_type === 'commission' ? (
+                            <div className="flex items-center gap-2">
+                              <div className="flex gap-1 bg-slate-200 p-1 rounded-xl">
+                                <span className="px-2 py-1 rounded-lg text-[9px] font-black bg-blue-500 text-white">%</span>
+                              </div>
+                              <input 
+                                type="number" 
+                                value={tempData.commission_value} 
+                                onChange={(e) => setTempData({...tempData, commission_value: Number(e.target.value)})}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                              />
                             </div>
-                            <input 
-                              type="number" 
-                              value={tempData.commission_value} 
-                              onChange={(e) => setTempData({...tempData, commission_value: Number(e.target.value)})}
-                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
-                              placeholder="نسبة العمولة (مثلاً: 15)"
-                            />
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-black text-slate-400 px-1 uppercase">الراتب الشهري</p>
-                            <input 
-                              type="number" 
-                              value={tempData.monthly_salary} 
-                              onChange={(e) => setTempData({...tempData, monthly_salary: Number(e.target.value)})}
-                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
-                              placeholder="الراتب الشهري"
-                            />
-                          </div>
-                        )}
+                          ) : (
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black text-slate-400 px-1 uppercase">الراتب الشهري</p>
+                              <input 
+                                type="number" 
+                                value={tempData.monthly_salary} 
+                                onChange={(e) => setTempData({...tempData, monthly_salary: Number(e.target.value)})}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black outline-none"
+                              />
+                            </div>
+                          )}
 
                     <div className="flex gap-2 pt-1">
                       <button onClick={() => handleUpdateBilling(d.id_full)} className="flex-1 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-1">

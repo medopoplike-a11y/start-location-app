@@ -51,6 +51,8 @@ export default function DriverApp() {
   const [requestingSettlement, setRequestingSettlement] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsData, setSettingsData] = useState({ name: "", phone: "", email: "", password: "" });
+  const [rating, setRating] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
   const backgroundWatcherRef = useRef<string | null>(null);
   const foregroundWatcherRef = useRef<string | null>(null);
   const ordersRef = useRef<Order[]>([]);
@@ -304,6 +306,15 @@ export default function DriverApp() {
         finalBalance = walletData.system_balance || 0;
         setSystemBalance(finalBalance);
       }
+      
+      // Fetch average rating
+      const { data: ratingData } = await supabase.from('ratings').select('rating').eq('to_user_id', currentDriverId);
+      if (ratingData && ratingData.length > 0) {
+        const avg = ratingData.reduce((acc, r) => acc + r.rating, 0) / ratingData.length;
+        setRating(avg);
+        setRatingCount(ratingData.length);
+      }
+
       if (uncollectedOrders) {
         finalDebt = uncollectedOrders.reduce((acc, order) => acc + (order.financials?.order_value || 0), 0);
         setVendorDebt(finalDebt);

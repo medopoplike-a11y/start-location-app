@@ -64,6 +64,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='max_active_orders') THEN
     ALTER TABLE profiles ADD COLUMN max_active_orders INTEGER DEFAULT 3;
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='rating') THEN
+    ALTER TABLE profiles ADD COLUMN rating FLOAT DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='rating_count') THEN
+    ALTER TABLE profiles ADD COLUMN rating_count INTEGER DEFAULT 0;
+  END IF;
 END $$;
 
 -- تفعيل Real-time لكافة الجداول الحساسة بشكل آمن
@@ -562,6 +570,77 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 15. نظام التقييمات (Ratings)
+CREATE TABLE IF NOT EXISTS ratings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
+  from_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  to_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5) NOT NULL,
+  comment TEXT,
+  type TEXT CHECK (type IN ('driver_to_vendor', 'vendor_to_driver')) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  -- ضمان عدم تكرار التقييم لنفس الطلب من نفس الطرف
+  UNIQUE(order_id, from_id)
+);
+
+-- تفعيل RLS للتقييمات
+ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+  -- 1. أي شخص يمكنه رؤية التقييمات
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view ratings') THEN
+    CREATE POLICY "Anyone can view ratings" ON ratings FOR SELECT USING (true);
+  END IF;
+
+  -- 2. المستخدم يمكنه إضافة تقييم فقط إذا كان طرفاً في الطلب
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can create ratings for their orders') THEN
+    CREATE POLICY "Users can create ratings for their orders" ON ratings FOR INSERT WITH CHECK (
+      auth.uid() = from_id AND (
+        EXISTS (SELECT 1 FROM orders WHERE id = order_id AND (driver_id = auth.uid() OR vendor_id = auth.uid()))
+      )
+    );
+  END IF;
+END $$;
+
+-- دالة لتحديث تقييم البروفايل تلقائياً
+CREATE OR REPLACE FUNCTION public.handle_new_rating()
+RETURNS trigger AS $$
+BEGIN
+    -- تحديث البروفايل المستهدف (المُقيَّم)
+    UPDATE public.profiles
+    SET 
+        rating = (
+            SELECT AVG(rating)::FLOAT 
+            FROM public.ratings 
+            WHERE to_id = NEW.to_id
+        ),
+        rating_count = (
+            SELECT COUNT(*) 
+            FROM public.ratings 
+            WHERE to_id = NEW.to_id
+        )
+    WHERE id = NEW.to_id;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ربط الدالة بتريجر
+DROP TRIGGER IF EXISTS on_new_rating ON public.ratings;
+CREATE TRIGGER on_new_rating
+  AFTER INSERT OR UPDATE OR DELETE ON public.ratings
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_rating();
+
+-- تفعيل Real-time للتقييمات
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'ratings') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE ratings;
+  END IF;
+END $$;
 
 -- 14. إضافة فهارس لتحسين الأداء (Indexes)
 CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON orders(driver_id);

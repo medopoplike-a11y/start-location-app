@@ -111,20 +111,20 @@ export default function OrderFormView({
   const activeCustomers = formData.customers;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f3f4f6]" dir="rtl">
+    <div className="flex flex-col min-h-screen bg-[#f3f4f6] dark:bg-slate-950" dir="rtl">
       {/* Fixed Header */}
-      <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 p-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 bg-gray-50 rounded-xl text-gray-600 active:scale-95 transition-all">
+          <button onClick={onBack} className="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl text-gray-600 dark:text-slate-400 active:scale-95 transition-all">
             <ArrowRight size={24} />
           </button>
           <div>
-            <h2 className="text-xl font-black text-gray-900">{editingOrder ? "تعديل السكة" : "سكة جديدة"}</h2>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Multi-Stop Delivery Form</p>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">{editingOrder ? "تعديل السكة" : "سكة جديدة"}</h2>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">Multi-Stop Delivery Form</p>
           </div>
         </div>
         {!editingOrder && (
-          <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black">
+          <div className="bg-orange-100 dark:bg-orange-950 text-orange-600 dark:text-orange-400 px-3 py-1 rounded-full text-[10px] font-black">
             {activeCustomers.length} / 5 عملاء
           </div>
         )}
@@ -132,9 +132,9 @@ export default function OrderFormView({
 
       <div className="flex-1 p-4 space-y-6 pb-32">
         {!hasVendorLocation && !editingOrder && (
-          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl p-4">
             <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs font-bold text-amber-700">لم يتم تحديد موقع المحل بعد. يُرجى تحديث الموقع من إعدادات المحل قبل إنشاء الطلبات لضمان دقة التتبع.</p>
+            <p className="text-xs font-bold text-amber-700 dark:text-amber-400">لم يتم تحديد موقع المحل بعد. يُرجى تحديث الموقع من إعدادات المحل قبل إنشاء الطلبات لضمان دقة التتبع.</p>
           </div>
         )}
 
@@ -150,8 +150,8 @@ export default function OrderFormView({
                 layout
                 className={`relative rounded-[32px] border transition-all duration-300 overflow-hidden ${
                   isExpanded 
-                    ? "bg-white border-orange-200 shadow-xl p-6" 
-                    : "bg-white border-gray-100 p-4 shadow-sm"
+                    ? "bg-white dark:bg-slate-900 border-orange-200 dark:border-orange-900 shadow-xl p-6" 
+                    : "bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 p-4 shadow-sm"
                 }`}
               >
                 {/* Card Header */}
@@ -161,16 +161,16 @@ export default function OrderFormView({
                 >
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
-                      isExpanded ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "bg-orange-50 text-orange-600"
+                      isExpanded ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400"
                     }`}>
                       {isFilled && !isExpanded ? <CheckCircle2 size={20} /> : <User size={20} />}
                     </div>
                     <div>
-                      <p className={`text-sm font-black ${isExpanded ? "text-orange-600" : "text-gray-900"}`}>
+                      <p className={`text-sm font-black ${isExpanded ? "text-orange-600 dark:text-orange-400" : "text-gray-900 dark:text-white"}`}>
                         {cust.name || `بيانات العميل ${idx + 1}`}
                       </p>
                       {!isExpanded && (
-                        <p className="text-[11px] font-bold text-gray-400 mt-0.5">
+                        <p className="text-[11px] font-bold text-gray-400 dark:text-slate-500 mt-0.5">
                           {cust.orderValue ? `${cust.orderValue} ج.م · ${cust.address || 'العنوان غير محدد'}` : "اضغط لإكمال البيانات"}
                         </p>
                       )}
@@ -181,12 +181,12 @@ export default function OrderFormView({
                     {activeCustomers.length > 1 && isExpanded && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); removeCustomer(idx); }} 
-                        className="text-red-500 p-2 hover:bg-red-50 rounded-xl transition-colors"
+                        className="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-950 rounded-xl transition-colors"
                       >
                         <Trash2 size={20} />
                       </button>
                     )}
-                    <div className="text-gray-300">
+                    <div className="text-gray-300 dark:text-slate-700">
                       {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
                     </div>
                   </div>
@@ -203,34 +203,34 @@ export default function OrderFormView({
                     >
                       <div className="space-y-4">
                         <div className="group">
-                          <label className="text-[10px] font-black text-gray-400 mr-2 mb-1 block uppercase">اسم العميل بالكامل</label>
+                          <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">اسم العميل بالكامل</label>
                           <input 
                             type="text" 
                             value={cust.name} 
                             onChange={(e) => updateCustomer(idx, 'name', e.target.value)} 
-                            className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
+                            className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
                             placeholder="مثال: محمد أحمد" 
                           />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="group">
-                            <label className="text-[10px] font-black text-gray-400 mr-2 mb-1 block uppercase">رقم الهاتف</label>
+                            <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">رقم الهاتف</label>
                             <input 
                               type="tel" 
                               value={cust.phone} 
                               onChange={(e) => updateCustomer(idx, 'phone', e.target.value)} 
-                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
                               placeholder="01xxxxxxxxx" 
                             />
                           </div>
                           <div className="group">
-                            <label className="text-[10px] font-black text-gray-400 mr-2 mb-1 block uppercase">العنوان التفصيلي</label>
+                            <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">العنوان التفصيلي</label>
                             <input 
                               type="text" 
                               value={cust.address} 
                               onChange={(e) => updateCustomer(idx, 'address', e.target.value)} 
-                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
                               placeholder="الشارع، الدور، الشقة" 
                             />
                           </div>
@@ -238,12 +238,12 @@ export default function OrderFormView({
 
                         <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 mr-1 uppercase tracking-tighter">قيمة الأوردر</label>
+                            <label className="text-[9px] font-black text-gray-400 dark:text-slate-500 mr-1 uppercase tracking-tighter">قيمة الأوردر</label>
                             <input 
                               type="number" 
                               value={cust.orderValue} 
                               onChange={(e) => updateCustomer(idx, 'orderValue', e.target.value)} 
-                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-black text-sm shadow-sm" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-black text-sm shadow-sm" 
                               placeholder="0.00" 
                             />
                           </div>

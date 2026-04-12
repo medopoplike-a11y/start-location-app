@@ -141,6 +141,50 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
             </div>
           </div>
 
+          <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="drawer-glass rounded-[32px] p-6 border-none shadow-sm">
+              <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500" />
+                أفضل الطيارين تقييماً
+              </h4>
+              <div className="space-y-3">
+                {onlineDrivers.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3).map((d, i) => (
+                  <div key={d.id} className="flex items-center justify-between p-3 bg-white/40 dark:bg-white/5 rounded-2xl border border-white/20 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-slate-400">#{i+1}</span>
+                      <p className="text-[11px] font-black text-slate-700 dark:text-slate-300">{d.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20">
+                      <Star size={10} className="fill-amber-400 text-amber-400" />
+                      <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">{(d.rating || 0).toFixed(1)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="drawer-glass rounded-[32px] p-6 border-none shadow-sm">
+              <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Store className="w-4 h-4 text-blue-500" />
+                أفضل المحلات تقييماً
+              </h4>
+              <div className="space-y-3">
+                {vendors.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3).map((v, i) => (
+                  <div key={v.id_full} className="flex items-center justify-between p-3 bg-white/40 dark:bg-white/5 rounded-2xl border border-white/20 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-slate-400">#{i+1}</span>
+                      <p className="text-[11px] font-black text-slate-700 dark:text-slate-300">{v.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20">
+                      <Star size={10} className="fill-amber-400 text-amber-400" />
+                      <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">{(v.rating || 0).toFixed(1)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {stats.map((stat, idx) => (
             <PremiumCard 
               key={idx} 

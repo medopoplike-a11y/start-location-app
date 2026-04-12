@@ -1,11 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText, Phone } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText, Phone, Star } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
 import ImagePreviewModal from "./ImagePreviewModal";
+import RatingModal from "@/components/RatingModal";
+import { supabase } from "@/lib/supabaseClient";
+import RatingBadge from "@/components/RatingBadge";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
 import { translateVendorOrderStatus } from "../utils";
 
@@ -63,6 +66,24 @@ export default function StoreView({
   uploadingInvoice,
   quickUploadOrderId
 }: StoreViewProps) {
+  const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
+  const [vendorRating, setVendorRating] = useState(0);
+  const [vendorRatingCount, setVendorRatingCount] = useState(0);
+
+  // Fetch Vendor Rating
+  useState(() => {
+    if (vendorId) {
+      supabase.from('ratings').select('rating').eq('to_user_id', vendorId)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const avg = data.reduce((acc, r) => acc + r.rating, 0) / data.length;
+            setVendorRating(avg);
+            setVendorRatingCount(data.length);
+          }
+        });
+    }
+  });
+
   const filteredOrders = orders.filter((o) => {
     const search = searchQuery.toLowerCase();
     const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
@@ -79,6 +100,26 @@ export default function StoreView({
       case "assigned": return "bg-amber-500/10 text-amber-600 border-amber-100";
       case "in_transit": return "bg-purple-500/10 text-purple-600 border-purple-100";
       default: return "bg-slate-100 text-slate-500 border-slate-200";
+    }
+  };
+
+  const submitRating = async (rating: number, comment: string) => {
+    if (!ratingOrder || !vendorId) return;
+    
+    try {
+      const { error } = await supabase.from('ratings').insert({
+        order_id: ratingOrder.id,
+        from_user_id: vendorId,
+        to_user_id: ratingOrder.driverId,
+        rating,
+        comment
+      });
+
+      if (error) throw error;
+      setRatingOrder(null);
+    } catch (err) {
+      console.error("Error submitting rating:", err);
+      alert("فشل إرسال التقييم، يرجى المحاولة لاحقاً");
     }
   };
 
@@ -219,7 +260,10 @@ export default function StoreView({
                         <Store className="w-7 h-7" />
                       </div>
                       <div>
-                        <h3 className="font-black text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{order.customer}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{order.customer}</h3>
+                          <RatingBadge rating={vendorRating} count={vendorRatingCount} size="sm" />
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700 tracking-tighter">#{order.id.slice(0, 8)}</span>
                           <span className={`text-[9px] px-3 py-1 rounded-full font-black border ${getStatusStyle(order.status)}`}>
@@ -381,6 +425,20 @@ export default function StoreView({
                     </div>
                   </div>
 
+                  {order.status === "delivered" && (
+                    <div className="mt-4 flex gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setRatingOrder(order)}
+                        className="w-full bg-blue-600/10 text-blue-600 py-3 rounded-2xl text-[10px] font-black border border-blue-600/20 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                      >
+                        <Star className="w-4 h-4" />
+                        تقييم تجربة الطيار
+                      </motion.button>
+                    </div>
+                  )}
+
                   {!order.vendorCollectedAt && (
                     <div className="mt-5">
                       {order.driverConfirmedAt ? (
@@ -409,6 +467,15 @@ export default function StoreView({
           </AnimatePresence>
         )}
       </section>
+
+      <RatingModal
+        isOpen={!!ratingOrder}
+        onClose={() => setRatingOrder(null)}
+        onSubmit={submitRating}
+        title="تقييم الطيار"
+        subtitle="كيف كانت تجربتك مع الكابتن"
+        targetName={ratingOrder?.driver || ""}
+      />
     </div>
   );
 }

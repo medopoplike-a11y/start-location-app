@@ -69,7 +69,7 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
           >
             <div className="relative w-full h-full flex items-center justify-center">
               <img
-                src={displayUrl}
+                src={url}
                 alt="Invoice Preview"
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
                 style={{ 

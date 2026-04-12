@@ -7,6 +7,8 @@ import { PremiumCard } from "@/components/PremiumCard";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";
 import OrderDetailsModal from "./OrderDetailsModal";
+import RatingModal from "@/components/RatingModal";
+import { supabase } from "@/lib/supabaseClient";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), {
   ssr: false,
@@ -60,6 +62,7 @@ export default function DriverOrdersView({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [filterTab, setFilterTab] = useState<"available" | "active" | "completed">("available");
+  const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
 
   const handleAccept = async (orderId: string) => {
     setActionLoading(true);
@@ -76,10 +79,31 @@ export default function DriverOrdersView({
   };
 
   const handleDeliver = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
     setActionLoading(true);
     await onDeliverOrder(orderId);
     setActionLoading(false);
     setSelectedOrder(null);
+    if (order) setRatingOrder(order);
+  };
+
+  const submitRating = async (rating: number, comment: string) => {
+    if (!ratingOrder || !driverId) return;
+    
+    try {
+      const { error } = await supabase.from('ratings').insert({
+        order_id: ratingOrder.id,
+        from_id: driverId,
+        to_id: ratingOrder.vendorId,
+        rating,
+        comment,
+        type: 'driver_to_vendor'
+      });
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error submitting rating:", err);
+    }
   };
 
   const handleConfirmPayment = async (orderId: string) => {
@@ -441,6 +465,15 @@ export default function DriverOrdersView({
             loading={actionLoading}
           />
       )}
+
+      <RatingModal
+        isOpen={!!ratingOrder}
+        onClose={() => setRatingOrder(null)}
+        onSubmit={submitRating}
+        title="تقييم المتجر"
+        subtitle="كيف كانت تجربتك مع متجر"
+        targetName={ratingOrder?.vendor || ""}
+      />
     </>
   );
 }

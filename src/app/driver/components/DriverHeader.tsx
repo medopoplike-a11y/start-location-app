@@ -4,6 +4,7 @@ import { Power, Menu, RefreshCw } from "lucide-react";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
+import RatingBadge from "@/components/RatingBadge";
 
 interface DriverHeaderProps {
   driverName: string;
@@ -14,6 +15,8 @@ interface DriverHeaderProps {
   onToggleActive: () => void;
   onSync: () => void;
   isSurgeActive?: boolean;
+  rating?: number;
+  ratingCount?: number;
 }
 
 export default function DriverHeader({
@@ -25,6 +28,8 @@ export default function DriverHeader({
   onToggleActive,
   onSync,
   isSurgeActive = false,
+  rating = 0,
+  ratingCount = 0,
 }: DriverHeaderProps) {
   return (
     <header className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl p-4 md:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between sticky top-0 z-40 border-b border-slate-100/50 dark:border-slate-800">
@@ -45,14 +50,13 @@ export default function DriverHeader({
                 animate={{ scale: 1 }}
                 className="bg-orange-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-bounce"
               >
-                <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
                 SURGE
               </motion.div>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2">
             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[100px]">{driverName}</p>
+            <RatingBadge rating={rating} count={ratingCount} size="sm" />
           </div>
         </div>
       </div>
