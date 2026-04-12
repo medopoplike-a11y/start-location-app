@@ -247,18 +247,27 @@ export const checkForAutoUpdate = async (force = false) => {
  * نظام تتبع الموقع المتقدم في الخلفية
  */
 export const startBackgroundTracking = async (userId: string) => {
-  if (!isNative() || !userId) return;
+  if (!isNative() || !userId) return null;
 
   try {
-    const plugins = (Capacitor as unknown as { Plugins?: Record<string, unknown> }).Plugins;
-    const BackgroundGeolocation = plugins?.BackgroundGeolocation as any;
+    const plugins = (Capacitor as unknown as { Plugins?: Record<string, any> }).Plugins;
+    const BackgroundGeolocation = plugins?.BackgroundGeolocation;
 
     if (!BackgroundGeolocation) {
       console.warn('BackgroundGeolocation plugin not available.');
-      return;
+      return null;
     }
 
-    // Wrap the addWatcher in a timeout to prevent native hanging
+    // 1. Request all necessary permissions first
+    const { Geolocation } = await import('@capacitor/geolocation');
+    const perm = await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
+    
+    if (perm.location !== 'granted') {
+      console.warn('Location permission not granted');
+      return null;
+    }
+
+    // 2. Wrap the addWatcher in a timeout to prevent native hanging
     const watcherId = await Promise.race([
       BackgroundGeolocation.addWatcher(
         {
@@ -274,30 +283,33 @@ export const startBackgroundTracking = async (userId: string) => {
             return;
           }
 
-          if (location) {
+          if (location && location.latitude && location.longitude) {
             try {
-              await supabase
+              // Direct Supabase update for speed
+              const { error: upError } = await supabase
                 .from('profiles')
                 .update({
                   location: {
                     lat: location.latitude,
                     lng: location.longitude,
-                    heading: location.bearing,
-                    speed: location.speed,
-                    accuracy: location.accuracy
+                    heading: location.bearing || 0,
+                    speed: location.speed || 0,
+                    accuracy: location.accuracy || 0
                   },
                   is_online: true,
                   last_location_update: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', userId);
+                
+              if (upError) console.warn("BG Supabase Update Failed", upError);
             } catch (e) {
-              console.warn("BG Supabase Update Failed", e);
+              console.warn("BG Update Exception", e);
             }
           }
         }
       ),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 5000))
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 8000))
     ]);
 
     return watcherId;

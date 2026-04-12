@@ -49,7 +49,7 @@ export default function DriverApp() {
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [settingsData, setSettingsData] = useState({ name: "", phone: "", email: "", password: "" });
   const [rating, setRating] = useState(0);
   const [ratingCount, setRatingCount] = useState(0);
@@ -391,7 +391,7 @@ export default function DriverApp() {
 
   const handleUpdateProfile = async () => {
     if (!driverId) return;
-    setSavingSettings(true);
+    setActionLoading(true);
     try {
       const { error: dbError } = await updateUserAccount({
         full_name: settingsData.name,
@@ -409,7 +409,7 @@ export default function DriverApp() {
     } catch (err: any) {
       toastError(`حدث خطأ أثناء التحديث: ${err.message || "حاول مرة أخرى"}`);
     } finally {
-      setSavingSettings(false);
+      setActionLoading(false);
     }
   };
 
@@ -590,12 +590,17 @@ export default function DriverApp() {
   });
 
   const toggleActive = async () => {
+    if (actionLoading) return;
+
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
       }
       
       const newStatus = !isActive;
+      setActionLoading(true);
+      
+      // 1. Update UI and Local State immediately for responsiveness
       setIsActive(newStatus);
       
       if (typeof window !== "undefined") {
@@ -606,16 +611,22 @@ export default function DriverApp() {
         }
       }
       
+      // 2. Background DB Update
       if (driverId) {
         const { error } = await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
         if (error) {
           console.error("Online toggle: Supabase update error", error);
-          toastError("فشل تحديث الحالة في قاعدة البيانات");
         }
       }
+      
+      // Small delay to allow tracking logic to initialize/cleanup
+      setTimeout(() => setActionLoading(false), 1500);
+      
     } catch (err) {
       console.error("Online toggle: Fatal error", err);
-      toastError("حدث خطأ غير متوقع أثناء تبديل الحالة");
+      setIsActive(isActive); // Rollback UI
+      setActionLoading(false);
+      toastError("حدث خطأ أثناء تبديل الحالة");
     }
   };
 
@@ -993,7 +1004,7 @@ export default function DriverApp() {
                   ) : activeTab === "settings" ? (
                     <DriverSettingsView
                       settingsData={settingsData}
-                      savingSettings={savingSettings}
+                      savingSettings={actionLoading}
                       onBack={() => setActiveTab("orders")}
                       onSettingsDataChange={setSettingsData}
                       onSave={handleUpdateProfile}
