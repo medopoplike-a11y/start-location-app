@@ -65,7 +65,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
-        java-version: '21' # Matching the project's toolchainVersion (Gradle 8.14.3)
+        java-version: '21'
         distribution: 'temurin'
 
     - name: Setup Gradle
@@ -73,6 +73,11 @@ jobs:
       with:
         gradle-version: wrapper
         generate-job-summary: true
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: 'platforms;android-36 build-tools;36.0.0'
 
     - name: Prepare Android Signing
       id: signing_check
@@ -92,8 +97,7 @@ jobs:
       working-directory: ./android
       run: |
         chmod +x gradlew
-        # Absolute stability: Single-worker, no-daemon, plain console to avoid UI hangs
-        ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=1 --console=plain -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+        ./gradlew assembleRelease --stacktrace --no-daemon --console=plain -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"
       env:
         RELEASE_STORE_FILE: ${{ steps.signing_check.outputs.has_keystore == 'true' && 'release-key.keystore' || '' }}
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
