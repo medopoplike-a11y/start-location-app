@@ -423,8 +423,7 @@ const LoginPage = () => {
         >
           <a 
             href={downloadUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
+            download="StartLocation.apk"
             className="pointer-events-auto flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-2xl px-6 py-4 rounded-[20px] shadow-2xl transition-all active:scale-95 group"
           >
             <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
