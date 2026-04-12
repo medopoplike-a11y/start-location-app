@@ -432,59 +432,52 @@ function AdminContent() {
         const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || '').toLowerCase();
         
         if (role === 'driver') {
-          // Robust location parsing for real-time payloads
+          // 1. Parse Location with extreme robustness (ULTRA-SYNC V0.7.0)
           let loc = p.location;
           if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-          
-          // Use existing location as fallback if payload location is missing
-          if (!loc) {
-            const existingLoc = (existingDriver as any)?.location || existingProfile?.location;
-            loc = typeof existingLoc === 'string' ? JSON.parse(existingLoc) : existingLoc;
-          }
-
-          console.log(`[Real-time] Driver update: ${p.full_name || p.id} - Lat: ${loc?.lat}, Lng: ${loc?.lng}`);
           
           setOnlineDrivers(prev => {
             const existing = prev.find(d => d.id === p.id);
             
-            // Use existing data for missing fields in payload
-            const fullName = p.full_name || existing?.name || existingProfile?.full_name || "غير معروف";
-            const isOnline = p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : true); 
+            // 2. Immediate Location Update Logic
+            // If the payload has a location, we MUST use it. 
+            // If it doesn't, we fallback to existing state to avoid marker disappearance.
+            const hasPayloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null;
+            const finalLoc = hasPayloadLoc ? loc : (existing ? { lat: existing.lat, lng: existing.lng } : null);
+
+            if (!finalLoc || (finalLoc as any).lat == null) return prev;
+
             const lastUpdateVal = p.last_location_update || p.updated_at || new Date().toISOString();
-            
-            const lastUpdate = new Date(lastUpdateVal).getTime();
+            const lastUpdateDate = new Date(lastUpdateVal);
             const now = Date.now();
-            // Status logic: Green dot if updated in last 5 minutes
-            const isOnlineNow = now - lastUpdate < 5 * 60 * 1000;
             
-            if (!loc?.lat || !loc?.lng) {
-              if (existing && existing.lat && existing.lng) {
-                // Keep old location if new one is missing
-                loc = { lat: existing.lat, lng: existing.lng };
-              } else {
-                return prev.filter(d => d.id !== p.id);
-              }
-            }
-            
+            // Logic for status dots (Green = Active, Yellow = Stale)
+            const diffMs = Math.abs(now - lastUpdateDate.getTime());
+            const isOnlineNow = diffMs < 10 * 60 * 1000; // 10 mins for green
+            const isStale = diffMs < 60 * 60 * 1000; // 1 hour for yellow
+
             const updatedDriver: OnlineDriver = {
               id: p.id,
-              name: fullName,
-              lat: loc.lat,
-              lng: loc.lng,
-              lastSeen: new Date(lastUpdateVal).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0),
-              is_online: isOnline && isOnlineNow,
-              status: existing?.status || 'available' // Preserve status, calculated in render
+              name: p.full_name || existing?.name || existingProfile?.full_name || "كابتن",
+              lat: (finalLoc as any).lat,
+              lng: (finalLoc as any).lng,
+              lastSeen: lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : isOnlineNow),
+              status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
+              rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)
             };
-            
-            // Force update if location changed (even slightly) or online status changed
+
+            // Optimization: Only skip update if ABSOLUTELY no change to avoid visual lag
             if (existing && 
-                Math.abs(existing.lat - updatedDriver.lat) < 0.000001 && 
-                Math.abs(existing.lng - updatedDriver.lng) < 0.000001 && 
-                existing.is_online === updatedDriver.is_online) {
+                Math.abs(existing.lat - updatedDriver.lat) < 0.0000001 && 
+                Math.abs(existing.lng - updatedDriver.lng) < 0.0000001 && 
+                existing.is_online === updatedDriver.is_online &&
+                existing.status === updatedDriver.status) {
               return prev;
             }
-            
+
+            console.log(`[ULTRA-SYNC] Moving Driver: ${updatedDriver.name} to ${updatedDriver.lat}, ${updatedDriver.lng}`);
+
             if (existing) return prev.map(d => d.id === p.id ? updatedDriver : d);
             return [...prev, updatedDriver];
           });
