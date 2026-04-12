@@ -291,8 +291,10 @@ export default function DriverApp() {
   }, [user, authProfile, authLoading, isActive]);
 
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation || !driverId || !isActive) return;
+    // Web-only Location Tracker: If on native, we use the specialized tracking sequence instead
+    if (typeof navigator === "undefined" || !navigator.geolocation || !driverId || !isActive || Capacitor.isNativePlatform()) return;
 
+    console.log("Web Tracking: Starting navigator.geolocation watcher...");
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
@@ -590,20 +592,30 @@ export default function DriverApp() {
   const toggleActive = async () => {
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
       }
-    } catch { }
-    const newStatus = !isActive;
-    setIsActive(newStatus);
-    if (typeof window !== "undefined") {
-      if (Capacitor.isNativePlatform()) {
-        Preferences.set({ key: 'driver_is_active', value: newStatus.toString() }).catch(() => {});
-      } else {
-        localStorage.setItem("driver_is_active", newStatus.toString());
+      
+      const newStatus = !isActive;
+      setIsActive(newStatus);
+      
+      if (typeof window !== "undefined") {
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.set({ key: 'driver_is_active', value: newStatus.toString() }).catch(() => {});
+        } else {
+          localStorage.setItem("driver_is_active", newStatus.toString());
+        }
       }
-    }
-    if (driverId) {
-      await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
+      
+      if (driverId) {
+        const { error } = await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
+        if (error) {
+          console.error("Online toggle: Supabase update error", error);
+          toastError("فشل تحديث الحالة في قاعدة البيانات");
+        }
+      }
+    } catch (err) {
+      console.error("Online toggle: Fatal error", err);
+      toastError("حدث خطأ غير متوقع أثناء تبديل الحالة");
     }
   };
 
