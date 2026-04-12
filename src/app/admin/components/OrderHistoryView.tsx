@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
   Search, 
   Truck, 
@@ -33,7 +33,7 @@ export default function OrderHistoryView({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("الكل");
   const [typeFilter, setTypeFilter] = useState("الكل"); // 'single' or 'multi'
-  const [dateFilter, setDateFilter] = useState("الكل"); // 'today', 'yesterday', 'this_week'
+  const [dateFilter] = useState("الكل"); // 'today', 'yesterday', 'this_week'
 
   // Advanced Filtering Logic
   const filteredOrders = useMemo(() => {

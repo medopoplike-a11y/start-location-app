@@ -150,8 +150,8 @@ jobs:
       - name: Ensure Storage Buckets Exist
         run: node scripts/setup-storage.mjs
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Upload to Supabase Storage
         run: |
           # Use find to locate files regardless of nesting
@@ -171,18 +171,18 @@ jobs:
           fi
           
           echo "🚀 Uploading update.zip from $UPDATE_ZIP..."
-          curl -v -X POST "${{ env.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
-            -H "Authorization: Bearer ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+          curl -v -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
             --data-binary "@$UPDATE_ZIP"
             
           if [ -n "$APK_PATH" ]; then
             echo "📲 Uploading APK from $APK_PATH..."
-            curl -v -X POST "${{ env.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
-              -H "Authorization: Bearer ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
-              -H "apikey: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+            curl -v -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
               -H "Content-Type: application/vnd.android.package-archive" \
               -H "x-upsert: true" \
               --data-binary "@$APK_PATH"
@@ -191,6 +191,9 @@ jobs:
           fi
           
           echo "✅ All uploads completed!"
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Update Version in Database
         run: node scripts/update-ota-version.mjs
         env:

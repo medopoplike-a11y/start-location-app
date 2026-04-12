@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
-import { fileURLToPath } from 'url';
 
 // Next.js static export build for Capacitor.
 

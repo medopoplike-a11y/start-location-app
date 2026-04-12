@@ -10,17 +10,13 @@ import {
   Radio,
   AlertTriangle,
   ListFilter,
-  Monitor,
-  Trash2,
-  Star,
-  Eye
+  Monitor
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import OrdersView from "./OrdersView";
 import OrderDistributionView from "./OrderDistributionView";
 import SystemControlView from "./SystemControlView";
 import type { LiveOrderItem, DriverCard, ActivityItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
-import RatingBadge from "@/components/RatingBadge";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
   ssr: false,
@@ -39,7 +35,6 @@ interface OperationsCenterProps {
   actionLoading: boolean;
   onToggleAutoRetry: (val: boolean) => void;
   onToggleMaintenance: (val: boolean) => void;
-  onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onLockAllDrivers: () => void;
   onUnlockAllDrivers: () => void;
   onGlobalReset: () => void;
@@ -47,7 +42,7 @@ interface OperationsCenterProps {
   onBroadcastMessage: (msg: string) => void;
   onAssign: (orderId: string, driverId: string, driverName: string) => Promise<void>;
   onCancelOrder?: (orderId: string) => Promise<void>;
-  onUpdateStatus?: (orderId: string, status: any) => Promise<void>;
+  onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
 }
 
 export default function OperationsCenter({
@@ -62,7 +57,6 @@ export default function OperationsCenter({
   actionLoading,
   onToggleAutoRetry,
   onToggleMaintenance,
-  onToggleShiftLock,
   onLockAllDrivers,
   onUnlockAllDrivers,
   onGlobalReset,

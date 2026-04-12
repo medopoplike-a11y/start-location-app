@@ -43,22 +43,20 @@ async function updateOtaVersion() {
       })
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error('❌ Failed to update DB version:', data);
-      process.exit(1);
-    }
-
-    if (data.length === 0) {
-      console.warn('⚠️ No record with id=1 found. Attempting to UPSERT...');
+      const errorText = await response.text();
+      console.error(`❌ Failed to update version: ${response.status} ${response.statusText}`);
+      console.error(`Response: ${errorText}`);
+      
+      // Try UPSERT if PATCH fails (maybe record 1 doesn't exist yet)
+      console.log('⚠️ Attempting UPSERT instead of PATCH...');
       const upsertResponse = await fetch(`${supabaseUrl}/rest/v1/app_config`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${serviceRoleKey}`,
           'apikey': serviceRoleKey,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates, return=representation'
+          'Prefer': 'resolution=merge-duplicates'
         },
         body: JSON.stringify({
           id: 1,
@@ -69,17 +67,15 @@ async function updateOtaVersion() {
           updated_at: new Date().toISOString()
         })
       });
-      const upsertData = await upsertResponse.json();
+      
       if (!upsertResponse.ok) {
-        console.error('❌ Failed to UPSERT DB version:', upsertData);
-        process.exit(1);
+        throw new Error(`UPSERT failed: ${upsertResponse.status} ${await upsertResponse.text()}`);
       }
-      console.log('✅ DB Version UPSERTED successfully:', upsertData[0].latest_version);
-    } else {
-      console.log('✅ DB Version UPDATED successfully:', data[0].latest_version);
     }
+
+    console.log('✅ Version updated successfully in Database');
   } catch (error) {
-    console.error('❌ Fatal error updating DB version:', error);
+    console.error('❌ Error updating OTA version:', error.message || error);
     process.exit(1);
   }
 }

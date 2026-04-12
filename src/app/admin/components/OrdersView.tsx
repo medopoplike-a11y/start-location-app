@@ -10,7 +10,7 @@ interface OrdersViewProps {
   liveOrders: LiveOrderItem[];
   activities: ActivityItem[];
   onCancelOrder?: (orderId: string) => Promise<void>;
-  onUpdateStatus?: (orderId: string, status: any) => Promise<void>;
+  onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string; dot: string; dbStatus: string }> = {
