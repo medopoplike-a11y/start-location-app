@@ -74,12 +74,12 @@ jobs:
     - name: Prepare Android Signing
       id: signing_check
       run: |
-        if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+        if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
           mkdir -p android/app
           node -e "const fs = require('fs'); try { fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64')); console.log('✅ Keystore file created'); } catch(e) { console.error('❌ Failed to create keystore:', e); process.exit(1); }"
           echo "has_keystore=true" >> $GITHUB_OUTPUT
         else
-          echo "⚠️ No Keystore found, building unsigned"
+          echo "⚠️ No valid Keystore found, building unsigned"
           echo "has_keystore=false" >> $GITHUB_OUTPUT
         fi
       env:
