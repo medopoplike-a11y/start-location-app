@@ -148,30 +148,6 @@ export const requestAllPermissions = async () => {
   await requestPushNotificationPermissions();
 };
 
-const isValidUpdateUrl = async (url: string) => {
-  if (!url || !/^https?:\/\//i.test(url)) return false;
-
-  try {
-    const response = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
-    if (!response.ok) {
-      console.warn(`Native OTA: URL ${url} returned status ${response.status}`);
-      return false;
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    const isValid = contentType.includes('zip') || contentType.includes('octet-stream') || url.toLowerCase().endsWith('.zip');
-    
-    if (!isValid) {
-      console.warn(`Native OTA: URL ${url} has invalid content-type: ${contentType}`);
-    }
-    
-    return isValid;
-  } catch (err) {
-    console.error(`Native OTA: Failed to validate URL ${url}`, err);
-    return false;
-  }
-};
-
 let lastCheckTime = 0;
 let isChecking = false;
 const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown

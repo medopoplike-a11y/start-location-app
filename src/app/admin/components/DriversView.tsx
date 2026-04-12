@@ -1,6 +1,6 @@
 "use client";
 
-import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle, Settings, CheckCircle, X, UserCog, Mail, Phone, Lock, Trash2, Star } from "lucide-react";
+import { Truck, Shield, ShieldOff, RotateCcw, Plus, CheckCircle2, XCircle, Settings, CheckCircle, X, UserCog, Mail, Phone, Lock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { DriverCard } from "../types";

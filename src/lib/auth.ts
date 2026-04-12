@@ -287,30 +287,6 @@ export const submitRating = async (orderId: string, fromId: string, toId: string
   }
 };
 
-    // 2. Update Profile Table
-    if (authData.user) {
-      const profileUpdates: any = {};
-      if (updates.full_name) profileUpdates.full_name = updates.full_name;
-      if (updates.phone) profileUpdates.phone = updates.phone;
-      if (updates.email) profileUpdates.email = updates.email;
-      if (updates.area) profileUpdates.area = updates.area;
-      if (updates.vehicle_type) profileUpdates.vehicle_type = updates.vehicle_type;
-
-      if (Object.keys(profileUpdates).length > 0) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update(profileUpdates)
-          .eq('id', authData.user.id);
-        if (profileError) console.error("Profile sync error:", profileError);
-      }
-    }
-
-    return { data: authData, error: null };
-  } catch (error) {
-    return { data: null, error: error as Error };
-  }
-};
-
 export const getCurrentSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
