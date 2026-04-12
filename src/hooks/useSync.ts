@@ -183,7 +183,19 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     };
     setupLifecycle();
 
+    // Heartbeat to keep connection alive (Web browsers often close idle WebSockets)
+    const interval = setInterval(() => {
+      if (syncChannel) {
+        syncChannel.send({
+          type: 'broadcast',
+          event: 'heartbeat',
+          payload: { timestamp: new Date().toISOString() }
+        });
+      }
+    }, 15000); // 15 seconds heartbeat for stability
+
     return () => {
+      clearInterval(interval);
       unsubscribe();
       if (appStateListener) appStateListener.remove();
     };
