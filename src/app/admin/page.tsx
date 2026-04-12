@@ -127,50 +127,56 @@ function AdminContent() {
 
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
   const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
-    const online = profiles
-      .filter((p) => {
-        const role = (p.role || '').toLowerCase();
-        if (role !== 'driver') return false;
-        
-        // ULTIMATE VISIBILITY: If it has coordinates, SHOW IT. 
-        let loc = p.location;
-        if (typeof loc === 'string') {
-          try { loc = JSON.parse(loc); } catch { loc = null; }
-        }
-        return loc && typeof loc === 'object' && (loc as any).lat != null && (loc as any).lng != null;
-      })
-      .map((p) => {
-        let loc = p.location;
-        if (typeof loc === 'string') {
-          try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; }
-        }
-        const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
-        
-        if (!normalizedLoc?.lat || !normalizedLoc?.lng) return null;
+    setOnlineDrivers(prev => {
+      const updatedDrivers = profiles
+        .filter((p) => {
+          const role = (p.role || '').toLowerCase();
+          if (role !== 'driver') return false;
+          
+          let loc = p.location;
+          if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+          return loc && typeof loc === 'object' && (loc as any).lat != null && (loc as any).lng != null;
+        })
+        .map((p) => {
+          let loc = p.location;
+          if (typeof loc === 'string') { try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; } }
+          const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
+          
+          if (!normalizedLoc?.lat || !normalizedLoc?.lng) return null;
 
-        const lastUpdateStr = p.last_location_update || p.updated_at;
-        const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
-        const now = new Date();
-        
-        // Status dots logic
-        const diffMs = lastUpdateDate ? Math.abs(now.getTime() - lastUpdateDate.getTime()) : Infinity;
-        const isOnlineNow = diffMs < 10 * 60 * 1000; // 10 mins for green dot
-        const isStale = diffMs < 60 * 60 * 1000; // 1 hour for yellow
+          const lastUpdateStr = p.last_location_update || p.updated_at;
+          const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
+          const lastUpdateTs = lastUpdateDate?.getTime() || 0;
+          
+          // SMART OVERWRITE PROTECTION:
+          // If we already have this driver in state from a REAL-TIME update, 
+          // and that update is NEWER than what we just fetched from the DB, KEEP the real-time one.
+          const existing = prev.find(d => d.id === p.id);
+          if (existing && existing.lastSeenTimestamp && lastUpdateTs < existing.lastSeenTimestamp) {
+            return existing;
+          }
 
-        return {
-          id: p.id,
-          name: p.full_name || "غير معروف",
-          lat: normalizedLoc.lat,
-          lng: normalizedLoc.lng,
-          lastSeen: lastUpdateDate && !isNaN(lastUpdateDate.getTime()) ? lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "غير متوفر",
-          is_online: p.is_online || isOnlineNow,
-          status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
-          rating: p.rating || 0
-        };
-      })
-      .filter((d): d is OnlineDriver => d !== null);
-    
-    setOnlineDrivers(online);
+          const now = Date.now();
+          const diffMs = Math.abs(now - lastUpdateTs);
+          const isOnlineNow = diffMs < 10 * 60 * 1000; 
+          const isStale = diffMs < 60 * 60 * 1000; 
+
+          return {
+            id: p.id,
+            name: p.full_name || "غير معروف",
+            lat: normalizedLoc.lat,
+            lng: normalizedLoc.lng,
+            lastSeen: lastUpdateDate ? lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "غير متوفر",
+            lastSeenTimestamp: lastUpdateTs,
+            is_online: p.is_online || isOnlineNow,
+            status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
+            rating: p.rating || 0
+          } as OnlineDriver;
+        })
+        .filter((d): d is OnlineDriver => d !== null);
+      
+      return updatedDrivers;
+    });
     
     const users = profiles.map((u) => ({
       id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
@@ -462,6 +468,7 @@ function AdminContent() {
               lat: (finalLoc as any).lat,
               lng: (finalLoc as any).lng,
               lastSeen: lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              lastSeenTimestamp: now, // Important: Use current time for real-time updates
               is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : isOnlineNow),
               status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
               rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)

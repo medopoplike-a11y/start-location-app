@@ -102,6 +102,7 @@ export interface OnlineDriver {
   lat: number;
   lng: number;
   lastSeen: string;
+  lastSeenTimestamp?: number;
   status?: 'available' | 'busy';
   is_online?: boolean;
   rating?: number;

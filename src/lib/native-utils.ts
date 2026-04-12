@@ -346,42 +346,45 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
   try {
     const { Geolocation } = await import('@capacitor/geolocation');
     
+    let lastSentTs = 0;
+    const MIN_INTERVAL = 3000; // 3 seconds between DB updates to avoid throttling
+
     const watchId = await Geolocation.watchPosition(
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 0
+        maximumAge: 0 // Force fresh location
       },
-      async (position, err) => {
-        if (err || !position) return;
+      async (position, error) => {
+        if (error || !position) return;
         
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        
-        if (onUpdate) onUpdate({ lat, lng });
+        const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+        if (onUpdate) onUpdate(loc);
 
-        // Update Supabase immediately
-        await supabase
-          .from('profiles')
-          .update({
-            location: {
-              lat,
-              lng,
-              heading: position.coords.heading,
-              speed: position.coords.speed,
-              accuracy: position.coords.accuracy
-            },
-            is_online: true,
-            last_location_update: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
+        const now = Date.now();
+        if (now - lastSentTs < MIN_INTERVAL) return;
+        lastSentTs = now;
+
+        // Frequent foreground updates for extreme precision (V0.7.0)
+        console.log(`[Foreground Sync] Updating DB for ${userId}`);
+        await supabase.from('profiles').update({
+          location: {
+            lat: loc.lat,
+            lng: loc.lng,
+            heading: position.coords.heading || 0,
+            speed: position.coords.speed || 0,
+            accuracy: position.coords.accuracy || 0
+          },
+          is_online: true,
+          last_location_update: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }).eq('id', userId);
       }
     );
-    
+
     return watchId;
   } catch (e) {
-    console.error('Foreground tracking failed:', e);
+    console.error('Start Foreground Tracking Failed:', e);
     return null;
   }
 };
