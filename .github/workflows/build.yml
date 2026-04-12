@@ -44,14 +44,14 @@ jobs:
         with:
           gradle-version: wrapper
 
-      - name: Prepare Keystore (Base64 Decode)
+      - name: Prepare Keystore
         run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
             mkdir -p android/app
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release-key.keystore
-            echo "✅ Keystore generated successfully"
+            node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
+            echo "✅ Keystore generated successfully using Node.js"
           else
-            echo "⚠️ No keystore found, skipping signing setup"
+            echo "⚠️ No valid keystore found, building unsigned"
           fi
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
