@@ -159,30 +159,35 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Upload to Supabase Storage
         run: |
-          # Use find to locate files regardless of nesting
-          UPDATE_ZIP=$(find . -name "update.zip" | head -n 1)
-          APK_PATH=$(find . -name "*.apk" | grep -v "unaligned" | head -n 1)
+          # Prioritize Release APK, fallback to Debug APK
+          if [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+            APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+          else
+            APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          fi
           
-          if [ -z "$APK_PATH" ]; then
-            echo "❌ CRITICAL ERROR: APK file not found in artifacts!"
+          UPDATE_ZIP="dist/update.zip"
+          
+          if [ ! -f "$APK_PATH" ]; then
+            echo "❌ CRITICAL ERROR: APK file not found at $APK_PATH"
             exit 1
           fi
           
-          if [ -z "$UPDATE_ZIP" ]; then
-            echo "❌ Error: update.zip not found!"
-            exit 1
-          fi
+          echo "🚀 Found APK at: $APK_PATH"
+          ls -lh "$APK_PATH"
           
-          echo "🚀 Uploading update.zip from $UPDATE_ZIP..."
-          curl -v -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
+          echo "� Uploading update.zip..."
+          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
             --data-binary "@$UPDATE_ZIP"
             
-          echo "📲 Uploading APK from $APK_PATH..."
-          curl -v -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
+          echo "📲 Uploading final APK to Supabase..."
+          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/vnd.android.package-archive" \
