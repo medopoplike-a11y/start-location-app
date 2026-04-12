@@ -25,6 +25,11 @@ android {
                 storePassword props['RELEASE_STORE_PASSWORD']
                 keyAlias props['RELEASE_KEY_ALIAS']
                 keyPassword props['RELEASE_KEY_PASSWORD']
+            } else if (System.getenv("RELEASE_STORE_FILE") != null) {
+                storeFile file(System.getenv("RELEASE_STORE_FILE"))
+                storePassword System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("RELEASE_KEY_PASSWORD")
             }
         }
     }
@@ -34,7 +39,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (project.file('keystore.properties').exists()) {
+            if (project.file('keystore.properties').exists() || System.getenv("RELEASE_STORE_FILE") != null) {
                 signingConfig signingConfigs.release
             }
         }
