@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "v0.6.0-ULTIMATE";
+  const VERSION = "V0.9.5-ULTIMATE-BEAST";
 
   const router = useRouter();
   const { user, profile } = useAuth();
