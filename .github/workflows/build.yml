@@ -65,12 +65,9 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
-        java-version: '21' # Matching the project's expectation for Gradle 8.x
+        java-version: '21'
         distribution: 'temurin'
         cache: 'gradle'
-
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
 
     - name: Prepare Android Signing
       run: |
@@ -87,8 +84,7 @@ jobs:
       working-directory: ./android
       run: |
         chmod +x gradlew
-        # Build Release (signed or unsigned)
-        ./gradlew assembleRelease --stacktrace --no-daemon --console=plain -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+        ./gradlew assembleRelease --stacktrace --no-daemon --info -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
       env:
         RELEASE_STORE_FILE: release-key.keystore
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
