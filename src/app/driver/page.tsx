@@ -124,37 +124,46 @@ export default function DriverApp() {
 
   // 2. KeepAwake & Tracking: Prevent screen from turning off while online
   useEffect(() => {
+    let bgId: string | null = null;
+    let fgId: string | null = null;
+
     if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
       KeepAwake.keepAwake().catch(() => {});
       
       // Start background tracking if online
-      if (driverId && !backgroundWatcherRef.current) {
+      if (driverId) {
         startBackgroundTracking(driverId).then(id => {
-          if (id) backgroundWatcherRef.current = id;
-        });
-      }
+          if (id) {
+            bgId = id;
+            backgroundWatcherRef.current = id;
+          }
+        }).catch(err => console.error("Background tracking failed:", err));
 
-      // Start rapid foreground tracking if online
-      if (driverId && !foregroundWatcherRef.current) {
+        // Start rapid foreground tracking if online
         startForegroundTracking(driverId, (loc) => {
           setDriverLocation(loc);
         }).then(id => {
-          if (id) foregroundWatcherRef.current = id;
-        });
+          if (id) {
+            fgId = id;
+            foregroundWatcherRef.current = id;
+          }
+        }).catch(err => console.error("Foreground tracking failed:", err));
       }
-
-      return () => {
-        KeepAwake.allowSleep().catch(() => {});
-        if (backgroundWatcherRef.current) {
-          stopBackgroundTracking(backgroundWatcherRef.current);
-          backgroundWatcherRef.current = null;
-        }
-        if (foregroundWatcherRef.current) {
-          stopForegroundTracking(foregroundWatcherRef.current);
-          foregroundWatcherRef.current = null;
-        }
-      };
     }
+
+    return () => {
+      if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+        KeepAwake.allowSleep().catch(() => {});
+        if (bgId) {
+          stopBackgroundTracking(bgId).catch(() => {});
+        }
+        if (fgId) {
+          stopForegroundTracking(fgId).catch(() => {});
+        }
+        backgroundWatcherRef.current = null;
+        foregroundWatcherRef.current = null;
+      }
+    };
   }, [isActive, driverId]);
 
   // 3. Persistent state for isActive using Native Preferences

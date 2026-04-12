@@ -299,12 +299,18 @@ export default function StoreView({
                   {order.customers && order.customers.length > 0 && order.customers.some(c => c.invoice_url) && (
                     <div className="mb-4 flex flex-wrap gap-2">
                       {order.customers.map((cust, idx) => cust.invoice_url && (
-                        <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden border border-orange-100 shadow-sm group/mini bg-white/50">
+                        <button 
+                          key={idx} 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPreviewImage?.(cust.invoice_url!);
+                          }}
+                          className="relative w-14 h-14 rounded-xl overflow-hidden border border-orange-100 shadow-sm group/mini bg-white/50 active:scale-95 transition-transform"
+                        >
                           <img 
                             src={cust.invoice_url} 
                             alt={`Invoice ${idx}`} 
                             className="w-full h-full object-contain"
-                            onClick={() => onPreviewImage?.(cust.invoice_url!)}
                           />
                           <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
                             <Eye className="text-white w-3 h-3" />
@@ -312,7 +318,7 @@ export default function StoreView({
                           <div className="absolute top-0.5 right-0.5 bg-orange-500 text-white text-[6px] px-1 py-0.5 rounded-md font-black">
                             {idx + 1}
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
