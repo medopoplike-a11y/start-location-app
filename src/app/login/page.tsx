@@ -38,27 +38,38 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string>("جاري فحص حالة النظام...");
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   useEffect(() => {
-    const fetchLatestVersion = async () => {
+    const fetchAppConfig = async () => {
       try {
         const { data, error } = await supabase
           .from('app_config')
-          .select('latest_version')
+          .select('latest_version, download_url')
           .eq('id', 1)
           .single();
         if (data && !error) {
           setLatestVersion(data.latest_version);
+          setDownloadUrl(data.download_url);
         }
       } catch (e) {
-        console.error("Failed to fetch latest version:", e);
+        console.error("Failed to fetch app config:", e);
       }
     };
-    fetchLatestVersion();
+    fetchAppConfig();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const ua = navigator.userAgent;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      setIsMobileDevice(isMobile);
+    }
   }, []);
 
   const handleUpdateCheck = async () => {
@@ -261,6 +272,32 @@ const LoginPage = () => {
           {diagInfo && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-[10px] font-black text-blue-400 text-center backdrop-blur-md shadow-lg">
               {diagInfo}
+            </motion.div>
+          )}
+
+          {isMobileDevice && downloadUrl && typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform() && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              className="mb-8 p-5 bg-gradient-to-br from-amber-500/20 to-orange-600/20 border border-amber-500/30 rounded-[28px] backdrop-blur-xl shadow-2xl relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 blur-3xl -mr-12 -mt-12 group-hover:bg-amber-500/20 transition-all duration-700" />
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20 animate-bounce">
+                  <Download className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-sm font-black text-white mb-1">حمّل التطبيق الآن</h3>
+                <p className="text-[10px] text-amber-200/70 font-bold mb-4">للحصول على أفضل تجربة تتبع وتنبيهات فورية</p>
+                <a 
+                  href={downloadUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full bg-white text-amber-600 py-3 rounded-xl font-black text-xs shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  تنزيل ملف APK المباشر
+                </a>
+              </div>
             </motion.div>
           )}
 
