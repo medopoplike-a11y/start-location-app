@@ -102,7 +102,11 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   // Global Realtime configuration for Web
   realtime: {
     params: {
-      events_per_second: 10,
+      events_per_second: 50, // Higher frequency for smoother map movement
+    },
+    config: {
+      broadcast: { self: true },
+      presence: { key: 'admin-monitor' },
     },
   },
 });
