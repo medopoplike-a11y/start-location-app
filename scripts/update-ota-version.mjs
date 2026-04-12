@@ -19,9 +19,11 @@ async function updateOtaVersion() {
   const version = `${baseVersion}-${buildId}`;
   
   const bundleUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/update.zip?t=${Date.now()}`;
+  const downloadUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/start-location.apk?t=${Date.now()}`;
 
   console.log(`🚀 Updating OTA version to: ${version}`);
   console.log(`🔗 Bundle URL: ${bundleUrl}`);
+  console.log(`📥 Download URL: ${downloadUrl}`);
 
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/app_config?id=eq.1`, {
@@ -35,6 +37,7 @@ async function updateOtaVersion() {
       body: JSON.stringify({
         latest_version: version,
         bundle_url: bundleUrl,
+        download_url: downloadUrl,
         force_update: true,
         updated_at: new Date().toISOString()
       })
@@ -61,6 +64,7 @@ async function updateOtaVersion() {
           id: 1,
           latest_version: version,
           bundle_url: bundleUrl,
+          download_url: downloadUrl,
           force_update: true,
           updated_at: new Date().toISOString()
         })

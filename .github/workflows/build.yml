@@ -147,6 +147,11 @@ jobs:
         with:
           name: build-artifacts
           path: .
+      - name: Ensure Storage Buckets Exist
+        run: node scripts/setup-storage.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Upload to Supabase Storage
         run: |
           # Use find to locate files regardless of nesting
