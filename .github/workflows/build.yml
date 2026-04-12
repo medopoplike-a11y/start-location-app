@@ -38,9 +38,6 @@ jobs:
         distribution: 'temurin'
         cache: 'gradle'
 
-    - name: Make Gradlew Executable
-      run: chmod +x android/gradlew
-
     - name: Clean up and Install dependencies
       run: |
         rm -rf node_modules package-lock.json
@@ -67,7 +64,11 @@ jobs:
 
     - name: Build APK (Debug)
       working-directory: ./android
-      run: ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
+      run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
+      env:
+        _JAVA_OPTIONS: "-Xmx4g"
 
     - name: Prepare Android signing for release
       if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && env.ANDROID_KEYSTORE_BASE64 != '' && env.RELEASE_STORE_PASSWORD != '' && env.RELEASE_KEY_ALIAS != '' && env.RELEASE_KEY_PASSWORD != ''
@@ -94,7 +95,11 @@ jobs:
     - name: Build APK Release
       if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && env.ANDROID_KEYSTORE_BASE64 != ''
       working-directory: ./android
-      run: ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=2
+      run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=2
+      env:
+        _JAVA_OPTIONS: "-Xmx4g"
     
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
