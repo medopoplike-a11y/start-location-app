@@ -4,7 +4,7 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __dirname = path.dirname(__filename);
 
 /**
  * Next.js static export build for Capacitor.
@@ -18,9 +18,7 @@ const nextDir = path.join(root, ".next");
 
 function moveIfExists(from, to) {
   if (!fs.existsSync(from)) return false;
-  if (fs.existsSync(to)) {
-    throw new Error(`Target already exists: ${to}`);
-  }
+  if (fs.existsSync(to)) fs.rmSync(to, { recursive: true });
   fs.renameSync(from, to);
   return true;
 }
@@ -28,6 +26,9 @@ function moveIfExists(from, to) {
 let moved = false;
 
 try {
+  console.log("🚀 Starting static export build...");
+  
+  // 1. Disable API routes temporarily (Next.js export fails with them)
   moved = moveIfExists(apiDir, disabledApiDir);
 
   if (fs.existsSync(nextDir)) {

@@ -6,11 +6,25 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { DriverCard } from "../types";
 import RatingBadge from "@/components/RatingBadge";
 
+interface DriverBillingUpdate {
+  billing_type: 'commission' | 'fixed_salary';
+  monthly_salary: number;
+  commission_value: number;
+  max_active_orders: number;
+}
+
+interface DriverDetailsUpdate {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+}
+
 interface DriversViewProps {
   drivers: DriverCard[];
   onAddDriver: () => void;
-  onUpdateDriverBilling?: (driverId: string, data: any) => Promise<void>;
-  onUpdateUserDetails?: (userId: string, updates: any) => Promise<void>;
+  onUpdateDriverBilling?: (driverId: string, data: DriverBillingUpdate) => Promise<void>;
+  onUpdateUserDetails?: (userId: string, updates: DriverDetailsUpdate) => Promise<void>;
   onDeleteUser?: (userId: string, userName: string) => Promise<void>;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onResetUser: (userId: string, userName: string) => void;
@@ -95,8 +109,8 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                             setEditingDetailsId(d.id_full);
                             setTempDetails({
                               full_name: d.name,
-                              email: (d as any).email || "",
-                              phone: (d as any).phone || "",
+                              email: d.email || "",
+                              phone: d.phone || "",
                               password: ""
                             });
                           }}

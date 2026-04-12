@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   ListFilter,
   Monitor,
-  X,
   ShieldCheck,
   UserCog,
   Mail,

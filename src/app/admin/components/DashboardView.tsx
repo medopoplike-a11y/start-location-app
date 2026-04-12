@@ -27,7 +27,6 @@ interface DashboardViewProps {
   stats: StatItem[];
   onlineDrivers: OnlineDriver[];
   vendors: VendorCard[];
-  liveOrders: LiveOrderItem[];
   allOrders: AdminOrder[];
   systemHealth: {
     activeOrdersCount: number;
@@ -37,7 +36,7 @@ interface DashboardViewProps {
   };
 }
 
-export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, liveOrders, allOrders, systemHealth }: DashboardViewProps) {
+export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, allOrders, systemHealth }: DashboardViewProps) {
   return (
     <div className="space-y-8">
       {/* Upper Section: Stats & Activity */}
