@@ -63,8 +63,7 @@ jobs:
         name: build-artifacts
         path: |
           dist/update.zip
-          android/app/build/outputs/apk/debug/app-debug.apk
-          android/app/build/outputs/apk/release/app-release.apk
+          android/app/build/outputs/apk/**/*.apk
         retention-days: 5
     - name: Set up JDK
       uses: actions/setup-java@v4
@@ -156,13 +155,11 @@ jobs:
         run: |
           # Use find to locate files regardless of nesting
           UPDATE_ZIP=$(find . -name "update.zip" | head -n 1)
-          RELEASE_APK=$(find . -name "app-release.apk" | head -n 1)
-          DEBUG_APK=$(find . -name "app-debug.apk" | head -n 1)
+          APK_PATH=$(find . -name "*.apk" | grep -v "unaligned" | head -n 1)
           
-          if [ -n "$RELEASE_APK" ]; then
-            APK_PATH="$RELEASE_APK"
-          else
-            APK_PATH="$DEBUG_APK"
+          if [ -z "$APK_PATH" ]; then
+            echo "❌ CRITICAL ERROR: APK file not found in artifacts!"
+            exit 1
           fi
           
           if [ -z "$UPDATE_ZIP" ]; then
@@ -178,19 +175,15 @@ jobs:
             -H "x-upsert: true" \
             --data-binary "@$UPDATE_ZIP"
             
-          if [ -n "$APK_PATH" ]; then
-            echo "📲 Uploading APK from $APK_PATH..."
-            curl -v -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-              -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-              -H "Content-Type: application/vnd.android.package-archive" \
-              -H "x-upsert: true" \
-              --data-binary "@$APK_PATH"
-          else
-            echo "⚠️ Warning: No APK found to upload"
-          fi
+          echo "📲 Uploading APK from $APK_PATH..."
+          curl -v -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            -H "x-upsert: true" \
+            --data-binary "@$APK_PATH"
           
-          echo "✅ All uploads completed!"
+          echo "✅ All uploads completed successfully!"
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
