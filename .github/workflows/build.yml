@@ -145,9 +145,9 @@ jobs:
             exit 1
           fi
           echo "🚀 Uploading update.zip to Supabase Storage..."
-          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          curl -X POST "${{ env.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
+            -H "Authorization: Bearer ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
             --data-binary "@dist/update.zip"
