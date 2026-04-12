@@ -65,17 +65,18 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '21' # Matching the project's expectation for Gradle 8.x
         distribution: 'temurin'
         cache: 'gradle'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
 
     - name: Prepare Android Signing
       run: |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           mkdir -p android/app
-          # Use Node.js to decode base64 for better cross-platform reliability
-          node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
-          echo "✅ Keystore file created using Node.js"
+          node -e "const fs = require('fs'); try { fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64')); console.log('✅ Keystore file created'); } catch(e) { console.error('❌ Failed to create keystore:', e); process.exit(1); }"
         else
           echo "⚠️ No Keystore found, building unsigned"
         fi
@@ -86,8 +87,8 @@ jobs:
       working-directory: ./android
       run: |
         chmod +x gradlew
-        # Build Release (signed or unsigned)
-        ./gradlew assembleRelease --stacktrace --no-daemon || ./gradlew assembleDebug --stacktrace --no-daemon
+        # Use a more stable build command without parallel workers to avoid OOM or race conditions in CI
+        ./gradlew assembleRelease --stacktrace --no-daemon --console=plain
       env:
         RELEASE_STORE_FILE: release-key.keystore
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
