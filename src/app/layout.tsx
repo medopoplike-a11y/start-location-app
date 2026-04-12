@@ -24,18 +24,35 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
       <body className={cairo.className}>
-        <Script id="kill-sw" strategy="afterInteractive">
+        <Script id="kill-sw" strategy="beforeInteractive">
           {`
             try {
               if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
                 navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                  for(let registration of registrations) registration.unregister();
+                  for(let registration of registrations) {
+                    registration.unregister();
+                    console.log('SW Unregistered');
+                  }
                 });
               }
-              if (typeof window !== 'undefined' && 'caches' in window) {
-                caches.keys().then(function(names) {
-                  for (let name of names) caches.delete(name);
-                });
+              if (typeof window !== 'undefined') {
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (let name of names) caches.delete(name);
+                  });
+                }
+                // Force reload if we find a version mismatch in localStorage
+                const currentVersion = "${process.env.GITHUB_RUN_ID || Date.now()}";
+                const storedVersion = localStorage.getItem('app_version');
+                if (storedVersion && storedVersion !== currentVersion) {
+                  localStorage.setItem('app_version', currentVersion);
+                  console.log('Version mismatch detected, clearing storage and reloading...');
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  window.location.reload(true);
+                } else {
+                  localStorage.setItem('app_version', currentVersion);
+                }
               }
             } catch (e) {
               console.warn('SW Cleanup failed:', e);
