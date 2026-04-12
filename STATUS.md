@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v0.6.0)
+## ✅ Project Status: Production Live (v0.6.8)
 
 **Last Deployment**: April 12, 2026 - 🎉 Full CI/CD Pipeline Active
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v0.6.0]
+- **Mobile (Android)**: APK Build Status ✅ [v0.6.8]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
@@ -38,7 +38,7 @@ Hosting: Vercel (Web) + GitHub Releases (APK)
 - ✅ Automated OTA Bundle Generation
 
 ### 📦 **Latest Builds**
-- **APK v0.6.0**: ✅ Built & Available
+- **APK v0.6.8**: ✅ Built & Available
 - **Web**: ✅ Live on Vercel
 - **Database**: ✅ 15 Tables (including Ratings)
 
@@ -46,4 +46,4 @@ Hosting: Vercel (Web) + GitHub Releases (APK)
 
 **Status:** 🟢 Active & Deployed  
 **Last Updated:** 2026-04-12  
-**Version:** 0.6.0
+**Version:** 0.6.8

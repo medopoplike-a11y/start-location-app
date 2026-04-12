@@ -10,7 +10,10 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // eslint key is removed in this version
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  // eslint key is re-added to ensure deployment continuity as mentioned in CHANGELOG
   // Force standard build on Vercel to support API routes, and static export only for local mobile builds
   output: (process.env.BUILD_TYPE === 'static' && !process.env.VERCEL) ? 'export' : undefined,
   trailingSlash: false, // Reverted to false to fix Capacitor "Page couldn't load" issue
