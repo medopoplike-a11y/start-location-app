@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v0.2.2)
+## ✅ Project Status: Production Live (v0.6.0)
 
-**Last Deployment**: March 27, 2026 - 🎉 Full CI/CD Pipeline Active
+**Last Deployment**: April 12, 2026 - 🎉 Full CI/CD Pipeline Active
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v0.2.2]
+- **Mobile (Android)**: APK Build Status ✅ [v0.6.0]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
@@ -26,26 +26,24 @@ Hosting: Vercel (Web) + GitHub Releases (APK)
 - ✅ Order Management
 - ✅ Background Geolocation
 - ✅ OTA Updates via Capgo
+- ✅ Mutual Rating System (Driver <-> Vendor)
+- ✅ Luxury Welcome Screen with Particles
+- ✅ Dark Mode Visibility Improvements
 
 ### 🔧 **CI/CD Pipeline**
 - ✅ GitHub Actions Workflow
-- ✅ Automatic APK Build
+- ✅ Automatic APK Build (Debug & Release)
 - ✅ Automatic Vercel Deploy
-- ✅ Artifact Upload
-- ✅ Release Management
+- ✅ Artifact Upload & Release Management
+- ✅ Automated OTA Bundle Generation
 
 ### 📦 **Latest Builds**
-- **APK v0.2.2**: ✅ Built & Available
+- **APK v0.6.0**: ✅ Built & Available
 - **Web**: ✅ Live on Vercel
-- **Database**: ✅ 14 Tables, RLS Policies
-
-### 🔗 **Links**
-- **GitHub**: https://github.com/your-org/your-repo
-- **Web App**: https://your-app-domain.example.com
-- **Android APK**: Download from Releases
+- **Database**: ✅ 15 Tables (including Ratings)
 
 ---
 
 **Status:** 🟢 Active & Deployed  
-**Last Updated:** 2026-03-27  
-**Version:** 0.2.2
+**Last Updated:** 2026-04-12  
+**Version:** 0.6.0
