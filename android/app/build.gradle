@@ -25,8 +25,10 @@ android {
                 storePassword props['RELEASE_STORE_PASSWORD']
                 keyAlias props['RELEASE_KEY_ALIAS']
                 keyPassword props['RELEASE_KEY_PASSWORD']
-            } else if (System.getenv("RELEASE_STORE_FILE") && System.getenv("RELEASE_STORE_PASSWORD") && System.getenv("RELEASE_STORE_FILE") != "") {
-                storeFile file(System.getenv("RELEASE_STORE_FILE"))
+            } else if (System.getenv("RELEASE_STORE_FILE") != null && System.getenv("RELEASE_STORE_FILE") != "") {
+                // Support both relative and absolute paths from environment
+                def storeFilePath = System.getenv("RELEASE_STORE_FILE")
+                storeFile file(storeFilePath)
                 storePassword System.getenv("RELEASE_STORE_PASSWORD")
                 keyAlias System.getenv("RELEASE_KEY_ALIAS")
                 keyPassword System.getenv("RELEASE_KEY_PASSWORD")

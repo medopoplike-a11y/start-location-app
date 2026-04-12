@@ -33,10 +33,10 @@ jobs:
       - name: Create OTA Bundle
         run: node scripts/create-ota-bundle.js
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
@@ -45,17 +45,17 @@ jobs:
           gradle-version: wrapper
 
       - name: Prepare Keystore
+        id: signing_check
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
             mkdir -p android/app
             node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
-            echo "✅ Keystore generated at: $(pwd)/android/app/release-key.keystore"
+            echo "✅ Keystore generated successfully"
             echo "has_keystore=true" >> $GITHUB_OUTPUT
           else
             echo "⚠️ No valid keystore found, building unsigned"
             echo "has_keystore=false" >> $GITHUB_OUTPUT
           fi
-        id: signing_check
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
@@ -63,10 +63,10 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          # Absolute path for keystore to avoid any ambiguity
-          export RELEASE_STORE_FILE="$(pwd)/app/release-key.keystore"
+          # Standard Release build
           ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=1 --console=plain -Dorg.gradle.jvmargs="-Xmx4g"
         env:
+          RELEASE_STORE_FILE: release-key.keystore
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
