@@ -1,168 +1,124 @@
-name: Build APK & Deploy Web
-
-permissions:
-  contents: write
+name: Start Location Build & Deploy
 
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
-  workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-  RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-  RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-  RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  # 1. Build Web Assets (Next.js Static Export)
+  build-web:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Static Export
+        run: npm run build:mobile
+        env:
+          BUILD_TYPE: static
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Create Update Bundle
+        run: node scripts/create-ota-bundle.js
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: |
+            dist/
+            android/app/src/main/assets/public/
 
-    - name: 🔍 Verify GitHub Secrets Presence
-      run: |
-        echo "Checking for required secrets (masking values)..."
-        [ -n "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" ] && echo "✅ NEXT_PUBLIC_SUPABASE_URL: [PRESENT]" || echo "❌ NEXT_PUBLIC_SUPABASE_URL: [MISSING]"
-        [ -n "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" ] && echo "✅ NEXT_PUBLIC_SUPABASE_ANON_KEY: [PRESENT]" || echo "❌ NEXT_PUBLIC_SUPABASE_ANON_KEY: [MISSING]"
-        [ -n "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ] && echo "✅ SUPABASE_SERVICE_ROLE_KEY: [PRESENT]" || echo "❌ SUPABASE_SERVICE_ROLE_KEY: [MISSING]"
+  # 2. Build Android APK (In a fresh isolated environment)
+  build-android:
+    needs: build-web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Web Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+      - name: Prepare Signing
+        id: signing_check
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
+            mkdir -p android/app
+            node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
+            echo "has_keystore=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_keystore=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      - name: Build APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=1 --console=plain -Dorg.gradle.jvmargs="-Xmx6g"
+        env:
+          RELEASE_STORE_FILE: ${{ steps.signing_check.outputs.has_keystore == 'true' && 'release-key.keystore' || '' }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: android/app/build/outputs/apk/**/*.apk
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22' # Required by Capacitor CLI
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm install --legacy-peer-deps
-      env:
-        NODE_OPTIONS: "--max-old-space-size=4096"
-
-    - name: Build and Export for Mobile
-      run: npm run build:mobile
-      env:
-        BUILD_TYPE: static
-        NODE_OPTIONS: "--max-old-space-size=4096"
-
-    - name: Create Update Bundle
-      run: node scripts/create-ota-bundle.js
-
-    - name: Set up JDK
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: wrapper
-        generate-job-summary: true
-
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        packages: 'platforms;android-36 build-tools;36.0.0'
-
-    - name: Prepare Android Signing
-      id: signing_check
-      run: |
-        if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
-          mkdir -p android/app
-          node -e "const fs = require('fs'); try { fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64')); console.log('✅ Keystore file created'); } catch(e) { console.error('❌ Failed to create keystore:', e); process.exit(1); }"
-          echo "has_keystore=true" >> $GITHUB_OUTPUT
-        else
-          echo "⚠️ No valid Keystore found, building unsigned"
-          echo "has_keystore=false" >> $GITHUB_OUTPUT
-        fi
-      env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-
-    - name: Build Android APK
-      working-directory: ./android
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleRelease --stacktrace --no-daemon --console=plain -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"
-      env:
-        RELEASE_STORE_FILE: ${{ steps.signing_check.outputs.has_keystore == 'true' && 'release-key.keystore' || '' }}
-        RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-        RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-        RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-
-    - name: Prepare Assets for Deployment
-      run: |
-        mkdir -p build-out
-        
-        # 1. Copy OTA bundle
-        if [ -f "dist/update.zip" ]; then
+  # 3. Deploy Assets (After both builds are done)
+  deploy:
+    needs: [build-web, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Web Dist
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+      - name: Prepare build-out folder
+        run: |
+          mkdir -p build-out
           cp dist/update.zip build-out/update.zip
-          echo "✅ update.zip ready"
-        fi
-        
-        # 2. Find and copy APK
-        APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
-        if [ -n "$APK_PATH" ]; then
-          cp "$APK_PATH" build-out/start-location.apk
-          echo "✅ APK ready: $APK_PATH"
-        else
-          echo "❌ No APK found!"
-          exit 1
-        fi
-
-    - name: Ensure Storage Buckets Exist
-      run: node scripts/setup-storage.mjs
-
-    - name: Upload to Supabase Storage
-      run: |
-        cd build-out
-        node ../scripts/upload-to-supabase.mjs
-
-    - name: Update Version in Database
-      run: node scripts/update-ota-version.mjs
-
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: build-out/
-        retention-days: 5
-
-    - name: Create GitHub Release
-      if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          build-out/start-location.apk
-          build-out/update.zip
-        name: Build v${{ github.run_number }}
-        tag_name: build-v${{ github.run_number }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Deploy to Vercel
-      if: github.ref == 'refs/heads/main'
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-        vercel-args: '--prod'
-        working-directory: .
-
+          APK_FILE=$(find . -name "*.apk" | head -n 1)
+          cp "$APK_FILE" build-out/start-location.apk
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Supabase Client
+        run: npm install @supabase/supabase-js
+      - name: Upload to Supabase
+        run: node scripts/upload-to-supabase.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Update Database Version
+        run: node scripts/update-ota-version.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
