@@ -25,26 +25,29 @@ jobs:
           BUILD_TYPE: static
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Sync with Capacitor
+        run: npx cap copy android
       - name: Create Update Bundle
         run: node scripts/create-ota-bundle.js
-      - name: Upload Artifacts
+      - name: Upload Web Assets
         uses: actions/upload-artifact@v4
         with:
-          name: web-dist
+          name: web-assets
           path: |
             dist/
             android/app/src/main/assets/public/
 
-  # 2. Build Android APK (In a fresh isolated environment)
+  # 2. Build Android APK
   build-android:
     needs: build-web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download Web Artifacts
+      - name: Download Web Assets
         uses: actions/download-artifact@v4
         with:
-          name: web-dist
+          name: web-assets
+          path: .
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -86,31 +89,33 @@ jobs:
           name: android-apk
           path: android/app/build/outputs/apk/**/*.apk
 
-  # 3. Deploy Assets (After both builds are done)
+  # 3. Deploy Assets
   deploy:
     needs: [build-web, build-android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download Web Dist
+      - name: Download Web Assets
         uses: actions/download-artifact@v4
         with:
-          name: web-dist
+          name: web-assets
+          path: .
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
           name: android-apk
+          path: android-apk
       - name: Prepare build-out folder
         run: |
           mkdir -p build-out
           cp dist/update.zip build-out/update.zip
-          APK_FILE=$(find . -name "*.apk" | head -n 1)
+          APK_FILE=$(find android-apk -name "*.apk" | head -n 1)
           cp "$APK_FILE" build-out/start-location.apk
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install Supabase Client
+      - name: Install dependencies for scripts
         run: npm install @supabase/supabase-js
       - name: Upload to Supabase
         run: node scripts/upload-to-supabase.mjs
