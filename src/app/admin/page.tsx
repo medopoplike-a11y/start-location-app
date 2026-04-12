@@ -445,48 +445,30 @@ function AdminContent() {
           setOnlineDrivers(prev => {
             const existing = prev.find(d => d.id === p.id);
             
-            // 2. RAW GPS PRIORITY:
-            // Always prefer payload location. If payload location is missing, 
-            // only then fallback to existing state.
-            const hasPayloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null && (loc as any).lat !== 0;
-            const finalLoc = hasPayloadLoc ? loc : (existing ? { lat: existing.lat, lng: existing.lng } : null);
+            // 2. RAW GPS PRIORITY (V0.8.0 - NO FALLBACK)
+            const payloadLoc = loc && typeof loc === 'object' ? loc : null;
+            if (!payloadLoc || (payloadLoc as any).lat == null) return prev;
 
-            if (!finalLoc || (finalLoc as any).lat == null) return prev;
-
-            const lastUpdateVal = p.last_location_update || p.updated_at || new Date().toISOString();
-            const lastUpdateDate = new Date(lastUpdateVal);
-            const lastUpdateTs = lastUpdateDate.getTime();
             const now = Date.now();
+            const lastUpdateTs = (payloadLoc as any).ts || now;
             
-            // RELATIVE TIME LOGIC (SYNCED WITH MOBILE)
             const diffSeconds = Math.floor(Math.abs(now - lastUpdateTs) / 1000);
             let relativeTime = "الآن";
-            if (diffSeconds > 5 && diffSeconds < 60) relativeTime = `منذ ${diffSeconds} ثانية`;
-            else if (diffSeconds >= 60) relativeTime = `منذ ${Math.floor(diffSeconds / 60)} دقيقة`;
+            if (diffSeconds > 3 && diffSeconds < 60) relativeTime = `منذ ${diffSeconds} ثانية`;
 
             const updatedDriver: OnlineDriver = {
               id: p.id,
               name: p.full_name || existing?.name || existingProfile?.full_name || "كابتن",
-              lat: (finalLoc as any).lat,
-              lng: (finalLoc as any).lng,
+              lat: (payloadLoc as any).lat,
+              lng: (payloadLoc as any).lng,
               lastSeen: relativeTime,
-              lastSeenTimestamp: now, // Use current clock for ticker sync
-              is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : (diffSeconds < 600)),
-              status: diffSeconds < 600 ? 'available' : 'busy',
-              rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)
+              lastSeenTimestamp: now, 
+              is_online: p.is_online !== undefined ? p.is_online : true,
+              status: (payloadLoc as any).speed > 0 ? 'busy' : 'available',
+              rating: p.rating || existing?.rating || 0
             };
 
-            // NO CACHING: If coordinates changed even by a tiny fraction, we MUST update.
-            const posChanged = !existing || 
-                               Math.abs(existing.lat - updatedDriver.lat) > 0.00000001 || 
-                               Math.abs(existing.lng - updatedDriver.lng) > 0.00000001;
-
-            if (!posChanged && existing && existing.is_online === updatedDriver.is_online && existing.status === updatedDriver.status) {
-              return prev;
-            }
-
-            console.log(`[PRECISION-SYNC] Driver ${updatedDriver.name} at ${updatedDriver.lat}, ${updatedDriver.lng}`);
-
+            // Force update on every payload to ensure map reflects real movement
             if (existing) return prev.map(d => d.id === p.id ? updatedDriver : d);
             return [...prev, updatedDriver];
           });
@@ -1039,7 +1021,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.7.0-SYNCED-PROD
+                V0.8.0-ULTIMATE-LIVE
               </p>
             </div>
           </div>

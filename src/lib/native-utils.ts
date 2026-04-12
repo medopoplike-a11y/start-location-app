@@ -351,9 +351,9 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
 
     const watchId = await Geolocation.watchPosition(
       {
-        enableHighAccuracy: true, // MANDATORY for real-world precision
-        timeout: 5000,           // Fast timeout to catch movement
-        maximumAge: 0            // DO NOT USE CACHED LOCATION
+        enableHighAccuracy: true,
+        timeout: 3000,           // 3 seconds max wait
+        maximumAge: 0            // Fresh data only
       },
       async (position, error) => {
         if (error || !position) return;
@@ -362,18 +362,19 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
         if (onUpdate) onUpdate(loc);
 
         const now = Date.now();
-        if (now - lastSentTs < MIN_INTERVAL) return;
+        // NUCLEAR SYNC: Update DB every 2 seconds for smooth tracking (V0.8.0)
+        if (now - lastSentTs < 2000) return;
         lastSentTs = now;
 
-        // Frequent foreground updates for extreme precision (V0.7.0)
-        console.log(`[Foreground Sync] Updating DB for ${userId}`);
+        console.log(`[NUCLEAR-SYNC] Force DB Update: ${userId}`);
         await supabase.from('profiles').update({
           location: {
             lat: loc.lat,
             lng: loc.lng,
             heading: position.coords.heading || 0,
             speed: position.coords.speed || 0,
-            accuracy: position.coords.accuracy || 0
+            accuracy: position.coords.accuracy || 0,
+            ts: now // Extra timestamp for Admin to track freshness
           },
           is_online: true,
           last_location_update: new Date().toISOString(),
