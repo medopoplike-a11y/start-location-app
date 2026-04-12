@@ -44,6 +44,17 @@ jobs:
         with:
           gradle-version: wrapper
 
+      - name: Install Android SDK 36
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "platform-tools" 2>/dev/null || true
+          echo "✅ Android SDK 36 ready"
+
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+
       - name: Prepare Keystore
         id: signing_check
         run: |
@@ -89,9 +100,6 @@ jobs:
             echo "❌ No APK found!"
             exit 1
           fi
-
-      - name: Install Supabase Tools
-        run: npm install @supabase/supabase-js
 
       - name: Upload to Supabase & Update DB
         run: |

@@ -11,7 +11,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 }
 
 async function uploadFile(fileName, bucketName, contentType) {
-  const filePath = path.resolve(process.cwd(), fileName);
+  const filePath = path.resolve(process.cwd(), 'build-out', fileName);
   
   if (!fs.existsSync(filePath)) {
     console.error(`❌ File not found at: ${filePath}`);
