@@ -275,32 +275,6 @@ const LoginPage = () => {
             </motion.div>
           )}
 
-          {isMobileDevice && downloadUrl && typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform() && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              className="mb-8 p-5 bg-gradient-to-br from-amber-500/20 to-orange-600/20 border border-amber-500/30 rounded-[28px] backdrop-blur-xl shadow-2xl relative overflow-hidden group"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 blur-3xl -mr-12 -mt-12 group-hover:bg-amber-500/20 transition-all duration-700" />
-              <div className="relative z-10 flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20 animate-bounce">
-                  <Download className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-sm font-black text-white mb-1">حمّل التطبيق الآن</h3>
-                <p className="text-[10px] text-amber-200/70 font-bold mb-4">للحصول على أفضل تجربة تتبع وتنبيهات فورية</p>
-                <a 
-                  href={downloadUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full bg-white text-amber-600 py-3 rounded-xl font-black text-xs shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  تنزيل ملف APK المباشر
-                </a>
-              </div>
-            </motion.div>
-          )}
-
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
@@ -439,6 +413,30 @@ const LoginPage = () => {
           )}
         </motion.div>
       </main>
+
+      {/* Simple APK Download Button at Bottom */}
+      {isMobileDevice && downloadUrl && typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform() && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-8 left-0 right-0 z-50 px-6 flex justify-center pointer-events-none"
+        >
+          <a 
+            href={downloadUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="pointer-events-auto flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-2xl px-6 py-4 rounded-[20px] shadow-2xl transition-all active:scale-95 group"
+          >
+            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+              <Download className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-black text-white leading-none mb-1">حمّل التطبيق الرسمي</span>
+              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">Direct APK Download</span>
+            </div>
+          </a>
+        </motion.div>
+      )}
 
       <style jsx global>{`
         @keyframes shimmer {
