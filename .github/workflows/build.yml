@@ -164,42 +164,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Upload to Supabase Storage
-        run: |
-          APK_PATH="start-location.apk"
-          UPDATE_ZIP="update.zip"
-          
-          if [ ! -f "$APK_PATH" ]; then
-            echo "❌ CRITICAL ERROR: start-location.apk not found in artifacts!"
-            ls -R
-            exit 1
-          fi
-          
-          if [ ! -f "$UPDATE_ZIP" ]; then
-            echo "❌ CRITICAL ERROR: update.zip not found in artifacts!"
-            ls -R
-            exit 1
-          fi
-          
-          echo "🚀 Found assets for deployment:"
-          ls -lh "$APK_PATH" "$UPDATE_ZIP"
-          
-          echo "📤 Uploading update.zip..."
-          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Content-Type: application/zip" \
-            -H "x-upsert: true" \
-            --data-binary "@$UPDATE_ZIP"
-            
-          echo "📲 Uploading final APK to Supabase..."
-          curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            -H "x-upsert: true" \
-            --data-binary "@$APK_PATH"
-          
-          echo "✅ All uploads completed successfully!"
+        run: node scripts/upload-to-supabase.mjs
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
