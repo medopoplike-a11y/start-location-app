@@ -53,20 +53,45 @@ function getRelativeTime(timestamp?: number) {
 // Helper component for smooth marker movement
 function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.Icon }) {
   const markerRef = useRef<L.Marker>(null);
+  const animationRef = useRef<number>(0);
   const prevPosRef = useRef<[number, number]>([point.lat, point.lng]);
+  const targetPosRef = useRef<[number, number]>([point.lat, point.lng]);
+  const startTimeRef = useRef<number>(0);
+  const DURATION = 2000; // Match DB update interval for maximum smoothness
 
   useEffect(() => {
     if (markerRef.current) {
-      const marker = markerRef.current;
       const newPos: [number, number] = [point.lat, point.lng];
       
-      if (newPos[0] !== prevPosRef.current[0] || newPos[1] !== prevPosRef.current[1]) {
-        // Direct Leaflet DOM manipulation for ultra-smooth movement
-        // This bypasses React's render cycle for the actual coordinate change
-        marker.setLatLng(newPos);
-        prevPosRef.current = newPos;
+      if (newPos[0] !== targetPosRef.current[0] || newPos[1] !== targetPosRef.current[1]) {
+        // Start new interpolation animation
+        prevPosRef.current = [markerRef.current.getLatLng().lat, markerRef.current.getLatLng().lng];
+        targetPosRef.current = newPos;
+        startTimeRef.current = performance.now();
+
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - startTimeRef.current;
+          const progress = Math.min(elapsed / DURATION, 1);
+          
+          // Cubic easing for natural movement feel
+          const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+          if (markerRef.current) {
+            const currentLat = prevPosRef.current[0] + (targetPosRef.current[0] - prevPosRef.current[0]) * easeProgress;
+            const currentLng = prevPosRef.current[1] + (targetPosRef.current[1] - prevPosRef.current[1]) * easeProgress;
+            markerRef.current.setLatLng([currentLat, currentLng]);
+          }
+
+          if (progress < 1) {
+            animationRef.current = requestAnimationFrame(animate);
+          }
+        };
+
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = requestAnimationFrame(animate);
       }
     }
+    return () => cancelAnimationFrame(animationRef.current);
   }, [point.lat, point.lng]);
 
   const [displayTime, setRelativeTime] = useState(getRelativeTime(point.lastSeenTimestamp));

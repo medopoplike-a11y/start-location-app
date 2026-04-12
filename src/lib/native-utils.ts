@@ -362,19 +362,23 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
         if (onUpdate) onUpdate(loc);
 
         const now = Date.now();
-        // NUCLEAR SYNC: Update DB every 2 seconds for smooth tracking (V0.8.0)
-        if (now - lastSentTs < 2000) return;
+        const speed = position.coords.speed || 0;
+        // DYNAMIC GPS STREAM (V0.9.0): 
+        // 1s interval if moving fast (> 2m/s), 2s if slow, 5s if stationary
+        const dynamicInterval = speed > 2 ? 1000 : (speed > 0 ? 2000 : 5000);
+        
+        if (now - lastSentTs < dynamicInterval) return;
         lastSentTs = now;
 
-        console.log(`[NUCLEAR-SYNC] Force DB Update: ${userId}`);
+        console.log(`[ULTIMATE-STREAM] Speed: ${speed}m/s - Interval: ${dynamicInterval}ms`);
         await supabase.from('profiles').update({
           location: {
             lat: loc.lat,
             lng: loc.lng,
             heading: position.coords.heading || 0,
-            speed: position.coords.speed || 0,
+            speed: speed,
             accuracy: position.coords.accuracy || 0,
-            ts: now // Extra timestamp for Admin to track freshness
+            ts: now 
           },
           is_online: true,
           last_location_update: new Date().toISOString(),
