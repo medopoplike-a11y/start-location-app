@@ -87,8 +87,8 @@ jobs:
       working-directory: ./android
       run: |
         chmod +x gradlew
-        # Use a more stable build command without parallel workers to avoid OOM or race conditions in CI
-        ./gradlew assembleRelease --stacktrace --no-daemon --console=plain
+        # Build Release (signed or unsigned)
+        ./gradlew assembleRelease --stacktrace --no-daemon --console=plain -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
       env:
         RELEASE_STORE_FILE: release-key.keystore
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
