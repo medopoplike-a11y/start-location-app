@@ -93,18 +93,43 @@ jobs:
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
     - name: Prepare Assets for Deployment
       run: |
+        rm -rf build-out
         mkdir -p build-out
-        cp dist/update.zip build-out/update.zip
-        # Find the best APK and copy it to build-out
-        if [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-          cp android/app/build/outputs/apk/release/app-release-unsigned.apk build-out/start-location.apk
-        elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-          cp android/app/build/outputs/apk/release/app-release.apk build-out/start-location.apk
-        else
-          cp android/app/build/outputs/apk/debug/app-debug.apk build-out/start-location.apk
+        
+        # Sanity check for OTA bundle
+        if [ ! -f "dist/update.zip" ]; then
+          echo "❌ update.zip not found!"
+          exit 1
         fi
+        cp dist/update.zip build-out/update.zip
+        
+        # Find the best APK and copy it to build-out
+        # Order: Signed Release > Unsigned Release > Debug
+        if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+          APK_SRC="android/app/build/outputs/apk/release/app-release.apk"
+        elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+          APK_SRC="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+        else
+          APK_SRC="android/app/build/outputs/apk/debug/app-debug.apk"
+        fi
+        
+        if [ ! -f "$APK_SRC" ]; then
+          echo "❌ No APK found in expected paths!"
+          find android/app/build/outputs/apk -name "*.apk"
+          exit 1
+        fi
+        
+        cp "$APK_SRC" build-out/start-location.apk
+        
         echo "✅ Assets prepared in build-out/ folder:"
         ls -lh build-out/
+        
+        # Final size verification
+        APK_SIZE=$(stat -c%s "build-out/start-location.apk")
+        if [ "$APK_SIZE" -lt 1000000 ]; then
+          echo "❌ APK size is too small ($APK_SIZE bytes). Something is wrong."
+          exit 1
+        fi
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
