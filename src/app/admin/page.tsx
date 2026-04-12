@@ -132,7 +132,8 @@ function AdminContent() {
         const role = (p.role || '').toLowerCase();
         if (role !== 'driver') return false;
         
-        // Very robust location check
+        // ULTIMATE VISIBILITY: If it has coordinates, SHOW IT. 
+        // No time limits for Admin to avoid any browser clock desync issues.
         let loc = p.location;
         if (typeof loc === 'string') {
           try { loc = JSON.parse(loc); } catch { loc = null; }
@@ -152,11 +153,10 @@ function AdminContent() {
         const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
         const now = new Date();
         
-        // Robust online check: Green if updated in last 2 minutes, Yellow if last 10 mins, Gray otherwise
+        // Status dots only (visual only, doesn't hide marker)
         const diffMs = lastUpdateDate ? Math.abs(now.getTime() - lastUpdateDate.getTime()) : Infinity;
-        const isOnlineNow = diffMs < 2 * 60 * 1000; // 2 minutes for "Live" green
-        const isStale = diffMs < 15 * 60 * 1000; // 15 minutes for "Stale" yellow
-        const isVisibleOnMap = diffMs < 24 * 60 * 60 * 1000; // 24 hours fallback
+        const isOnlineNow = diffMs < 10 * 60 * 1000; // 10 mins for green dot
+        const isStale = diffMs < 60 * 60 * 1000; // 1 hour for yellow
 
         return {
           id: p.id,
@@ -164,8 +164,8 @@ function AdminContent() {
           lat: normalizedLoc.lat,
           lng: normalizedLoc.lng,
           lastSeen: lastUpdateDate && !isNaN(lastUpdateDate.getTime()) ? lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "غير متوفر",
-          is_online: (p.is_online || isOnlineNow) && isVisibleOnMap,
-          status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available') // Visually distinguish stale drivers
+          is_online: p.is_online || isOnlineNow,
+          status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available')
         };
       })
       .filter((d): d is OnlineDriver => d !== null);
@@ -358,12 +358,12 @@ function AdminContent() {
 
   const handleRefresh = useCallback(async () => {
     try {
-      localStorage.removeItem('admin_profiles');
-      localStorage.removeItem('admin_orders');
-      console.log("Admin: Cache cleared manually");
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log("Admin: ALL Cache cleared manually");
     } catch (e) {}
-    await fetchData();
-    addActivity("تم تحديث البيانات يدوياً وتفريغ الذاكرة المؤقتة");
+    await fetchData(true);
+    addActivity("تم تصفير الذاكرة وتحديث البيانات بالكامل");
   }, [fetchData, addActivity]);
 
   // 7. Auto-Dispatch Loop (Simultaneous with manual)
@@ -1032,7 +1032,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.6.6-WEB-SYNC
+                V0.6.7-HARD-SYNC
               </p>
             </div>
           </div>
