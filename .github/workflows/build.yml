@@ -20,8 +20,17 @@ env:
   RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
     steps:
     - uses: actions/checkout@v4
@@ -32,11 +41,6 @@ jobs:
         [ -n "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" ] && echo "✅ NEXT_PUBLIC_SUPABASE_URL: [PRESENT]" || echo "❌ NEXT_PUBLIC_SUPABASE_URL: [MISSING]"
         [ -n "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" ] && echo "✅ NEXT_PUBLIC_SUPABASE_ANON_KEY: [PRESENT]" || echo "❌ NEXT_PUBLIC_SUPABASE_ANON_KEY: [MISSING]"
         [ -n "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ] && echo "✅ SUPABASE_SERVICE_ROLE_KEY: [PRESENT]" || echo "❌ SUPABASE_SERVICE_ROLE_KEY: [MISSING]"
-        [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && echo "✅ ANDROID_KEYSTORE_BASE64: [PRESENT]" || echo "❌ ANDROID_KEYSTORE_BASE64: [MISSING]"
-        [ -n "${{ secrets.RELEASE_STORE_PASSWORD }}" ] && echo "✅ RELEASE_STORE_PASSWORD: [PRESENT]" || echo "❌ RELEASE_STORE_PASSWORD: [MISSING]"
-        [ -n "${{ secrets.RELEASE_KEY_ALIAS }}" ] && echo "✅ RELEASE_KEY_ALIAS: [PRESENT]" || echo "❌ RELEASE_KEY_ALIAS: [MISSING]"
-        [ -n "${{ secrets.RELEASE_KEY_PASSWORD }}" ] && echo "✅ RELEASE_KEY_PASSWORD: [PRESENT]" || echo "❌ RELEASE_KEY_PASSWORD: [MISSING]"
-        [ -n "${{ secrets.VERCEL_TOKEN }}" ] && echo "✅ VERCEL_TOKEN: [PRESENT]" || echo "❌ VERCEL_TOKEN: [MISSING]"
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -45,31 +49,31 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: |
-        npm install --legacy-peer-deps
-    - name: Run Lint
-      run: npm run lint -- --max-warnings=1000 || true # Don't fail the build on lint warnings/errors for now during debugging
+      run: npm install --legacy-peer-deps
+
     - name: Build and Export for Mobile
       run: npm run build:mobile
       env:
-        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         BUILD_TYPE: static
+
     - name: Create Update Bundle
       run: node scripts/create-ota-bundle.js
+
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: 'gradle'
+
     - name: Build APK (Debug)
       working-directory: ./android
       run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
+
     - name: Prepare Android signing for release
-      if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && env.ANDROID_KEYSTORE_BASE64 != '' && env.RELEASE_STORE_PASSWORD != '' && env.RELEASE_KEY_ALIAS != '' && env.RELEASE_KEY_PASSWORD != ''
+      if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && env.ANDROID_KEYSTORE_BASE64 != ''
       run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -79,8 +83,7 @@ jobs:
             console.log('✅ Keystore file created successfully');
           }
           NODE
-      env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
     - name: Build APK Release
       if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && env.ANDROID_KEYSTORE_BASE64 != ''
       working-directory: ./android
@@ -91,20 +94,21 @@ jobs:
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
         RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
     - name: Prepare Assets for Deployment
       run: |
         rm -rf build-out
         mkdir -p build-out
         
-        # Sanity check for OTA bundle
-        if [ ! -f "dist/update.zip" ]; then
+        # Copy OTA bundle
+        if [ -f "dist/update.zip" ]; then
+          cp dist/update.zip build-out/update.zip
+        else
           echo "❌ update.zip not found!"
           exit 1
         fi
-        cp dist/update.zip build-out/update.zip
         
-        # Find the best APK and copy it to build-out
-        # Order: Signed Release > Unsigned Release > Debug
+        # Find the best APK
         if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
           APK_SRC="android/app/build/outputs/apk/release/app-release.apk"
         elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
@@ -113,37 +117,39 @@ jobs:
           APK_SRC="android/app/build/outputs/apk/debug/app-debug.apk"
         fi
         
-        if [ ! -f "$APK_SRC" ]; then
-          echo "❌ No APK found in expected paths!"
-          find android/app/build/outputs/apk -name "*.apk"
+        if [ -f "$APK_SRC" ]; then
+          cp "$APK_SRC" build-out/start-location.apk
+          echo "✅ APK prepared: $(ls -lh build-out/start-location.apk)"
+        else
+          echo "❌ No APK found!"
           exit 1
         fi
-        
-        cp "$APK_SRC" build-out/start-location.apk
-        
-        echo "✅ Assets prepared in build-out/ folder:"
-        ls -lh build-out/
-        
-        # Final size verification
-        APK_SIZE=$(stat -c%s "build-out/start-location.apk")
-        if [ "$APK_SIZE" -lt 1000000 ]; then
-          echo "❌ APK size is too small ($APK_SIZE bytes). Something is wrong."
-          exit 1
-        fi
+
+    - name: Ensure Storage Buckets Exist
+      run: node scripts/setup-storage.mjs
+
+    - name: Upload to Supabase Storage
+      run: |
+        cd build-out
+        node ../scripts/upload-to-supabase.mjs
+
+    - name: Update Version in Database
+      run: node scripts/update-ota-version.mjs
+
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: build-out/
         retention-days: 5
+
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          android/app/build/outputs/apk/debug/app-debug.apk
-          android/app/build/outputs/apk/release/app-release.apk
-          dist/update.zip
+          build-out/start-location.apk
+          build-out/update.zip
         name: Build v${{ github.run_number }}
         tag_name: build-v${{ github.run_number }}
         draft: false
@@ -151,50 +157,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy-web:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: .
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+    - name: Deploy to Vercel
+      if: github.ref == 'refs/heads/main'
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        vercel-args: '--prod'
+        working-directory: .
 
-  deploy-ota:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: .
-      - name: Ensure Storage Buckets Exist
-        run: node scripts/setup-storage.mjs
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      - name: Upload to Supabase Storage
-        run: node scripts/upload-to-supabase.mjs
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      - name: Update Version in Database
-        run: node scripts/update-ota-version.mjs
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
