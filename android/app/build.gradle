@@ -28,10 +28,13 @@ android {
             } else if (System.getenv("RELEASE_STORE_FILE") != null && System.getenv("RELEASE_STORE_FILE") != "") {
                 // Support both relative and absolute paths from environment
                 def storeFilePath = System.getenv("RELEASE_STORE_FILE")
-                storeFile file(storeFilePath)
-                storePassword System.getenv("RELEASE_STORE_PASSWORD")
-                keyAlias System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+                def keystoreFile = file(storeFilePath)
+                if (keystoreFile.exists()) {
+                    storeFile keystoreFile
+                    storePassword System.getenv("RELEASE_STORE_PASSWORD")
+                    keyAlias System.getenv("RELEASE_KEY_ALIAS")
+                    keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+                }
             }
         }
     }
@@ -41,7 +44,11 @@ android {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (project.file('keystore.properties').exists() || (System.getenv("RELEASE_STORE_FILE") && System.getenv("RELEASE_STORE_PASSWORD") && System.getenv("RELEASE_STORE_FILE") != "")) {
+            
+            def hasKeystoreProps = project.file('keystore.properties').exists()
+            def hasEnvKeystore = System.getenv("RELEASE_STORE_FILE") != null && System.getenv("RELEASE_STORE_FILE") != "" && file(System.getenv("RELEASE_STORE_FILE")).exists()
+            
+            if (hasKeystoreProps || hasEnvKeystore) {
                 signingConfig signingConfigs.release
             }
         }

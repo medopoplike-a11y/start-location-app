@@ -63,10 +63,11 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          # Standard Release build
+          # Absolute path for keystore to avoid any ambiguity
+          export RELEASE_STORE_FILE="$(pwd)/app/release-key.keystore"
+          # Build Release
           ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=1 --console=plain -Dorg.gradle.jvmargs="-Xmx4g"
         env:
-          RELEASE_STORE_FILE: release-key.keystore
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
