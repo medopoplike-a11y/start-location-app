@@ -38,18 +38,39 @@ interface LiveMapProps {
   className?: string;
 }
 
+// Helper function for relative time
+function getRelativeTime(timestamp?: number) {
+  if (!timestamp) return "غير معروف";
+  const now = Date.now();
+  const diff = Math.floor((now - timestamp) / 1000);
+  
+  if (diff < 10) return "الآن";
+  if (diff < 60) return `منذ ${diff} ثانية`;
+  if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
+  return `منذ ${Math.floor(diff / 3600)} ساعة`;
+}
+
 // Helper component for smooth marker movement
 function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.Icon }) {
   const [position, setPosition] = useState<[number, number]>([point.lat, point.lng]);
+  const [displayTime, setRelativeTime] = useState(getRelativeTime(point.lastSeenTimestamp));
   const prevPosRef = useRef<[number, number]>([point.lat, point.lng]);
 
+  // Update position
   useEffect(() => {
     if (point.lat !== prevPosRef.current[0] || point.lng !== prevPosRef.current[1]) {
-      // Smooth interpolation for real-time feel
       setPosition([point.lat, point.lng]);
       prevPosRef.current = [point.lat, point.lng];
     }
   }, [point.lat, point.lng]);
+
+  // Update relative time ticker every 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRelativeTime(getRelativeTime(point.lastSeenTimestamp));
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [point.lastSeenTimestamp]);
 
   return (
     <Marker 
@@ -75,7 +96,7 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
           <div className="space-y-1">
             <p className="text-[10px] text-slate-500 flex items-center gap-1">
               <span className="w-1 h-1 rounded-full bg-slate-300" />
-              آخر ظهور: {point.lastSeen || "الآن"}
+              آخر ظهور: <span className="font-bold text-slate-700">{displayTime}</span>
             </p>
             {point.details && (
               <p className="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100">

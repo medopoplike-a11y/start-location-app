@@ -148,6 +148,11 @@ function AdminContent() {
           const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
           const lastUpdateTs = lastUpdateDate?.getTime() || 0;
           
+          const now = Date.now();
+          const diffMs = Math.abs(now - lastUpdateTs);
+          const isOnlineNow = diffMs < 10 * 60 * 1000; 
+          const isStale = diffMs < 60 * 60 * 1000; 
+
           // SMART OVERWRITE PROTECTION:
           // If we already have this driver in state from a REAL-TIME update, 
           // and that update is NEWER than what we just fetched from the DB, KEEP the real-time one.
@@ -156,17 +161,12 @@ function AdminContent() {
             return existing;
           }
 
-          const now = Date.now();
-          const diffMs = Math.abs(now - lastUpdateTs);
-          const isOnlineNow = diffMs < 10 * 60 * 1000; 
-          const isStale = diffMs < 60 * 60 * 1000; 
-
           return {
             id: p.id,
             name: p.full_name || "غير معروف",
             lat: normalizedLoc.lat,
             lng: normalizedLoc.lng,
-            lastSeen: lastUpdateDate ? lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "غير متوفر",
+            lastSeen: "تحديث...", // Will be handled by LiveMap ticker
             lastSeenTimestamp: lastUpdateTs,
             is_online: p.is_online || isOnlineNow,
             status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
