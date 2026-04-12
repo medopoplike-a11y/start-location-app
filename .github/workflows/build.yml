@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -36,8 +36,8 @@ jobs:
         npm install --legacy-peer-deps
     - name: Run Lint
       run: npm run lint -- --max-warnings=1000 || true # Don't fail the build on lint warnings/errors for now during debugging
-    - name: Build and Export for OTA
-      run: npm run export
+    - name: Build and Export for Mobile
+      run: npm run build:mobile
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
@@ -144,11 +144,14 @@ jobs:
             echo "❌ Error: update.zip not found!"
             exit 1
           fi
+          echo "🚀 Uploading update.zip to Supabase Storage..."
           curl -X POST "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
             --data-binary "@dist/update.zip"
+          echo "✅ Upload completed!"
       - name: Update Version in Database
         run: node scripts/update-ota-version.mjs
         env:
