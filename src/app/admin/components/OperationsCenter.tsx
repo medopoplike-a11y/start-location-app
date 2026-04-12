@@ -170,12 +170,12 @@ export default function OperationsCenter({
         {/* RIGHT COLUMN: Dynamic Content & Tab Switching */}
         <div className="flex-1 w-full space-y-6">
           
-          {/* Main Workspace Navigation (Pinned) */}
-          <div className="flex flex-wrap gap-2 p-1.5 drawer-glass rounded-2xl w-fit shadow-lg sticky top-4 z-40">
+          {/* Main Workspace Navigation (Integrated) */}
+          <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 dark:bg-slate-900/50 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 z-40">
             <button 
               onClick={() => setActiveTab("map")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "map" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
+                activeTab === "map" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
               }`}
             >
               <Radio className={`w-4 h-4 ${activeTab === "map" ? "text-white" : ""}`} />
@@ -184,7 +184,7 @@ export default function OperationsCenter({
             <button 
               onClick={() => setActiveTab("monitor")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "monitor" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
+                activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
               }`}
             >
               <ListFilter className="w-4 h-4" />
@@ -193,18 +193,18 @@ export default function OperationsCenter({
             <button 
               onClick={() => setActiveTab("distribution")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "distribution" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
+                activeTab === "distribution" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
               }`}
             >
               <Truck className="w-4 h-4" />
               التوزيع اليدوي {pendingOrdersCount > 0 && (
-                <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-pulse">{pendingOrdersCount}</span>
+                <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">{pendingOrdersCount}</span>
               )}
             </button>
             <button 
               onClick={() => setActiveTab("system")}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "system" ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
+                activeTab === "system" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
               }`}
             >
               <Settings className="w-4 h-4" />
@@ -217,10 +217,10 @@ export default function OperationsCenter({
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.02 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: "linear" }}
               >
                 {activeTab === "map" && (
                   <div className="glass-panel rounded-[40px] shadow-xl overflow-hidden h-[650px] relative border-none">
