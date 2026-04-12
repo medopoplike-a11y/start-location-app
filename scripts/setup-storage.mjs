@@ -55,10 +55,10 @@ async function setupStorage() {
       console.log('ℹ️ حاوية "invoices" موجودة بالفعل.');
     }
 
-    // 3. Ensure 'app-updates' bucket exists
+    // 2. Ensure 'app-updates' bucket exists and is PUBLIC
     const appUpdatesBucket = buckets.find(b => b.name === 'app-updates');
     if (!appUpdatesBucket) {
-      console.log('📁 جاري إنشاء حاوية "app-updates"...');
+      console.log('📁 جاري إنشاء حاوية "app-updates" عامة...');
       const createResponse = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
         method: 'POST',
         headers: {
@@ -80,7 +80,21 @@ async function setupStorage() {
         console.log('✅ تم إنشاء حاوية "app-updates" بنجاح.');
       }
     } else {
-      console.log('ℹ️ حاوية "app-updates" موجودة بالفعل.');
+      console.log('ℹ️ حاوية "app-updates" موجودة، جاري التأكد من أنها عامة...');
+      // Update existing bucket to be public just in case
+      await fetch(`${supabaseUrl}/storage/v1/bucket/app-updates`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'apikey': serviceRoleKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          public: true,
+          file_size_limit: 52428800
+        })
+      });
+      console.log('✅ تم تحديث الحاوية لتكون عامة (Public).');
     }
 
     console.log('🚀 تم الانتهاء من إعداد مساحة التخزين.');
