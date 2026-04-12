@@ -42,14 +42,16 @@ export default function RootLayout({
                   });
                 }
                 // Force reload if we find a version mismatch in localStorage
-                const currentVersion = "${process.env.GITHUB_RUN_ID || Date.now()}";
+                const currentVersion = "V0.6.9-FINAL-SYNC";
                 const storedVersion = localStorage.getItem('app_version');
                 if (storedVersion && storedVersion !== currentVersion) {
                   localStorage.setItem('app_version', currentVersion);
                   console.log('Version mismatch detected, clearing storage and reloading...');
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  window.location.reload(true);
+                  if (typeof window !== 'undefined') {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.reload();
+                  }
                 } else {
                   localStorage.setItem('app_version', currentVersion);
                 }
