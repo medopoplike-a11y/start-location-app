@@ -73,8 +73,9 @@ jobs:
       run: |
         if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
           mkdir -p android/app
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release-key.keystore
-          echo "✅ Keystore file created"
+          # Use Node.js to decode base64 for better cross-platform reliability
+          node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
+          echo "✅ Keystore file created using Node.js"
         else
           echo "⚠️ No Keystore found, building unsigned"
         fi
