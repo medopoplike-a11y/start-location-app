@@ -150,12 +150,14 @@ function AdminContent() {
           
           const now = Date.now();
           const diffMs = Math.abs(now - lastUpdateTs);
+          
+          // CLEANUP LOGIC: If data is older than 12 hours, don't show on map at all
+          if (diffMs > 12 * 60 * 60 * 1000) return null;
+
           const isOnlineNow = diffMs < 10 * 60 * 1000; 
           const isStale = diffMs < 60 * 60 * 1000; 
 
           // SMART OVERWRITE PROTECTION:
-          // If we already have this driver in state from a REAL-TIME update, 
-          // and that update is NEWER than what we just fetched from the DB, KEEP the real-time one.
           const existing = prev.find(d => d.id === p.id);
           if (existing && existing.lastSeenTimestamp && lastUpdateTs < existing.lastSeenTimestamp) {
             return existing;
@@ -166,7 +168,7 @@ function AdminContent() {
             name: p.full_name || "غير معروف",
             lat: normalizedLoc.lat,
             lng: normalizedLoc.lng,
-            lastSeen: "تحديث...", // Will be handled by LiveMap ticker
+            lastSeen: "تحديث...",
             lastSeenTimestamp: lastUpdateTs,
             is_online: p.is_online || isOnlineNow,
             status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
