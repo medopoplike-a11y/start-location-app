@@ -52,17 +52,24 @@ function getRelativeTime(timestamp?: number) {
 
 // Helper component for smooth marker movement
 function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.Icon }) {
-  const [position, setPosition] = useState<[number, number]>([point.lat, point.lng]);
-  const [displayTime, setRelativeTime] = useState(getRelativeTime(point.lastSeenTimestamp));
+  const markerRef = useRef<L.Marker>(null);
   const prevPosRef = useRef<[number, number]>([point.lat, point.lng]);
 
-  // Update position
   useEffect(() => {
-    if (point.lat !== prevPosRef.current[0] || point.lng !== prevPosRef.current[1]) {
-      setPosition([point.lat, point.lng]);
-      prevPosRef.current = [point.lat, point.lng];
+    if (markerRef.current) {
+      const marker = markerRef.current;
+      const newPos: [number, number] = [point.lat, point.lng];
+      
+      if (newPos[0] !== prevPosRef.current[0] || newPos[1] !== prevPosRef.current[1]) {
+        // Direct Leaflet DOM manipulation for ultra-smooth movement
+        // This bypasses React's render cycle for the actual coordinate change
+        marker.setLatLng(newPos);
+        prevPosRef.current = newPos;
+      }
     }
   }, [point.lat, point.lng]);
+
+  const [displayTime, setRelativeTime] = useState(getRelativeTime(point.lastSeenTimestamp));
 
   // Update relative time ticker every 5 seconds
   useEffect(() => {
@@ -74,7 +81,8 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
 
   return (
     <Marker 
-      position={position} 
+      ref={markerRef}
+      position={[point.lat, point.lng]} 
       icon={icon}
       zIndexOffset={1000}
     >
