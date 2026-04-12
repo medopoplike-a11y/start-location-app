@@ -3,12 +3,7 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-/**
- * Next.js static export build for Capacitor.
- */
+// Next.js static export build for Capacitor.
 
 const root = process.cwd();
 const appDir = path.join(root, "src", "app");

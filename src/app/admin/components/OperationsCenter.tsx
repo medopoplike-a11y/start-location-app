@@ -11,11 +11,6 @@ import {
   AlertTriangle,
   ListFilter,
   Monitor,
-  ShieldCheck,
-  UserCog,
-  Mail,
-  Phone,
-  Lock,
   Trash2,
   Star,
   Eye

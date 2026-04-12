@@ -18,7 +18,7 @@ async function runSetup() {
   try {
     console.log('🚀 البدء في تهيئة قاعدة البيانات...');
     const sqlPath = path.join(__dirname, '..', 'lib', 'db-setup-complete.sql');
-    const _sql = fs.readFileSync(sqlPath, 'utf8');
+    fs.readFileSync(sqlPath, 'utf8');
 
     // ملاحظة: supabase.rpc() تستخدم لتنفيذ دوال مخزنة، ولكن لتنفيذ SQL خام سنحاول استخدام واجهة REST إذا كانت مفعلة
     // أو سنقوم بتقسيم السكريبت وتنفيذه (هذه الطريقة قد تكون محدودة حسب إعدادات سوبابيز)
@@ -26,7 +26,7 @@ async function runSetup() {
     console.log('⚠️ محاولة تنفيذ السكريبت عبر API الإداري...');
     
     // محاولة تنفيذ استعلام تجريبي للتأكد من الاتصال
-    const { data: _testData, error: testError } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+    const { error: testError } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
     
     if (testError && testError.code === 'PGRST116') {
         console.log('✅ الجدول profiles غير موجود، سنبدأ بإنشائه...');

@@ -19,7 +19,7 @@ async function setupStorage() {
     
     if (!bucketExists) {
       console.log('📁 جاري إنشاء حاوية "invoices"...');
-      const { data: _data, error: createError } = await supabase.storage.createBucket('invoices', {
+      const { error: createError } = await supabase.storage.createBucket('invoices', {
         public: true,
         allowedMimeTypes: ['image/jpeg', 'image/png'],
         fileSizeLimit: 5242880 // 5MB
