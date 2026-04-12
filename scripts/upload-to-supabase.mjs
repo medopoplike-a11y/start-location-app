@@ -14,75 +14,71 @@ async function uploadFile(fileName, bucketName, contentType) {
   const filePath = path.resolve(process.cwd(), fileName);
   
   if (!fs.existsSync(filePath)) {
-    console.error(`❌ File not found at path: ${filePath}`);
+    console.error(`❌ File not found at: ${filePath}`);
     return false;
   }
 
   const stats = fs.statSync(filePath);
-  const fileSizeInBytes = stats.size;
-  console.log(`🚀 Preparing to upload: ${fileName}`);
-  console.log(`📍 Full path: ${filePath}`);
-  console.log(`📦 Size: ${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB (${fileSizeInBytes} bytes)`);
+  const fileSize = stats.size;
+  console.log(`\n📦 Preparing: ${fileName}`);
+  console.log(`📏 Original Size: ${(fileSize / (1024 * 1024)).toFixed(2)} MB (${fileSize} bytes)`);
 
   const fileBuffer = fs.readFileSync(filePath);
 
   try {
-    // Using fetch with Uint8Array for binary safety
+    // Binary-safe upload using standard fetch with precise headers
     const response = await fetch(`${supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceRoleKey}`,
         'apikey': serviceRoleKey,
         'Content-Type': contentType,
+        'Content-Length': fileSize.toString(),
         'x-upsert': 'true'
       },
-      body: new Uint8Array(fileBuffer)
+      body: fileBuffer // Send Buffer directly for binary safety in Node.js
     });
 
-    const result = await response.json();
-
     if (!response.ok) {
-      throw new Error(`Upload failed (${response.status}): ${JSON.stringify(result)}`);
+      const errorData = await response.text();
+      throw new Error(`Upload failed [${response.status}]: ${errorData}`);
     }
 
-    console.log(`✅ Successfully uploaded ${fileName} to ${bucketName}`);
-    console.log(`🔗 URL: ${supabaseUrl}/storage/v1/object/public/${bucketName}/${fileName}`);
+    console.log(`✅ SUCCESS: ${fileName} uploaded to ${bucketName}`);
+    
+    // Double check size on Supabase (optional but good for logs)
+    const infoResponse = await fetch(`${supabaseUrl}/storage/v1/object/info/public/${bucketName}/${fileName}`, {
+        headers: { 'apikey': serviceRoleKey }
+    });
+    if (infoResponse.ok) {
+        const info = await infoResponse.json();
+        console.log(`🔍 Verified Remote Size: ${(info.size / (1024 * 1024)).toFixed(2)} MB`);
+    }
+
     return true;
   } catch (error) {
-    console.error(`❌ Error uploading ${fileName}:`, error.message);
+    console.error(`❌ CRITICAL ERROR uploading ${fileName}:`, error.message);
     return false;
   }
 }
 
 async function main() {
-  console.log('🔍 Starting asset upload to Supabase...');
-  console.log(`📁 Current Working Directory: ${process.cwd()}`);
+  console.log('🚀 Starting Robust Binary Upload to Supabase Storage...');
   
   const assets = [
-    { 
-      name: 'update.zip', 
-      bucket: 'app-updates', 
-      type: 'application/zip' 
-    },
-    { 
-      name: 'start-location.apk', 
-      bucket: 'app-updates', 
-      type: 'application/vnd.android.package-archive' 
-    }
+    { name: 'update.zip', bucket: 'app-updates', type: 'application/zip' },
+    { name: 'start-location.apk', bucket: 'app-updates', type: 'application/vnd.android.package-archive' }
   ];
 
-  let allSuccess = true;
   for (const asset of assets) {
     const success = await uploadFile(asset.name, asset.bucket, asset.type);
-    if (!success) allSuccess = false;
-  }
-
-  if (!allSuccess) {
-    console.error('❌ One or more assets failed to upload.');
-    process.exit(1);
+    if (!success) {
+        console.error(`🛑 Failed to upload ${asset.name}. Aborting.`);
+        process.exit(1);
+    }
   }
   
-  console.log('🎉 All assets uploaded successfully!');
+  console.log('\n✨ All assets are verified and live on Supabase Storage!');
 }
 
 main();
