@@ -127,41 +127,53 @@ export default function DriverApp() {
     let bgId: string | null = null;
     let fgId: string | null = null;
 
-    if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
-      KeepAwake.keepAwake().catch(() => {});
-      
-      // Start background tracking if online
-      if (driverId) {
-        startBackgroundTracking(driverId).then(id => {
-          if (id) {
-            bgId = id;
-            backgroundWatcherRef.current = id;
-          }
-        }).catch(err => console.error("Background tracking failed:", err));
+    const startTracking = async () => {
+      if (isActive && typeof window !== 'undefined' && Capacitor.isNativePlatform() && driverId) {
+        try {
+          // Prevent multiple starts
+          if (backgroundWatcherRef.current || foregroundWatcherRef.current) return;
 
-        // Start rapid foreground tracking if online
-        startForegroundTracking(driverId, (loc) => {
-          setDriverLocation(loc);
-        }).then(id => {
-          if (id) {
-            fgId = id;
-            foregroundWatcherRef.current = id;
+          await KeepAwake.keepAwake().catch(() => {});
+          
+          // Start background tracking if online
+          const bId = await startBackgroundTracking(driverId);
+          if (bId) {
+            bgId = bId;
+            backgroundWatcherRef.current = bId;
           }
-        }).catch(err => console.error("Foreground tracking failed:", err));
+
+          // Start rapid foreground tracking if online
+          const fId = await startForegroundTracking(driverId, (loc) => {
+            setDriverLocation(loc);
+          });
+          if (fId) {
+            fgId = fId;
+            foregroundWatcherRef.current = fId;
+          }
+        } catch (err) {
+          console.error("Tracking sequence failed:", err);
+        }
       }
-    }
+    };
+
+    startTracking();
 
     return () => {
       if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
         KeepAwake.allowSleep().catch(() => {});
-        if (bgId) {
-          stopBackgroundTracking(bgId).catch(() => {});
-        }
-        if (fgId) {
-          stopForegroundTracking(fgId).catch(() => {});
-        }
-        backgroundWatcherRef.current = null;
-        foregroundWatcherRef.current = null;
+        
+        const stopTracking = async () => {
+          if (backgroundWatcherRef.current) {
+            await stopBackgroundTracking(backgroundWatcherRef.current).catch(() => {});
+            backgroundWatcherRef.current = null;
+          }
+          if (foregroundWatcherRef.current) {
+            await stopForegroundTracking(foregroundWatcherRef.current).catch(() => {});
+            foregroundWatcherRef.current = null;
+          }
+        };
+        
+        stopTracking();
       }
     };
   }, [isActive, driverId]);

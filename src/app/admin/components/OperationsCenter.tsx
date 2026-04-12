@@ -281,12 +281,17 @@ export default function OperationsCenter({
                 )}
                 {activeTab === "system" && (
                   <SystemControlView
+                    autoRetryEnabled={autoRetryEnabled}
                     maintenanceMode={maintenanceMode}
+                    drivers={drivers}
+                    actionLoading={actionLoading}
+                    onToggleAutoRetry={onToggleAutoRetry}
                     onToggleMaintenance={onToggleMaintenance}
                     onLockAllDrivers={onLockAllDrivers}
                     onUnlockAllDrivers={onUnlockAllDrivers}
                     onGlobalReset={onGlobalReset}
                     onBroadcastMessage={onBroadcastMessage}
+                    onRefresh={onRefresh}
                   />
                 )}
               </motion.div>

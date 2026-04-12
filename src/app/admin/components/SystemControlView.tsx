@@ -24,22 +24,24 @@ interface SystemControlViewProps {
 }
 
 export default function SystemControlView({
-  autoRetryEnabled,
-  maintenanceMode,
-  drivers,
-  actionLoading,
-  onToggleAutoRetry,
-  onToggleMaintenance,
-  onLockAllDrivers,
-  onUnlockAllDrivers,
-  onGlobalReset,
-  onRefresh,
-  onBroadcastMessage,
+  autoRetryEnabled = false,
+  maintenanceMode = false,
+  drivers = [],
+  actionLoading = false,
+  onToggleAutoRetry = () => {},
+  onToggleMaintenance = () => {},
+  onLockAllDrivers = () => {},
+  onUnlockAllDrivers = () => {},
+  onGlobalReset = () => {},
+  onRefresh = () => {},
+  onBroadcastMessage = () => {},
 }: SystemControlViewProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [broadcastText, setBroadcastText] = useState("");
-  const activeDrivers = drivers.filter(d => !d.isShiftLocked);
-  const lockedDrivers = drivers.filter(d => d.isShiftLocked);
+  
+  // Safe filtering with fallback to empty array
+  const activeDrivers = (drivers || []).filter(d => d && !d.isShiftLocked);
+  const lockedDrivers = (drivers || []).filter(d => d && d.isShiftLocked);
 
   return (
     <div className="space-y-6">

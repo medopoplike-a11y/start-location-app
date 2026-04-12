@@ -27,10 +27,10 @@ export default function WelcomePage() {
   };
 
   useEffect(() => {
-    // Sequence of artistic phases
+    // Sequence of artistic phases with professional timing
     const timers = [
-      setTimeout(() => setPhase("greeting"), 1200),
-      setTimeout(() => setPhase("syncing"), 3500),
+      setTimeout(() => setPhase("greeting"), 1500),
+      setTimeout(() => setPhase("syncing"), 4500),
       setTimeout(() => {
         setPhase("final");
         if (user) {
@@ -39,7 +39,7 @@ export default function WelcomePage() {
         } else {
           router.replace("/login");
         }
-      }, 5500)
+      }, 7500)
     ];
 
     return () => timers.forEach(clearTimeout);
