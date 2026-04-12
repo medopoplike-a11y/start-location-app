@@ -63,7 +63,7 @@ jobs:
         name: build-artifacts
         path: |
           dist/update.zip
-          android/app/build/outputs/apk/**/*.apk
+          android/app/build/outputs/apk/
         retention-days: 5
     - name: Set up JDK
       uses: actions/setup-java@v4
