@@ -62,6 +62,9 @@ jobs:
     - name: Create ZIP Bundle
       run: node scripts/create-ota-bundle.js
 
+    - name: Sync to Capacitor
+      run: npx cap sync android
+
     - name: Build APK (Debug)
       working-directory: ./android
       run: ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
