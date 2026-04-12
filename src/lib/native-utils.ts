@@ -351,9 +351,9 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
 
     const watchId = await Geolocation.watchPosition(
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0 // Force fresh location
+        enableHighAccuracy: true, // MANDATORY for real-world precision
+        timeout: 5000,           // Fast timeout to catch movement
+        maximumAge: 0            // DO NOT USE CACHED LOCATION
       },
       async (position, error) => {
         if (error || !position) return;

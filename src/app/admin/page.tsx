@@ -438,52 +438,54 @@ function AdminContent() {
         const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || '').toLowerCase();
         
         if (role === 'driver') {
-          // 1. Parse Location with extreme robustness (ULTRA-SYNC V0.7.0)
+          // 1. Parse Location with extreme robustness (ULTRA-PRECISION V0.7.3)
           let loc = p.location;
           if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
           
           setOnlineDrivers(prev => {
             const existing = prev.find(d => d.id === p.id);
             
-            // 2. Immediate Location Update Logic
-            // If the payload has a location, we MUST use it. 
-            // If it doesn't, we fallback to existing state to avoid marker disappearance.
-            const hasPayloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null;
+            // 2. RAW GPS PRIORITY:
+            // Always prefer payload location. If payload location is missing, 
+            // only then fallback to existing state.
+            const hasPayloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null && (loc as any).lat !== 0;
             const finalLoc = hasPayloadLoc ? loc : (existing ? { lat: existing.lat, lng: existing.lng } : null);
 
             if (!finalLoc || (finalLoc as any).lat == null) return prev;
 
             const lastUpdateVal = p.last_location_update || p.updated_at || new Date().toISOString();
             const lastUpdateDate = new Date(lastUpdateVal);
+            const lastUpdateTs = lastUpdateDate.getTime();
             const now = Date.now();
             
-            // Logic for status dots (Green = Active, Yellow = Stale)
-            const diffMs = Math.abs(now - lastUpdateDate.getTime());
-            const isOnlineNow = diffMs < 10 * 60 * 1000; // 10 mins for green
-            const isStale = diffMs < 60 * 60 * 1000; // 1 hour for yellow
+            // RELATIVE TIME LOGIC (SYNCED WITH MOBILE)
+            const diffSeconds = Math.floor(Math.abs(now - lastUpdateTs) / 1000);
+            let relativeTime = "الآن";
+            if (diffSeconds > 5 && diffSeconds < 60) relativeTime = `منذ ${diffSeconds} ثانية`;
+            else if (diffSeconds >= 60) relativeTime = `منذ ${Math.floor(diffSeconds / 60)} دقيقة`;
 
             const updatedDriver: OnlineDriver = {
               id: p.id,
               name: p.full_name || existing?.name || existingProfile?.full_name || "كابتن",
               lat: (finalLoc as any).lat,
               lng: (finalLoc as any).lng,
-              lastSeen: lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              lastSeenTimestamp: now, // Important: Use current time for real-time updates
-              is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : isOnlineNow),
-              status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
+              lastSeen: relativeTime,
+              lastSeenTimestamp: now, // Use current clock for ticker sync
+              is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : (diffSeconds < 600)),
+              status: diffSeconds < 600 ? 'available' : 'busy',
               rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)
             };
 
-            // Optimization: Only skip update if ABSOLUTELY no change to avoid visual lag
-            if (existing && 
-                Math.abs(existing.lat - updatedDriver.lat) < 0.0000001 && 
-                Math.abs(existing.lng - updatedDriver.lng) < 0.0000001 && 
-                existing.is_online === updatedDriver.is_online &&
-                existing.status === updatedDriver.status) {
+            // NO CACHING: If coordinates changed even by a tiny fraction, we MUST update.
+            const posChanged = !existing || 
+                               Math.abs(existing.lat - updatedDriver.lat) > 0.00000001 || 
+                               Math.abs(existing.lng - updatedDriver.lng) > 0.00000001;
+
+            if (!posChanged && existing && existing.is_online === updatedDriver.is_online && existing.status === updatedDriver.status) {
               return prev;
             }
 
-            console.log(`[ULTRA-SYNC] Moving Driver: ${updatedDriver.name} to ${updatedDriver.lat}, ${updatedDriver.lng}`);
+            console.log(`[PRECISION-SYNC] Driver ${updatedDriver.name} at ${updatedDriver.lat}, ${updatedDriver.lng}`);
 
             if (existing) return prev.map(d => d.id === p.id ? updatedDriver : d);
             return [...prev, updatedDriver];
