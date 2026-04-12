@@ -20,13 +20,11 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
       - name: Static Export
-        run: npm run build:mobile
+        run: npm run export
         env:
           BUILD_TYPE: static
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      - name: Sync with Capacitor
-        run: npx cap copy android
       - name: Create Update Bundle
         run: node scripts/create-ota-bundle.js
       - name: Upload Web Assets
@@ -34,8 +32,8 @@ jobs:
         with:
           name: web-assets
           path: |
+            out/
             dist/
-            android/app/src/main/assets/public/
 
   # 2. Build Android APK
   build-android:
@@ -48,6 +46,15 @@ jobs:
         with:
           name: web-assets
           path: .
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Sync with Capacitor
+        run: npx cap sync android
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -92,6 +99,7 @@ jobs:
   # 3. Deploy Assets
   deploy:
     needs: [build-web, build-android]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -127,3 +135,4 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
