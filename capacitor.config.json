@@ -13,7 +13,7 @@
   "android": {
     "allowMixedContent": false,
     "captureInput": true,
-    "backgroundColor": "#0f172a",
+    "backgroundColor": "#020617",
     "buildOptions": {
       "releaseType": "APK"
     }
@@ -42,7 +42,7 @@
     "SplashScreen": {
       "launchShowDuration": 3000,
       "launchAutoHide": false,
-      "backgroundColor": "#f8fafc",
+      "backgroundColor": "#020617",
       "androidScaleType": "CENTER_CROP",
       "showSpinner": true,
       "androidSpinnerStyle": "large",

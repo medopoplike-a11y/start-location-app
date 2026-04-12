@@ -5,7 +5,12 @@
     android:viewportHeight="140"
     android:viewportWidth="108">
     
-    <!-- Blue Pin Body -->
+    <!-- Outer Luxury Glow (Subtle Blue Halo) -->
+    <path
+        android:pathData="M54 12C32.67 12 16 28.67 16 50C16 67 54 133 54 133C54 133 92 67 92 50C92 28.67 75.33 12 54 12Z"
+        android:fillColor="#1A3B82F6"/> <!-- 10% opacity blue -->
+    
+    <!-- Main Blue Pin Body -->
     <path
         android:pathData="M54 15C34.67 15 19 30.67 19 50C19 65 54 130 54 130C54 130 89 65 89 50C89 30.67 73.33 15 54 15Z">
         <aapt:attr name="android:fillColor">
@@ -21,7 +26,7 @@
         </aapt:attr>
     </path>
     
-    <!-- Red Inner Pin -->
+    <!-- Red Inner Pin (Luxury Highlight) -->
     <path
         android:pathData="M54 30C42.95 30 34 38.95 34 50C34 58 54 95 54 95C54 95 74 58 74 50C74 38.95 65.05 30 54 30Z">
         <aapt:attr name="android:fillColor">
@@ -37,7 +42,7 @@
         </aapt:attr>
     </path>
     
-    <!-- Yellow Center Pin -->
+    <!-- Yellow Center Core -->
     <path
         android:pathData="M54 45C51.24 45 49 47.24 49 50C49 52 54 65 54 65C54 65 59 52 59 50C59 47.24 56.76 45 54 45Z">
         <aapt:attr name="android:fillColor">
@@ -53,7 +58,7 @@
         </aapt:attr>
     </path>
     
-    <!-- White Inner Circle -->
+    <!-- White Glow Center Point -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M54,50m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0"/>
