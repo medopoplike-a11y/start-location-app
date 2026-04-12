@@ -128,36 +128,30 @@ function AdminContent() {
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
   const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
     setOnlineDrivers(prev => {
-      const updatedDrivers = profiles
-        .filter((p) => {
-          const role = (p.role || '').toLowerCase();
-          if (role !== 'driver') return false;
-          
-          let loc = p.location;
-          if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-          return loc && typeof loc === 'object' && (loc as any).lat != null && (loc as any).lng != null;
-        })
+      const driversFromDb = profiles
+        .filter((p) => (p.role || '').toLowerCase() === 'driver')
         .map((p) => {
           let loc = p.location;
-          if (typeof loc === 'string') { try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; } }
+          if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
           const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
           
-          if (!normalizedLoc?.lat || !normalizedLoc?.lng) return null;
-
           const lastUpdateStr = p.last_location_update || p.updated_at;
           const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
           const lastUpdateTs = lastUpdateDate?.getTime() || 0;
-          
           const now = Date.now();
           const diffMs = Math.abs(now - lastUpdateTs);
           
-          // CLEANUP LOGIC: If data is older than 12 hours, don't show on map at all
-          if (diffMs > 12 * 60 * 60 * 1000) return null;
+          // HARMONY LOGIC: 
+          // Show on map if: 
+          // 1. Has coordinates AND (Is Online OR updated in last 24h)
+          const hasCoords = normalizedLoc?.lat != null && normalizedLoc?.lng != null;
+          const isRecent = diffMs < 24 * 60 * 60 * 1000;
+          const shouldShow = hasCoords && (p.is_online || isRecent);
 
-          const isOnlineNow = diffMs < 10 * 60 * 1000; 
-          const isStale = diffMs < 60 * 60 * 1000; 
+          if (!shouldShow) return null;
 
-          // SMART OVERWRITE PROTECTION:
+          // PROTECT REAL-TIME UPDATES: 
+          // If we have a newer real-time update in state, don't overwrite with DB data
           const existing = prev.find(d => d.id === p.id);
           if (existing && existing.lastSeenTimestamp && lastUpdateTs < existing.lastSeenTimestamp) {
             return existing;
@@ -166,18 +160,19 @@ function AdminContent() {
           return {
             id: p.id,
             name: p.full_name || "غير معروف",
-            lat: normalizedLoc.lat,
-            lng: normalizedLoc.lng,
+            lat: normalizedLoc!.lat,
+            lng: normalizedLoc!.lng,
             lastSeen: "تحديث...",
             lastSeenTimestamp: lastUpdateTs,
-            is_online: p.is_online || isOnlineNow,
-            status: isOnlineNow ? 'available' : (isStale ? 'busy' : 'available'),
+            is_online: p.is_online,
+            status: p.is_online ? 'available' : 'busy',
             rating: p.rating || 0
           } as OnlineDriver;
         })
         .filter((d): d is OnlineDriver => d !== null);
       
-      return updatedDrivers;
+      // Merge: Keep all from DB, but prioritize existing real-time ones
+      return driversFromDb;
     });
     
     const users = profiles.map((u) => ({
@@ -1023,7 +1018,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.0-ULTIMATE-STREAM
+                V0.9.1-ULTIMATE-HARMONY
               </p>
             </div>
           </div>
