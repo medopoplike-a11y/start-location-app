@@ -153,10 +153,12 @@ jobs:
           path: .
       - name: Upload to Supabase Storage
         run: |
-          if [ ! -f "dist/update.zip" ]; then
-            echo "❌ Error: update.zip not found!"
-            exit 1
+          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+          else
+            APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
           fi
+          
           echo "🚀 Uploading update.zip to Supabase Storage..."
           curl -X POST "${{ env.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/update.zip" \
             -H "Authorization: Bearer ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
@@ -164,7 +166,15 @@ jobs:
             -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
             --data-binary "@dist/update.zip"
-          echo "✅ Upload completed!"
+            
+          echo "📲 Uploading APK to Supabase Storage..."
+          curl -X POST "${{ env.NEXT_PUBLIC_SUPABASE_URL }}/storage/v1/object/app-updates/start-location.apk" \
+            -H "Authorization: Bearer ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            -H "x-upsert: true" \
+            --data-binary "@$APK_PATH"
+          echo "✅ All uploads completed!"
       - name: Update Version in Database
         run: node scripts/update-ota-version.mjs
         env:
