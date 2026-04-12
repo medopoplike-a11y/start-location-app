@@ -57,14 +57,6 @@ jobs:
         BUILD_TYPE: static
     - name: Create Update Bundle
       run: node scripts/create-ota-bundle.js
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: |
-          dist/update.zip
-          dist/apk/*.apk
-        retention-days: 5
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
@@ -76,12 +68,6 @@ jobs:
       run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
-    - name: Prepare APK for Artifacts
-      run: |
-        mkdir -p dist/apk
-        find android/app/build/outputs/apk -name "*.apk" -exec cp {} dist/apk/ \;
-        echo "✅ APK files copied to dist/apk/"
-        ls -lh dist/apk/
     - name: Prepare Android signing for release
       if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && env.ANDROID_KEYSTORE_BASE64 != '' && env.RELEASE_STORE_PASSWORD != '' && env.RELEASE_KEY_ALIAS != '' && env.RELEASE_KEY_PASSWORD != ''
       run: |
@@ -105,6 +91,20 @@ jobs:
         RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
         RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+    - name: Prepare APK for Artifacts
+      run: |
+        mkdir -p dist/apk
+        find android/app/build/outputs/apk -name "*.apk" -exec cp {} dist/apk/ \;
+        echo "✅ APK files copied to dist/apk/"
+        ls -lh dist/apk/
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          dist/update.zip
+          dist/apk/*.apk
+        retention-days: 5
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
