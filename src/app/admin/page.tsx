@@ -429,25 +429,35 @@ function AdminContent() {
         const p = payload.new;
         
         // Find if this is a driver (either from payload or from our existing state)
-        // If role is missing in payload (common in updates), we check our existing states
+        // CRITICAL FIX: If role is missing in payload, check ALL possible states to identify the user
         const existingProfile = allUsers.find(u => u.id === p.id);
         const existingDriver = onlineDrivers.find(d => d.id === p.id);
-        const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || '').toLowerCase();
+        const existingVendor = vendors.find(v => v.id_full === p.id);
+        
+        const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || (existingVendor ? 'vendor' : '') || '').toLowerCase();
         
         if (role === 'driver') {
-          // 1. Parse Location with extreme robustness (ULTRA-PRECISION V0.7.3)
+          // 1. Parse Location with extreme robustness (ULTRA-PRECISION V0.9.5)
           let loc = p.location;
           if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
           
           setOnlineDrivers(prev => {
             const existing = prev.find(d => d.id === p.id);
             
-            // 2. RAW GPS PRIORITY (V0.8.0 - NO FALLBACK)
-            const payloadLoc = loc && typeof loc === 'object' ? loc : null;
-            if (!payloadLoc || (payloadLoc as any).lat == null) return prev;
+            // 2. RAW GPS PRIORITY (V0.9.5 - ZERO LAG)
+            // If the payload has a location, we MUST use it. 
+            // We ignore all existing data if payload has new coordinates.
+            const payloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null ? loc : null;
+            
+            if (!payloadLoc && !existing) return prev; // Can't create new driver without location
+
+            const finalLat = payloadLoc ? (payloadLoc as any).lat : (existing?.lat);
+            const finalLng = payloadLoc ? (payloadLoc as any).lng : (existing?.lng);
+
+            if (finalLat == null || finalLng == null) return prev;
 
             const now = Date.now();
-            const lastUpdateTs = (payloadLoc as any).ts || now;
+            const lastUpdateTs = (payloadLoc as any)?.ts || now;
             
             const diffSeconds = Math.floor(Math.abs(now - lastUpdateTs) / 1000);
             let relativeTime = "الآن";
@@ -456,16 +466,18 @@ function AdminContent() {
             const updatedDriver: OnlineDriver = {
               id: p.id,
               name: p.full_name || existing?.name || existingProfile?.full_name || "كابتن",
-              lat: (payloadLoc as any).lat,
-              lng: (payloadLoc as any).lng,
+              lat: finalLat,
+              lng: finalLng,
               lastSeen: relativeTime,
               lastSeenTimestamp: now, 
-              is_online: p.is_online !== undefined ? p.is_online : true,
-              status: (payloadLoc as any).speed > 0 ? 'busy' : 'available',
-              rating: p.rating || existing?.rating || 0
+              is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : true),
+              status: (payloadLoc as any)?.speed > 0 ? 'busy' : (existing?.status || 'available'),
+              rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)
             };
 
             // Force update on every payload to ensure map reflects real movement
+            console.log(`[REALTIME-SYNC] Moving ${updatedDriver.name} to ${updatedDriver.lat}, ${updatedDriver.lng}`);
+            
             if (existing) return prev.map(d => d.id === p.id ? updatedDriver : d);
             return [...prev, updatedDriver];
           });
@@ -1018,7 +1030,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.1-ULTIMATE-HARMONY
+                V0.9.5-ULTIMATE-BEAST
               </p>
             </div>
           </div>
