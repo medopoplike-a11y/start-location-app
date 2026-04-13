@@ -275,7 +275,7 @@ export const startBackgroundTracking = async (userId: string) => {
           backgroundTitle: "تطبيق ستارت نشط",
           requestPermissions: true,
           staleLocationInterval: 10000,
-          distanceFilter: 5
+          distanceFilter: 2 // Reduced from 5 to 2 meters for more precise tracking
         },
         async (location: any, error: any) => {
           if (error) {

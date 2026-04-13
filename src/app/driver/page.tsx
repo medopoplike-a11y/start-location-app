@@ -150,6 +150,7 @@ export default function DriverApp() {
         if (!isMounted) return;
 
         // 3. Foreground Tracking (Geolocation API)
+        // INCREASED FREQUENCY: Ensure we update even if position doesn't change much
         if (!foregroundWatcherRef.current) {
           const fId = await startForegroundTracking(driverId, (loc) => {
             if (isMounted) setDriverLocation(loc);
@@ -159,6 +160,21 @@ export default function DriverApp() {
             console.log("Native Tracking: Foreground watcher started", fId);
           }
         }
+
+        // 4. Manual Heartbeat: Ensure online status stays fresh in DB even if stationary
+        const heartbeatInterval = setInterval(async () => {
+          if (!isMounted || !isActive) return;
+          try {
+            await supabase.from('profiles').update({
+              is_online: true,
+              updated_at: new Date().toISOString()
+            }).eq('id', driverId);
+          } catch (e) { console.warn("Heartbeat failed", e); }
+        }, 2 * 60 * 1000); // Every 2 minutes
+
+        return () => {
+          clearInterval(heartbeatInterval);
+        };
       } catch (err) {
         console.error("Native Tracking: Fatal sequence error", err);
       }

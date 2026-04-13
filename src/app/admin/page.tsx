@@ -254,7 +254,7 @@ function AdminContent() {
             lat: normalizedLoc.lat,
             lng: normalizedLoc.lng,
             lastSeen: p.last_location_update || p.updated_at ? new Date(p.last_location_update || p.updated_at || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "غير متوفر",
-            is_online: p.is_online
+            is_online: p.is_online && (Date.now() - new Date(p.last_location_update || p.updated_at || 0).getTime() < 5 * 60 * 1000)
           };
         })
           .filter((d): d is OnlineDriver => d !== null);
@@ -438,8 +438,10 @@ function AdminContent() {
             
             const lastUpdate = new Date(lastUpdateVal).getTime();
             const now = Date.now();
-            // Be very lenient: 24 hours
-            const isFresh = now - lastUpdate < 24 * 60 * 60 * 1000;
+            // Show as online if updated in last 5 minutes
+            const isOnlineNow = now - lastUpdate < 5 * 60 * 1000;
+            // Show on map if updated in last 12 hours (very lenient)
+            const isFresh = now - lastUpdate < 12 * 60 * 60 * 1000;
             
             // If the driver is not fresh and doesn't have a location, remove them from the list
             if (!isFresh && !loc) return prev.filter(d => d.id !== p.id);
@@ -451,7 +453,7 @@ function AdminContent() {
               lng: loc?.lng || null,
               lastSeen: new Date(lastUpdateVal).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
               rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0),
-              is_online: isOnline
+              is_online: isOnline && isOnlineNow
             };
             
             if (updatedDriver.lat === null || updatedDriver.lng === null) {
