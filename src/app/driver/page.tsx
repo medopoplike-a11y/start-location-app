@@ -641,6 +641,18 @@ export default function DriverApp() {
   };
 
   const toggleAutoAccept = async () => {
+    // If turning on, check if already at limit
+    if (!autoAccept) {
+      const currentCustomersCount = orders
+        .filter(o => o.status === 'assigned' || o.status === 'in_transit')
+        .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
+      
+      if (currentCustomersCount >= 3) {
+        toastError("لا يمكنك تفعيل القبول التلقائي لأنك وصلت للحد الأقصى (3 عملاء).");
+        return;
+      }
+    }
+
     const newAuto = !autoAccept;
     setAutoAccept(newAuto);
     if (Capacitor.isNativePlatform()) {
@@ -666,10 +678,22 @@ export default function DriverApp() {
             .filter(o => o.status === 'assigned' || o.status === 'in_transit')
             .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
 
+          if (currentCustomersCount >= 3) {
+            console.log("Auto-accept: Max customers reached (3)");
+            return;
+          }
+
           const newOrders = await getAvailableOrders();
           if (newOrders.length > 0) {
             const firstOrder = newOrders[0];
             
+            // Check if the order we are about to accept would put us over the limit
+            const orderCustomers = Array.isArray(firstOrder.customer_details?.customers) ? firstOrder.customer_details.customers.length : 1;
+            if (currentCustomersCount + orderCustomers > 3) {
+              console.log("Auto-accept: Accepting this order would exceed the 3-customer limit");
+              return;
+            }
+
             // Check if already assigned or status changed
             if (firstOrder.driver_id || firstOrder.status !== 'pending') return;
             
@@ -708,6 +732,16 @@ export default function DriverApp() {
       return;
     }
     
+    // 1. Check current customer count (limit to 3)
+    const currentCustomersCount = orders
+      .filter(o => o.status === 'assigned' || o.status === 'in_transit')
+      .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
+
+    if (currentCustomersCount >= 3) {
+      toastError("لقد وصلت للحد الأقصى من العملاء (3). يرجى توصيل الطلبات الحالية أولاً.");
+      return;
+    }
+
     // Optimistic Update: Update UI immediately
     const originalOrders = [...orders];
     const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o);

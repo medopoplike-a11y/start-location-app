@@ -166,13 +166,35 @@ export default function DriverOrdersView({
     driverLocation ? [driverLocation.lat, driverLocation.lng] as [number, number] : [30.1450, 31.6350] as [number, number],
   [driverLocation]);
 
+  // 2. Routing Logic: Determine the next target for the driver
+  const navigationTarget = useMemo(() => {
+    const firstActive = activeOrders[0];
+    if (!firstActive) return null;
+    
+    // Target is vendor if not picked up, otherwise target is customer
+    if (firstActive.status === 'assigned' && firstActive.vendorCoords) {
+      return { lat: firstActive.vendorCoords.lat, lng: firstActive.vendorCoords.lng };
+    } else if (firstActive.status === 'in_transit' && firstActive.customerCoords) {
+      return { lat: firstActive.customerCoords.lat, lng: firstActive.customerCoords.lng };
+    }
+    return null;
+  }, [activeOrders]);
+
   return (
     <div className="fixed inset-0 top-[76px] z-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* 1. Full Screen Map Background */}
       <div className="absolute inset-0 z-0">
         {isActive && driverLocation ? (
           <LiveMap
-            drivers={[{ id: driverId || "me", name: "أنا", ...driverLocation, isOnline: true }]}
+            drivers={[{ 
+              id: driverId || "me", 
+              name: "أنا", 
+              ...driverLocation, 
+              isOnline: true,
+              targetLat: navigationTarget?.lat,
+              targetLng: navigationTarget?.lng,
+              status: activeOrders.length > 0 ? 'busy' : 'available'
+            }]}
             vendors={vendorMarkers}
             orders={orderMarkers}
             center={mapCenter}

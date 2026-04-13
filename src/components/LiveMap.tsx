@@ -169,6 +169,49 @@ function MapEvents({ onZoom }: { onZoom: (zoom: number) => void }) {
   return null;
 }
 
+// 1. New Component for Road-based Routing (OSRM)
+function RoutingMachine({ from, to, color = '#3b82f6' }: { from: [number, number], to: [number, number], color?: string }) {
+  const [route, setRoute] = useState<[number, number][]>([]);
+
+  useEffect(() => {
+    if (!from[0] || !to[0]) return;
+
+    const fetchRoute = async () => {
+      try {
+        // Use OSRM Public API for road-based routing
+        const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.routes && data.routes.length > 0) {
+          const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
+          setRoute(coords);
+        }
+      } catch (e) {
+        console.warn("Routing failed, falling back to straight line", e);
+        setRoute([from, to]);
+      }
+    };
+
+    fetchRoute();
+  }, [from[0], from[1], to[0], to[1]]);
+
+  if (route.length === 0) return null;
+
+  return (
+    <Polyline 
+      positions={route}
+      pathOptions={{ 
+        color, 
+        weight: 5, 
+        opacity: 0.7,
+        lineJoin: 'round',
+        dashArray: '1, 10' // Dot effect for navigation feel
+      }}
+    />
+  );
+}
+
 // Helper component to update map view ONLY when explicitly requested or on first mount
 function ChangeView({ center, zoom, force }: { center: [number, number]; zoom: number; force?: boolean }) {
   const map = useMap();
@@ -277,16 +320,12 @@ export default function LiveMap({
               </Popup>
             </Marker>
             
-            {/* Draw path to target if available */}
+            {/* Draw road-based route to target if available */}
             {order.targetLat && order.targetLng && (
-              <Polyline 
-                positions={[[order.lat, order.lng], [order.targetLat, order.targetLng]]}
-                pathOptions={{ 
-                  color: '#f43f5e', 
-                  dashArray: '10, 10', 
-                  weight: 3,
-                  opacity: 0.6
-                }}
+              <RoutingMachine 
+                from={[order.lat, order.lng]} 
+                to={[order.targetLat, order.targetLng]} 
+                color="#f43f5e" 
               />
             )}
           </div>
@@ -301,6 +340,16 @@ export default function LiveMap({
                 point={driver} 
                 icon={icon} 
               />
+              
+              {/* Draw road-based route for active driver if they have a target */}
+              {driver.targetLat && driver.targetLng && (
+                <RoutingMachine 
+                  from={[driver.lat, driver.lng]} 
+                  to={[driver.targetLat, driver.targetLng]} 
+                  color={driver.status === 'busy' ? '#f59e0b' : '#10b981'} 
+                />
+              )}
+
               {/* Draw movement trail (Breadcrumbs) - V0.9.9 */}
               {driver.path && driver.path.length > 1 && (
                 <Polyline 
