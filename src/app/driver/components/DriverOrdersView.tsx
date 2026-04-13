@@ -70,6 +70,7 @@ export default function DriverOrdersView({
   const [actionLoading, setActionLoading] = useState(false);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
+  const [activeOrderTab, setActiveOrderTab] = useState<"available" | "active" | "history">("active");
 
   // 1. Action Handlers
   const handleAccept = async (orderId: string) => {
@@ -130,9 +131,9 @@ export default function DriverOrdersView({
   };
 
   // Map Data Preparation
-  const activeOrders = useMemo(() => 
-    orders.filter(o => o.status === "assigned" || o.status === "in_transit"),
-  [orders]);
+  const availableOrders = useMemo(() => orders.filter(o => o.status === 'pending'), [orders]);
+  const activeOrders = useMemo(() => orders.filter(o => o.status === 'assigned' || o.status === 'in_transit'), [orders]);
+  const completedOrders = useMemo(() => orders.filter(o => o.status === 'delivered'), [orders]);
 
   const vendorMarkers = useMemo(() => 
     activeOrders
@@ -188,144 +189,169 @@ export default function DriverOrdersView({
         )}
       </div>
 
-      {/* 2. Floating Quick Controls (Top Right) */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onToggleAutoAccept}
-          className={`p-4 rounded-[24px] shadow-2xl backdrop-blur-xl border transition-all flex items-center gap-3 ${
-            autoAccept 
-            ? "bg-emerald-500 text-white border-emerald-400" 
-            : "bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border-white/20 dark:border-slate-700"
-          }`}
-        >
-          <Zap className={`w-5 h-5 ${autoAccept ? "animate-pulse" : ""}`} />
-          <div className="text-right">
-            <p className="text-[10px] font-black leading-none">القبول التلقائي</p>
-            <p className="text-[8px] font-bold opacity-70 mt-0.5">{autoAccept ? "مفعّل" : "معطّل"}</p>
-          </div>
-        </motion.button>
-
-        <motion.div 
-          className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-3 rounded-[24px] shadow-2xl border border-white/20 dark:border-slate-700 flex flex-col items-center gap-3"
-        >
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">الأرباح</span>
-            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{todayDeliveryFees}</span>
-          </div>
-          <div className="w-8 h-[1px] bg-slate-100 dark:bg-slate-700" />
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">المديونية</span>
-            <span className="text-sm font-black text-rose-600 dark:text-rose-400">{vendorDebt}</span>
-          </div>
-        </motion.div>
-      </div>
-
+      {/* 2. Floating Quick Controls (Top Right) - REMOVED AS PER USER REQUEST */}
       {/* 3. Dynamic Orders Panel (Bottom) */}
       <motion.div 
         initial={false}
         animate={{ 
-          height: isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "240px" : "100px")
+          height: isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "280px" : "100px")
         }}
-        className="absolute bottom-0 left-0 right-0 z-20 bg-white dark:bg-slate-900 rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] border-t border-slate-100 dark:border-slate-800 flex flex-col"
+        className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] border-t border-slate-100 dark:border-slate-800 flex flex-col"
       >
-        {/* Panel Handle */}
-        <button 
-          onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-          className="w-full flex flex-col items-center pt-3 pb-2"
-        >
-          <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-2" />
-          <div className="flex items-center gap-2 px-6 w-full justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className={`w-4 h-4 ${isActive ? "text-emerald-500 animate-pulse" : "text-slate-300"}`} />
-              <h2 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">
-                {activeOrders.length > 0 ? `لديك ${activeOrders.length} مهام نشطة` : "قائمة المهام"}
-              </h2>
-            </div>
-            {isPanelExpanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronUp className="w-4 h-4 text-slate-400" />}
+        {/* Panel Handle & Tabs */}
+        <div className="w-full flex flex-col items-center pt-3 shrink-0">
+          <button 
+            onClick={() => setIsPanelExpanded(!isPanelExpanded)}
+            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-4"
+          />
+          
+          {/* Order Tabs */}
+          <div className="flex w-full px-6 gap-2 mb-4">
+            <button 
+              onClick={() => { setActiveOrderTab("active"); setIsPanelExpanded(true); }}
+              className={`flex-1 py-3 rounded-2xl text-[10px] font-black transition-all ${
+                activeOrderTab === "active" ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-slate-100 text-slate-400"
+              }`}
+            >
+              النشطة ({activeOrders.length})
+            </button>
+            <button 
+              onClick={() => { setActiveOrderTab("available"); setIsPanelExpanded(true); }}
+              className={`flex-1 py-3 rounded-2xl text-[10px] font-black transition-all ${
+                activeOrderTab === "available" ? "bg-amber-500 text-white shadow-lg shadow-amber-100" : "bg-slate-100 text-slate-400"
+              }`}
+            >
+              المتاحة ({availableOrders.length})
+            </button>
+            <button 
+              onClick={() => { setActiveOrderTab("history"); setIsPanelExpanded(true); }}
+              className={`flex-1 py-3 rounded-2xl text-[10px] font-black transition-all ${
+                activeOrderTab === "history" ? "bg-slate-800 text-white shadow-lg shadow-slate-200" : "bg-slate-100 text-slate-400"
+              }`}
+            >
+              المكتملة ({completedOrders.length})
+            </button>
           </div>
-        </button>
+        </div>
 
         {/* Panel Content */}
         <div className="flex-1 overflow-y-auto px-4 pb-8">
           {isActive ? (
             <div className="space-y-4 pt-2">
-              {activeOrders.length > 0 ? (
-                activeOrders.map((order) => (
-                  <motion.div
-                    key={order.id}
-                    layoutId={order.id}
-                    className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700/50 relative overflow-hidden"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                          order.status === 'in_transit' ? "bg-indigo-500" : "bg-sky-500"
-                        }`}>
-                          {order.status === 'in_transit' ? <Truck className="text-white w-6 h-6" /> : <Store className="text-white w-6 h-6" />}
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-slate-900 dark:text-white leading-tight">{order.vendor}</p>
-                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {order.status === 'assigned' ? 'بانتظار الاستلام' : 'جاري التوصيل للعميل'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{order.fee}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">أجرة التوصيل</p>
-                      </div>
-                    </div>
+              <AnimatePresence mode="wait">
+                {activeOrderTab === "active" && (
+                  <motion.div key="active-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    {activeOrders.length > 0 ? (
+                      activeOrders.map((order) => (
+                        <motion.div
+                          key={order.id}
+                          className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[28px] border border-slate-100 dark:border-slate-700/50"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                order.status === 'in_transit' ? "bg-indigo-500" : "bg-sky-500"
+                              }`}>
+                                {order.status === 'in_transit' ? <Truck className="text-white w-5 h-5" /> : <Store className="text-white w-5 h-5" />}
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-900 dark:text-white leading-tight">{order.vendor}</p>
+                                <p className="text-[9px] font-bold text-slate-400 mt-1">{order.status === 'assigned' ? 'بانتظار الاستلام' : 'جاري التوصيل'}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-black text-emerald-600">{order.fee}</p>
+                            </div>
+                          </div>
 
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 mb-4">
-                      <div className="flex items-start gap-3">
-                        <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                        <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed">{order.address}</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setSelectedOrder(order)}
+                              className="flex-1 bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl font-black text-[11px]"
+                            >
+                              إدارة الطلب
+                            </button>
+                            {order.vendorCoords && (
+                              <a
+                                href={`https://maps.google.com/?q=${order.vendorCoords.lat},${order.vendorCoords.lng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 bg-white border border-slate-200 text-blue-600 rounded-xl flex items-center justify-center"
+                              >
+                                <Navigation className="w-5 h-5" />
+                              </a>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10">
+                        <Activity className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات نشطة حالياً</p>
                       </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex-1 bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-2xl font-black text-xs active:scale-95 transition-all shadow-lg"
-                      >
-                        إدارة الطلب
-                      </button>
-                      <a
-                        href={`tel:${order.customerPhone}`}
-                        className="p-4 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-slate-600 active:scale-95 transition-all shadow-sm"
-                      >
-                        <Phone className="w-5 h-5" />
-                      </a>
-                    </div>
+                    )}
                   </motion.div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-8 h-8 text-slate-200 dark:text-slate-700" />
-                  </div>
-                  <p className="text-xs text-slate-400 font-bold">لا توجد مهام نشطة حالياً</p>
-                  <p className="text-[9px] text-slate-300 mt-1">الطلبات المتاحة ستظهر هنا فور قبولها</p>
-                </div>
-              )}
+                )}
 
-              {/* Quick View Available Button */}
-              {activeOrders.length === 0 && orders.filter(o => o.status === 'pending').length > 0 && (
-                <button 
-                  onClick={() => setIsPanelExpanded(true)}
-                  className="w-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 py-4 rounded-2xl border border-blue-100 dark:border-blue-800/50 font-black text-xs animate-pulse"
-                >
-                  يوجد {orders.filter(o => o.status === 'pending').length} طلبات متاحة حالياً
-                </button>
-              )}
+                {activeOrderTab === "available" && (
+                  <motion.div key="available-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    {availableOrders.length > 0 ? (
+                      availableOrders.map((order) => (
+                        <div key={order.id} className="bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm">
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-black text-xs">{order.vendor}</h4>
+                            <span className="text-emerald-600 font-black text-xs">{order.fee}</span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-bold mb-3 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-red-400" /> {order.address}
+                          </p>
+                          <button
+                            onClick={() => handleAccept(order.id)}
+                            disabled={actionLoading}
+                            className="w-full bg-amber-500 text-white py-3 rounded-xl font-black text-[11px] shadow-lg shadow-amber-100"
+                          >
+                            {actionLoading ? "جاري القبول..." : "قبول الطلب فوراً"}
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10">
+                        <Zap className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات متاحة الآن</p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {activeOrderTab === "history" && (
+                  <motion.div key="history-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    {completedOrders.length > 0 ? (
+                      completedOrders.map((order) => (
+                        <div key={order.id} className="bg-slate-50 p-4 rounded-3xl border border-slate-100 opacity-80">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-xs font-black">{order.vendor}</p>
+                              <p className="text-[9px] text-slate-400 font-bold">{new Date(order.statusUpdatedAt || '').toLocaleTimeString('ar-EG')}</p>
+                            </div>
+                            <div className="text-emerald-600 font-black text-xs">تم التوصيل</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10">
+                        <Clock className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-[10px] font-bold text-slate-400">سجل اليوم فارغ</p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <div className="text-center py-10">
               <Power className="w-10 h-10 text-rose-500/20 mx-auto mb-3" />
-              <p className="text-xs font-black text-slate-400">أنت في وضع عدم الاتصال</p>
-              <p className="text-[9px] text-slate-300 mt-1">قم بتفعيل الحالة من الأعلى لبدء العمل</p>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">أنت في وضع عدم الاتصال</p>
+              <p className="text-[10px] text-slate-300 font-bold mt-1">قم بتفعيل الحالة من الأعلى لبدء استقبال الطلبات</p>
             </div>
           )}
         </div>
