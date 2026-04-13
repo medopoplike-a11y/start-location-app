@@ -11,19 +11,11 @@ import RatingModal from "@/components/RatingModal";
 import type { Order } from "../types";
 import { submitRating } from "@/lib/auth"; // Correct import from auth.ts
 
-// Helper for universal map navigation (v0.9.44)
+// Helper for universal map navigation (v0.9.46 - Robust Fix)
 const openExternalMap = (lat: number, lng: number, label: string = "Location") => {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isAndroid = /Android/.test(navigator.userAgent);
-  
-  if (isIOS) {
-    window.location.href = `maps://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`;
-  } else if (isAndroid) {
-    window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`;
-  } else {
-    // Fallback for web
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
-  }
+  // Use a more direct and reliable URL pattern for Google Maps that works across all devices
+  const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  window.open(url, '_system'); // '_system' is critical for Capacitor to open in external app
 };
 
 interface OrderDetailsModalProps {
@@ -245,60 +237,49 @@ export default function OrderDetailsModal({
                 )}
               </div>
 
-              {/* Vendor Actions */}
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  {order.vendorCoords ? (
+              {/* Vendor Actions - Simplified & Non-Confusing (v0.9.46) */}
+              <div className="grid grid-cols-2 gap-3">
+                {order.vendorCoords ? (
+                  <>
                     <button
                       onClick={() => {
                         if (onNavigate) onNavigate();
                         onClose();
                       }}
-                      className="flex-1 inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
+                      className="inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3.5 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
                     >
                       <Navigation className="w-4 h-4" />
-                      توجيه للمحل (داخلي)
+                      خريطة التطبيق
                     </button>
-                  ) : (
-                    <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
-                      <MapPin className="w-3.5 h-3.5" />
-                      الموقع غير متاح — اتصل بالمحل
-                    </div>
-                  )}
-                  
-                  {/* Invoice Preview if exists (moved here for vendor context) */}
-                  {(order as any).invoiceUrl && (
-                    <button 
+                    <button
                       onClick={() => {
-                        if (onPreviewImage) {
-                          onPreviewImage((order as any).invoiceUrl);
-                        } else {
-                          // Fallback if no previewer provided
-                          window.open((order as any).invoiceUrl, '_blank');
-                        }
+                        const [lat, lng] = order.vendorCoords!;
+                        openExternalMap(lat, lng, order.vendor);
                       }}
-                      className="bg-orange-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-100 active:scale-95 transition-all flex items-center gap-2"
+                      className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3.5 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
                     >
-                      <Camera className="w-4 h-4" />
-                      الفاتورة
+                      <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="G" />
+                      خريطة الهاتف
                     </button>
-                  )}
-                </div>
-
-                {/* External Google Maps Button (v0.9.44) */}
-                {order.vendorCoords && (
-                  <button
-                    onClick={() => {
-                      const [lat, lng] = order.vendorCoords!;
-                      openExternalMap(lat, lng, order.vendor);
-                    }}
-                    className="w-full inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
-                  >
-                    <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="Google Maps" />
-                    توجيه عبر خرائط الهاتف (دقيق)
-                  </button>
+                  </>
+                ) : (
+                  <div className="col-span-2 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
+                    <MapPin className="w-3.5 h-3.5" />
+                    الموقع غير متاح — اتصل بالمحل
+                  </div>
                 )}
               </div>
+
+              {/* Invoice Preview - Secondary Action */}
+              {(order as any).invoiceUrl && (
+                <button 
+                  onClick={() => onPreviewImage?.((order as any).invoiceUrl)}
+                  className="w-full bg-orange-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
+                >
+                  <Camera className="w-4 h-4" />
+                  عرض فاتورة المحل
+                </button>
+              )}
             </div>
 
             {/* Routing / Map Buttons (Only for active sikka) */}
@@ -404,16 +385,16 @@ export default function OrderDetailsModal({
                         </button>
                       </div>
                       
-                      {/* External Map for Customer (v0.9.44) */}
+                      {/* External Map for Customer (v0.9.46) */}
                       {cust.lat && cust.lng && (
                         <button
                           onClick={() => {
                             openExternalMap(cust.lat!, cust.lng!, cust.name);
                           }}
-                          className="w-full h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
-                          title="خرائط الهاتف"
+                          className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
+                          title="خريطة الهاتف"
                         >
-                          <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-5 h-5" alt="Maps" />
+                          <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-5 h-5" alt="G" />
                         </button>
                       )}
                     </div>
