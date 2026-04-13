@@ -547,7 +547,7 @@ export default function DriverApp() {
         .from('orders')
         .select('*, vendor:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
-        .in('status', ['in_transit', 'delivered']) 
+        .in('status', ['assigned', 'in_transit', 'delivered']) // V0.9.40: Include assigned to allow pickup settlement
         .is('vendor_collected_at', null) 
         .order('created_at', { ascending: false });
       
@@ -770,6 +770,7 @@ export default function DriverApp() {
       }
 
       // 2. Perform the update with a condition (double check)
+      // V0.9.40: Accept only updates status to assigned, financials NOT registered yet
       const { error: dbError } = await supabase
         .from('orders')
         .update({ 
@@ -782,7 +783,7 @@ export default function DriverApp() {
 
       if (dbError) throw dbError;
       
-      toastSuccess("تم قبول الطلب بنجاح! بالتوفيق.");
+      toastSuccess("تم قبول الطلب بنجاح! توجه للمحل للاستلام.");
       
       // Update data in background
       await Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
@@ -805,22 +806,21 @@ export default function DriverApp() {
 
     try {
       console.log("DriverPage: Updating order status to in_transit for", orderId);
-      const { data, error: dbError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'in_transit', 
-          driver_id: driverId,
-          status_updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
+      
+      // V0.9.40: Financial Registration now happens at Pickup
+      const { data, error: dbError } = await supabase.rpc('handle_order_pickup', {
+        p_order_id: orderId,
+        p_driver_id: driverId
+      });
 
       if (dbError) throw dbError;
       
-      console.log("DriverPage: Status updated successfully", data);
-      toastSuccess("تم استلام الطلب! في الطريق...");
-      void Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
+      toastSuccess("تم استلام الطلب وتسجيله مالياً! في الطريق...");
+      void Promise.allSettled([
+        fetchOrders(driverId), 
+        fetchStats(driverId),
+        fetchActiveDebtOrders(driverId)
+      ]);
     } catch (err) {
       console.error("DriverPage: handlePickupOrder failed", err);
       setOrders(originalOrders);
