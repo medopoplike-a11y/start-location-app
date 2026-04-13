@@ -270,17 +270,19 @@ export default function OrderDetailsModal({
                   )}
                 </div>
 
-                {/* External Google Maps Button (v0.9.35) */}
+                {/* External Google Maps Button (v0.9.42) */}
                 {order.vendorCoords && (
                   <button
                     onClick={() => {
-                      const url = `https://www.google.com/maps/dir/?api=1&destination=${order.vendorCoords![0]},${order.vendorCoords![1]}&travelmode=driving`;
+                      const [lat, lng] = order.vendorCoords!;
+                      // TECHNICAL FIX: Use 'q' parameter with coordinates for exact pin placement
+                      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
                       window.open(url, '_blank');
                     }}
                     className="w-full inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
                   >
                     <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="Google Maps" />
-                    فتح في خرائط جوجل (خارجي)
+                    فتح في خرائط جوجل (موقع دقيق)
                   </button>
                 )}
               </div>
@@ -389,11 +391,12 @@ export default function OrderDetailsModal({
                         </button>
                       </div>
                       
-                      {/* External Google Maps for Customer (v0.9.35) */}
+                      {/* External Google Maps for Customer (v0.9.42) */}
                       {cust.lat && cust.lng && (
                         <button
                           onClick={() => {
-                            const url = `https://www.google.com/maps/dir/?api=1&destination=${cust.lat},${cust.lng}&travelmode=driving`;
+                            // TECHNICAL FIX: Use coordinates with query parameter for exact pin
+                            const url = `https://www.google.com/maps/search/?api=1&query=${cust.lat},${cust.lng}`;
                             window.open(url, '_blank');
                           }}
                           className="w-full h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
