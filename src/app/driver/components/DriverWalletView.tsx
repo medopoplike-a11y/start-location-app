@@ -26,6 +26,21 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
   const [filter, setFilter] = useState<FilterPeriod>("today");
 
   const now = new Date();
+  
+  // 1. حسابات اليوم الصافية (دائماً لليوم)
+  const todayHistory = (allHistory || []).filter((o: any) => {
+    const updatedAt = o.statusUpdatedAt || o.status_updated_at || o.created_at;
+    if (!updatedAt) return false;
+    return new Date(updatedAt).toDateString() === now.toDateString();
+  });
+
+  const todayEarnings = todayHistory.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
+  const todayCommission = todayHistory.reduce((acc, o) => {
+    return acc + (o.financials?.system_commission || 0) + (o.financials?.driver_insurance || 0);
+  }, 0);
+  const todayDebtGenerated = todayHistory.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
+
+  // 2. تصفية السجل حسب اختيار المستخدم (اليوم/١٥يوم/شهر)
   const filteredHistory = (allHistory || []).filter((o: any) => {
     const updatedAt = o.statusUpdatedAt || o.status_updated_at || o.created_at;
     if (!updatedAt) return filter === "today";
@@ -35,14 +50,10 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
     const ago = new Date(now); ago.setDate(ago.getDate() - 30); return d >= ago;
   });
 
-  const filteredFees = filteredHistory.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
   const filteredEarnings = filteredHistory.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
   
-  // Use actual commissions from financials if available, fallback to 15% + 1 EGP
   const filteredSystemCommission = filteredHistory.reduce((acc, o) => {
-    const comm = o.financials?.system_commission ?? (o.financials?.delivery_fee ? o.financials.delivery_fee * commissionRate : 0);
-    const ins = o.financials?.driver_insurance ?? (o.status === 'delivered' ? 1 : 0);
-    return acc + comm + ins;
+    return acc + (o.financials?.system_commission || 0) + (o.financials?.driver_insurance || 0);
   }, 0);
 
   const calculatedVendorDebt = (deliveredOrders || []).reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
@@ -57,6 +68,46 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
 
   return (
     <div className="space-y-6">
+      {/* شريط ملخص اليوم العلوي */}
+      <div className="bg-white/80 backdrop-blur-md border border-sky-100 rounded-[32px] p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-sky-500" />
+            <p className="text-[11px] font-black text-slate-900">
+              {now.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          <div className="px-3 py-1 bg-sky-50 rounded-full border border-sky-100">
+            <p className="text-[9px] font-black text-sky-600">كشف حساب اليوم</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center">
+            <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">المديونية</p>
+            <p className="text-sm font-black text-orange-600">{todayDebtGenerated.toLocaleString()} <span className="text-[8px] opacity-50">ج.م</span></p>
+          </div>
+          <div className="text-center border-x border-slate-100">
+            <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">الأرباح</p>
+            <p className="text-sm font-black text-emerald-600">{todayEarnings.toFixed(0)} <span className="text-[8px] opacity-50">ج.م</span></p>
+          </div>
+          <div className="text-center">
+            <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">العمولة</p>
+            <p className="text-sm font-black text-slate-900">{todayCommission.toFixed(1)} <span className="text-[8px] opacity-50">ج.م</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* فريم فاصل */}
+      <div className="relative py-2">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-slate-100"></div>
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-slate-50 px-4 text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">المحافظ المالية</span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-900/10">
           <div className="flex items-center gap-2 mb-1">

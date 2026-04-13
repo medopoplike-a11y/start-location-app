@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { ChevronUp, ChevronDown, Navigation } from 'lucide-react';
 
 import { driverIcon, driverBusyIcon, vendorIcon, orderIcon } from '@/lib/map-icons';
 
@@ -173,10 +174,22 @@ function AnimatedMarker({ point, icon, mapRotation = 0, mapTilt = 0 }: { point: 
 }
 
 // New helper component for map event handling
-function MapEvents({ onZoom }: { onZoom: (zoom: number) => void }) {
+function MapEvents({ onZoom, onInteraction }: { onZoom: (zoom: number) => void, onInteraction: () => void }) {
   useMapEvents({
     zoomend: (e) => {
       onZoom(e.target.getZoom());
+    },
+    dragstart: () => {
+      onInteraction();
+    },
+    zoomstart: () => {
+      onInteraction();
+    },
+    touchstart: () => {
+      onInteraction();
+    },
+    mousedown: () => {
+      onInteraction();
     }
   });
   return null;
@@ -259,32 +272,19 @@ export default function LiveMap({
 }: LiveMapProps) {
   const isMounted = typeof window !== 'undefined';
   const [isFollowing, setIsFollowing] = useState(autoCenterOnDrivers);
-  const [manualZoom, setManualZoom] = useState(zoom);
+  // Manual rotation and tilt state
   const [mapRotation, setMapRotation] = useState(0);
   const [mapTilt, setMapTilt] = useState(0);
   
-  // Auto-update rotation and tilt based on movement and navigation
-  useEffect(() => {
-    if (isNavigating && drivers.length > 0) {
-      const mainDriver = drivers[0];
-      // Use heading for rotation, and set a fixed tilt for 3D view
-      setMapRotation(mainDriver.heading || 0);
-      setMapTilt(45); // 45 degrees tilt for navigation
-    } else {
-      setMapRotation(0);
-      setMapTilt(0);
-    }
-  }, [isNavigating, drivers]);
-
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
   return (
-    <div className={`${className} relative group transition-all duration-500 overflow-hidden`}>
-      {/* 3D Map Wrapper - This creates the Google Maps dynamic feel */}
+    <div className={`${className} relative group transition-all duration-300 overflow-hidden`}>
+      {/* Stabilized Map Wrapper */}
       <div 
-        className="h-full w-full transition-all duration-1000 ease-in-out origin-center"
+        className="h-full w-full transition-all duration-700 ease-out origin-center"
         style={{ 
-          transform: `perspective(1000px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg) scale(${mapTilt > 0 ? 1.2 : 1})`,
+          transform: `perspective(1000px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
           height: '100%',
           width: '100%'
         }}
@@ -301,15 +301,18 @@ export default function LiveMap({
         >
           <ChangeView 
             center={center} 
-            zoom={isNavigating ? 18 : zoom} 
-            force={isFollowing || isNavigating} 
+            zoom={zoom} 
+            force={isFollowing} 
           />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          <MapEvents onZoom={(z) => setManualZoom(z)} />
+          <MapEvents 
+            onZoom={(z) => {}} 
+            onInteraction={() => setIsFollowing(false)} 
+          />
 
           {/* عرض المحلات */}
         {vendors.filter(v => v.lat && v.lng).map((vendor) => (
@@ -322,7 +325,7 @@ export default function LiveMap({
               if (ref) {
                 const element = ref.getElement();
                 if (element) {
-                  element.style.transform += ` rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
+                  element.style.transform += ` rotateZ(${mapRotation}deg)`;
                 }
               }
             }}
@@ -352,7 +355,7 @@ export default function LiveMap({
                 if (ref) {
                   const element = ref.getElement();
                   if (element) {
-                    element.style.transform += ` rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
+                    element.style.transform += ` rotateZ(${mapRotation}deg)`;
                   }
                 }
               }}
@@ -423,9 +426,9 @@ export default function LiveMap({
         </MapContainer>
       </div>
 
-      {/* Dynamic Navigation UI - Google Maps Style */}
+      {/* Manual Navigation UI - Cleaner & More Control */}
       <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-3">
-        {/* Recenter Button - Shows only when NOT following but center is away */}
+        {/* Recenter Button */}
         <button 
           onClick={() => setIsFollowing(true)}
           className={`p-3 rounded-2xl shadow-xl transition-all border flex items-center justify-center ${
@@ -438,38 +441,55 @@ export default function LiveMap({
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
         </button>
 
-        {/* Dynamic Compass - Shows only when rotated */}
-        {(Math.abs(mapRotation % 360) > 5 || mapTilt > 0) && (
+        {/* Manual Rotation & Tilt Controls */}
+        <div className="flex flex-col bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+          {/* Tilt Up */}
           <button 
-            onClick={() => {
-              setMapRotation(0);
-              setMapTilt(0);
-            }}
-            className="p-3 bg-white/90 backdrop-blur-md text-red-500 rounded-2xl shadow-xl border border-white/20 transition-all animate-in fade-in zoom-in duration-300 flex items-center justify-center"
-            style={{ transform: `rotate(${-mapRotation}deg)` }}
-            title="إعادة ضبط الشمال"
+            onClick={() => setMapTilt(prev => Math.min(prev + 15, 60))}
+            className="p-3 text-slate-600 hover:bg-slate-50 border-b border-slate-100 transition-colors"
+            title="إمالة للأعلى"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            <ChevronUp className="w-5 h-5" />
           </button>
-        )}
-      </div>
 
-      {/* Navigation Info Bar - Google Maps Style */}
-      {isNavigating && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-[400px]">
-          <div className="bg-blue-600 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border border-blue-400/30 backdrop-blur-md bg-opacity-90">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-xl animate-pulse">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-5-5 18-2-10Z"/></svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none mb-1">Navigation Active</p>
-                <p className="text-xs font-black">جاري الملاحة الذكية ثلاثية الأبعاد...</p>
-              </div>
-            </div>
-          </div>
+          {/* Rotate Left */}
+          <button 
+            onClick={() => setMapRotation(prev => prev - 45)}
+            className="p-3 text-slate-600 hover:bg-slate-50 border-b border-slate-100 transition-colors"
+            title="تدوير لليسار"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+          
+          {/* Reset All (Compass) */}
+          <button 
+            onClick={() => { setMapRotation(0); setMapTilt(0); }}
+            className={`p-3 transition-all flex items-center justify-center ${Math.abs(mapRotation % 360) > 5 || mapTilt !== 0 ? 'text-red-500' : 'text-slate-300'}`}
+            style={{ transform: `rotate(${-mapRotation}deg)` }}
+            title="إعادة ضبط الشمال والإمالة"
+          >
+            <Navigation className="w-5 h-5 fill-current" />
+          </button>
+
+          {/* Rotate Right */}
+          <button 
+            onClick={() => setMapRotation(prev => prev + 45)}
+            className="p-3 text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+            title="تدوير لليمين"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+          </button>
+
+          {/* Tilt Down */}
+          <button 
+            onClick={() => setMapTilt(prev => Math.max(prev - 15, 0))}
+            className="p-3 text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+            title="إمالة للأسفل"
+          >
+            <ChevronDown className="w-5 h-5" />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
