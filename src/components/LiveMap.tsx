@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -39,6 +39,7 @@ interface LiveMapProps {
   center?: [number, number];
   zoom?: number;
   className?: string;
+  autoCenterOnDrivers?: boolean;
 }
 
 // Helper function for relative time
@@ -157,12 +158,28 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
   );
 }
 
-// Helper component to update map view when center changes
-function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
+// New helper component for map event handling
+function MapEvents({ onZoom }: { onZoom: (zoom: number) => void }) {
+  useMapEvents({
+    zoomend: (e) => {
+      onZoom(e.target.getZoom());
+    }
+  });
+  return null;
+}
+
+// Helper component to update map view ONLY when explicitly requested or on first mount
+function ChangeView({ center, zoom, force }: { center: [number, number]; zoom: number; force?: boolean }) {
   const map = useMap();
+  const isFirstMount = useRef(true);
+
   useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, zoom, map]);
+    if (isFirstMount.current || force) {
+      map.setView(center, zoom, { animate: true });
+      isFirstMount.current = false;
+    }
+  }, [center, zoom, map, force]);
+  
   return null;
 }
 
@@ -172,26 +189,47 @@ export default function LiveMap({
   orders = [],
   center = [30.1450, 31.6350], // Default to El Shorouk City
   zoom = 13,
-  className = "h-[400px] w-full rounded-2xl overflow-hidden shadow-inner"
+  className = "h-[400px] w-full rounded-2xl overflow-hidden shadow-inner",
+  autoCenterOnDrivers = false
 }: LiveMapProps) {
   const isMounted = typeof window !== 'undefined';
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [manualZoom, setManualZoom] = useState(zoom);
 
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
   return (
-    <div className={className}>
+    <div className={className + " relative group"}>
       <MapContainer 
         center={center} 
         zoom={zoom} 
         scrollWheelZoom={true}
         className="h-full w-full z-10"
       >
-        <ChangeView center={center} zoom={zoom} />
+        <ChangeView center={center} zoom={zoom} force={isFollowing} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
+        {/* Camera Control: This will allow centering if requested without force-snapping on every render */}
+        <MapEvents onZoom={(z) => setManualZoom(z)} />
+
+        {/* Floating Controls */}
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+          <button 
+            onClick={() => setIsFollowing(!isFollowing)}
+            className={`p-3 rounded-2xl shadow-xl transition-all border ${
+              isFollowing 
+              ? 'bg-blue-600 text-white border-blue-400' 
+              : 'bg-white/90 backdrop-blur-md text-slate-600 border-white/20'
+            }`}
+            title={isFollowing ? "إيقاف تتبع الحركة" : "تفعيل تتبع الحركة"}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+
         {/* عرض المحلات */}
         {vendors.filter(v => v.lat && v.lng).map((vendor) => (
           <Marker 
