@@ -802,14 +802,27 @@ export default function DriverApp() {
     const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true, priority: 1 } : o);
     setOrders(updatedOrders);
     setCache('driver_orders', updatedOrders);
-    toastSuccess("تم استلام الطلب! في الطريق...");
 
     try {
-      const { error: dbError } = await updateOrderStatus(orderId, 'in_transit', driverId);
+      console.log("DriverPage: Updating order status to in_transit for", orderId);
+      const { data, error: dbError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'in_transit', 
+          driver_id: driverId,
+          status_updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
       if (dbError) throw dbError;
       
+      console.log("DriverPage: Status updated successfully", data);
+      toastSuccess("تم استلام الطلب! في الطريق...");
       void Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
     } catch (err) {
+      console.error("DriverPage: handlePickupOrder failed", err);
       setOrders(originalOrders);
       toastError("فشل تحديث الحالة. حاول مرة أخرى.");
     }
@@ -823,12 +836,24 @@ export default function DriverApp() {
     const updatedOrders = orders.filter(o => o.id !== orderId);
     setOrders(updatedOrders);
     setCache('driver_orders', updatedOrders);
-    toastSuccess("تم التوصيل بنجاح! مبروك...");
 
     try {
-      const { error: dbError } = await updateOrderStatus(orderId, 'delivered', driverId);
+      console.log("DriverPage: Delivering order", orderId);
+      const { data, error: dbError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'delivered', 
+          driver_id: driverId,
+          status_updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
       if (dbError) throw dbError;
       
+      console.log("DriverPage: Delivered successfully", data);
+      toastSuccess("تم التوصيل بنجاح! مبروك...");
       void Promise.allSettled([
         fetchOrders(driverId), 
         fetchStats(driverId),
@@ -836,6 +861,7 @@ export default function DriverApp() {
         fetchTodayHistory(driverId)
       ]);
     } catch (err) {
+      console.error("DriverPage: handleDeliverOrder failed", err);
       setOrders(originalOrders);
       toastError("فشل إتمام الطلب. حاول مرة أخرى.");
     }

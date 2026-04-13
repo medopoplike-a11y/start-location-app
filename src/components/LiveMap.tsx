@@ -244,77 +244,29 @@ export default function LiveMap({
   const [manualZoom, setManualZoom] = useState(zoom);
   const [mapRotation, setMapRotation] = useState(0);
   
-  // Touch Gesture State for Rotation
-  const touchStartRef = useRef<{ angle: number, rotation: number } | null>(null);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
-      touchStartRef.current = { angle, rotation: mapRotation };
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && touchStartRef.current) {
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const currentAngle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
-      const angleDiff = currentAngle - touchStartRef.current.angle;
-      setMapRotation(touchStartRef.current.rotation + angleDiff);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    touchStartRef.current = null;
-  };
-
-  // Auto-rotate based on driver heading when navigating
-  useEffect(() => {
-    if (isNavigating && drivers.length > 0) {
-      const mainDriver = drivers[0];
-      const heading = mainDriver.heading || 0;
-      setMapRotation(heading);
-    } else if (!isNavigating) {
-      // Don't force reset to 0 if user manually rotated, 
-      // but if we just stopped navigating, maybe reset.
-      // For now, let's keep user's manual rotation.
-    }
-  }, [isNavigating, drivers]);
-
+  // Touch Gesture State for Rotation - REMOVED AS PER USER REQUEST FOR SIMPLICITY
+  
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
   return (
-    <div 
-      className={`${className} relative group transition-all duration-700 ${isNavigating ? 'perspective-1000' : ''}`}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div 
-        className="h-full w-full transition-all duration-700 ease-in-out"
-        style={{ 
-          transform: isNavigating 
-            ? `rotateX(45deg) rotateZ(${-mapRotation}deg) translateY(-10%) scale(1.2)` 
-            : `rotateX(0deg) rotateZ(${-mapRotation}deg) translateY(0) scale(1)`,
-          transformStyle: 'preserve-3d'
-        }}
-      >
+    <div className={`${className} relative group transition-all duration-300`}>
+      <div className="h-full w-full">
         <MapContainer 
           center={center} 
           zoom={zoom} 
           scrollWheelZoom={true}
           zoomControl={false}
           className="h-full w-full z-10"
+          dragging={true}
+          touchZoom={true}
+          doubleClickZoom={true}
         >
-          <ChangeView center={center} zoom={isNavigating ? 18 : zoom} force={isFollowing || isNavigating} />
+          <ChangeView center={center} zoom={zoom} force={isFollowing} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {/* Camera Control: This will allow centering if requested without force-snapping on every render */}
           <MapEvents onZoom={(z) => setManualZoom(z)} />
 
           {/* عرض المحلات */}
@@ -425,25 +377,6 @@ export default function LiveMap({
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-
-        {/* Smart Compass Button (Only shows when rotated) */}
-        {(Math.abs(mapRotation % 360) > 5) && (
-          <button 
-            onClick={() => setMapRotation(0)}
-            className="p-3 bg-white/90 backdrop-blur-md text-red-500 rounded-2xl shadow-xl border border-white/20 transition-all animate-in fade-in zoom-in duration-300"
-            style={{ transform: `rotate(${-mapRotation}deg)` }}
-            title="إعادة ضبط الشمال"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-          </button>
-        )}
-      </div>
-
-      {/* Hint for first-time users */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="bg-black/50 backdrop-blur-md text-white text-[8px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-white/10">
-          استخدم إصبعين لتدوير الخريطة
-        </div>
       </div>
     </div>
   );

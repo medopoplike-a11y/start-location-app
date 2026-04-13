@@ -65,21 +65,34 @@ export default function OrderDetailsModal({
 
   const handleAction = async () => {
     if (loading) return;
-    if (order.status === "pending")    await onAccept(order.id);
-    else if (order.status === "assigned")   await onPickup(order.id);
-    else if (order.status === "in_transit") {
-      if (order.customers && order.customers.length > 0) {
-        const allDelivered = order.customers.every(c => c.status === 'delivered');
-        if (allDelivered) {
-          await onDeliver(order.id);
+    console.log("OrderDetailsModal: handleAction triggered", order.status, order.id);
+    
+    try {
+      if (order.status === "pending") {
+        await onAccept(order.id);
+        onClose(); // Auto close on success
+      } else if (order.status === "assigned") {
+        console.log("OrderDetailsModal: Calling onPickup for order", order.id);
+        await onPickup(order.id);
+        // Don't auto-close pickup so driver can see transition to in_transit
+      } else if (order.status === "in_transit") {
+        if (order.customers && order.customers.length > 0) {
+          const allDelivered = order.customers.every(c => c.status === 'delivered');
+          if (allDelivered) {
+            await onDeliver(order.id);
+            onClose(); // Auto close on success
+          } else {
+            alert("يرجى تأكيد تسليم جميع العملاء أولاً");
+          }
         } else {
-          alert("يرجى تأكيد تسليم جميع العملاء أولاً");
+          await onDeliver(order.id);
+          onClose(); // Auto close on success
         }
-      } else {
-        await onDeliver(order.id);
+      } else if (order.status === "delivered" && !order.driverConfirmedAt) {
+        await onConfirmPayment(order.id);
       }
-    } else if (order.status === "delivered" && !order.driverConfirmedAt) {
-      await onConfirmPayment(order.id);
+    } catch (error) {
+      console.error("OrderDetailsModal: Action failed", error);
     }
   };
 
