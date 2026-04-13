@@ -101,6 +101,7 @@ export interface OnlineDriver {
   lng: number;
   lastSeen: string;
   status?: 'available' | 'busy';
+  is_online?: boolean;
 }
 
 export interface SettlementItem {

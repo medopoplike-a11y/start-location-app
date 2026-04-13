@@ -216,6 +216,7 @@ export default function OperationsCenter({
                     <LiveMap
                       drivers={onlineDrivers.map(d => ({
                         ...d,
+                        isOnline: d.is_online,
                         status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
                         details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
                       }))}

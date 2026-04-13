@@ -15,6 +15,7 @@ interface MapPoint {
   type?: 'driver' | 'vendor' | 'order';
   status?: string;
   details?: string;
+  isOnline?: boolean;
 }
 
 interface LiveMapProps {
@@ -109,23 +110,29 @@ export default function LiveMap({
         ))}
 
         {/* عرض المناديب - Rendered last to be on top */}
-        {drivers.filter(d => d.lat && d.lng).map((driver) => (
-          <Marker 
-            key={`driver-${driver.id}`} 
-            position={[driver.lat!, driver.lng!]} 
-            icon={driver.status === 'busy' ? driverBusyIcon! : driverIcon!}
-            zIndexOffset={1000} // High z-index to stay on top
-          >
-            <Popup className="custom-popup">
-              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-black text-slate-900">{driver.name}</p>
-                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
-                    driver.status === 'busy' ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
-                  }`}>
-                    {driver.status === 'busy' ? "في طلب" : "متاح"}
-                  </span>
-                </div>
+         {drivers.filter(d => d.lat && d.lng).map((driver) => (
+           <Marker 
+             key={`driver-${driver.id}`} 
+             position={[driver.lat!, driver.lng!]} 
+             icon={driver.status === 'busy' ? driverBusyIcon! : driverIcon!}
+             zIndexOffset={1000} // High z-index to stay on top
+             opacity={driver.isOnline === false ? 0.6 : 1}
+           >
+             <Popup className="custom-popup">
+               <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+                 <div className="flex items-center justify-between mb-2">
+                   <div className="flex flex-col">
+                     <p className="font-black text-slate-900 leading-none">{driver.name}</p>
+                     {driver.isOnline === false && (
+                       <span className="text-[8px] text-red-500 font-bold mt-1">غير متصل حالياً</span>
+                     )}
+                   </div>
+                   <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                     driver.status === 'busy' ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+                   }`}>
+                     {driver.status === 'busy' ? "في طلب" : "متاح"}
+                   </span>
+                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-500 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-slate-300" />
