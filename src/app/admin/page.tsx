@@ -157,10 +157,10 @@ function AdminContent() {
       // 4. Status & Online logic
       const isOnline = payload.is_online !== undefined ? payload.is_online : (existing?.is_online ?? true);
       
-      // 5. Breadcrumb Path (V0.9.9): Keep last 10 points for a movement trail
+      // 5. Breadcrumb Path (V0.9.49): Keep last 30 points for a detailed movement trail
       let updatedPath = existing?.path || [];
       if (locChanged) {
-        updatedPath = [...updatedPath, { lat, lng }].slice(-10);
+        updatedPath = [...updatedPath, { lat, lng }].slice(-30);
       }
 
       const updatedDriver: OnlineDriver = {
@@ -181,8 +181,8 @@ function AdminContent() {
       if (existing) {
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
         
-        // V0.9.30: Allow much faster updates for real-time sources (1s instead of 5s)
-        const cooldown = source === 'realtime' ? 1000 : 5000;
+        // V0.9.49: Ultra-fast updates for Real-time (250ms) to ensure smooth marker movement
+        const cooldown = source === 'realtime' ? 250 : 5000;
         if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < cooldown)) {
           return prev;
         }

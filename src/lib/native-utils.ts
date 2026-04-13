@@ -267,18 +267,23 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
       return null;
     }
 
-    // 2. Wrap the addWatcher in a timeout to prevent native hanging
+    // 2. Optimized Background Geolocation Config (v0.9.49)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 3000; // V0.9.30: Increased frequency to 3 seconds for real-time feel
+    const DB_UPDATE_INTERVAL = 2000; // Even faster updates (2s) for admin precision
 
     const watcherId = await Promise.race([
       BackgroundGeolocation.addWatcher(
         {
-          backgroundMessage: "جاري تتبع موقعك لتقديم أفضل خدمة توصيل...",
-          backgroundTitle: "تطبيق ستارت نشط",
+          backgroundMessage: "جاري تتبع موقعك بدقة عالية لضمان جودة الخدمة...",
+          backgroundTitle: "تطبيق ستارت يعمل في الخلفية",
           requestPermissions: true,
-          staleLocationInterval: 5000,
-          distanceFilter: 2 // V0.9.30: Reduced from 5 to 2 meters for higher accuracy
+          staleLocationInterval: 3000, // 3 seconds
+          distanceFilter: 1, // 1 meter filter for maximum precision
+          // Additional technical flags for Android/iOS persistence
+          // (Depends on specific plugin version, using standard robust keys)
+          persist: true,
+          forceAccuracy: true,
+          stationaryRadius: 1
         },
         async (location: any, error: any) => {
           if (error) {
@@ -287,6 +292,9 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           }
 
           if (location && location.latitude && location.longitude) {
+            // Ignore low accuracy points (> 50m) to prevent map jumping
+            if (location.accuracy && location.accuracy > 50) return;
+
             const loc = { 
               lat: location.latitude, 
               lng: location.longitude,
@@ -301,42 +309,45 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
             lastDbUpdate = now;
 
             try {
-              // 1. Update Profile (Latest Location)
-              await supabase
-                .from('profiles')
-                .update({
-                  location: {
+              // ULTIMATE SYNC: Parallel update for speed
+              await Promise.all([
+                // 1. Update Profile (Latest State)
+                supabase
+                  .from('profiles')
+                  .update({
+                    location: {
+                      lat: location.latitude,
+                      lng: location.longitude,
+                      heading: location.bearing || 0,
+                      speed: location.speed || 0,
+                      accuracy: location.accuracy || 0,
+                      ts: now
+                    },
+                    is_online: true,
+                    last_location_update: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', userId),
+
+                // 2. Insert into Logs (High-Frequency History)
+                supabase
+                  .from('location_logs')
+                  .insert({
+                    user_id: userId,
                     lat: location.latitude,
                     lng: location.longitude,
-                    heading: location.bearing || 0,
                     speed: location.speed || 0,
-                    accuracy: location.accuracy || 0,
-                    ts: now
-                  },
-                  is_online: true,
-                  last_location_update: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', userId);
-
-              // 2. Insert into Logs (Movement History)
-              await supabase
-                .from('location_logs')
-                .insert({
-                  user_id: userId,
-                  lat: location.latitude,
-                  lng: location.longitude,
-                  speed: location.speed || 0,
-                  heading: location.bearing || 0,
-                  accuracy: location.accuracy || 0
-                });
+                    heading: location.bearing || 0,
+                    accuracy: location.accuracy || 0
+                  })
+              ]);
             } catch (e) {
               console.warn("BG Update Exception", e);
             }
           }
         }
       ),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 8000))
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 10000))
     ]);
 
     return watcherId;
