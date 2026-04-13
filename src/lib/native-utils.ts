@@ -289,8 +289,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
 
             try {
               const now = Date.now();
-              // Direct Supabase update for speed
-              const { error: upError } = await supabase
+              // 1. Update Profile (Latest Location)
+              await supabase
                 .from('profiles')
                 .update({
                   location: {
@@ -306,8 +306,18 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', userId);
-                
-              if (upError) console.warn("BG Supabase Update Failed", upError);
+
+              // 2. Insert into Logs (Movement History) - ULTRA-BEAST-MODE
+              await supabase
+                .from('location_logs')
+                .insert({
+                  user_id: userId,
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  speed: location.speed || 0,
+                  heading: location.bearing || 0,
+                  accuracy: location.accuracy || 0
+                });
             } catch (e) {
               console.warn("BG Update Exception", e);
             }

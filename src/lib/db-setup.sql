@@ -104,11 +104,47 @@ EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Could not update publication: %', SQLERRM;
 END $$;
 
--- التأكد من تفعيل Replica Identity Full لضمان وصول كافة الحقول في الـ Payload
+-- تفعيل Replica Identity Full لضمان وصول كافة الحقول في الـ Payload
 alter table public.orders replica identity full;
 alter table public.wallets replica identity full;
 alter table public.profiles replica identity full;
 alter table public.settlements replica identity full;
+
+-- 1.5. إنشاء جدول سجل المواقع (Location Logs) لتتبع المسارات بدقة
+CREATE TABLE IF NOT EXISTS location_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  lat FLOAT NOT NULL,
+  lng FLOAT NOT NULL,
+  speed FLOAT DEFAULT 0,
+  heading FLOAT DEFAULT 0,
+  accuracy FLOAT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- تفعيل الحماية لجدول سجل المواقع
+ALTER TABLE location_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert their own logs') THEN
+    CREATE POLICY "Users can insert their own logs" ON location_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can view all logs') THEN
+    CREATE POLICY "Admins can view all logs" ON location_logs FOR SELECT USING (
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+  END IF;
+END $$;
+
+-- تفعيل Real-time لسجل المواقع
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'location_logs') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE location_logs;
+  END IF;
+END $$;
 
 -- 2. تفعيل الحماية على مستوى الصفوف (Row Level Security)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;

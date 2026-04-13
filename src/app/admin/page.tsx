@@ -150,7 +150,11 @@ function AdminContent() {
       
       if (lat === 0 || lng === 0) return prev;
 
-      // 3. Status & Online logic
+      // 3. Force move for Realtime updates (V0.9.8)
+      // Even if the movement is tiny, we want the marker to move in Realtime
+      const locChanged = source === 'realtime' || Math.abs(existing?.lat || 0 - lat) > 0.000001 || Math.abs(existing?.lng || 0 - lng) > 0.000001;
+
+      // 4. Status & Online logic
       const isOnline = payload.is_online !== undefined ? payload.is_online : (existing?.is_online ?? true);
       
       const updatedDriver: OnlineDriver = {
@@ -168,9 +172,6 @@ function AdminContent() {
       };
 
       if (existing) {
-        // Performance optimization: Don't update if nothing changed significantly
-        // (location change > 0.00001 or status/online change)
-        const locChanged = Math.abs(existing.lat - lat) > 0.000001 || Math.abs(existing.lng - lng) > 0.000001;
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
         
         if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < 5000)) {
@@ -474,7 +475,19 @@ function AdminContent() {
     if (mounted && !authLoading && user) {
       let shouldFetchFull = true;
 
-      // Delta Sync Optimization: Update specific states based on payload
+      // 1. Direct Location Logs Real-time (ULTRA-ACCURATE)
+      if (payload && payload.table === 'location_logs' && payload.new) {
+        const log = payload.new;
+        updateDriverRegistry({
+          id: log.user_id,
+          lat: log.lat,
+          lng: log.lng,
+          lastSeenTimestamp: new Date(log.created_at).getTime()
+        }, 'realtime');
+        return; // Skip profile sync if log was successful
+      }
+
+      // 2. Profile Real-time (Fallback/Status)
       if (payload && payload.table === 'profiles' && payload.new) {
         const p = payload.new;
         

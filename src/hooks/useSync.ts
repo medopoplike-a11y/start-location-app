@@ -119,6 +119,12 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
           .channel('admin_all_settlements')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements' }, triggerUpdate)
           .subscribe();
+
+        // 3. Admin-only: Listen to ALL location logs for ultra-accurate movement
+        supabase
+          .channel('admin_location_stream')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'location_logs' }, triggerUpdate)
+          .subscribe();
       } else if (userId) {
         walletSub = subscribeToWallets(userId, triggerUpdate);
         settlementsSub = subscribeToSettlements(userId, triggerUpdate);
