@@ -268,6 +268,13 @@ export default function OperationsCenter({
                           </div>
                           <div className="h-px bg-slate-100 my-1" />
                           <button 
+                            onClick={onRefresh}
+                            className="w-full py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl text-[9px] font-black flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all active:scale-95 mb-2"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            تحديث الخريطة والبيانات
+                          </button>
+                          <button 
                             onClick={() => setActiveTab('distribution')}
                             className="w-full py-2.5 bg-slate-900 text-white rounded-2xl text-[9px] font-black flex items-center justify-center gap-2 hover:bg-black transition-all active:scale-95"
                           >

@@ -126,6 +126,83 @@ function AdminContent() {
   const [appConfig, setAppConfig] = useState<any>(null); // Start with null to prevent old data fallback
 
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
+  const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
+    const online = profiles
+      .filter((p) => {
+        const role = (p.role || '').toLowerCase();
+        if (role !== 'driver') return false;
+        
+        // Very robust location check
+        let loc = p.location;
+        if (typeof loc === 'string') {
+          try { loc = JSON.parse(loc); } catch { loc = null; }
+        }
+        return loc && typeof loc === 'object' && (loc as any).lat != null && (loc as any).lng != null;
+      })
+      .map((p) => {
+        let loc = p.location;
+        if (typeof loc === 'string') {
+          try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; }
+        }
+        const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
+        
+        if (!normalizedLoc?.lat || !normalizedLoc?.lng) return null;
+
+        const lastUpdateStr = p.last_location_update || p.updated_at;
+        const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
+        const now = new Date();
+        
+        // Robust online check with fallback to true if date parsing fails
+        let isOnlineNow = false;
+        if (lastUpdateDate && !isNaN(lastUpdateDate.getTime())) {
+          isOnlineNow = Math.abs(now.getTime() - lastUpdateDate.getTime()) < 15 * 60 * 1000;
+        } else {
+          // If no date but we have location, assume online for visibility if p.is_online is true
+          isOnlineNow = !!p.is_online;
+        }
+
+        return {
+          id: p.id,
+          name: p.full_name || "غير معروف",
+          lat: normalizedLoc.lat,
+          lng: normalizedLoc.lng,
+          lastSeen: lastUpdateDate && !isNaN(lastUpdateDate.getTime()) ? lastUpdateDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "غير متوفر",
+          is_online: p.is_online && isOnlineNow
+        };
+      })
+      .filter((d): d is OnlineDriver => d !== null);
+    
+    setOnlineDrivers(online);
+    
+    const users = profiles.map((u) => ({
+      id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
+    }));
+    setAllUsers(users);
+
+    if (wallets) {
+      setTotalSystemDebt(wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
+      setDrivers(profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
+        const w = wallets.find((wal) => wal.user_id === p.id);
+        return { 
+          id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", status: p.is_locked ? "محظور" : "نشط", isShiftLocked: !!p.is_locked, earnings: w?.balance || 0, debt: (w?.debt || 0) + (w?.system_balance || 0), totalOrders: 0,
+          email: p.email, phone: p.phone, max_active_orders: p.max_active_orders || 3, billing_type: p.billing_type || 'commission', commission_value: p.commission_value || 15, monthly_salary: p.monthly_salary || 0, rating: p.rating || 0
+        };
+      }));
+      setVendors(profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
+        const w = wallets.find((wal) => wal.user_id === p.id);
+        let loc = p.location;
+        if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+        const location = typeof loc === "object" && loc !== null ? loc : null;
+        return { 
+          id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location,
+          email: p.email, phone: p.phone, commission_type: (p as any).commission_type, commission_value: (p as any).commission_value, billing_type: (p as any).billing_type || 'commission', monthly_salary: (p as any).monthly_salary || 0, rating: p.rating || 0
+        };
+      }));
+    }
+    
+    return online;
+  }, []);
+
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
     if (typeof error === "object" && error !== null && "message" in error) {
@@ -230,90 +307,14 @@ function AdminContent() {
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
         setCache('admin_profiles', typedProfiles); // Cache profiles
-        const online = typedProfiles
-          .filter((p) => {
-            const role = (p.role || '').toLowerCase();
-            if (role !== 'driver') return false;
-            
-            // If we have a location, we want to see them on the map regardless of how old it is
-            // so we can see their last known position.
-            return !!p.location;
-          })
-          .map((p) => {
-          let loc = p.location;
-          if (typeof loc === 'string') {
-            try { loc = JSON.parse(loc) as { lat?: number; lng?: number }; } catch { loc = null; }
-          }
-          const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
-          
-          if (!normalizedLoc?.lat || !normalizedLoc?.lng) return null;
-
-          return {
-            id: p.id,
-            name: p.full_name || "غير معروف",
-            lat: normalizedLoc.lat,
-            lng: normalizedLoc.lng,
-            lastSeen: p.last_location_update || p.updated_at ? new Date(p.last_location_update || p.updated_at || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "غير متوفر",
-            is_online: p.is_online && (Date.now() - new Date(p.last_location_update || p.updated_at || 0).getTime() < 5 * 60 * 1000)
-          };
-        })
-          .filter((d): d is OnlineDriver => d !== null);
-        setOnlineDrivers(online);
-        setAllUsers(typedProfiles.map((u) => ({
-          id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
-        })));
-
+        
         const { data: wallets } = await supabase.from('wallets').select('*');
-        if (wallets) {
-          const typedWallets = wallets as WalletRow[];
-          setTotalSystemDebt(typedWallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
-          setDrivers(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
-            const w = typedWallets.find((wal) => wal.user_id === p.id);
-            return { 
-              id: p.id.slice(0, 8), 
-              id_full: p.id, 
-              name: p.full_name || "بدون اسم", 
-              status: p.is_locked ? "محظور" : "نشط", 
-              isShiftLocked: !!p.is_locked, 
-              earnings: w?.balance || 0, 
-              debt: (w?.debt || 0) + (w?.system_balance || 0), 
-              totalOrders: 0,
-              email: p.email,
-              phone: p.phone,
-              max_active_orders: p.max_active_orders || 3,
-              billing_type: p.billing_type || 'commission',
-              commission_value: p.commission_value || 15,
-              monthly_salary: p.monthly_salary || 0,
-              rating: p.rating || 0
-            };
-          }));
-          setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
-            const w = typedWallets.find((wal) => wal.user_id === p.id);
-            const location = typeof p.location === "object" && p.location !== null ? p.location : null;
-            return { 
-              id: p.id.slice(0, 8), 
-              id_full: p.id, 
-              name: p.full_name || "بدون اسم", 
-              type: "محل", 
-              orders: 0, 
-              balance: (w?.debt || 0) + (w?.system_balance || 0), 
-              status: "نشط", 
-              location,
-              email: p.email,
-              phone: p.phone,
-              commission_type: (p as any).commission_type,
-              commission_value: (p as any).commission_value,
-              billing_type: (p as any).billing_type || 'commission',
-              monthly_salary: (p as any).monthly_salary || 0,
-              rating: p.rating || 0
-            };
-          }));
-        }
+        processProfiles(typedProfiles, (wallets as WalletRow[]) || []);
       }
     } catch (err) {
       console.error("Admin: Error fetching profiles:", err);
     }
-  }, []);
+  }, [processProfiles]);
 
   const fetchSettlements = useCallback(async () => {
     const { data } = await supabase.from('settlements').select('*, profiles!user_id(full_name, role)').eq('status', 'pending').order('created_at', { ascending: true });
@@ -356,6 +357,16 @@ function AdminContent() {
       isDataFetchingRef.current = false;
     }
   }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
+
+  const handleRefresh = useCallback(async () => {
+    try {
+      localStorage.removeItem('admin_profiles');
+      localStorage.removeItem('admin_orders');
+      console.log("Admin: Cache cleared manually");
+    } catch (e) {}
+    await fetchData();
+    addActivity("تم تحديث البيانات يدوياً وتفريغ الذاكرة المؤقتة");
+  }, [fetchData, addActivity]);
 
   // 7. Auto-Dispatch Loop (Simultaneous with manual)
   useEffect(() => {
@@ -549,7 +560,11 @@ function AdminContent() {
         
         if (cachedOrders && cachedOrders.length > 0) {
           setAllOrders(cachedOrders);
-          setLoading(false); // Hide loader early if we have cache
+        }
+        
+        if (cachedProfiles && cachedProfiles.length > 0) {
+          processProfiles(cachedProfiles);
+          setLoading(false); // Hide loader early if we have profiles cache
         }
       } catch (e) {
         console.warn("Failed to load admin cache:", e);
@@ -1074,7 +1089,7 @@ function AdminContent() {
                 onLockAllDrivers={handleLockAllDrivers}
                 onUnlockAllDrivers={handleUnlockAllDrivers}
                 onGlobalReset={handleGlobalReset}
-                onRefresh={fetchData}
+                onRefresh={handleRefresh}
                 onBroadcastMessage={handleBroadcast}
                 onAssign={handleAssignOrder}
                 onCancelOrder={handleCancelOrder}
