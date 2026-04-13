@@ -285,6 +285,7 @@ export const startBackgroundTracking = async (userId: string) => {
 
           if (location && location.latitude && location.longitude) {
             try {
+              const now = Date.now();
               // Direct Supabase update for speed
               const { error: upError } = await supabase
                 .from('profiles')
@@ -294,7 +295,8 @@ export const startBackgroundTracking = async (userId: string) => {
                     lng: location.longitude,
                     heading: location.bearing || 0,
                     speed: location.speed || 0,
-                    accuracy: location.accuracy || 0
+                    accuracy: location.accuracy || 0,
+                    ts: now
                   },
                   is_online: true,
                   last_location_update: new Date().toISOString(),

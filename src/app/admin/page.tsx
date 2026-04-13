@@ -126,53 +126,92 @@ function AdminContent() {
   const [appConfig, setAppConfig] = useState<any>(null); // Start with null to prevent old data fallback
 
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
-  const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
+  const updateDriverRegistry = useCallback((payload: Partial<OnlineDriver> & { id: string }, source: 'db' | 'realtime') => {
     setOnlineDrivers(prev => {
-      const driversFromDb = profiles
-        .filter((p) => (p.role || '').toLowerCase() === 'driver')
-        .map((p) => {
-          let loc = p.location;
-          if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-          const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
-          
-          const lastUpdateStr = p.last_location_update || p.updated_at;
-          const lastUpdateDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
-          const lastUpdateTs = lastUpdateDate?.getTime() || 0;
-          const now = Date.now();
-          const diffMs = Math.abs(now - lastUpdateTs);
-          
-          // HARMONY LOGIC: 
-          // Show on map if: 
-          // 1. Has coordinates AND (Is Online OR updated in last 24h)
-          const hasCoords = normalizedLoc?.lat != null && normalizedLoc?.lng != null;
-          const isRecent = diffMs < 24 * 60 * 60 * 1000;
-          const shouldShow = hasCoords && (p.is_online || isRecent);
+      const existingIndex = prev.findIndex(d => d.id === payload.id);
+      const existing = existingIndex !== -1 ? prev[existingIndex] : null;
+      const now = Date.now();
+      
+      // 1. Timestamp Protection: Never let old data overwrite new data
+      // Prefer the explicit timestamp from payload if available
+      const payloadTs = payload.lastSeenTimestamp || (source === 'realtime' ? now : 0);
+      
+      if (existing && existing.lastSeenTimestamp && payloadTs < existing.lastSeenTimestamp) {
+        // Only ignore if it's from DB and we have a newer Realtime update
+        // or if both are Realtime and this one is older (out of order delivery)
+        if (source === 'db' || (source === 'realtime' && (existing.lastSeenTimestamp - payloadTs) > 100)) {
+           return prev;
+        }
+      }
 
-          if (!shouldShow) return null;
+      // 2. Precision Location Parsing
+      const lat = payload.lat ?? existing?.lat ?? 0;
+      const lng = payload.lng ?? existing?.lng ?? 0;
+      
+      if (lat === 0 || lng === 0) return prev;
 
-          // PROTECT REAL-TIME UPDATES: 
-          // If we have a newer real-time update in state, don't overwrite with DB data
-          const existing = prev.find(d => d.id === p.id);
-          if (existing && existing.lastSeenTimestamp && lastUpdateTs < existing.lastSeenTimestamp) {
-            return existing;
-          }
+      // 3. Status & Online logic
+      const isOnline = payload.is_online !== undefined ? payload.is_online : (existing?.is_online ?? true);
+      
+      const updatedDriver: OnlineDriver = {
+        ...existing,
+        ...payload,
+        id: payload.id,
+        name: payload.name || existing?.name || "كابتن",
+        lat,
+        lng,
+        lastSeen: source === 'realtime' ? "الآن" : (existing?.lastSeen || "تحديث..."),
+        lastSeenTimestamp: payloadTs,
+        is_online: isOnline,
+        status: payload.status || existing?.status || 'available',
+        rating: payload.rating ?? existing?.rating ?? 0
+      };
 
-          return {
+      if (existing) {
+        // Performance optimization: Don't update if nothing changed significantly
+        // (location change > 0.00001 or status/online change)
+        const locChanged = Math.abs(existing.lat - lat) > 0.000001 || Math.abs(existing.lng - lng) > 0.000001;
+        const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
+        
+        if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < 5000)) {
+          return prev;
+        }
+
+        const newDrivers = [...prev];
+        newDrivers[existingIndex] = updatedDriver;
+        return newDrivers;
+      }
+      return [...prev, updatedDriver];
+    });
+  }, []);
+
+  const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
+    profiles.forEach(p => {
+      if ((p.role || '').toLowerCase() === 'driver') {
+        let loc = p.location;
+        if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+        const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
+        
+        const lastUpdateStr = p.last_location_update || p.updated_at;
+        const lastUpdateTs = lastUpdateStr ? new Date(lastUpdateStr).getTime() : 0;
+        
+        const hasCoords = normalizedLoc?.lat != null && normalizedLoc?.lng != null;
+        // ONLY SHOW ON MAP: Online drivers OR those active in the last 15 minutes
+        const isRecent = (Date.now() - lastUpdateTs) < 15 * 60 * 1000;
+
+        if (hasCoords && (p.is_online || isRecent)) {
+          updateDriverRegistry({
             id: p.id,
             name: p.full_name || "غير معروف",
             lat: normalizedLoc!.lat,
             lng: normalizedLoc!.lng,
-            lastSeen: "تحديث...",
             lastSeenTimestamp: lastUpdateTs,
             is_online: p.is_online,
             status: p.is_online ? 'available' : 'busy',
             rating: p.rating || 0
-          } as OnlineDriver;
-        })
-        .filter((d): d is OnlineDriver => d !== null);
-      
-      // Merge: Keep all from DB, but prioritize existing real-time ones
-      return driversFromDb;
+          }, 'db');
+        }
+      }
     });
     
     const users = profiles.map((u) => ({
@@ -200,9 +239,7 @@ function AdminContent() {
         };
       }));
     }
-    
-    return online;
-  }, []);
+  }, [updateDriverRegistry]);
 
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
@@ -361,12 +398,18 @@ function AdminContent() {
 
   const handleRefresh = useCallback(async () => {
     try {
+      // CLEAR EVERYTHING for a fresh start
       localStorage.clear();
       sessionStorage.clear();
+      
+      // Force reload the entire supabase client state if possible by refreshing data
       console.log("Admin: ALL Cache cleared manually");
     } catch (e) {}
+    
+    setLoading(true);
     await fetchData(true);
     addActivity("تم تصفير الذاكرة وتحديث البيانات بالكامل");
+    setLoading(false);
   }, [fetchData, addActivity]);
 
   // 7. Auto-Dispatch Loop (Simultaneous with manual)
@@ -405,9 +448,16 @@ function AdminContent() {
     if (!mounted || activeView !== "operations") return;
 
     const backgroundRefresh = async () => {
-      // Only fetch profiles to update driver locations
+      // 1. Only fetch profiles to update driver locations
       console.log("[Polling] Refreshing driver locations (fallback)...");
       await fetchProfiles();
+
+      // 2. Cleanup stale drivers (Inactive for more than 15 mins and offline)
+      setOnlineDrivers(prev => {
+        const now = Date.now();
+        const threshold = 15 * 60 * 1000;
+        return prev.filter(d => d.is_online || (now - (d.lastSeenTimestamp || 0) < threshold));
+      });
     };
 
     const interval = setInterval(backgroundRefresh, 30000); // Every 30 seconds (faster for admin)
@@ -424,12 +474,11 @@ function AdminContent() {
     if (mounted && !authLoading && user) {
       let shouldFetchFull = true;
 
-      // Delta Sync Optimization: Update specific states based on payload to avoid full re-fetch
+      // Delta Sync Optimization: Update specific states based on payload
       if (payload && payload.table === 'profiles' && payload.new) {
         const p = payload.new;
         
         // Find if this is a driver (either from payload or from our existing state)
-        // CRITICAL FIX: If role is missing in payload, check ALL possible states to identify the user
         const existingProfile = allUsers.find(u => u.id === p.id);
         const existingDriver = onlineDrivers.find(d => d.id === p.id);
         const existingVendor = vendors.find(v => v.id_full === p.id);
@@ -437,84 +486,35 @@ function AdminContent() {
         const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || (existingVendor ? 'vendor' : '') || '').toLowerCase();
         
         if (role === 'driver') {
-          // 1. Parse Location with extreme robustness (ULTRA-PRECISION V0.9.5)
           let loc = p.location;
           if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+          const payloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null ? loc : null;
           
-          setOnlineDrivers(prev => {
-            const existing = prev.find(d => d.id === p.id);
-            
-            // 2. RAW GPS PRIORITY (V0.9.5 - ZERO LAG)
-            // If the payload has a location, we MUST use it. 
-            // We ignore all existing data if payload has new coordinates.
-            const payloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null ? loc : null;
-            
-            if (!payloadLoc && !existing) return prev; // Can't create new driver without location
-
-            const finalLat = payloadLoc ? (payloadLoc as any).lat : (existing?.lat);
-            const finalLng = payloadLoc ? (payloadLoc as any).lng : (existing?.lng);
-
-            if (finalLat == null || finalLng == null) return prev;
-
-            const now = Date.now();
-            const lastUpdateTs = (payloadLoc as any)?.ts || now;
-            
-            const diffSeconds = Math.floor(Math.abs(now - lastUpdateTs) / 1000);
-            let relativeTime = "الآن";
-            if (diffSeconds > 3 && diffSeconds < 60) relativeTime = `منذ ${diffSeconds} ثانية`;
-
-            const updatedDriver: OnlineDriver = {
+          if (payloadLoc) {
+            updateDriverRegistry({
               id: p.id,
-              name: p.full_name || existing?.name || existingProfile?.full_name || "كابتن",
-              lat: finalLat,
-              lng: finalLng,
-              lastSeen: relativeTime,
-              lastSeenTimestamp: now, 
-              is_online: p.is_online !== undefined ? p.is_online : (existing ? existing.is_online : true),
-              status: (payloadLoc as any)?.speed > 0 ? 'busy' : (existing?.status || 'available'),
-              rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)
-            };
-
-            // Force update on every payload to ensure map reflects real movement
-            console.log(`[REALTIME-SYNC] Moving ${updatedDriver.name} to ${updatedDriver.lat}, ${updatedDriver.lng}`);
-            
-            if (existing) return prev.map(d => d.id === p.id ? updatedDriver : d);
-            return [...prev, updatedDriver];
-          });
-          
-          // Also update allUsers to keep it fresh for future role checks
-          setAllUsers(prev => {
-            const exists = prev.find(u => u.id === p.id);
-            if (!exists) return prev;
-            return prev.map(u => u.id === p.id ? { ...u, ...p } : u);
-          });
-          
-          // Optimization: If only location/online status of a driver changed, don't re-fetch EVERYTHING
-          shouldFetchFull = false;
+              name: p.full_name || existingProfile?.full_name,
+              lat: (payloadLoc as any).lat,
+              lng: (payloadLoc as any).lng,
+              is_online: p.is_online,
+              status: (payloadLoc as any).speed > 0 ? 'busy' : undefined,
+              rating: p.rating,
+              lastSeenTimestamp: (payloadLoc as any).ts || Date.now()
+            }, 'realtime');
+            shouldFetchFull = false;
+          }
         } else if (role === 'vendor') {
-          // Optimization: Instant update for vendor location if it changes
           setVendors(prev => {
-            const existing = prev.find(v => v.id_full === p.id);
             let loc = p.location;
             if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-            
-            if (existing && loc) {
-              return prev.map(v => v.id_full === p.id ? { ...v, location: loc } : v);
-            }
+            if (loc) return prev.map(v => v.id_full === p.id ? { ...v, location: loc } : v);
             return prev;
           });
-          // Vendors might have other data like balance that needs full fetch, but location alone doesn't
           shouldFetchFull = false; 
         }
-      } else if (payload && payload.table === 'wallets') {
-        // Optimization: For wallet updates, we definitely want fresh stats, but maybe only fetch stats?
-        shouldFetchFull = true;
       }
       
-      // If it's an order update, a new user, or other critical change, do full fetch
-      if (shouldFetchFull) {
-        fetchData();
-      }
+      if (shouldFetchFull) fetchData();
     }
   }, true);
 

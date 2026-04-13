@@ -57,13 +57,24 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
   const prevPosRef = useRef<[number, number]>([point.lat, point.lng]);
   const targetPosRef = useRef<[number, number]>([point.lat, point.lng]);
   const startTimeRef = useRef<number>(0);
-  const DURATION = 2000; // Match DB update interval for maximum smoothness
+  const prevTimestampRef = useRef<number>(0);
+  const [duration, setDuration] = useState(2000);
 
   useEffect(() => {
     if (markerRef.current) {
       const newPos: [number, number] = [point.lat, point.lng];
       
       if (newPos[0] !== targetPosRef.current[0] || newPos[1] !== targetPosRef.current[1]) {
+        // Calculate dynamic duration based on update frequency
+        const nowTs = point.lastSeenTimestamp || Date.now();
+        if (prevTimestampRef.current > 0) {
+          const diff = nowTs - prevTimestampRef.current;
+          // Set duration to slightly less than update interval for smooth transition
+          // but clamp it between 500ms and 5000ms
+          setDuration(Math.max(500, Math.min(diff * 0.9, 5000)));
+        }
+        prevTimestampRef.current = nowTs;
+
         // Start new interpolation animation
         prevPosRef.current = [markerRef.current.getLatLng().lat, markerRef.current.getLatLng().lng];
         targetPosRef.current = newPos;
@@ -71,10 +82,10 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
 
         const animate = (currentTime: number) => {
           const elapsed = currentTime - startTimeRef.current;
-          const progress = Math.min(elapsed / DURATION, 1);
+          const progress = Math.min(elapsed / duration, 1);
           
-          // Cubic easing for natural movement feel
-          const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+          // Smooth easing
+          const easeProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
           if (markerRef.current) {
             const currentLat = prevPosRef.current[0] + (targetPosRef.current[0] - prevPosRef.current[0]) * easeProgress;
@@ -92,7 +103,7 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
       }
     }
     return () => cancelAnimationFrame(animationRef.current);
-  }, [point.lat, point.lng]);
+  }, [point.lat, point.lng, duration]);
 
   const [displayTime, setRelativeTime] = useState(getRelativeTime(point.lastSeenTimestamp));
 
