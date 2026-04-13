@@ -156,52 +156,7 @@ function AdminContent() {
     }
   }, []);
 
-  // 7. Auto-Dispatch Loop (Simultaneous with manual)
-  useEffect(() => {
-    if (!autoRetryEnabled || activeView !== "operations") return;
-
-    const retryAutoDispatch = async () => {
-      const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
-      if (pendingOrders.length === 0) return;
-
-      console.log(`[Auto-Dispatch] Found ${pendingOrders.length} pending orders. Retrying...`);
-      
-      for (const order of pendingOrders) {
-        try {
-          // Find vendor location for this order
-          const vendor = vendors.find(v => v.name === order.vendor || v.id_full === (order as any).vendor_id);
-          const vLoc = vendor?.location ? { lat: vendor.location.lat!, lng: vendor.location.lng! } : undefined;
-          
-          const { assignOrderToNearestDriver } = await import("@/lib/orders");
-          const result = await assignOrderToNearestDriver(order.id_full, vLoc);
-          if (result.success) {
-            addActivity(`توزيع تلقائي: تم تعيين الطلب #${order.id} للطيار ${result.driverName}`);
-          }
-        } catch (err) {
-          console.error(`[Auto-Dispatch] Error for order ${order.id}:`, err);
-        }
-      }
-    };
-
-    const interval = setInterval(retryAutoDispatch, 15000); // Retry every 15 seconds
-    return () => clearInterval(interval);
-  }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
-
-  // 8. Background Refresh Loop for Driver Locations (Fallback for real-time)
-  useEffect(() => {
-    if (!mounted || activeView !== "operations") return;
-
-    const backgroundRefresh = async () => {
-      // Only fetch profiles to update driver locations
-      console.log("[Polling] Refreshing driver locations (fallback)...");
-      await fetchProfiles();
-    };
-
-    const interval = setInterval(backgroundRefresh, 30000); // Every 30 seconds
-    return () => clearInterval(interval);
-  }, [mounted, activeView, fetchProfiles]);
-
-  // 7. Data Fetching Functions
+  // 7. Data Fetching Functions (Moved UP to avoid TDZ)
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
       // If we only need live orders for operations center, fetch a smaller subset
@@ -401,6 +356,51 @@ function AdminContent() {
       isDataFetchingRef.current = false;
     }
   }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
+
+  // 7. Auto-Dispatch Loop (Simultaneous with manual)
+  useEffect(() => {
+    if (!autoRetryEnabled || activeView !== "operations") return;
+
+    const retryAutoDispatch = async () => {
+      const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
+      if (pendingOrders.length === 0) return;
+
+      console.log(`[Auto-Dispatch] Found ${pendingOrders.length} pending orders. Retrying...`);
+      
+      for (const order of pendingOrders) {
+        try {
+          // Find vendor location for this order
+          const vendor = vendors.find(v => v.name === order.vendor || v.id_full === (order as any).vendor_id);
+          const vLoc = vendor?.location ? { lat: vendor.location.lat!, lng: vendor.location.lng! } : undefined;
+          
+          const { assignOrderToNearestDriver } = await import("@/lib/orders");
+          const result = await assignOrderToNearestDriver(order.id_full, vLoc);
+          if (result.success) {
+            addActivity(`توزيع تلقائي: تم تعيين الطلب #${order.id} للطيار ${result.driverName}`);
+          }
+        } catch (err) {
+          console.error(`[Auto-Dispatch] Error for order ${order.id}:`, err);
+        }
+      }
+    };
+
+    const interval = setInterval(retryAutoDispatch, 15000); // Retry every 15 seconds
+    return () => clearInterval(interval);
+  }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
+
+  // 8. Background Refresh Loop for Driver Locations (Fallback for real-time)
+  useEffect(() => {
+    if (!mounted || activeView !== "operations") return;
+
+    const backgroundRefresh = async () => {
+      // Only fetch profiles to update driver locations
+      console.log("[Polling] Refreshing driver locations (fallback)...");
+      await fetchProfiles();
+    };
+
+    const interval = setInterval(backgroundRefresh, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, [mounted, activeView, fetchProfiles]);
 
   // Fetch full history when switching to relevant tabs
   useEffect(() => {
