@@ -200,7 +200,7 @@ export default function StoreView({
         )}
       </AnimatePresence>
 
-      <div className="sticky top-20 z-30 bg-white/60 backdrop-blur-xl p-1.5 rounded-[28px] flex border border-white/40 shadow-sm">
+      <div className="sticky top-20 z-30 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-1.5 rounded-[28px] flex border border-white/40 dark:border-slate-800 shadow-sm">
         {["نشط", "مكتمل", "ملغي"].map((tab) => (
           <motion.button
             key={tab}
@@ -208,8 +208,8 @@ export default function StoreView({
             onClick={() => onSetActiveTab(tab === "نشط" ? "active" : tab)}
             className={`flex-1 py-3.5 rounded-[22px] text-[10px] font-black tracking-wider transition-all uppercase ${
               (activeTab === "active" && tab === "نشط") || activeTab === tab
-                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
-                : "text-slate-400 hover:bg-slate-100/50"
+                ? "bg-slate-900 dark:bg-slate-800 text-white shadow-lg shadow-slate-200 dark:shadow-none"
+                : "text-slate-400 dark:text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
             }`}
           >
             {tab}

@@ -120,31 +120,31 @@ export default function OrderDetailsModal({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: "100%", opacity: 0 }}
           transition={{ type: "spring", damping: 28, stiffness: 300 }}
-          className="bg-white w-full sm:max-w-lg rounded-t-[40px] sm:rounded-[40px] shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
+          className="bg-white dark:bg-slate-900 w-full sm:max-w-lg rounded-t-[40px] sm:rounded-[40px] shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
           dir="rtl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Handle Bar */}
           <div className="flex justify-center pt-3 pb-1 sm:hidden">
-            <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            <div className="w-10 h-1 bg-slate-200 dark:bg-slate-800 rounded-full" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">طلب #{order.id.slice(0, 8)}</p>
-              <h2 className="text-lg font-black text-slate-900">{order.vendor}</h2>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">طلب #{order.id.slice(0, 8)}</p>
+              <h2 className="text-lg font-black text-slate-900 dark:text-white">{order.vendor}</h2>
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+              className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Progress Steps */}
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between">
               {steps.map((step, i) => {
                 const Icon = step.icon;
@@ -154,12 +154,12 @@ export default function OrderDetailsModal({
                   <div key={i} className="flex flex-col items-center gap-1 flex-1">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
                       isCompleted ? "bg-emerald-500 border-emerald-500 text-white" :
-                      isCurrent   ? "bg-white border-sky-500 text-sky-500 shadow-lg shadow-sky-100" :
-                                    "bg-white border-slate-200 text-slate-300"
+                      isCurrent   ? "bg-white dark:bg-slate-800 border-sky-500 text-sky-500 shadow-lg shadow-sky-100 dark:shadow-none" :
+                                    "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600"
                     }`}>
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className={`text-[9px] font-black ${isCurrent ? "text-sky-600" : isCompleted ? "text-emerald-600" : "text-slate-400"}`}>
+                    <span className={`text-[9px] font-black ${isCurrent ? "text-sky-600" : isCompleted ? "text-emerald-600" : "text-slate-400 dark:text-slate-600"}`}>
                       {step.label}
                     </span>
                   </div>
@@ -169,13 +169,13 @@ export default function OrderDetailsModal({
             {/* Connector Lines */}
             <div className="flex items-center mt-[-28px] mb-3 px-5">
               {steps.slice(0, -1).map((_, i) => (
-                <div key={i} className={`flex-1 h-0.5 mx-1 mt-[-4px] transition-colors ${i < currentStep ? "bg-emerald-400" : "bg-slate-200"}`} />
+                <div key={i} className={`flex-1 h-0.5 mx-1 mt-[-4px] transition-colors ${i < currentStep ? "bg-emerald-400" : "bg-slate-200 dark:bg-slate-800"}`} />
               ))}
             </div>
           </div>
 
           {/* Status Badge */}
-          <div className={`mx-6 mt-4 px-4 py-3 rounded-2xl border flex items-center gap-3 ${config.bg}`}>
+          <div className={`mx-6 mt-4 px-4 py-3 rounded-2xl border flex items-center gap-3 ${config.bg} dark:bg-slate-800/50 dark:border-slate-700`}>
             <AlertCircle className={`w-4 h-4 ${config.color} flex-shrink-0`} />
             <p className={`text-sm font-black ${config.color}`}>{config.label}</p>
           </div>
@@ -184,17 +184,17 @@ export default function OrderDetailsModal({
           <div className="px-6 py-4 space-y-4">
 
             {/* Vendor (Pickup Point) - Moved higher for visibility */}
-            <div className="bg-sky-50/40 rounded-3xl p-5 border border-sky-100 shadow-sm">
+            <div className="bg-sky-50/40 dark:bg-sky-900/10 rounded-3xl p-5 border border-sky-100 dark:border-sky-900/30 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-sky-600 shadow-sm border border-sky-50">
+                  <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-sky-600 shadow-sm border border-sky-50 dark:border-sky-900/20">
                     <Store className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">نقطة الاستلام (المحل)</p>
-                    <h3 className="font-black text-slate-900 text-lg">{order.vendor}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">نقطة الاستلام (المحل)</p>
+                    <h3 className="font-black text-slate-900 dark:text-white text-lg">{order.vendor}</h3>
                     {order.vendorArea && (
-                      <p className="text-[11px] font-bold text-slate-500 mt-0.5 flex items-center gap-1">
+                      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-red-400" />
                         {order.vendorArea}
                       </p>
@@ -204,7 +204,7 @@ export default function OrderDetailsModal({
                 {order.vendorPhone && (
                   <a
                     href={`tel:${order.vendorPhone}`}
-                    className="w-12 h-12 bg-white text-sky-500 border border-sky-100 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
+                    className="w-12 h-12 bg-white dark:bg-slate-800 text-sky-500 border border-sky-100 dark:border-sky-900/30 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
                     title="اتصال بالمحل"
                   >
                     <Phone className="w-5 h-5" />
@@ -266,7 +266,7 @@ export default function OrderDetailsModal({
 
                 {/* Sikka Total Summary */}
                 {order.customers && order.customers.length > 0 && (
-                  <div className="bg-slate-900 rounded-[32px] p-5 text-white shadow-xl shadow-slate-200 flex items-center justify-between">
+                  <div className="bg-slate-900 dark:bg-black rounded-[32px] p-5 text-white shadow-xl shadow-slate-200 dark:shadow-none flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إجمالي المديونية للمحل</p>
                       <p className="text-xl font-black text-white">{totalOrderValue} <span className="text-xs font-bold opacity-60">ج.م</span></p>
@@ -281,12 +281,12 @@ export default function OrderDetailsModal({
 
                 {/* Vendor Rating (Visible after delivery) */}
                 {order.status === 'delivered' && (
-                  <div className="bg-white border border-slate-100 rounded-[32px] p-6 space-y-4 shadow-sm">
+                  <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] p-6 space-y-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500">
+                      <div className="w-8 h-8 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center justify-center text-amber-500">
                         <User className="w-4 h-4" />
                       </div>
-                      <p className="text-xs font-black text-slate-700">تقييمك للمحل</p>
+                      <p className="text-xs font-black text-slate-700 dark:text-slate-200">تقييمك للمحل</p>
                     </div>
                     <div className="flex justify-center gap-3">
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -303,7 +303,7 @@ export default function OrderDetailsModal({
                                 else alert("فشل إرسال التقييم: " + error.message);
                               });
                           }}
-                          className="w-10 h-10 rounded-2xl bg-slate-50 hover:bg-amber-500 hover:text-white text-slate-300 transition-all flex items-center justify-center"
+                          className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500 hover:text-white text-slate-300 dark:text-slate-700 transition-all flex items-center justify-center"
                         >
                           <Star size={20} fill="currentColor" />
                         </button>
@@ -316,16 +316,16 @@ export default function OrderDetailsModal({
             {/* Customers List */}
             {order.customers && order.customers.length > 0 ? (
               <div className="space-y-4">
-                <p className="text-xs font-black text-slate-900 mr-2">قائمة العملاء في السكة ({order.customers.length})</p>
+                <p className="text-xs font-black text-slate-900 dark:text-slate-300 mr-2">قائمة العملاء في السكة ({order.customers.length})</p>
                 {order.customers.map((cust, idx) => (
-                  <div key={idx} className={`rounded-3xl p-4 border transition-all ${cust.status === 'delivered' ? 'bg-emerald-50 border-emerald-100 opacity-70' : 'bg-slate-50 border-slate-100'}`}>
+                  <div key={idx} className={`rounded-3xl p-4 border transition-all ${cust.status === 'delivered' ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 opacity-70' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700'}`}>
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="w-5 h-5 bg-slate-900 text-white text-[10px] font-black flex items-center justify-center rounded-full">{idx + 1}</span>
-                          <p className="font-black text-slate-900 text-sm">{cust.name}</p>
+                          <span className="w-5 h-5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black flex items-center justify-center rounded-full">{idx + 1}</span>
+                          <p className="font-black text-slate-900 dark:text-white text-sm">{cust.name}</p>
                         </div>
-                        <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-bold">
+                        <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[11px] font-bold">
                           <MapPin size={12} className="text-red-400" />
                           {cust.address}
                         </div>
@@ -337,25 +337,25 @@ export default function OrderDetailsModal({
                                 e.stopPropagation();
                                 onPreviewImage?.(cust.invoice_url!);
                               }}
-                              className="w-12 h-12 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden"
+                              className="w-12 h-12 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden"
                               title="عرض الفاتورة"
                             >
                               <img src={cust.invoice_url} className="w-full h-full object-cover" alt="Invoice" />
                             </button>
                           ) : (
-                            <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-gray-300 italic text-[8px] text-center p-1">
+                            <div className="w-12 h-12 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl flex items-center justify-center text-gray-300 dark:text-gray-600 italic text-[8px] text-center p-1">
                               لا توجد فاتورة
                             </div>
                           )}
                           <div className="flex flex-col gap-2">
-                            <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                            <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                               <Phone size={18} />
                             </a>
                             <a 
                               href={`https://maps.google.com/?q=${encodeURIComponent(cust.address)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
+                              className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
                             >
                               <MapPin size={18} />
                             </a>
@@ -364,13 +364,13 @@ export default function OrderDetailsModal({
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div className="bg-white/60 p-2 rounded-xl border border-slate-100">
-                        <p className="text-[8px] font-bold text-slate-400 uppercase">قيمة الأوردر</p>
-                        <p className="text-xs font-black text-slate-700">{cust.orderValue} ج.م</p>
+                      <div className="bg-white/60 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase">قيمة الأوردر</p>
+                        <p className="text-xs font-black text-slate-700 dark:text-slate-200">{cust.orderValue} ج.م</p>
                       </div>
-                      <div className="bg-white/60 p-2 rounded-xl border border-slate-100">
-                        <p className="text-[8px] font-bold text-slate-400 uppercase">سعر التوصيل</p>
-                        <p className="text-xs font-black text-emerald-600">{cust.deliveryFee} ج.م</p>
+                      <div className="bg-white/60 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase">سعر التوصيل</p>
+                        <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">{cust.deliveryFee} ج.م</p>
                       </div>
                     </div>
 
