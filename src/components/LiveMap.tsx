@@ -309,47 +309,13 @@ export default function LiveMap({
   const eta = orders.length > 0 ? "٤ دقائق" : "٢ دقيقة";
 
   return (
-    <div className={`${className} relative group transition-all duration-300 overflow-hidden bg-slate-900 shadow-2xl ring-1 ring-white/10`}>
+    <div className={`${className} relative group transition-all duration-300 overflow-hidden bg-slate-100`}>
       {/* 
-          Technical Map Telemetry (v0.9.39)
-          Provides real help, not just look.
+          V0.9.41: Advanced Full-Interactive Map Engine
+          Removed manual CSS rotation/tilt logic to ensure map feels alive and technical.
+          Switched to Google's Modern Roadmap with High-Detail Vector look.
       */}
-      {isFollowing && (
-        <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 pointer-events-none">
-          <div className="bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex items-center gap-3 shadow-2xl">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex flex-col items-center justify-center text-white">
-              <span className="text-[12px] font-black leading-none">{currentSpeed}</span>
-              <span className="text-[7px] font-bold uppercase opacity-80">كم/س</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">المسافة المتبقية</span>
-              <span className="text-[13px] font-black text-white">{distanceToTarget}</span>
-            </div>
-          </div>
-          
-          <div className="bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex items-center gap-3 shadow-2xl">
-            <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">الوقت المتوقع</span>
-              <span className="text-[13px] font-black text-white">{eta}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Oversized & Centered Map Container (v0.9.39) */}
-      <div 
-        className="absolute transition-all duration-500 ease-in-out origin-center"
-        style={{ 
-          transform: `perspective(1500px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
-          width: '200%',
-          height: '200%',
-          top: '-50%',
-          left: '-50%'
-        }}
-      >
+      <div className="absolute inset-0">
         <MapContainer 
           center={center} 
           zoom={zoom} 
@@ -366,14 +332,13 @@ export default function LiveMap({
             force={isFollowing} 
           />
           {/* 
-              Ultra-Realtime Hybrid Map (v0.9.38)
-              Combines Google Satellite + Road Labels + Real-time Traffic Data
+              Modern Google Roadmap (v0.9.41)
+              Clean, Advanced, High-Detail map for navigation.
           */}
           <TileLayer
-            attribution='&copy; Google Hybrid Maps'
-            url="https://mt1.google.com/vt/lyrs=y,h,traffic&x={x}&y={y}&z={z}"
+            attribution='&copy; Google Maps'
+            url="https://mt1.google.com/vt/lyrs=m,h,traffic&x={x}&y={y}&z={z}"
             maxZoom={20}
-            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
           />
           
           <MapEvents 
@@ -388,15 +353,6 @@ export default function LiveMap({
             position={[vendor.lat, vendor.lng]} 
             icon={vendorIcon!}
             zIndexOffset={100}
-            ref={(ref) => {
-              if (ref) {
-                const element = ref.getElement();
-                if (element) {
-                  element.style.transition = 'transform 0.5s ease-in-out';
-                  element.style.transform = `rotateZ(${mapRotation}deg)`;
-                }
-              }
-            }}
           >
             <Popup className="custom-popup">
               <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
@@ -419,15 +375,6 @@ export default function LiveMap({
               position={[order.lat, order.lng]} 
               icon={orderIcon!}
               zIndexOffset={200}
-              ref={(ref) => {
-                if (ref) {
-                  const element = ref.getElement();
-                  if (element) {
-                    element.style.transition = 'transform 0.5s ease-in-out';
-                    element.style.transform = `rotateZ(${mapRotation}deg)`;
-                  }
-                }
-              }}
             >
               <Popup className="custom-popup">
                 <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
@@ -464,8 +411,6 @@ export default function LiveMap({
               <AnimatedMarker 
                 point={driver} 
                 icon={icon} 
-                mapRotation={mapRotation}
-                mapTilt={mapTilt}
               />
               
               {/* Draw road-based route for active driver if they have a target */}
@@ -495,69 +440,20 @@ export default function LiveMap({
         </MapContainer>
       </div>
 
-      {/* Manual Navigation UI - Cleaner & More Control */}
+      {/* Manual Navigation UI - Simplified (v0.9.41) */}
       <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-3">
         {/* Recenter Button */}
         <button 
           onClick={() => setIsFollowing(true)}
-          className={`p-3 rounded-2xl shadow-xl transition-all border flex items-center justify-center ${
+          className={`p-4 rounded-[24px] shadow-2xl transition-all border flex items-center justify-center ${
             isFollowing 
-            ? 'bg-blue-600 text-white border-blue-400' 
+            ? 'bg-blue-600 text-white border-blue-400 scale-110' 
             : 'bg-white/90 backdrop-blur-md text-slate-600 border-white/20'
           }`}
           title={isFollowing ? "إيقاف التتبع" : "إعادة التمركز"}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+          <Navigation className={`w-6 h-6 ${isFollowing ? 'fill-current' : ''}`} />
         </button>
-
-        {/* Manual Rotation & Tilt Controls */}
-        <div className="flex flex-col bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-white/20 overflow-hidden">
-          {/* Tilt Up */}
-          <button 
-            onClick={() => setMapTilt(prev => Math.min(prev + 10, 45))}
-            className="p-3 text-slate-600 hover:bg-slate-50 border-b border-slate-100 transition-colors"
-            title="إمالة للأعلى"
-          >
-            <ChevronUp className="w-5 h-5" />
-          </button>
-
-          {/* Rotate Left */}
-          <button 
-            onClick={() => setMapRotation(prev => prev - 22.5)}
-            className="p-3 text-slate-600 hover:bg-slate-50 border-b border-slate-100 transition-colors"
-            title="تدوير لليسار"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-          </button>
-          
-          {/* Reset All (Compass) */}
-          <button 
-            onClick={() => { setMapRotation(0); setMapTilt(0); }}
-            className={`p-3 transition-all flex items-center justify-center ${Math.abs(mapRotation % 360) > 5 || mapTilt !== 0 ? 'text-blue-500' : 'text-slate-300'}`}
-            style={{ transform: `rotate(${-mapRotation}deg)` }}
-            title="إعادة ضبط الشمال والإمالة"
-          >
-            <Navigation className="w-5 h-5 fill-current" />
-          </button>
-
-          {/* Rotate Right */}
-          <button 
-            onClick={() => setMapRotation(prev => prev + 22.5)}
-            className="p-3 text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
-            title="تدوير لليمين"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-          </button>
-
-          {/* Tilt Down */}
-          <button 
-            onClick={() => setMapTilt(prev => Math.max(prev - 10, 0))}
-            className="p-3 text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
-            title="إمالة للأسفل"
-          >
-            <ChevronDown className="w-5 h-5" />
-          </button>
-        </div>
       </div>
     </div>
   );
