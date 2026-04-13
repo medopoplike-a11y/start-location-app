@@ -328,7 +328,8 @@ function AdminContent() {
               max_active_orders: p.max_active_orders || 3,
               billing_type: p.billing_type || 'commission',
               commission_value: p.commission_value || 15,
-              monthly_salary: p.monthly_salary || 0
+              monthly_salary: p.monthly_salary || 0,
+              rating: p.rating || 0
             };
           }));
           setVendors(typedProfiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
@@ -348,7 +349,8 @@ function AdminContent() {
               commission_type: (p as any).commission_type,
               commission_value: (p as any).commission_value,
               billing_type: (p as any).billing_type || 'commission',
-              monthly_salary: (p as any).monthly_salary || 0
+              monthly_salary: (p as any).monthly_salary || 0,
+              rating: p.rating || 0
             };
           }));
         }

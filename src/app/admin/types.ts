@@ -63,6 +63,7 @@ export interface DriverCard {
   billing_type?: 'commission' | 'fixed_salary';
   commission_value?: number;
   monthly_salary?: number;
+  rating?: number;
 }
 
 export interface VendorCard {
@@ -80,6 +81,7 @@ export interface VendorCard {
   commission_value?: number;
   billing_type?: 'commission' | 'fixed_salary';
   monthly_salary?: number;
+  rating?: number;
 }
 
 export interface AppUser {
@@ -102,6 +104,7 @@ export interface OnlineDriver {
   lastSeen: string;
   status?: 'available' | 'busy';
   is_online?: boolean;
+  rating?: number;
 }
 
 export interface SettlementItem {
