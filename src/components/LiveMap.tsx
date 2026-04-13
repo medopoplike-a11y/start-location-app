@@ -305,9 +305,8 @@ export default function LiveMap({
             force={isFollowing} 
           />
           <TileLayer
-            attribution='&copy; Google Maps'
-            url="https://mt1.google.com/vt/lyrs=m,h&x={x}&y={y}&z={z}"
-            maxZoom={20}
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
           <MapEvents 
