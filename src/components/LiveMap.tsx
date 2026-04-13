@@ -279,14 +279,19 @@ export default function LiveMap({
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
   return (
-    <div className={`${className} relative group transition-all duration-300 overflow-hidden`}>
-      {/* Stabilized Map Wrapper */}
+    <div className={`${className} relative group transition-all duration-300 overflow-hidden bg-slate-200`}>
+      {/* 
+          Oversized & Centered Map Container (v0.9.34)
+          We make the map 200% of the parent and offset it by -50% to hide edges during rotation.
+      */}
       <div 
-        className="h-full w-full transition-all duration-1000 ease-in-out origin-center scale-[1.4]"
+        className="absolute transition-all duration-1000 ease-in-out origin-center"
         style={{ 
-          transform: `perspective(1200px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
-          height: '100%',
-          width: '100%'
+          transform: `perspective(1500px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
+          width: '200%',
+          height: '200%',
+          top: '-50%',
+          left: '-50%'
         }}
       >
         <MapContainer 
@@ -304,9 +309,11 @@ export default function LiveMap({
             zoom={zoom} 
             force={isFollowing} 
           />
+          {/* Voyager Theme: Modern, High-Performance Map (v0.9.34) */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; CartoDB Voyager'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            maxZoom={20}
           />
           
           <MapEvents 
