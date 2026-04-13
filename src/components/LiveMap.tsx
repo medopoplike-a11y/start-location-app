@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -22,6 +22,8 @@ interface MapPoint {
   name: string;
   lat: number;
   lng: number;
+  targetLat?: number;
+  targetLng?: number;
   lastSeen?: string;
   type?: 'driver' | 'vendor' | 'order';
   status?: string;
@@ -213,27 +215,41 @@ export default function LiveMap({
 
         {/* عرض الطلبات النشطة */}
         {orders.filter(o => o.lat && o.lng).map((order) => (
-          <Marker 
-            key={`order-${order.id}`} 
-            position={[order.lat, order.lng]} 
-            icon={orderIcon!}
-            zIndexOffset={200}
-          >
-            <Popup className="custom-popup">
-              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                  <p className="font-black text-rose-600">طلب: {order.name}</p>
+          <div key={`order-group-${order.id}`}>
+            <Marker 
+              position={[order.lat, order.lng]} 
+              icon={orderIcon!}
+              zIndexOffset={200}
+            >
+              <Popup className="custom-popup">
+                <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    <p className="font-black text-rose-600">طلب: {order.name}</p>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
+                  {order.details && (
+                    <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
+                      {order.details}
+                    </p>
+                  )}
                 </div>
-                <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
-                {order.details && (
-                  <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
-                    {order.details}
-                  </p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
+              </Popup>
+            </Marker>
+            
+            {/* Draw path to target if available */}
+            {order.targetLat && order.targetLng && (
+              <Polyline 
+                positions={[[order.lat, order.lng], [order.targetLat, order.targetLng]]}
+                pathOptions={{ 
+                  color: '#f43f5e', 
+                  dashArray: '10, 10', 
+                  weight: 3,
+                  opacity: 0.6
+                }}
+              />
+            )}
+          </div>
         ))}
 
         {/* عرض المناديب - Rendered last to be on top */}

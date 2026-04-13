@@ -225,14 +225,27 @@ export default function OperationsCenter({
                       }))}
                       vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
                       orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
-                        // Use customer location if available, otherwise fallback to vendor location
-                        const lat = o.customer_details?.coords?.lat;
-                        const lng = o.customer_details?.coords?.lng;
+                        // 1. Root Solution (V0.9.7): Link Order Marker to Driver Location if assigned
+                        // This ensures the order indicator MOVES with the driver instead of staying at the shop/customer
+                        const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
                         
-                        // Fallback to vendor location only if customer coords are missing
+                        // Use driver's real-time coords if they are moving/active
+                        const driverLat = assignedDriver?.lat;
+                        const driverLng = assignedDriver?.lng;
+
+                        // Default coords (Customer or Vendor)
+                        const customerLat = o.customer_details?.coords?.lat;
+                        const customerLng = o.customer_details?.coords?.lng;
+                        
                         const v = vendors.find(v => v.id_full === o.vendor_id);
-                        const finalLat = lat ?? v?.location?.lat;
-                        const finalLng = lng ?? v?.location?.lng;
+                        const vendorLat = v?.location?.lat;
+                        const vendorLng = v?.location?.lng;
+
+                        // LOGIC: 
+                        // - If assigned/in_transit, use driver location for tracking
+                        // - If pending, use vendor location (since driver is still being searched)
+                        let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (driverLat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
+                        let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (driverLng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
 
                         if (finalLat == null || finalLng == null) return null;
 
@@ -241,6 +254,8 @@ export default function OperationsCenter({
                           name: o.vendor_full_name || "محل",
                           lat: finalLat,
                           lng: finalLng,
+                          targetLat: (o.status === 'assigned' ? vendorLat : customerLat) || undefined,
+                          targetLng: (o.status === 'assigned' ? vendorLng : customerLng) || undefined,
                           status: o.status === 'pending' ? 'جاري البحث عن طيار' : 
                                   o.status === 'assigned' ? 'تم التعيين - بانتظار التحصيل' : 'في الطريق للعميل',
                           details: `قيمة الطلب: ${o.financials?.order_value} ج.م`

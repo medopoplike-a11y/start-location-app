@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v0.9.6)
+## ✅ Project Status: Production Live (v0.9.7)
 
 **Last Deployment**: April 13, 2026 - 🎉 Full CI/CD Pipeline Active (GitHub -> Vercel Sync)
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v0.9.6]
+- **Mobile (Android)**: APK Build Status ✅ [v0.9.7]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
@@ -30,16 +30,18 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 - ✅ Mutual Rating System (Driver <-> Vendor)
 - ✅ Luxury Welcome Screen with Particles
 - ✅ Dark Mode Visibility Improvements
-- ✅ Force Cache Clearing & Web Parity (v0.9.6)
+- ✅ Force Cache Clearing & Web Parity (v0.9.7)
 - ✅ Automatic Vercel Deployment via GitHub Actions
 - ✅ ULTRA-SYNC & LERP Animation (Smooth Movement)
 - ✅ Smart Harmony Sync (No More Disappearing Drivers)
-- ✅ Precise Timestamp Tracking (v0.9.6)
+- ✅ Precise Timestamp Tracking (v0.9.7)
 - ✅ DB Index Optimization (Live Map Performance)
 - ✅ Stale Driver Auto-Cleanup (Admin View)
+- ✅ Dynamic Order Markers (Orders follow Drivers)
+- ✅ Real-time Path Visualization (Polylines)
 
 ### 📦 **Latest Builds**
-- **APK v0.9.6**: ✅ Built & Available
+- **APK v0.9.7**: ✅ Built & Available
 - **Web**: ✅ Live on Vercel (Synced)
 - **Database**: ✅ 15 Tables (including Ratings)
 
@@ -47,4 +49,4 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 
 **Status:** 🟢 Active & Deployed  
 **Last Updated:** 2026-04-13  
-**Version:** 0.9.6
+**Version:** 0.9.7
