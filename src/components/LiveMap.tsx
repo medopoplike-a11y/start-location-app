@@ -331,20 +331,14 @@ export default function LiveMap({
             zoom={zoom} 
             force={isFollowing} 
           />
-          {/* Add a specialized overlay for High-Detail Numbering (v0.9.43) */}
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            opacity={0.15}
-            className="contrast-150 grayscale-50"
-          />
           {/* 
-              Modern Google Roadmap (v0.9.43)
-              Clean, Advanced, High-Detail map with House Numbers & Traffic.
+              Revert to Classic, Clean & Organized Map (v0.9.45)
+              Using OpenStreetMap (Standard) as preferred by user for clarity.
           */}
           <TileLayer
-            attribution='&copy; Google Maps'
-            url="https://mt1.google.com/vt/lyrs=m,h,traffic&x={x}&y={y}&z={z}&style=feature:all|element:labels.text.fill|color:0x333333|weight:0.5&style=feature:poi|element:labels|visibility:on&style=feature:transit|element:labels|visibility:on&style=feature:road|element:labels.icon|visibility:on&style=feature:road|element:labels.text.fill|color:0x000000"
-            maxZoom={20}
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
           />
           
           <MapEvents 
