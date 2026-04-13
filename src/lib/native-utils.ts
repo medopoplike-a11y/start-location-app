@@ -269,7 +269,7 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
 
     // 2. Wrap the addWatcher in a timeout to prevent native hanging
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 10000; // Update DB every 10 seconds max
+    const DB_UPDATE_INTERVAL = 3000; // V0.9.30: Increased frequency to 3 seconds for real-time feel
 
     const watcherId = await Promise.race([
       BackgroundGeolocation.addWatcher(
@@ -277,8 +277,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           backgroundMessage: "جاري تتبع موقعك لتقديم أفضل خدمة توصيل...",
           backgroundTitle: "تطبيق ستارت نشط",
           requestPermissions: true,
-          staleLocationInterval: 10000,
-          distanceFilter: 5 // Increased from 2 to 5 meters to balance accuracy and battery
+          staleLocationInterval: 5000,
+          distanceFilter: 2 // V0.9.30: Reduced from 5 to 2 meters for higher accuracy
         },
         async (location: any, error: any) => {
           if (error) {

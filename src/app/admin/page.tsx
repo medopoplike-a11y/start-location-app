@@ -181,7 +181,9 @@ function AdminContent() {
       if (existing) {
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
         
-        if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < 5000)) {
+        // V0.9.30: Allow much faster updates for real-time sources (1s instead of 5s)
+        const cooldown = source === 'realtime' ? 1000 : 5000;
+        if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < cooldown)) {
           return prev;
         }
 
@@ -232,8 +234,22 @@ function AdminContent() {
       setDrivers(profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
         const w = wallets.find((wal) => wal.user_id === p.id);
         return { 
-          id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", status: p.is_locked ? "محظور" : "نشط", isShiftLocked: !!p.is_locked, earnings: w?.balance || 0, debt: (w?.debt || 0) + (w?.system_balance || 0), totalOrders: 0,
-          email: p.email, phone: p.phone, max_active_orders: p.max_active_orders || 3, billing_type: p.billing_type || 'commission', commission_value: p.commission_value || 15, monthly_salary: p.monthly_salary || 0, rating: p.rating || 0
+          id: p.id.slice(0, 8), 
+          id_full: p.id, 
+          name: p.full_name || "بدون اسم", 
+          status: p.is_locked ? "محظور" : (p.is_online ? "متصل" : "نشط"), 
+          isShiftLocked: !!p.is_locked, 
+          isOnline: !!p.is_online, // Ensure isOnline is explicitly set
+          earnings: w?.balance || 0, 
+          debt: (w?.debt || 0) + (w?.system_balance || 0), 
+          totalOrders: 0,
+          email: p.email, 
+          phone: p.phone, 
+          max_active_orders: p.max_active_orders || 3, 
+          billing_type: p.billing_type || 'commission', 
+          commission_value: p.commission_value || 15, 
+          monthly_salary: p.monthly_salary || 0, 
+          rating: p.rating || 0
         };
       }));
       setVendors(profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
@@ -497,6 +513,7 @@ function AdminContent() {
       // 2. Profile Real-time (Fallback/Status)
       if (payload && payload.table === 'profiles' && payload.new) {
         const p = payload.new;
+        const old = payload.old;
         
         // Find if this is a driver (either from payload or from our existing state)
         const existingProfile = allUsers.find(u => u.id === p.id);
@@ -505,6 +522,12 @@ function AdminContent() {
         
         const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || (existingVendor ? 'vendor' : '') || '').toLowerCase();
         
+        // V0.9.30: If status changed (online/locked), force a profile refresh to update dispatch lists
+        const statusChanged = old && (p.is_online !== old.is_online || p.is_locked !== old.is_locked);
+        if (statusChanged) {
+          fetchProfiles();
+        }
+
         if (role === 'driver') {
           let loc = p.location;
           if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
