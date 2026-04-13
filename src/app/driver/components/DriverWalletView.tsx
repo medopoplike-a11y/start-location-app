@@ -50,9 +50,11 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
     const ago = new Date(now); ago.setDate(ago.getDate() - 30); return d >= ago;
   });
 
-  const filteredEarnings = filteredHistory.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
+  const filteredEarnings = (systemBalance > 0 || vendorDebt > 0) ? (allHistory || []).reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0) : filteredHistory.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
   
-  const filteredSystemCommission = filteredHistory.reduce((acc, o) => {
+  const filteredSystemCommission = (systemBalance > 0 || vendorDebt > 0) ? (allHistory || []).reduce((acc, o) => {
+    return acc + (o.financials?.system_commission || 0) + (o.financials?.driver_insurance || 0);
+  }, 0) : filteredHistory.reduce((acc, o) => {
     return acc + (o.financials?.system_commission || 0) + (o.financials?.driver_insurance || 0);
   }, 0);
 
