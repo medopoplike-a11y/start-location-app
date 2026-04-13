@@ -4,9 +4,17 @@ import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { ChevronUp, ChevronDown, Navigation, Clock } from 'lucide-react';
+import { Navigation, Clock, Zap, Map as MapIcon, Layers } from 'lucide-react';
 
 import { driverIcon, driverBusyIcon, vendorIcon, orderIcon } from '@/lib/map-icons';
+
+// Advanced Technical Styles for "Real" Integrated Look (v0.9.47)
+const MAP_THEMES = {
+  standard: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  professional: "https://mt1.google.com/vt/lyrs=m,h,traffic&x={x}&y={y}&z={z}",
+  satellite: "https://mt1.google.com/vt/lyrs=y,h,traffic&x={x}&y={y}&z={z}",
+  terrain: "https://mt1.google.com/vt/lyrs=p,h,traffic&x={x}&y={y}&z={z}"
+};
 
 // Create a Gray Icon for offline drivers
 const driverOfflineIcon = typeof window !== 'undefined' ? L.divIcon({
@@ -287,33 +295,16 @@ export default function LiveMap({
 }: LiveMapProps) {
   const isMounted = typeof window !== 'undefined';
   const [isFollowing, setIsFollowing] = useState(autoCenterOnDrivers);
-  const [mapRotation, setMapRotation] = useState(0);
-  const [mapTilt, setMapTilt] = useState(0);
+  const [mapTheme, setMapTheme] = useState<keyof typeof MAP_THEMES>('professional');
+  const [showTraffic, setShowTraffic] = useState(true);
   
-  // TECHNICAL NAVIGATION (v0.9.39)
-  // Auto-align map to driver's heading if they are moving
-  useEffect(() => {
-    if (isFollowing && drivers.length > 0) {
-      const activeDriver = drivers[0];
-      if (activeDriver.heading && activeDriver.heading !== 0) {
-        setMapRotation(activeDriver.heading);
-        setMapTilt(35); // Technical tilt for navigation feel
-      }
-    }
-  }, [drivers, isFollowing]);
-
-  if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
-
-  const currentSpeed = drivers.length > 0 ? Math.round(Math.random() * 40 + 20) : 0; // Simulation for demo if real speed not in point
-  const distanceToTarget = orders.length > 0 ? "١.٢ كم" : "٣٥٠ م";
-  const eta = orders.length > 0 ? "٤ دقائق" : "٢ دقيقة";
+  if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل المحرك الذكي...</div>;
 
   return (
     <div className={`${className} relative group transition-all duration-300 overflow-hidden bg-slate-100`}>
       {/* 
-          V0.9.41: Advanced Full-Interactive Map Engine
-          Removed manual CSS rotation/tilt logic to ensure map feels alive and technical.
-          Switched to Google's Modern Roadmap with High-Detail Vector look.
+          V0.9.47: Integrated "Real Map" Engine
+          Using Direct Vector-like Tiles with Integrated Real-time Traffic.
       */}
       <div className="absolute inset-0">
         <MapContainer 
@@ -331,14 +322,12 @@ export default function LiveMap({
             zoom={zoom} 
             force={isFollowing} 
           />
-          {/* 
-              Revert to Classic, Clean & Organized Map (v0.9.45)
-              Using OpenStreetMap (Standard) as preferred by user for clarity.
-          */}
+          
+          {/* Main Map Layer (v0.9.47) */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maxZoom={19}
+            attribution='&copy; Google Maps Data'
+            url={MAP_THEMES[mapTheme]}
+            maxZoom={20}
           />
           
           <MapEvents 
@@ -440,8 +429,8 @@ export default function LiveMap({
         </MapContainer>
       </div>
 
-      {/* Manual Navigation UI - Simplified (v0.9.41) */}
-      <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-3">
+      {/* Smart Control Panel (v0.9.47) */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
         {/* Recenter Button */}
         <button 
           onClick={() => setIsFollowing(true)}
@@ -454,6 +443,31 @@ export default function LiveMap({
         >
           <Navigation className={`w-6 h-6 ${isFollowing ? 'fill-current' : ''}`} />
         </button>
+
+        {/* Theme Toggle Button */}
+        <div className="bg-white/90 backdrop-blur-md rounded-[24px] shadow-2xl border border-white/20 overflow-hidden flex flex-col">
+          <button 
+            onClick={() => setMapTheme('professional')}
+            className={`p-4 transition-colors ${mapTheme === 'professional' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}
+            title="خريطة احترافية"
+          >
+            <MapIcon className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setMapTheme('satellite')}
+            className={`p-4 transition-colors border-t border-slate-100 ${mapTheme === 'satellite' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}
+            title="قمر صناعي"
+          >
+            <Layers className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setMapTheme('standard')}
+            className={`p-4 transition-colors border-t border-slate-100 ${mapTheme === 'standard' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}
+            title="خريطة كلاسيكية"
+          >
+            <Zap className="w-6 h-6" />
+          </button>
+        </div>
       </div>
     </div>
   );
