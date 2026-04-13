@@ -282,9 +282,9 @@ export default function LiveMap({
     <div className={`${className} relative group transition-all duration-300 overflow-hidden`}>
       {/* Stabilized Map Wrapper */}
       <div 
-        className="h-full w-full transition-all duration-700 ease-out origin-center"
+        className="h-full w-full transition-all duration-1000 ease-in-out origin-center scale-[1.4]"
         style={{ 
-          transform: `perspective(1000px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
+          transform: `perspective(1200px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
           height: '100%',
           width: '100%'
         }}
@@ -305,8 +305,9 @@ export default function LiveMap({
             force={isFollowing} 
           />
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; Google Maps'
+            url="https://mt1.google.com/vt/lyrs=m,h&x={x}&y={y}&z={z}"
+            maxZoom={20}
           />
           
           <MapEvents 
@@ -445,7 +446,7 @@ export default function LiveMap({
         <div className="flex flex-col bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-white/20 overflow-hidden">
           {/* Tilt Up */}
           <button 
-            onClick={() => setMapTilt(prev => Math.min(prev + 15, 60))}
+            onClick={() => setMapTilt(prev => Math.min(prev + 10, 45))}
             className="p-3 text-slate-600 hover:bg-slate-50 border-b border-slate-100 transition-colors"
             title="إمالة للأعلى"
           >
@@ -454,7 +455,7 @@ export default function LiveMap({
 
           {/* Rotate Left */}
           <button 
-            onClick={() => setMapRotation(prev => prev - 45)}
+            onClick={() => setMapRotation(prev => prev - 22.5)}
             className="p-3 text-slate-600 hover:bg-slate-50 border-b border-slate-100 transition-colors"
             title="تدوير لليسار"
           >
@@ -464,7 +465,7 @@ export default function LiveMap({
           {/* Reset All (Compass) */}
           <button 
             onClick={() => { setMapRotation(0); setMapTilt(0); }}
-            className={`p-3 transition-all flex items-center justify-center ${Math.abs(mapRotation % 360) > 5 || mapTilt !== 0 ? 'text-red-500' : 'text-slate-300'}`}
+            className={`p-3 transition-all flex items-center justify-center ${Math.abs(mapRotation % 360) > 5 || mapTilt !== 0 ? 'text-blue-500' : 'text-slate-300'}`}
             style={{ transform: `rotate(${-mapRotation}deg)` }}
             title="إعادة ضبط الشمال والإمالة"
           >
@@ -473,7 +474,7 @@ export default function LiveMap({
 
           {/* Rotate Right */}
           <button 
-            onClick={() => setMapRotation(prev => prev + 45)}
+            onClick={() => setMapRotation(prev => prev + 22.5)}
             className="p-3 text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
             title="تدوير لليمين"
           >
@@ -482,7 +483,7 @@ export default function LiveMap({
 
           {/* Tilt Down */}
           <button 
-            onClick={() => setMapTilt(prev => Math.max(prev - 15, 0))}
+            onClick={() => setMapTilt(prev => Math.max(prev - 10, 0))}
             className="p-3 text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
             title="إمالة للأسفل"
           >
