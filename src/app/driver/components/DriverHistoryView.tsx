@@ -6,7 +6,7 @@ import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone
 import type { DBDriverOrder } from "../types";
 
 interface DriverHistoryViewProps {
-  history: Order[];
+  history: DBDriverOrder[];
   onPreviewImage?: (url: string) => void;
 }
 
@@ -19,8 +19,9 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
   const now = new Date();
 
   const filtered = history.filter((o) => {
-    if (!o.statusUpdatedAt) return filter === "today";
-    const d = new Date(o.statusUpdatedAt);
+    const updatedAt = o.status_updated_at || o.created_at;
+    if (!updatedAt) return filter === "today";
+    const d = new Date(updatedAt);
     if (filter === "today") {
       return d.toDateString() === now.toDateString();
     } else if (filter === "15days") {
@@ -36,7 +37,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
 
   const totalEarnings = filtered.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
   const totalDeliveryFees = filtered.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
-  const totalOrderValue = filtered.reduce((acc, o) => acc + (o.orderValue || 0), 0);
+  const totalOrderValue = filtered.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
 
   // Commission = 15% of delivery fee + 1 EGP per order
   const commissionRate = 0.15;
@@ -126,15 +127,16 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
 
           {/* Order List */}
           <div className="space-y-3">
-            {filtered.map((order, idx) => {
-              const vendorName = order.vendor || "محل غير معروف";
-              const vendorPhone = order.vendorPhone || "";
+            {filtered.map((order: any, idx) => {
+              const vendorName = order.vendor?.full_name || order.vendor_name || "محل غير معروف";
+              const vendorPhone = order.vendor?.phone || order.vendor_phone || "";
               const earnings = order.financials?.driver_earnings || 0;
-              const orderValue = order.orderValue || 0;
+              const orderValue = order.financials?.order_value || 0;
               const deliveryFee = order.financials?.delivery_fee || 0;
               const commission = deliveryFee * commissionRate + commissionPerOrder;
-              const settled = !!order.vendorCollectedAt;
+              const settled = !!order.vendor_collected_at;
               const isExpanded = expandedId === order.id;
+              const updatedAt = order.status_updated_at || order.created_at;
 
               return (
                 <motion.div
@@ -159,7 +161,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                         </div>
                         <p className="text-[9px] text-slate-400 font-bold">
                           #{order.id.slice(0, 8)}
-                          {order.statusUpdatedAt && ` • ${new Date(order.statusUpdatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}`}
+                          {updatedAt && ` • ${new Date(updatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}`}
                         </p>
                       </div>
                     </div>
@@ -188,32 +190,62 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                       {/* Customer info */}
                       <div className="bg-slate-50 rounded-[16px] p-3 space-y-1.5 relative">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase mb-1">العميل</p>
-                            <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                              <MapPin className="w-3.5 h-3.5 text-red-400" />
-                              {order.address}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {order.customers?.[0]?.invoice_url && (
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onPreviewImage?.(order.customers![0].invoice_url!);
-                                }}
-                                className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
-                              >
-                                <img src={order.customers[0].invoice_url} className="w-full h-full object-cover" alt="Inv" />
-                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <Eye size={12} className="text-white" />
+                          <div className="flex-1">
+                            <p className="text-[10px] font-black text-slate-500 uppercase mb-2">تفاصيل التوصيل</p>
+                            
+                            {/* Check for multi-customers (Sikka) */}
+                            {order.customer_details?.customers && order.customer_details.customers.length > 0 ? (
+                              <div className="space-y-3">
+                                {order.customer_details.customers.map((c: any, i: number) => (
+                                  <div key={i} className="flex items-start gap-2 border-r-2 border-sky-200 pr-2">
+                                    <div className="flex-1">
+                                      <p className="text-[11px] font-black text-slate-800">{c.name}</p>
+                                      <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                        <MapPin className="w-2.5 h-2.5 text-red-400" />
+                                        {c.address}
+                                      </p>
+                                    </div>
+                                    <a href={`tel:${c.phone}`} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-sky-500 shadow-sm">
+                                      <Phone size={12} />
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                  <User className="w-3.5 h-3.5 text-slate-400" />
+                                  {order.customer_details?.name || order.customer || "عميل"}
                                 </div>
-                              </button>
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                  <MapPin className="w-3.5 h-3.5 text-red-400" />
+                                  {order.customer_details?.address || order.address}
+                                </div>
+                              </div>
                             )}
-                            <a href={`tel:${order.customerPhone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                              <Phone size={14} />
-                            </a>
                           </div>
+                          
+                          {!order.customer_details?.customers && (
+                            <div className="flex items-center gap-2 shrink-0 mr-2">
+                              {order.customer_details?.customers?.[0]?.invoice_url && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onPreviewImage?.(order.customer_details.customers[0].invoice_url!);
+                                  }}
+                                  className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                                >
+                                  <img src={order.customer_details.customers[0].invoice_url} className="w-full h-full object-cover" alt="Inv" />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Eye size={12} className="text-white" />
+                                  </div>
+                                </button>
+                              )}
+                              <a href={`tel:${order.customer_details?.phone || order.customerPhone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                                <Phone size={14} />
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
 

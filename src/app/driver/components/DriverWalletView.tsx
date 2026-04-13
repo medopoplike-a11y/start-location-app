@@ -28,9 +28,10 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
   const commissionPerOrder = 1;
 
   const now = new Date();
-  const filteredHistory = (allHistory || []).filter((o) => {
-    if (!o.statusUpdatedAt) return filter === "today";
-    const d = new Date(o.statusUpdatedAt);
+  const filteredHistory = (allHistory || []).filter((o: any) => {
+    const updatedAt = o.statusUpdatedAt || o.status_updated_at || o.created_at;
+    if (!updatedAt) return filter === "today";
+    const d = new Date(updatedAt);
     if (filter === "today") return d.toDateString() === now.toDateString();
     if (filter === "15days") { const ago = new Date(now); ago.setDate(ago.getDate() - 15); return d >= ago; }
     const ago = new Date(now); ago.setDate(ago.getDate() - 30); return d >= ago;
@@ -228,13 +229,13 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                     يجب عليك تسليم مبلغ المديونية للمحل ثم الضغط على &quot;تأكيد التسليم&quot; حتى يتمكن المحل من تأكيد الاستلام.
                   </p>
                 </div>
-                {deliveredOrders.map((order, idx) => {
-                  const vendorName = order.vendor || "محل غير معروف";
-                  const vendorPhone = order.vendorPhone || "";
-                  const vendorArea = order.vendorArea || "";
-                  const amount = order.orderValue || 0;
+                {deliveredOrders.map((order: any, idx) => {
+                  const vendorName = order.vendor || order.vendor_name || "محل غير معروف";
+                  const vendorPhone = order.vendorPhone || order.vendor_phone || "";
+                  const vendorArea = order.vendorArea || order.vendor_area || "";
+                  const amount = order.orderValue || order.financials?.order_value || 0;
                   const deliveryFee = order.financials?.delivery_fee || 0;
-                  const already = !!order.driverConfirmedAt;
+                  const already = !!(order.driverConfirmedAt || order.driver_confirmed_at);
                   return (
                     <motion.div
                       key={order.id}

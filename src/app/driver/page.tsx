@@ -555,7 +555,7 @@ export default function DriverApp() {
         .from('orders')
         .select('*, vendor:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
-        .gte('created_at', today.toISOString())
+        .or(`created_at.gte.${today.toISOString()},status_updated_at.gte.${today.toISOString()}`)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
