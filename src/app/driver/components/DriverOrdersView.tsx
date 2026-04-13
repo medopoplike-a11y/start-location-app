@@ -71,6 +71,64 @@ export default function DriverOrdersView({
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
 
+  // 1. Action Handlers
+  const handleAccept = async (orderId: string) => {
+    setActionLoading(true);
+    try {
+      await onAcceptOrder(orderId);
+      setSelectedOrder(null);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePickup = async (orderId: string) => {
+    setActionLoading(true);
+    try {
+      await onPickupOrder(orderId);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeliver = async (orderId: string) => {
+    setActionLoading(true);
+    try {
+      await onDeliverOrder(orderId);
+      setRatingOrder(selectedOrder);
+      setSelectedOrder(null);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async (orderId: string) => {
+    setActionLoading(true);
+    try {
+      await onConfirmPayment(orderId);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const submitRating = async (rating: number, comment: string) => {
+    if (!ratingOrder || !driverId) return;
+    try {
+      await supabase.from('ratings').insert({
+        order_id: ratingOrder.id,
+        from_id: driverId,
+        to_id: ratingOrder.vendor_id,
+        rating,
+        comment,
+        type: 'driver_to_vendor'
+      });
+    } catch (e) {
+      console.error("Failed to submit rating", e);
+    } finally {
+      setRatingOrder(null);
+    }
+  };
+
   // Map Data Preparation
   const activeOrders = useMemo(() => 
     orders.filter(o => o.status === "assigned" || o.status === "in_transit"),
@@ -292,7 +350,8 @@ export default function DriverOrdersView({
         onClose={() => setRatingOrder(null)}
         onSubmit={submitRating}
         title="تقييم المتجر"
-        description="كيف كانت تجربتك مع هذا المتجر في هذا الطلب؟"
+        subtitle="كيف كانت تجربتك مع هذا المتجر في هذا الطلب؟"
+        targetName={ratingOrder?.vendor || "المتجر"}
       />
     </div>
   );

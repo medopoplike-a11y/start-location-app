@@ -19,7 +19,7 @@ import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import type { Order, DBDriverOrder } from "./types";
 import DriverHeader from "./components/DriverHeader";
-import DriverOperationsHub from "./components/DriverOperationsHub";
+import DriverOrdersView from "./components/DriverOrdersView";
 import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
 import DriverSettingsView from "./components/DriverSettingsView";
