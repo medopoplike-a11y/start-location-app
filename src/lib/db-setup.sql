@@ -735,3 +735,17 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 11. دالة لتأكيد تسليم الطيار للمبلغ للمحل
+CREATE OR REPLACE FUNCTION confirm_driver_payment(p_order_id UUID, p_driver_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE public.orders
+  SET 
+    driver_confirmed_at = NOW(),
+    status_updated_at = NOW()
+  WHERE id = p_order_id AND driver_id = p_driver_id;
+  
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

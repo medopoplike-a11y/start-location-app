@@ -191,7 +191,10 @@ function AdminContent() {
     try {
       const data = await fetchAdminOrders();
       if (data) {
-        const typedData = data as AdminOrder[];
+        const typedData = (data as AdminOrder[]).map(o => ({
+          ...o,
+          status_label: translateStatus(o.status)
+        }));
         setAllOrders(typedData);
         setCache('admin_orders', typedData); // Cache orders
         const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => {

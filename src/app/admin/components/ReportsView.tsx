@@ -43,8 +43,17 @@ export default function ReportsView({ allOrders }: ReportsViewProps) {
     });
 
     const totalRevenue = filteredByPeriod.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
-    const systemProfits = filteredByPeriod.reduce((acc, o) => acc + (o.financials?.system_commission || 0) + (o.financials?.vendor_commission || 0), 0);
-    const totalInsurance = filteredByPeriod.reduce((acc, o) => acc + (o.financials?.insurance_fee || 0), 0);
+    
+    const systemProfits = filteredByPeriod.reduce((acc, o) => {
+      const f = o.financials || {};
+      const deliveryFee = f.delivery_fee || 0;
+      const driverComm = f.system_commission ?? (deliveryFee * 0.15);
+      const vendorComm = f.vendor_commission ?? (deliveryFee * 0.15);
+      const insurance = f.insurance_fee ?? 2.0;
+      return acc + driverComm + vendorComm + insurance;
+    }, 0);
+
+    const totalInsurance = filteredByPeriod.reduce((acc, o) => acc + (o.financials?.insurance_fee ?? 2.0), 0);
     const orderCount = filteredByPeriod.length;
 
     return {
