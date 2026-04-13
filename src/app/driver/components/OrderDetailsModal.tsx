@@ -74,7 +74,7 @@ export default function OrderDetailsModal({
       } else if (order.status === "assigned") {
         console.log("OrderDetailsModal: Calling onPickup for order", order.id);
         await onPickup(order.id);
-        // Don't auto-close pickup so driver can see transition to in_transit
+        // Status will be updated via DriverOrdersView's handlePickup
       } else if (order.status === "in_transit") {
         if (order.customers && order.customers.length > 0) {
           const allDelivered = order.customers.every(c => c.status === 'delivered');

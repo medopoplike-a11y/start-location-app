@@ -78,6 +78,7 @@ export default function DriverOrdersView({
     setActionLoading(true);
     try {
       await onAcceptOrder(orderId);
+      // Status update is handled via props/real-time, but we can close modal
       setSelectedOrder(null);
     } finally {
       setActionLoading(false);
@@ -88,6 +89,11 @@ export default function DriverOrdersView({
     setActionLoading(true);
     try {
       await onPickupOrder(orderId);
+      // Status will update via props, but we need to update the selectedOrder 
+      // if the modal is open to reflect the new state.
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: 'in_transit' } : null);
+      }
     } finally {
       setActionLoading(false);
     }
@@ -100,6 +106,22 @@ export default function DriverOrdersView({
       setRatingOrder(selectedOrder);
       setSelectedOrder(null);
       setIsNavigating(false);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeliverCustomer = async (orderId: string, customerIndex: number) => {
+    if (!onDeliverCustomer) return;
+    setActionLoading(true);
+    try {
+      await onDeliverCustomer(orderId, customerIndex);
+      // Update local selectedOrder state to reflect the specific customer delivery
+      if (selectedOrder && selectedOrder.id === orderId && selectedOrder.customers) {
+        const newCustomers = [...selectedOrder.customers];
+        newCustomers[customerIndex] = { ...newCustomers[customerIndex], status: 'delivered' };
+        setSelectedOrder({ ...selectedOrder, customers: newCustomers });
+      }
     } finally {
       setActionLoading(false);
     }
@@ -397,7 +419,7 @@ export default function DriverOrdersView({
         onPickup={handlePickup}
         onDeliver={handleDeliver}
         onConfirmPayment={handleConfirmPayment}
-        onDeliverCustomer={onDeliverCustomer}
+        onDeliverCustomer={handleDeliverCustomer}
         onPreviewImage={onPreviewImage}
         onNavigate={() => {
           setIsNavigating(true);
