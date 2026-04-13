@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useBackButton } from "@/hooks/useBackButton";
 import RatingModal from "@/components/RatingModal";
 import type { Order } from "../types";
-import { submitRating } from "@/lib/auth";
+import { submitRating } from "@/lib/auth"; // Correct import from auth.ts
 
 interface OrderDetailsModalProps {
   order: Order | null;

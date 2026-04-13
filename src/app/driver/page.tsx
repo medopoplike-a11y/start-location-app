@@ -999,6 +999,8 @@ export default function DriverApp() {
                       onConfirmPayment={handleConfirmPayment}
                       onDeliverCustomer={handleDeliverCustomer}
                       onPreviewImage={setPreviewUrl}
+                      mapMode={mapMode}
+                      onToggleMapMode={() => setMapMode(!mapMode)}
                     />
                   ) : activeTab === "wallet" ? (
                     <div className="p-4 md:p-6 space-y-6">
