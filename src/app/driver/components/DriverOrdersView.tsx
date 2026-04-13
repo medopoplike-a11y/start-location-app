@@ -215,33 +215,7 @@ export default function DriverOrdersView({
         )}
       </div>
 
-      {/* 2. Navigation Mode Overlay */}
-      <AnimatePresence>
-        {isNavigating && navigationTarget && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-24 left-4 right-4 z-30 bg-blue-600 text-white p-4 rounded-3xl shadow-2xl border border-blue-400 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Navigation className="w-6 h-6 animate-pulse" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black opacity-80 uppercase tracking-widest">نمط التوجيه الذكي</p>
-                <p className="text-xs font-black">جاري التوجه إلى {activeOrders[0]?.status === 'assigned' ? "المتجر" : "العميل"}</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setIsNavigating(false)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-[10px] font-black transition-all"
-            >
-              إيقاف
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* 2. Navigation Mode Overlay - REMOVED AS PER USER REQUEST */}
 
       {/* 3. Dynamic Orders Panel (Bottom Sheet) */}
       <motion.div 
@@ -429,7 +403,8 @@ export default function DriverOrdersView({
           setIsNavigating(true);
           setIsPanelExpanded(false);
         }}
-        actionLoading={actionLoading}
+        isActive={isActive}
+        loading={actionLoading}
       />
 
       <RatingModal

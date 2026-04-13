@@ -31,6 +31,7 @@ interface MapPoint {
   status?: string;
   details?: string;
   isOnline?: boolean;
+  heading?: number;
 }
 
 interface LiveMapProps {
@@ -247,11 +248,9 @@ export default function LiveMap({
   useEffect(() => {
     if (isNavigating && drivers.length > 0) {
       const mainDriver = drivers[0];
-      // If we have heading data from the driver (AnimatedMarker doesn't expose it easily, 
-      // but we can pass it in the driver object)
-      const heading = (mainDriver as any).heading || 0;
+      const heading = mainDriver.heading || 0;
       setMapRotation(heading);
-    } else {
+    } else if (!isNavigating) {
       setMapRotation(0);
     }
   }, [isNavigating, drivers]);
@@ -265,7 +264,7 @@ export default function LiveMap({
         style={{ 
           transform: isNavigating 
             ? `rotateX(45deg) rotateZ(${-mapRotation}deg) translateY(-10%) scale(1.2)` 
-            : `rotateX(0deg) rotateZ(0deg) translateY(0) scale(1)`,
+            : `rotateX(0deg) rotateZ(${mapRotation}deg) translateY(0) scale(1)`,
           transformStyle: 'preserve-3d'
         }}
       >
@@ -392,6 +391,25 @@ export default function LiveMap({
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
+
+        {/* Manual Rotation Slider (360 Degree Freedom) */}
+        <div className="bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-white/20 flex flex-col items-center gap-2">
+          <div className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">تدوير 360</div>
+          <input 
+            type="range" 
+            min="0" 
+            max="360" 
+            value={mapRotation % 360} 
+            onChange={(e) => setMapRotation(parseInt(e.target.value))}
+            className="w-24 h-1.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-600"
+          />
+          <button 
+            onClick={() => setMapRotation(0)}
+            className="text-[8px] font-black text-blue-600 hover:text-blue-700"
+          >
+            تصفير (N)
+          </button>
+        </div>
       </div>
     </div>
   );

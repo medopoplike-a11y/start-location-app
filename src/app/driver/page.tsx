@@ -36,7 +36,7 @@ export default function DriverApp() {
   const [driverName, setDriverName] = useState("كابتن");
   const [isActive, setIsActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number, heading?: number} | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
@@ -308,7 +308,11 @@ export default function DriverApp() {
         // Limit updates to once every 10 seconds to save battery (improved for admin real-time view)
         if (now - lastLocationUpdate < 10000) return;
         
-        const newLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const newLocation = { 
+          lat: position.coords.latitude, 
+          lng: position.coords.longitude,
+          heading: position.coords.heading || 0
+        };
         setDriverLocation(newLocation);
         setLastLocationUpdate(now);
 

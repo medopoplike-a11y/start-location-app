@@ -287,7 +287,13 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           }
 
           if (location && location.latitude && location.longitude) {
-            const loc = { lat: location.latitude, lng: location.longitude };
+            const loc = { 
+              lat: location.latitude, 
+              lng: location.longitude,
+              heading: location.bearing || 0,
+              speed: location.speed || 0,
+              accuracy: location.accuracy || 0
+            };
             if (onUpdate) onUpdate(loc);
 
             const now = Date.now();
