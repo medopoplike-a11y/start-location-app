@@ -231,40 +231,56 @@ export default function OrderDetailsModal({
               </div>
 
               {/* Vendor Actions */}
-              <div className="flex gap-2">
-                {order.vendorCoords ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  {order.vendorCoords ? (
+                    <button
+                      onClick={() => {
+                        if (onNavigate) onNavigate();
+                        onClose();
+                      }}
+                      className="flex-1 inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      توجيه للمحل (داخلي)
+                    </button>
+                  ) : (
+                    <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
+                      <MapPin className="w-3.5 h-3.5" />
+                      الموقع غير متاح — اتصل بالمحل
+                    </div>
+                  )}
+                  
+                  {/* Invoice Preview if exists (moved here for vendor context) */}
+                  {(order as any).invoiceUrl && (
+                    <button 
+                      onClick={() => {
+                        if (onPreviewImage) {
+                          onPreviewImage((order as any).invoiceUrl);
+                        } else {
+                          // Fallback if no previewer provided
+                          window.open((order as any).invoiceUrl, '_blank');
+                        }
+                      }}
+                      className="bg-orange-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-100 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      <Camera className="w-4 h-4" />
+                      الفاتورة
+                    </button>
+                  )}
+                </div>
+
+                {/* External Google Maps Button (v0.9.35) */}
+                {order.vendorCoords && (
                   <button
                     onClick={() => {
-                      if (onNavigate) onNavigate();
-                      onClose();
+                      const url = `https://www.google.com/maps/dir/?api=1&destination=${order.vendorCoords![0]},${order.vendorCoords![1]}&travelmode=driving`;
+                      window.open(url, '_blank');
                     }}
-                    className="flex-1 inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
+                    className="w-full inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
                   >
-                    <Navigation className="w-4 h-4" />
-                    توجيه للمحل (داخلي)
-                  </button>
-                ) : (
-                  <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
-                    <MapPin className="w-3.5 h-3.5" />
-                    الموقع غير متاح — اتصل بالمحل
-                  </div>
-                )}
-                
-                {/* Invoice Preview if exists (moved here for vendor context) */}
-                {(order as any).invoiceUrl && (
-                  <button 
-                    onClick={() => {
-                      if (onPreviewImage) {
-                        onPreviewImage((order as any).invoiceUrl);
-                      } else {
-                        // Fallback if no previewer provided
-                        window.open((order as any).invoiceUrl, '_blank');
-                      }
-                    }}
-                    className="bg-orange-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-100 active:scale-95 transition-all flex items-center gap-2"
-                  >
-                    <Camera className="w-4 h-4" />
-                    الفاتورة
+                    <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="Google Maps" />
+                    فتح في خرائط جوجل (خارجي)
                   </button>
                 )}
               </div>
@@ -357,20 +373,36 @@ export default function OrderDetailsModal({
                               لا توجد فاتورة
                             </div>
                           )}
-                          <div className="flex flex-col gap-2">
-                            <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                              <Phone size={18} />
-                            </a>
-                            <button
-                              onClick={() => {
-                                if (onNavigate) onNavigate();
-                                onClose();
-                              }}
-                              className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
-                            >
-                              <MapPin size={18} />
-                            </button>
-                          </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                          <Phone size={18} />
+                        </a>
+                        <button
+                          onClick={() => {
+                            if (onNavigate) onNavigate();
+                            onClose();
+                          }}
+                          className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
+                        >
+                          <MapPin size={18} />
+                        </button>
+                      </div>
+                      
+                      {/* External Google Maps for Customer (v0.9.35) */}
+                      {cust.lat && cust.lng && (
+                        <button
+                          onClick={() => {
+                            const url = `https://www.google.com/maps/dir/?api=1&destination=${cust.lat},${cust.lng}&travelmode=driving`;
+                            window.open(url, '_blank');
+                          }}
+                          className="w-full h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
+                          title="خرائط جوجل"
+                        >
+                          <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-5 h-5" alt="Google Maps" />
+                        </button>
+                      )}
+                    </div>
                         </div>
                     </div>
 
