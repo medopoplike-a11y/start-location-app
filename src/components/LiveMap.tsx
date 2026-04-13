@@ -311,11 +311,15 @@ export default function LiveMap({
             zoom={zoom} 
             force={isFollowing} 
           />
-          {/* Voyager Theme: Modern, High-Performance Map (v0.9.34) */}
+          {/* 
+              Ultra-Realtime Hybrid Map (v0.9.38)
+              Combines Google Satellite + Road Labels + Real-time Traffic Data
+          */}
           <TileLayer
-            attribution='&copy; CartoDB Voyager'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            attribution='&copy; Google Hybrid Maps'
+            url="https://mt1.google.com/vt/lyrs=y,h,traffic&x={x}&y={y}&z={z}"
             maxZoom={20}
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
           />
           
           <MapEvents 
