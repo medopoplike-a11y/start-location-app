@@ -16,7 +16,8 @@ import {
   ChevronDown,
   Layers,
   Map as MapIcon,
-  Maximize2
+  Maximize2,
+  CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";
@@ -316,23 +317,23 @@ export default function DriverOrdersView({
                             </div>
                           </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2">
+                            <div className="grid grid-cols-2 gap-2 mb-1">
+                              <div className="bg-slate-100 dark:bg-slate-700/50 p-2 rounded-xl text-center">
+                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">قيمة الطلب</p>
+                                <p className="text-[10px] font-black text-slate-900 dark:text-white">{(order.customers?.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0) || 0).toFixed(2)} ج.م</p>
+                              </div>
+                              <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-xl text-center">
+                                <p className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-1">ربحك الصافي</p>
+                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{(order.financials?.driver_earnings || 0).toFixed(2)} ج.م</p>
+                              </div>
+                            </div>
+                            
                             <button
                               onClick={() => setSelectedOrder(order)}
-                              className="flex-1 bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl font-black text-[11px]"
+                              className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl font-black text-[11px]"
                             >
                               إدارة الطلب
-                            </button>
-                            <button
-                              onClick={() => {
-                                setIsNavigating(true);
-                                setIsPanelExpanded(false);
-                              }}
-                              className={`px-4 rounded-xl flex items-center justify-center transition-all ${
-                                isNavigating ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-blue-600"
-                              }`}
-                            >
-                              <Navigation className={`w-5 h-5 ${isNavigating ? "animate-pulse" : ""}`} />
                             </button>
                           </div>
                         </motion.div>
@@ -380,13 +381,27 @@ export default function DriverOrdersView({
                   <motion.div key="history-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     {completedOrders.length > 0 ? (
                       completedOrders.map((order) => (
-                        <div key={order.id} className="bg-slate-50 p-4 rounded-3xl border border-slate-100 opacity-80">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="text-xs font-black">{order.vendor}</p>
-                              <p className="text-[9px] text-slate-400 font-bold">{new Date(order.statusUpdatedAt || '').toLocaleTimeString('ar-EG')}</p>
+                        <div key={order.id} className="bg-white dark:bg-slate-800/50 p-4 rounded-[28px] border border-slate-100 dark:border-slate-700/50 shadow-sm">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
+                                <CheckCircle2 className="text-white w-5 h-5" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-900 dark:text-white leading-none mb-1">{order.vendor}</p>
+                                <p className="text-[9px] font-bold text-slate-400">تم التوصيل: {new Date(order.statusUpdatedAt || '').toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
+                              </div>
                             </div>
-                            <div className="text-emerald-600 font-black text-xs">تم التوصيل</div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-black text-emerald-600">{(order.financials?.driver_earnings || 0).toFixed(2)} ج.م</p>
+                              <p className="text-[8px] font-bold text-slate-400">ربحك</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
+                            <MapPin className="w-3 h-3 text-slate-300" />
+                            <p className="text-[9px] font-bold text-slate-500 truncate flex-1">{order.address}</p>
+                            <span className="text-[8px] font-black px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 rounded-full">#{order.id.slice(0,6)}</span>
                           </div>
                         </div>
                       ))
