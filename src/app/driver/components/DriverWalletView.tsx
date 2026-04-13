@@ -67,125 +67,129 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
   const filterLabels: Record<FilterPeriod, string> = { today: "اليوم", "15days": "١٥ يوم", month: "الشهر" };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pt-4 pb-12">
       {/* شريط ملخص اليوم العلوي */}
-      <div className="bg-white/80 backdrop-blur-md border border-sky-100 rounded-[32px] p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-sky-500" />
-            <p className="text-[11px] font-black text-slate-900">
+      <div className="bg-white/90 backdrop-blur-md border border-sky-100 rounded-[32px] p-6 shadow-sm mx-1">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-sky-50 rounded-xl flex items-center justify-center">
+              <Clock className="w-4 h-4 text-sky-500" />
+            </div>
+            <p className="text-[12px] font-black text-slate-900">
               {now.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
-          <div className="px-3 py-1 bg-sky-50 rounded-full border border-sky-100">
-            <p className="text-[9px] font-black text-sky-600">كشف حساب اليوم</p>
+          <div className="px-3 py-1.5 bg-sky-500/10 rounded-full border border-sky-200">
+            <p className="text-[10px] font-black text-sky-700">كشف حساب اليوم</p>
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center">
-            <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">المديونية</p>
-            <p className="text-sm font-black text-orange-600">{todayDebtGenerated.toLocaleString()} <span className="text-[8px] opacity-50">ج.م</span></p>
+        <div className="grid grid-cols-3 gap-2 relative">
+          <div className="text-center px-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-tight">المديونية</p>
+            <p className="text-sm font-black text-orange-600 tabular-nums">{todayDebtGenerated.toLocaleString()}<span className="text-[9px] opacity-40 mr-0.5">ج.م</span></p>
           </div>
-          <div className="text-center border-x border-slate-100">
-            <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">الأرباح</p>
-            <p className="text-sm font-black text-emerald-600">{todayEarnings.toFixed(0)} <span className="text-[8px] opacity-50">ج.م</span></p>
+          <div className="text-center px-1 border-x border-slate-100">
+            <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-tight">الأرباح</p>
+            <p className="text-sm font-black text-emerald-600 tabular-nums">{todayEarnings.toFixed(0)}<span className="text-[9px] opacity-40 mr-0.5">ج.م</span></p>
           </div>
-          <div className="text-center">
-            <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">العمولة</p>
-            <p className="text-sm font-black text-slate-900">{todayCommission.toFixed(1)} <span className="text-[8px] opacity-50">ج.م</span></p>
+          <div className="text-center px-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-tight">العمولة</p>
+            <p className="text-sm font-black text-slate-900 tabular-nums">{todayCommission.toFixed(1)}<span className="text-[9px] opacity-40 mr-0.5">ج.م</span></p>
           </div>
         </div>
       </div>
 
       {/* فريم فاصل */}
-      <div className="relative py-2">
+      <div className="relative py-4">
         <div className="absolute inset-0 flex items-center" aria-hidden="true">
-          <div className="w-full border-t border-slate-100"></div>
+          <div className="w-full border-t-2 border-slate-100/50"></div>
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-slate-50 px-4 text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">المحافظ المالية</span>
+          <span className="bg-slate-50 px-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] backdrop-blur-sm">المحافظ المالية</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-900/10">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-3.5 h-3.5 opacity-60" />
-            <p className="text-[10px] font-black uppercase tracking-wider opacity-60">صافي أرباحك</p>
+      <div className="grid grid-cols-2 gap-4 px-1">
+        <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-900/10 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+            <TrendingUp className="w-4 h-4 text-emerald-200" />
+            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">صافي أرباحك</p>
           </div>
-          <h3 className="text-3xl font-black">{filteredEarnings.toFixed(0)} <span className="text-xs font-bold opacity-40">ج.م</span></h3>
-          <p className="text-[9px] font-bold opacity-40 mt-1">بعد خصم عمولة الشركة</p>
+          <h3 className="text-3xl font-black relative z-10 tabular-nums">{filteredEarnings.toFixed(0)} <span className="text-xs font-bold opacity-50">ج.م</span></h3>
+          <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">بعد خصم عمولة الشركة</p>
         </div>
 
-        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <CreditCard className="w-3.5 h-3.5 text-orange-500" />
-            <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">مديونية المحلات</p>
+        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-20 h-20 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-all" />
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+            <CreditCard className="w-4 h-4 text-orange-500" />
+            <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">مديونية المحلات</p>
           </div>
-          <h3 className="text-3xl font-black text-gray-900">{(vendorDebt > 0 ? vendorDebt : calculatedVendorDebt).toLocaleString()} <span className="text-xs font-bold text-gray-300">ج.م</span></h3>
-          <p className="text-[9px] font-bold text-gray-400 mt-1">يجب ردها للمطاعم</p>
+          <h3 className="text-3xl font-black text-gray-900 relative z-10 tabular-nums">{(vendorDebt > 0 ? vendorDebt : calculatedVendorDebt).toLocaleString()} <span className="text-xs font-bold text-gray-300">ج.م</span></h3>
+          <p className="text-[10px] font-bold text-gray-400 mt-2 relative z-10">يجب ردها للمطاعم</p>
         </div>
       </div>
 
       {/* Commission Box */}
-      <div className="bg-gray-900 border border-gray-800 rounded-[40px] p-8 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl rounded-full" />
+      <div className="bg-gray-900 border border-gray-800 rounded-[40px] p-8 text-white shadow-2xl relative overflow-hidden mx-1">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/10 blur-[80px] rounded-full" />
         
-        <div className="flex items-center justify-between mb-6 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20">
-              <AlertCircle className="w-6 h-6 text-orange-500" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8 relative z-10">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-orange-500/10 rounded-[22px] flex items-center justify-center border border-orange-500/30 shadow-inner">
+              <AlertCircle className="w-7 h-7 text-orange-500" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">إجمالي مديونية الشركة</p>
-              <h3 className="text-3xl font-black text-white">
+              <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.25em] mb-1">إجمالي مديونية الشركة</p>
+              <h3 className="text-4xl font-black text-white tabular-nums tracking-tight">
                 {(systemBalance > 0 ? systemBalance : filteredSystemCommission).toFixed(2)} 
-                <span className="text-sm font-bold opacity-30 mr-1.5">ج.م</span>
+                <span className="text-sm font-bold opacity-30 mr-2">ج.م</span>
               </h3>
             </div>
           </div>
           <button 
             onClick={onOpenSettlementModal}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all border border-orange-400/20"
+            className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-[20px] text-[13px] font-black shadow-xl shadow-orange-500/30 active:scale-95 transition-all border border-orange-400/30"
           >
-            تأكيد سداد
+            تأكيد سداد المديونية
           </button>
         </div>
 
-        <div className="h-px bg-white/5 my-6" />
+        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-8" />
 
-        <div className="space-y-4 relative z-10">
+        <div className="space-y-5 relative z-10">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-black text-white/40 uppercase">تفاصيل الحساب المالي (١٥٪ + ١ج)</p>
+            <p className="text-[11px] font-black text-white/30 uppercase tracking-widest">تفاصيل الحساب المالي (١٥٪ + ١ج)</p>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">عمولة النظام</p>
-              <p className="text-sm font-black text-white">
+            <div className="bg-white/5 p-5 rounded-[24px] border border-white/10 hover:bg-white/10 transition-colors">
+              <p className="text-[10px] font-black text-white/30 uppercase mb-2 tracking-wider">عمولة النظام</p>
+              <p className="text-lg font-black text-white tabular-nums">
                 {filteredHistory.reduce((acc, o) => acc + (o.financials?.system_commission || 0), 0).toFixed(2)} 
-                <span className="text-[10px] opacity-30">ج.م</span>
+                <span className="text-[11px] opacity-30 mr-1">ج.م</span>
               </p>
             </div>
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">تأمين ثابت ({filteredHistory.filter(o => o.status === 'delivered').length} طلب)</p>
-              <p className="text-sm font-black text-white">
+            <div className="bg-white/5 p-5 rounded-[24px] border border-white/10 hover:bg-white/10 transition-colors">
+              <p className="text-[10px] font-black text-white/30 uppercase mb-2 tracking-wider">تأمين ثابت ({filteredHistory.filter(o => o.status === 'delivered').length} طلب)</p>
+              <p className="text-lg font-black text-white tabular-nums">
                 {filteredHistory.reduce((acc, o) => acc + (o.financials?.driver_insurance || 0), 0).toFixed(2)} 
-                <span className="text-[10px] opacity-30">ج.م</span>
+                <span className="text-[11px] opacity-30 mr-1">ج.م</span>
               </p>
             </div>
           </div>
         </div>
 
         {/* Filter Tabs inside commission box */}
-        <div className="flex bg-white/5 p-1 rounded-xl gap-1 mt-4 border border-white/5">
+        <div className="flex bg-white/5 p-1.5 rounded-[20px] gap-1.5 mt-8 border border-white/10">
           {(["today", "15days", "month"] as FilterPeriod[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${
-                filter === f ? "bg-white text-gray-900 shadow-sm" : "text-slate-500 hover:text-slate-300"
+              className={`flex-1 py-3 rounded-[14px] text-[11px] font-black transition-all duration-300 ${
+                filter === f ? "bg-white text-gray-900 shadow-xl" : "text-white/40 hover:text-white/70"
               }`}
             >
               {filterLabels[f]}
@@ -194,24 +198,29 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
         </div>
       </div>
 
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b-2 border-gray-100 px-1 gap-4">
         <button
           onClick={() => setTab("earnings")}
-          className={`flex-1 py-3 px-4 text-center font-bold text-sm transition-all ${tab === "earnings" ? "border-b-2 border-sky-500 text-sky-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 py-4 px-2 text-center transition-all relative ${tab === "earnings" ? "text-sky-600" : "text-gray-400 hover:text-gray-600"}`}
         >
-          <span className="flex items-center justify-center gap-2"><BarChart3 className="w-4 h-4" /> الأرباح</span>
+          <span className="flex items-center justify-center gap-2.5 font-black text-[13px]">
+            <BarChart3 className={`w-5 h-5 ${tab === "earnings" ? "text-sky-500" : "text-gray-300"}`} /> 
+            الأرباح
+          </span>
+          {tab === "earnings" && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500 rounded-t-full" />}
         </button>
         <button
           onClick={() => setTab("vendors")}
-          className={`flex-1 py-3 px-4 text-center font-bold text-sm transition-all ${tab === "vendors" ? "border-b-2 border-orange-500 text-orange-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 py-4 px-2 text-center transition-all relative ${tab === "vendors" ? "text-orange-600" : "text-gray-400 hover:text-gray-600"}`}
         >
-          <span className="flex items-center justify-center gap-2">
-            <Banknote className="w-4 h-4" />
+          <span className="flex items-center justify-center gap-2.5 font-black text-[13px]">
+            <Banknote className={`w-5 h-5 ${tab === "vendors" ? "text-orange-500" : "text-gray-300"}`} />
             مديونية المحلات
             {deliveredOrders.length > 0 && (
-              <span className="bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">{deliveredOrders.length}</span>
+              <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-orange-500/20">{deliveredOrders.length}</span>
             )}
           </span>
+          {tab === "vendors" && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-orange-500 rounded-t-full" />}
         </button>
       </div>
 
