@@ -11,6 +11,21 @@ import RatingModal from "@/components/RatingModal";
 import type { Order } from "../types";
 import { submitRating } from "@/lib/auth"; // Correct import from auth.ts
 
+// Helper for universal map navigation (v0.9.44)
+const openExternalMap = (lat: number, lng: number, label: string = "Location") => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  
+  if (isIOS) {
+    window.location.href = `maps://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`;
+  } else if (isAndroid) {
+    window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`;
+  } else {
+    // Fallback for web
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+  }
+};
+
 interface OrderDetailsModalProps {
   order: Order | null;
   onClose: () => void;
@@ -270,19 +285,17 @@ export default function OrderDetailsModal({
                   )}
                 </div>
 
-                {/* External Google Maps Button (v0.9.42) */}
+                {/* External Google Maps Button (v0.9.44) */}
                 {order.vendorCoords && (
                   <button
                     onClick={() => {
                       const [lat, lng] = order.vendorCoords!;
-                      // TECHNICAL FIX: Use 'q' parameter with coordinates for exact pin placement
-                      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-                      window.open(url, '_blank');
+                      openExternalMap(lat, lng, order.vendor);
                     }}
                     className="w-full inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
                   >
                     <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="Google Maps" />
-                    فتح في خرائط جوجل (موقع دقيق)
+                    توجيه عبر خرائط الهاتف (دقيق)
                   </button>
                 )}
               </div>
@@ -391,18 +404,16 @@ export default function OrderDetailsModal({
                         </button>
                       </div>
                       
-                      {/* External Google Maps for Customer (v0.9.42) */}
+                      {/* External Map for Customer (v0.9.44) */}
                       {cust.lat && cust.lng && (
                         <button
                           onClick={() => {
-                            // TECHNICAL FIX: Use coordinates with query parameter for exact pin
-                            const url = `https://www.google.com/maps/search/?api=1&query=${cust.lat},${cust.lng}`;
-                            window.open(url, '_blank');
+                            openExternalMap(cust.lat!, cust.lng!, cust.name);
                           }}
                           className="w-full h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
-                          title="خرائط جوجل"
+                          title="خرائط الهاتف"
                         >
-                          <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-5 h-5" alt="Google Maps" />
+                          <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-5 h-5" alt="Maps" />
                         </button>
                       )}
                     </div>
