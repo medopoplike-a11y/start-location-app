@@ -560,8 +560,11 @@ BEGIN
     
     -- 2. حذف التسويات المرتبطة
     DELETE FROM public.settlements WHERE user_id = target_user_id;
+
+    -- 3. حذف التقييمات المرتبطة
+    DELETE FROM public.ratings WHERE from_id = target_user_id OR to_id = target_user_id;
     
-    -- 3. تصفير المحفظة
+    -- 4. تصفير المحفظة
     UPDATE public.wallets SET balance = 0, debt = 0, system_balance = 0 WHERE user_id = target_user_id;
     
     RETURN TRUE;
@@ -728,6 +731,7 @@ BEGIN
     -- استخدام شرط لتجاوز حماية الحذف الشامل
     DELETE FROM public.orders WHERE id IS NOT NULL;
     DELETE FROM public.settlements WHERE id IS NOT NULL;
+    DELETE FROM public.ratings WHERE id IS NOT NULL;
     UPDATE public.wallets SET balance = 0, debt = 0, system_balance = 0 WHERE id IS NOT NULL;
     RETURN TRUE;
   ELSE
@@ -749,3 +753,45 @@ BEGIN
   RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 12. جدول الرسائل (Order Messages) للدردشة بين الأطراف
+CREATE TABLE IF NOT EXISTS order_messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
+  sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- تفعيل RLS للرسائل
+ALTER TABLE order_messages ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view messages for their orders') THEN
+    CREATE POLICY "Users can view messages for their orders" ON order_messages FOR SELECT USING (
+      EXISTS (
+        SELECT 1 FROM orders 
+        WHERE id = order_id AND (driver_id = auth.uid() OR vendor_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+      )
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can send messages to their orders') THEN
+    CREATE POLICY "Users can send messages to their orders" ON order_messages FOR INSERT WITH CHECK (
+      auth.uid() = sender_id AND
+      EXISTS (
+        SELECT 1 FROM orders 
+        WHERE id = order_id AND (driver_id = auth.uid() OR vendor_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+      )
+    );
+  END IF;
+END $$;
+
+-- تفعيل Real-time للرسائل
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'order_messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE order_messages;
+  END IF;
+END $$;

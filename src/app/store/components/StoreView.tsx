@@ -459,7 +459,7 @@ export default function StoreView({
                           تأكيد استلام المديونية ({order.amount})
                         </motion.button>
                       ) : (
-                        order.status === "delivered" && (
+                        (order.status === "delivered" || order.status === "in_transit") && (
                           <div className="w-full bg-slate-50/80 text-slate-400 py-4 rounded-[24px] text-[10px] font-black flex items-center justify-center gap-3 border border-dashed border-slate-200 backdrop-blur-sm">
                             <Clock className="w-4 h-4 text-sky-400/50" />
                             بانتظار طلب التسوية من الطيار
