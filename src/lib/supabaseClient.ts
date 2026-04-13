@@ -38,9 +38,14 @@ export interface SupabaseLock {
   runExclusive: <T>(callback: () => Promise<T>) => Promise<T>;
 }
 
-// Internal implementation of the lock
+// internal implementation of the lock
 const createSupabaseLock = (): SupabaseLock => {
   const lockFn = async (name: string, acquireTimeout: number, callback: () => Promise<any>) => {
+    // Standard web browser fallback if we can't use complex locking
+    if (typeof window !== 'undefined' && !isNative) {
+      return await callback();
+    }
+
     const state = (globalThis as any).__startSupabaseLockState || ((globalThis as any).__startSupabaseLockState = { tails: new Map<string, Promise<void>>() });
     const tails: Map<string, Promise<void>> = state.tails;
 
@@ -90,7 +95,15 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     ...(isNative ? {
       flowType: 'pkce',
       lock: supabaseLock as any
-    } : {})
+    } : {
+      flowType: 'implicit', // Use implicit for broad browser compatibility if PKCE fails
+    })
+  },
+  // Global Realtime configuration for Web
+  realtime: {
+    params: {
+      events_per_second: 10,
+    },
   },
 });
 

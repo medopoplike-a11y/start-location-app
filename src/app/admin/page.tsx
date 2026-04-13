@@ -551,23 +551,28 @@ function AdminContent() {
     const hardFallback = setTimeout(() => { setLoading(false); }, fallbackMs);
 
     const init = async () => {
-      // 1. Load cached data for instant display
-      try {
-        const [cachedOrders, cachedProfiles] = await Promise.all([
-          getCache<AdminOrder[]>('admin_orders'),
-          getCache<ProfileRow[]>('admin_profiles')
-        ]);
-        
-        if (cachedOrders && cachedOrders.length > 0) {
-          setAllOrders(cachedOrders);
+      // 1. Force full data fetch on Web for first load
+      const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+      
+      // 1. Load cached data for instant display (ONLY for native mobile)
+      if (isNative) {
+        try {
+          const [cachedOrders, cachedProfiles] = await Promise.all([
+            getCache<AdminOrder[]>('admin_orders'),
+            getCache<ProfileRow[]>('admin_profiles')
+          ]);
+          
+          if (cachedOrders && cachedOrders.length > 0) {
+            setAllOrders(cachedOrders);
+          }
+          
+          if (cachedProfiles && cachedProfiles.length > 0) {
+            processProfiles(cachedProfiles);
+            setLoading(false); // Hide loader early
+          }
+        } catch (e) {
+          console.warn("Failed to load admin cache:", e);
         }
-        
-        if (cachedProfiles && cachedProfiles.length > 0) {
-          processProfiles(cachedProfiles);
-          setLoading(false); // Hide loader early if we have profiles cache
-        }
-      } catch (e) {
-        console.warn("Failed to load admin cache:", e);
       }
 
       if (authLoading) return;
@@ -575,9 +580,10 @@ function AdminContent() {
 
       try {
         setLoading(true);
-        await fetchData();
+        // Force direct server fetch
+        await fetchData(true);
         // Second fetch to ensure real-time is settled
-        setTimeout(() => fetchData(), 2000);
+        setTimeout(() => fetchData(true), 2000);
       } catch (e) {
         setError(`فشل في تهيئة النظام: ${getErrorMessage(e)}`);
       } finally {
