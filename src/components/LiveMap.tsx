@@ -74,7 +74,9 @@ function AnimatedMarker({ point, icon, mapRotation = 0, mapTilt = 0 }: { point: 
       const element = markerRef.current.getElement();
       if (element) {
         // Counter-rotate to stay upright regardless of map rotation/tilt
-        element.style.transform += ` rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
+        // We use transition to match the map's rotation speed
+        element.style.transition = 'transform 0.5s ease-in-out';
+        element.style.transform = `rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
       }
     }
   }, [mapRotation, mapTilt]);
@@ -281,11 +283,11 @@ export default function LiveMap({
   return (
     <div className={`${className} relative group transition-all duration-300 overflow-hidden bg-slate-200`}>
       {/* 
-          Oversized & Centered Map Container (v0.9.34)
+          Oversized & Centered Map Container (v0.9.36)
           We make the map 200% of the parent and offset it by -50% to hide edges during rotation.
       */}
       <div 
-        className="absolute transition-all duration-1000 ease-in-out origin-center"
+        className="absolute transition-all duration-500 ease-in-out origin-center"
         style={{ 
           transform: `perspective(1500px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
           width: '200%',
@@ -332,7 +334,8 @@ export default function LiveMap({
               if (ref) {
                 const element = ref.getElement();
                 if (element) {
-                  element.style.transform += ` rotateZ(${mapRotation}deg)`;
+                  element.style.transition = 'transform 0.5s ease-in-out';
+                  element.style.transform = `rotateZ(${mapRotation}deg)`;
                 }
               }
             }}
@@ -362,7 +365,8 @@ export default function LiveMap({
                 if (ref) {
                   const element = ref.getElement();
                   if (element) {
-                    element.style.transform += ` rotateZ(${mapRotation}deg)`;
+                    element.style.transition = 'transform 0.5s ease-in-out';
+                    element.style.transform = `rotateZ(${mapRotation}deg)`;
                   }
                 }
               }}
