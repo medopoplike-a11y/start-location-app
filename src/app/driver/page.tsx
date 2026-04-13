@@ -110,6 +110,7 @@ export default function DriverApp() {
   const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
   const [isSurgeActive, setIsSurgeActive] = useState(false);
   const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
+  const [mapMode, setMapMode] = useState(false); // New state for Full Map Mode
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -972,25 +973,25 @@ export default function DriverApp() {
             onSync={manualSync}
           />
 
-          <main className="p-4 space-y-6 pb-24 relative z-10">
+          <main className="flex-1 relative">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
               >
-                <Suspense fallback={<AppLoader />}>
+                <Suspense fallback={<div className="p-4 space-y-4"><OrderSkeleton /><OrderSkeleton /></div>}>
                   {activeTab === "orders" ? (
-                    <DriverOperationsHub
+                    <DriverOrdersView
                       todayDeliveryFees={todayDeliveryFees}
                       vendorDebt={vendorDebt}
                       isActive={isActive}
                       driverLocation={driverLocation}
                       driverId={driverId}
                       orders={orders}
-                      todayHistory={todayHistory}
                       autoAccept={autoAccept}
                       onToggleAutoAccept={toggleAutoAccept}
                       onAcceptOrder={handleAcceptOrder}
@@ -1001,25 +1002,29 @@ export default function DriverApp() {
                       onPreviewImage={setPreviewUrl}
                     />
                   ) : activeTab === "wallet" ? (
-                    <DriverWalletView
-                      todayDeliveryFees={todayDeliveryFees}
-                      vendorDebt={vendorDebt}
-                      systemBalance={systemBalance}
-                      orders={orders}
-                      deliveredOrders={activeDebtOrders}
-                      allHistory={todayHistory}
-                      settlementHistory={settlementHistory}
-                      onConfirmPayment={handleConfirmPayment}
-                      onOpenSettlementModal={() => setShowSettlementModal(true)}
-                    />
+                    <div className="p-4 md:p-6 space-y-6">
+                      <DriverWalletView
+                        todayDeliveryFees={todayDeliveryFees}
+                        vendorDebt={vendorDebt}
+                        systemBalance={systemBalance}
+                        orders={orders}
+                        deliveredOrders={activeDebtOrders}
+                        allHistory={todayHistory}
+                        settlementHistory={settlementHistory}
+                        onConfirmPayment={handleConfirmPayment}
+                        onOpenSettlementModal={() => setShowSettlementModal(true)}
+                      />
+                    </div>
                   ) : activeTab === "settings" ? (
-                    <DriverSettingsView
-                      settingsData={settingsData}
-                      savingSettings={actionLoading}
-                      onBack={() => setActiveTab("orders")}
-                      onSettingsDataChange={setSettingsData}
-                      onSave={handleUpdateProfile}
-                    />
+                    <div className="p-4 md:p-6 space-y-6">
+                      <DriverSettingsView
+                        settingsData={settingsData}
+                        savingSettings={actionLoading}
+                        onBack={() => setActiveTab("orders")}
+                        onSettingsDataChange={setSettingsData}
+                        onSave={handleUpdateProfile}
+                      />
+                    </div>
                   ) : (
                     <div className="text-center py-20">
                       <motion.div 
