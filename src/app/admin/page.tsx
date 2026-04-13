@@ -537,35 +537,30 @@ function AdminContent() {
     const fallbackMs = isCapacitor ? 20000 : 10000;
     const hardFallback = setTimeout(() => { setLoading(false); }, fallbackMs);
 
-    // Initial fetch
-    fetchData();
-    
-    // Immediate second fetch after a short delay to ensure real-time sync is ready
-    const timer = setTimeout(() => fetchData(), 2000);
-    
-    return () => {
-      clearTimeout(hardFallback);
-      clearTimeout(timer);
-    };
-  }, [mounted, fetchData]);
-
     const init = async () => {
       // 1. Load cached data for instant display
-      const [cachedOrders, cachedProfiles] = await Promise.all([
-        getCache<AdminOrder[]>('admin_orders'),
-        getCache<ProfileRow[]>('admin_profiles')
-      ]);
-      
-      if (cachedOrders && cachedOrders.length > 0) {
-        setAllOrders(cachedOrders);
-        setLoading(false); // Hide loader early
+      try {
+        const [cachedOrders, cachedProfiles] = await Promise.all([
+          getCache<AdminOrder[]>('admin_orders'),
+          getCache<ProfileRow[]>('admin_profiles')
+        ]);
+        
+        if (cachedOrders && cachedOrders.length > 0) {
+          setAllOrders(cachedOrders);
+          setLoading(false); // Hide loader early if we have cache
+        }
+      } catch (e) {
+        console.warn("Failed to load admin cache:", e);
       }
 
       if (authLoading) return;
       if (!user) { setLoading(false); return; }
+
       try {
         setLoading(true);
         await fetchData();
+        // Second fetch to ensure real-time is settled
+        setTimeout(() => fetchData(), 2000);
       } catch (e) {
         setError(`فشل في تهيئة النظام: ${getErrorMessage(e)}`);
       } finally {
@@ -573,8 +568,12 @@ function AdminContent() {
         setLoading(false);
       }
     };
+
     init();
-    return () => clearTimeout(hardFallback);
+    
+    return () => {
+      clearTimeout(hardFallback);
+    };
   }, [mounted, authLoading, fetchData, user, getErrorMessage]);
 
   useEffect(() => {
