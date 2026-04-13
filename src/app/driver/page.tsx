@@ -567,25 +567,26 @@ export default function DriverApp() {
     }
   }
 
+  const isRefreshingRef = useRef(false);
   const manualSync = async () => {
-    if (!driverId) return;
-    void Promise.allSettled([
-      withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
-      withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
-      withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000),
-      withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
-    ]);
-  };
-
-  // Sync with useSync hook
-  useSync(driverId || undefined, () => {
-    if (driverId) {
-      void Promise.allSettled([
+    if (!driverId || isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      await Promise.allSettled([
         withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
         withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
         withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000),
         withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
       ]);
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  };
+
+  // Sync with useSync hook
+  useSync(driverId || undefined, () => {
+    if (driverId && !isRefreshingRef.current) {
+      manualSync();
     }
   });
 

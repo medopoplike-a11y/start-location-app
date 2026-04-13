@@ -41,7 +41,7 @@ const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { fetchAdminOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling, updateUserAdmin, deleteUserByAdmin, deleteAdminOrder } from "@/lib/adminApi";
+import { fetchAdminOrders, fetchLiveOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling, updateUserAdmin, deleteUserByAdmin, deleteAdminOrder } from "@/lib/adminApi";
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
@@ -187,16 +187,30 @@ function AdminContent() {
   }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
 
   // 7. Data Fetching Functions
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
-      const data = await fetchAdminOrders();
+      // If we only need live orders for operations center, fetch a smaller subset
+      // If we need history, fetch the 100 most recent
+      const data = fullHistory ? await fetchAdminOrders(200) : await fetchLiveOrders();
+      
       if (data) {
         const typedData = (data as AdminOrder[]).map(o => ({
           ...o,
           status_label: translateStatus(o.status)
         }));
-        setAllOrders(typedData);
-        setCache('admin_orders', typedData); // Cache orders
+        
+        // Merge with existing orders to maintain history in UI if needed
+        if (!fullHistory) {
+          setAllOrders(prev => {
+            const merged = [...typedData, ...prev.filter(p => p.status === 'delivered' || p.status === 'cancelled')].slice(0, 300);
+            const seen = new Set();
+            return merged.filter(o => seen.has(o.id) ? false : seen.add(o.id));
+          });
+        } else {
+          setAllOrders(typedData);
+        }
+
+        setCache('admin_orders', typedData); // Cache latest fetch
         const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => {
           // Handle both array and object responses from Supabase joins
           const rawProfiles = (o as any).profiles;
@@ -218,18 +232,22 @@ function AdminContent() {
           };
         });
         setLiveOrders(live);
-        setActivities(typedData.slice(0, 5).map((o) => {
-          const rawProfiles = (o as any).profiles;
-          const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
-          const vName = vendorProfile.full_name || o.vendor_full_name || "محل";
-          
-          return {
-            id: o.id,
-            type: 'order',
-            text: `طلب جديد من ${vName} بقيمة ${o.financials?.order_value} ج.م`,
-            time: new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-          };
-        }));
+        
+        // Update activities only on important events
+        if (typedData.length > 0) {
+          setActivities(typedData.slice(0, 5).map((o) => {
+            const rawProfiles = (o as any).profiles;
+            const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+            const vName = vendorProfile.full_name || o.vendor_full_name || "محل";
+            
+            return {
+              id: o.id,
+              type: 'order',
+              text: `طلب جديد من ${vName} بقيمة ${o.financials?.order_value} ج.م`,
+              time: new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+            };
+          }));
+        }
       }
     } catch (err) {
       console.error("Admin: Error fetching orders:", err);
@@ -336,8 +354,11 @@ function AdminContent() {
     }
   }, []);
 
-  const fetchData = useCallback(async () => {
+  const isDataFetchingRef = useRef(false);
+  const fetchData = useCallback(async (fullHistory = false) => {
+    if (isDataFetchingRef.current) return;
     try {
+      isDataFetchingRef.current = true;
       setError(null);
       
       const fetchWithTimeout = async (promise: Promise<any>, label: string) => {
@@ -349,17 +370,24 @@ function AdminContent() {
 
       await Promise.allSettled([
         fetchWithTimeout(fetchProfiles(), "بيانات المستخدمين"),
-        fetchWithTimeout(fetchOrders(), "بيانات الطلبات"),
+        fetchWithTimeout(fetchOrders(fullHistory), "بيانات الطلبات"),
         fetchWithTimeout(fetchSettlements(), "بيانات التسويات"),
         fetchWithTimeout(fetchAppConfig(), "إعدادات النظام")
       ]);
     } catch (err) {
       console.error("Admin: Global fetch error:", err);
       setError(getErrorMessage(err));
+    } finally {
+      isDataFetchingRef.current = false;
     }
   }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
 
-  // 8. Lifecycle & Sync Hooks
+  // Fetch full history when switching to relevant tabs
+  useEffect(() => {
+    if (activeView === 'order-history' || activeView === 'reports') {
+      fetchData(true);
+    }
+  }, [activeView, fetchData]);
   const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, (payload) => {
     if (mounted && !authLoading && user) {
       let shouldFetchFull = true;
