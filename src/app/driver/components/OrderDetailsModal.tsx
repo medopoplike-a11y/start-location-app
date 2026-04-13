@@ -5,7 +5,9 @@ import {
   X, Phone, MapPin, Store, User, Clock, Banknote,
   Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, Star
 } from "lucide-react";
+import { useState } from "react";
 import { useBackButton } from "@/hooks/useBackButton";
+import RatingModal from "@/components/RatingModal";
 import type { Order } from "../types";
 import { submitRating } from "@/lib/auth";
 
@@ -49,6 +51,7 @@ export default function OrderDetailsModal({
   loading = false,
 }: OrderDetailsModalProps) {
   useBackButton(onClose, !!order);
+  const [showRating, setShowRating] = useState(false);
 
   if (!order) return null;
 
@@ -292,17 +295,7 @@ export default function OrderDetailsModal({
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
-                          onClick={() => {
-                            const comment = prompt("أضف تعليقاً (اختياري):") || "";
-                            submitRating(order.id, order.driverId || "", order.vendorId, star, comment, 'driver_to_vendor')
-                              .then(({ error }) => {
-                                if (!error) {
-                                  alert("تم إرسال تقييمك بنجاح! شكراً لك.");
-                                  onClose();
-                                }
-                                else alert("فشل إرسال التقييم: " + error.message);
-                              });
-                          }}
+                          onClick={() => setShowRating(true)}
                           className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500 hover:text-white text-slate-300 dark:text-slate-700 transition-all flex items-center justify-center"
                         >
                           <Star size={20} fill="currentColor" />
@@ -492,6 +485,23 @@ export default function OrderDetailsModal({
           </div>
         </motion.div>
       </motion.div>
+
+      <RatingModal
+        isOpen={showRating}
+        onClose={() => setShowRating(false)}
+        onSubmit={async (star, comment) => {
+          const { error } = await submitRating(order.id, order.driverId || "", order.vendorId, star, comment, 'driver_to_vendor');
+          if (!error) {
+            alert("تم إرسال تقييمك بنجاح! شكراً لك.");
+            onClose();
+          } else {
+            alert("فشل إرسال التقييم: " + error.message);
+          }
+        }}
+        title="تقييم المحل"
+        subtitle="كيف كانت تجربتك مع"
+        targetName={order.vendor}
+      />
     </AnimatePresence>
   );
 }

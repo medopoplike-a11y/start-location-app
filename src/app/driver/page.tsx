@@ -497,6 +497,7 @@ export default function DriverApp() {
       id: db.id,
       vendor: vendorName,
       vendorId: db.vendor_id,
+      driverId: db.driver_id,
       vendorPhone: vendorPhone,
       vendorArea: vendorArea,
       customer: db.customer_details?.name || "عميل غير معروف",

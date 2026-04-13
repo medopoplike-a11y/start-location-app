@@ -2,6 +2,7 @@ export interface Order {
   id: string;
   vendor: string;
   vendorId: string;
+  driverId: string;
   customer: string;
   address: string;
   distanceValue: number;

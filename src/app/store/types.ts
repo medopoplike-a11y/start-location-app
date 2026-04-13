@@ -7,6 +7,8 @@ export interface Order {
   address: string;
   status: "pending" | "assigned" | "in_transit" | "delivered" | "cancelled";
   driver: string | null;
+  driverId: string | null;
+  vendorId: string;
   driverPhone?: string;
   amount: string;
   deliveryFee: string;

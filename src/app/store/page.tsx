@@ -552,6 +552,8 @@ function StoreContent() {
       address: customerDetails.address || "عنوان غير محدد",
       status: db.status || 'pending',
       driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
+      driverId: db.driver_id || null,
+      vendorId: db.vendor_id,
       driverPhone: db.driver?.phone || "",
       amount: `${financials.order_value || 0} ج.م`,
       deliveryFee: `${financials.delivery_fee || 0} ج.م`,

@@ -263,7 +263,6 @@ export default function StoreView({
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-black text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{order.customer}</h3>
-                          <RatingBadge rating={vendorRating} count={vendorRatingCount} size="sm" />
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700 tracking-tighter">#{order.id.slice(0, 8)}</span>
