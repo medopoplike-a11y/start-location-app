@@ -657,7 +657,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_is_online ON profiles(is_online) WHERE i
 -- 10. جدول إعدادات التطبيق والتحديثات التلقائية
 CREATE TABLE IF NOT EXISTS app_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  latest_version TEXT NOT NULL DEFAULT '0.1.0',
+  latest_version TEXT NOT NULL DEFAULT '0.2.0',
   min_version TEXT NOT NULL DEFAULT '0.1.0',
   download_url TEXT,
   bundle_url TEXT,
@@ -693,6 +693,24 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='maintenance_message') THEN
     ALTER TABLE app_config ADD COLUMN maintenance_message TEXT DEFAULT 'التطبيق تحت الصيانة حالياً. يرجى المحاولة لاحقاً.';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='vendor_commission_type') THEN
+    ALTER TABLE app_config ADD COLUMN vendor_commission_type TEXT DEFAULT 'percentage';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='vendor_commission_value') THEN
+    ALTER TABLE app_config ADD COLUMN vendor_commission_value FLOAT DEFAULT 0.0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='surge_pricing_active') THEN
+    ALTER TABLE app_config ADD COLUMN surge_pricing_active BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='surge_pricing_multiplier') THEN
+    ALTER TABLE app_config ADD COLUMN surge_pricing_multiplier FLOAT DEFAULT 1.0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='billing_type') THEN
+    ALTER TABLE app_config ADD COLUMN billing_type TEXT DEFAULT 'commission';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='monthly_salary') THEN
+    ALTER TABLE app_config ADD COLUMN monthly_salary FLOAT DEFAULT 0.0;
   END IF;
 END $$;
 
