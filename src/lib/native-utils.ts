@@ -246,7 +246,7 @@ export const checkForAutoUpdate = async (force = false) => {
 /**
  * نظام تتبع الموقع المتقدم في الخلفية
  */
-export const startBackgroundTracking = async (userId: string) => {
+export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   if (!isNative() || !userId) return null;
 
   try {
@@ -284,6 +284,9 @@ export const startBackgroundTracking = async (userId: string) => {
           }
 
           if (location && location.latitude && location.longitude) {
+            const loc = { lat: location.latitude, lng: location.longitude };
+            if (onUpdate) onUpdate(loc);
+
             try {
               const now = Date.now();
               // Direct Supabase update for speed

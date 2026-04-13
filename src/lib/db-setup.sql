@@ -74,6 +74,13 @@ BEGIN
   END IF;
 END $$;
 
+-- تحسين أداء الاستعلامات (Indexes) للخرائط الحية والبحث
+CREATE INDEX IF NOT EXISTS idx_profiles_role_online ON profiles(role, is_online);
+CREATE INDEX IF NOT EXISTS idx_profiles_last_update ON profiles(last_location_update DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status_driver ON orders(status, driver_id);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+
 -- تفعيل Real-time لكافة الجداول الحساسة بشكل آمن
 DO $$ 
 BEGIN

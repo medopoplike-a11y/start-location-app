@@ -138,9 +138,11 @@ export default function DriverApp() {
         
         if (!isMounted) return;
 
-        // 2. Background Tracking (Plugin-based)
+        // 2. Background Tracking (Plugin-based - Handles both FG/BG)
         if (!backgroundWatcherRef.current) {
-          const bId = await startBackgroundTracking(driverId);
+          const bId = await startBackgroundTracking(driverId, (loc) => {
+            if (isMounted) setDriverLocation(loc);
+          });
           if (isMounted && bId) {
             backgroundWatcherRef.current = bId;
             console.log("Native Tracking: Background watcher started", bId);
@@ -148,18 +150,6 @@ export default function DriverApp() {
         }
 
         if (!isMounted) return;
-
-        // 3. Foreground Tracking (Geolocation API)
-        // INCREASED FREQUENCY: Ensure we update even if position doesn't change much
-        if (!foregroundWatcherRef.current) {
-          const fId = await startForegroundTracking(driverId, (loc) => {
-            if (isMounted) setDriverLocation(loc);
-          });
-          if (isMounted && fId) {
-            foregroundWatcherRef.current = fId;
-            console.log("Native Tracking: Foreground watcher started", fId);
-          }
-        }
 
         // 4. Manual Heartbeat: Ensure online status stays fresh in DB even if stationary
         const heartbeatInterval = setInterval(async () => {
