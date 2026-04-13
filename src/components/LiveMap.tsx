@@ -58,7 +58,7 @@ function getRelativeTime(timestamp?: number) {
 }
 
 // Helper component for smooth marker movement
-function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.Icon }) {
+function AnimatedMarker({ point, icon, mapRotation = 0, mapTilt = 0 }: { point: MapPoint, icon: L.DivIcon | L.Icon, mapRotation?: number, mapTilt?: number }) {
   const markerRef = useRef<L.Marker>(null);
   const animationRef = useRef<number>(0);
   const prevPosRef = useRef<[number, number]>([point.lat, point.lng]);
@@ -66,6 +66,17 @@ function AnimatedMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.
   const startTimeRef = useRef<number>(0);
   const prevTimestampRef = useRef<number>(0);
   const [duration, setDuration] = useState(2000);
+
+  // Counter-rotate the marker icon to keep it upright
+  useEffect(() => {
+    if (markerRef.current) {
+      const element = markerRef.current.getElement();
+      if (element) {
+        // Counter-rotate to stay upright regardless of map rotation/tilt
+        element.style.transform += ` rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
+      }
+    }
+  }, [mapRotation, mapTilt]);
 
   useEffect(() => {
     if (markerRef.current) {
@@ -220,9 +231,16 @@ function ChangeView({ center, zoom, force }: { center: [number, number]; zoom: n
   const isFirstMount = useRef(true);
 
   useEffect(() => {
-    if (isFirstMount.current || force) {
-      map.setView(center, zoom, { animate: true });
+    if (isFirstMount.current) {
+      map.setView(center, zoom, { animate: false });
       isFirstMount.current = false;
+    } else if (force) {
+      // Use flyTo for smoother "Google Maps" feel when following
+      map.flyTo(center, zoom, {
+        animate: true,
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
     }
   }, [center, zoom, map, force]);
   
@@ -243,14 +261,34 @@ export default function LiveMap({
   const [isFollowing, setIsFollowing] = useState(autoCenterOnDrivers);
   const [manualZoom, setManualZoom] = useState(zoom);
   const [mapRotation, setMapRotation] = useState(0);
+  const [mapTilt, setMapTilt] = useState(0);
   
-  // Touch Gesture State for Rotation - REMOVED AS PER USER REQUEST FOR SIMPLICITY
-  
+  // Auto-update rotation and tilt based on movement and navigation
+  useEffect(() => {
+    if (isNavigating && drivers.length > 0) {
+      const mainDriver = drivers[0];
+      // Use heading for rotation, and set a fixed tilt for 3D view
+      setMapRotation(mainDriver.heading || 0);
+      setMapTilt(45); // 45 degrees tilt for navigation
+    } else {
+      setMapRotation(0);
+      setMapTilt(0);
+    }
+  }, [isNavigating, drivers]);
+
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
   return (
-    <div className={`${className} relative group transition-all duration-300`}>
-      <div className="h-full w-full">
+    <div className={`${className} relative group transition-all duration-500 overflow-hidden`}>
+      {/* 3D Map Wrapper - This creates the Google Maps dynamic feel */}
+      <div 
+        className="h-full w-full transition-all duration-1000 ease-in-out origin-center"
+        style={{ 
+          transform: `perspective(1000px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg) scale(${mapTilt > 0 ? 1.2 : 1})`,
+          height: '100%',
+          width: '100%'
+        }}
+      >
         <MapContainer 
           center={center} 
           zoom={zoom} 
@@ -261,7 +299,11 @@ export default function LiveMap({
           touchZoom={true}
           doubleClickZoom={true}
         >
-          <ChangeView center={center} zoom={zoom} force={isFollowing} />
+          <ChangeView 
+            center={center} 
+            zoom={isNavigating ? 18 : zoom} 
+            force={isFollowing || isNavigating} 
+          />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -276,6 +318,14 @@ export default function LiveMap({
             position={[vendor.lat, vendor.lng]} 
             icon={vendorIcon!}
             zIndexOffset={100}
+            ref={(ref) => {
+              if (ref) {
+                const element = ref.getElement();
+                if (element) {
+                  element.style.transform += ` rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
+                }
+              }
+            }}
           >
             <Popup className="custom-popup">
               <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
@@ -298,6 +348,14 @@ export default function LiveMap({
               position={[order.lat, order.lng]} 
               icon={orderIcon!}
               zIndexOffset={200}
+              ref={(ref) => {
+                if (ref) {
+                  const element = ref.getElement();
+                  if (element) {
+                    element.style.transform += ` rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
+                  }
+                }
+              }}
             >
               <Popup className="custom-popup">
                 <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
@@ -326,7 +384,7 @@ export default function LiveMap({
           </div>
         ))}
 
-        {/* عرض المناديب - Rendered last to be on top */}
+          {/* عرض المناديب - Rendered last to be on top */}
         {drivers.filter(d => d.lat && d.lng).map((driver) => {
           let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon! : driverIcon!) : driverOfflineIcon!;
           return (
@@ -334,6 +392,8 @@ export default function LiveMap({
               <AnimatedMarker 
                 point={driver} 
                 icon={icon} 
+                mapRotation={mapRotation}
+                mapTilt={mapTilt}
               />
               
               {/* Draw road-based route for active driver if they have a target */}
@@ -363,21 +423,53 @@ export default function LiveMap({
         </MapContainer>
       </div>
 
-      {/* Floating Controls */}
-      <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-2">
-        {/* Follow Mode Button */}
+      {/* Dynamic Navigation UI - Google Maps Style */}
+      <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-3">
+        {/* Recenter Button - Shows only when NOT following but center is away */}
         <button 
-          onClick={() => setIsFollowing(!isFollowing)}
-          className={`p-3 rounded-2xl shadow-xl transition-all border ${
+          onClick={() => setIsFollowing(true)}
+          className={`p-3 rounded-2xl shadow-xl transition-all border flex items-center justify-center ${
             isFollowing 
             ? 'bg-blue-600 text-white border-blue-400' 
             : 'bg-white/90 backdrop-blur-md text-slate-600 border-white/20'
           }`}
-          title={isFollowing ? "إيقاف تتبع الحركة" : "تفعيل تتبع الحركة"}
+          title={isFollowing ? "إيقاف التتبع" : "إعادة التمركز"}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
         </button>
+
+        {/* Dynamic Compass - Shows only when rotated */}
+        {(Math.abs(mapRotation % 360) > 5 || mapTilt > 0) && (
+          <button 
+            onClick={() => {
+              setMapRotation(0);
+              setMapTilt(0);
+            }}
+            className="p-3 bg-white/90 backdrop-blur-md text-red-500 rounded-2xl shadow-xl border border-white/20 transition-all animate-in fade-in zoom-in duration-300 flex items-center justify-center"
+            style={{ transform: `rotate(${-mapRotation}deg)` }}
+            title="إعادة ضبط الشمال"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+          </button>
+        )}
       </div>
+
+      {/* Navigation Info Bar - Google Maps Style */}
+      {isNavigating && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-[400px]">
+          <div className="bg-blue-600 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border border-blue-400/30 backdrop-blur-md bg-opacity-90">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-xl animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-5-5 18-2-10Z"/></svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none mb-1">Navigation Active</p>
+                <p className="text-xs font-black">جاري الملاحة الذكية ثلاثية الأبعاد...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
