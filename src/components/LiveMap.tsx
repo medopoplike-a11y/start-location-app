@@ -41,6 +41,7 @@ interface LiveMapProps {
   zoom?: number;
   className?: string;
   autoCenterOnDrivers?: boolean;
+  isNavigating?: boolean;
 }
 
 // Helper function for relative time
@@ -234,47 +235,57 @@ export default function LiveMap({
   center = [30.1450, 31.6350], // Default to El Shorouk City
   zoom = 13,
   className = "h-[400px] w-full rounded-2xl overflow-hidden shadow-inner",
-  autoCenterOnDrivers = false
+  autoCenterOnDrivers = false,
+  isNavigating = false
 }: LiveMapProps) {
   const isMounted = typeof window !== 'undefined';
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(autoCenterOnDrivers);
   const [manualZoom, setManualZoom] = useState(zoom);
+  const [mapRotation, setMapRotation] = useState(0);
+
+  // Auto-rotate based on driver heading when navigating
+  useEffect(() => {
+    if (isNavigating && drivers.length > 0) {
+      const mainDriver = drivers[0];
+      // If we have heading data from the driver (AnimatedMarker doesn't expose it easily, 
+      // but we can pass it in the driver object)
+      const heading = (mainDriver as any).heading || 0;
+      setMapRotation(heading);
+    } else {
+      setMapRotation(0);
+    }
+  }, [isNavigating, drivers]);
 
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تحميل الخريطة...</div>;
 
   return (
-    <div className={className + " relative group"}>
-      <MapContainer 
-        center={center} 
-        zoom={zoom} 
-        scrollWheelZoom={true}
-        className="h-full w-full z-10"
+    <div className={`${className} relative group transition-all duration-700 ${isNavigating ? 'perspective-1000' : ''}`}>
+      <div 
+        className="h-full w-full transition-all duration-700 ease-in-out"
+        style={{ 
+          transform: isNavigating 
+            ? `rotateX(45deg) rotateZ(${-mapRotation}deg) translateY(-10%) scale(1.2)` 
+            : `rotateX(0deg) rotateZ(0deg) translateY(0) scale(1)`,
+          transformStyle: 'preserve-3d'
+        }}
       >
-        <ChangeView center={center} zoom={zoom} force={isFollowing} />
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {/* Camera Control: This will allow centering if requested without force-snapping on every render */}
-        <MapEvents onZoom={(z) => setManualZoom(z)} />
+        <MapContainer 
+          center={center} 
+          zoom={zoom} 
+          scrollWheelZoom={true}
+          zoomControl={false}
+          className="h-full w-full z-10"
+        >
+          <ChangeView center={center} zoom={isNavigating ? 18 : zoom} force={isFollowing || isNavigating} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          
+          {/* Camera Control: This will allow centering if requested without force-snapping on every render */}
+          <MapEvents onZoom={(z) => setManualZoom(z)} />
 
-        {/* Floating Controls */}
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-          <button 
-            onClick={() => setIsFollowing(!isFollowing)}
-            className={`p-3 rounded-2xl shadow-xl transition-all border ${
-              isFollowing 
-              ? 'bg-blue-600 text-white border-blue-400' 
-              : 'bg-white/90 backdrop-blur-md text-slate-600 border-white/20'
-            }`}
-            title={isFollowing ? "إيقاف تتبع الحركة" : "تفعيل تتبع الحركة"}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-
-        {/* عرض المحلات */}
+          {/* عرض المحلات */}
         {vendors.filter(v => v.lat && v.lng).map((vendor) => (
           <Marker 
             key={`vendor-${vendor.id}`} 
@@ -365,7 +376,23 @@ export default function LiveMap({
             </div>
           );
         })}
-      </MapContainer>
+        </MapContainer>
+      </div>
+
+      {/* Floating Controls */}
+      <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-2">
+        <button 
+          onClick={() => setIsFollowing(!isFollowing)}
+          className={`p-3 rounded-2xl shadow-xl transition-all border ${
+            isFollowing 
+            ? 'bg-blue-600 text-white border-blue-400' 
+            : 'bg-white/90 backdrop-blur-md text-slate-600 border-white/20'
+          }`}
+          title={isFollowing ? "إيقاف تتبع الحركة" : "تفعيل تتبع الحركة"}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
   );
 }

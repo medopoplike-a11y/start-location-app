@@ -268,6 +268,9 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
     }
 
     // 2. Wrap the addWatcher in a timeout to prevent native hanging
+    let lastDbUpdate = 0;
+    const DB_UPDATE_INTERVAL = 10000; // Update DB every 10 seconds max
+
     const watcherId = await Promise.race([
       BackgroundGeolocation.addWatcher(
         {
@@ -275,7 +278,7 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           backgroundTitle: "تطبيق ستارت نشط",
           requestPermissions: true,
           staleLocationInterval: 10000,
-          distanceFilter: 2 // Reduced from 5 to 2 meters for more precise tracking
+          distanceFilter: 5 // Increased from 2 to 5 meters to balance accuracy and battery
         },
         async (location: any, error: any) => {
           if (error) {
@@ -287,8 +290,11 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
             const loc = { lat: location.latitude, lng: location.longitude };
             if (onUpdate) onUpdate(loc);
 
+            const now = Date.now();
+            if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
+            lastDbUpdate = now;
+
             try {
-              const now = Date.now();
               // 1. Update Profile (Latest Location)
               await supabase
                 .from('profiles')
@@ -307,7 +313,7 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
                 })
                 .eq('id', userId);
 
-              // 2. Insert into Logs (Movement History) - ULTRA-BEAST-MODE
+              // 2. Insert into Logs (Movement History)
               await supabase
                 .from('location_logs')
                 .insert({

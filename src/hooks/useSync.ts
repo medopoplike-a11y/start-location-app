@@ -52,7 +52,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
-    // Capacitor App State
+    // Capacitor App State & Network
     let appStateListener: any;
     let networkListener: any;
     
@@ -63,8 +63,11 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
         appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App became active (Capacitor), triggering sync...");
+            console.log("useSync: App became active, triggering light sync...");
             triggerUpdate();
+            // Don't fully unsubscribe/resubscribe here anymore. 
+            // Supabase Real-time handles reconnection automatically.
+            // Manual teardown/rebuild was causing freezes on resume.
           }
         });
 
@@ -94,7 +97,22 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     let locationLogsSub: RealtimeChannel | undefined;
     let syncChannel: RealtimeChannel | undefined;
 
+    const unsubscribe = () => {
+      console.log("useSync: Unsubscribing all channels...");
+      if (ordersSub) supabase.removeChannel(ordersSub);
+      if (profilesSub) supabase.removeChannel(profilesSub);
+      if (walletSub) supabase.removeChannel(walletSub);
+      if (settlementsSub) supabase.removeChannel(settlementsSub);
+      if (locationLogsSub) supabase.removeChannel(locationLogsSub);
+      if (syncChannel) supabase.removeChannel(syncChannel);
+    };
+
     const subscribe = async () => {
+      // 1. Initial cleanup
+      unsubscribe();
+      
+      console.log("useSync: Initializing subscriptions for userId:", userId);
+      
       // Get user role to decide on subscription strategy
       let userRole: string | null = null;
       if (userId) {
@@ -157,41 +175,15 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         });
     };
 
-    const unsubscribe = () => {
-      if (ordersSub) supabase.removeChannel(ordersSub);
-      if (profilesSub) supabase.removeChannel(profilesSub);
-      if (walletSub) supabase.removeChannel(walletSub);
-      if (settlementsSub) supabase.removeChannel(settlementsSub);
-      if (locationLogsSub) supabase.removeChannel(locationLogsSub);
-      if (syncChannel) supabase.removeChannel(syncChannel);
-    };
-
     // Initial subscription
     subscribe();
 
-    // Battery Saving: Unsubscribe when in background, Resubscribe in foreground
-    let appStateListener: any;
-    const setupLifecycle = async () => {
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        const { App } = await import("@capacitor/app");
-        appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
-          if (isActive) {
-            console.log("useSync: App active, resubscribing and forcing full sync...");
-            unsubscribe(); // Clean up first
-            subscribe();
-            triggerUpdate({ force: true }); // Sync immediately on return
-          } else {
-            console.log("useSync: App background, unsubscribing to save battery...");
-            unsubscribe();
-          }
-        });
-      }
-    };
-    setupLifecycle();
+    // Removed the manual setupLifecycle (unsubscribe/resubscribe on background/foreground)
+    // which was duplicated and causing performance issues.
 
-    // Heartbeat to keep connection alive (Web browsers often close idle WebSockets)
+    // Heartbeat to keep connection alive
     const interval = setInterval(() => {
-      if (syncChannel) {
+      if (syncChannel && syncChannel.state === 'joined') {
         syncChannel.send({
           type: 'broadcast',
           event: 'heartbeat',
@@ -203,7 +195,6 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     return () => {
       clearInterval(interval);
       unsubscribe();
-      if (appStateListener) appStateListener.remove();
     };
   }, [userId, isAdmin, triggerUpdate]);
 

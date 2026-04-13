@@ -71,6 +71,7 @@ export default function DriverOrdersView({
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<"available" | "active" | "history">("active");
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // 1. Action Handlers
   const handleAccept = async (orderId: string) => {
@@ -98,6 +99,7 @@ export default function DriverOrdersView({
       await onDeliverOrder(orderId);
       setRatingOrder(selectedOrder);
       setSelectedOrder(null);
+      setIsNavigating(false);
     } finally {
       setActionLoading(false);
     }
@@ -168,6 +170,7 @@ export default function DriverOrdersView({
 
   // 2. Routing Logic: Determine the next target for the driver
   const navigationTarget = useMemo(() => {
+    if (!isNavigating) return null;
     const firstActive = activeOrders[0];
     if (!firstActive) return null;
     
@@ -178,10 +181,10 @@ export default function DriverOrdersView({
       return { lat: firstActive.customerCoords.lat, lng: firstActive.customerCoords.lng };
     }
     return null;
-  }, [activeOrders]);
+  }, [activeOrders, isNavigating]);
 
   return (
-    <div className="fixed inset-0 top-[76px] z-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="fixed inset-0 z-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* 1. Full Screen Map Background */}
       <div className="absolute inset-0 z-0">
         {isActive && driverLocation ? (
@@ -201,6 +204,7 @@ export default function DriverOrdersView({
             zoom={16}
             className="h-full w-full"
             autoCenterOnDrivers={true}
+            isNavigating={isNavigating}
           />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-400 p-8 text-center">
@@ -211,12 +215,39 @@ export default function DriverOrdersView({
         )}
       </div>
 
-      {/* 2. Floating Quick Controls (Top Right) - REMOVED AS PER USER REQUEST */}
-      {/* 3. Dynamic Orders Panel (Bottom) */}
+      {/* 2. Navigation Mode Overlay */}
+      <AnimatePresence>
+        {isNavigating && navigationTarget && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-24 left-4 right-4 z-30 bg-blue-600 text-white p-4 rounded-3xl shadow-2xl border border-blue-400 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <Navigation className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black opacity-80 uppercase tracking-widest">نمط التوجيه الذكي</p>
+                <p className="text-xs font-black">جاري التوجه إلى {activeOrders[0]?.status === 'assigned' ? "المتجر" : "العميل"}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsNavigating(false)}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-[10px] font-black transition-all"
+            >
+              إيقاف
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Dynamic Orders Panel (Bottom Sheet) */}
       <motion.div 
         initial={false}
         animate={{ 
-          height: isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "280px" : "100px")
+          height: isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "240px" : "120px")
         }}
         className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] border-t border-slate-100 dark:border-slate-800 flex flex-col"
       >
@@ -224,34 +255,37 @@ export default function DriverOrdersView({
         <div className="w-full flex flex-col items-center pt-3 shrink-0">
           <button 
             onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-4"
+            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-3"
           />
           
-          {/* Order Tabs */}
+          {/* Order Tabs - COMPACT VERSION */}
           <div className="flex w-full px-6 gap-2 mb-4">
             <button 
-              onClick={() => { setActiveOrderTab("active"); setIsPanelExpanded(true); }}
-              className={`flex-1 py-3 rounded-2xl text-[10px] font-black transition-all ${
-                activeOrderTab === "active" ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-slate-100 text-slate-400"
+              onClick={() => { setActiveOrderTab("active"); setIsPanelExpanded(activeOrderTab !== "active" ? true : !isPanelExpanded); }}
+              className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black transition-all flex items-center justify-center gap-2 ${
+                activeOrderTab === "active" ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
               }`}
             >
+              <Zap className="w-3.5 h-3.5" />
               النشطة ({activeOrders.length})
             </button>
             <button 
               onClick={() => { setActiveOrderTab("available"); setIsPanelExpanded(true); }}
-              className={`flex-1 py-3 rounded-2xl text-[10px] font-black transition-all ${
-                activeOrderTab === "available" ? "bg-amber-500 text-white shadow-lg shadow-amber-100" : "bg-slate-100 text-slate-400"
+              className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black transition-all flex items-center justify-center gap-2 ${
+                activeOrderTab === "available" ? "bg-amber-500 text-white shadow-lg shadow-amber-100" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
               }`}
             >
+              <Maximize2 className="w-3.5 h-3.5" />
               المتاحة ({availableOrders.length})
             </button>
             <button 
               onClick={() => { setActiveOrderTab("history"); setIsPanelExpanded(true); }}
-              className={`flex-1 py-3 rounded-2xl text-[10px] font-black transition-all ${
-                activeOrderTab === "history" ? "bg-slate-800 text-white shadow-lg shadow-slate-200" : "bg-slate-100 text-slate-400"
+              className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black transition-all flex items-center justify-center gap-2 ${
+                activeOrderTab === "history" ? "bg-slate-800 dark:bg-slate-700 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
               }`}
             >
-              المكتملة ({completedOrders.length})
+              <Clock className="w-3.5 h-3.5" />
+              {completedOrders.length}
             </button>
           </div>
         </div>
@@ -293,16 +327,17 @@ export default function DriverOrdersView({
                             >
                               إدارة الطلب
                             </button>
-                            {order.vendorCoords && (
-                              <a
-                                href={`https://maps.google.com/?q=${order.vendorCoords.lat},${order.vendorCoords.lng}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-4 bg-white border border-slate-200 text-blue-600 rounded-xl flex items-center justify-center"
-                              >
-                                <Navigation className="w-5 h-5" />
-                              </a>
-                            )}
+                            <button
+                              onClick={() => {
+                                setIsNavigating(true);
+                                setIsPanelExpanded(false);
+                              }}
+                              className={`px-4 rounded-xl flex items-center justify-center transition-all ${
+                                isNavigating ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-blue-600"
+                              }`}
+                            >
+                              <Navigation className={`w-5 h-5 ${isNavigating ? "animate-pulse" : ""}`} />
+                            </button>
                           </div>
                         </motion.div>
                       ))
@@ -390,6 +425,10 @@ export default function DriverOrdersView({
         onConfirmPayment={handleConfirmPayment}
         onDeliverCustomer={onDeliverCustomer}
         onPreviewImage={onPreviewImage}
+        onNavigate={() => {
+          setIsNavigating(true);
+          setIsPanelExpanded(false);
+        }}
         actionLoading={actionLoading}
       />
 

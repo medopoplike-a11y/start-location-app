@@ -20,6 +20,7 @@ interface OrderDetailsModalProps {
   onConfirmPayment: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
+  onNavigate?: () => void;
   isActive?: boolean;
   loading?: boolean;
 }
@@ -47,6 +48,7 @@ export default function OrderDetailsModal({
   onConfirmPayment,
   onDeliverCustomer,
   onPreviewImage,
+  onNavigate,
   isActive = false,
   loading = false,
 }: OrderDetailsModalProps) {
@@ -218,15 +220,16 @@ export default function OrderDetailsModal({
               {/* Vendor Actions */}
               <div className="flex gap-2">
                 {order.vendorCoords ? (
-                  <a
-                    href={`https://maps.google.com/?q=${order.vendorCoords.lat},${order.vendorCoords.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => {
+                      if (onNavigate) onNavigate();
+                      onClose();
+                    }}
                     className="flex-1 inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
                   >
                     <Navigation className="w-4 h-4" />
-                    توجيه للمحل (GPS)
-                  </a>
+                    توجيه للمحل (داخلي)
+                  </button>
                 ) : (
                   <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
                     <MapPin className="w-3.5 h-3.5" />
@@ -256,15 +259,16 @@ export default function OrderDetailsModal({
 
             {/* Routing / Map Buttons (Only for active sikka) */}
             {order.status === 'in_transit' && order.vendorCoords && order.customers && order.customers.length > 0 && (
-              <a
-                href={`https://www.google.com/maps/dir/${order.vendorCoords.lat},${order.vendorCoords.lng}/${order.customers.map(c => encodeURIComponent(c.address)).join('/')}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => {
+                  if (onNavigate) onNavigate();
+                  onClose();
+                }}
                 className="w-full inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-4 rounded-[28px] text-[12px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
               >
                 <Navigation className="w-5 h-5" />
-                رسم خط سير السكة بالكامل
-              </a>
+                رسم خط سير السكة بالكامل (داخلي)
+              </button>
             )}
 
                 {/* Sikka Total Summary */}
@@ -344,14 +348,15 @@ export default function OrderDetailsModal({
                             <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                               <Phone size={18} />
                             </a>
-                            <a 
-                              href={`https://maps.google.com/?q=${encodeURIComponent(cust.address)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={() => {
+                                if (onNavigate) onNavigate();
+                                onClose();
+                              }}
                               className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
                             >
                               <MapPin size={18} />
-                            </a>
+                            </button>
                           </div>
                         </div>
                     </div>
@@ -411,22 +416,24 @@ export default function OrderDetailsModal({
                   <p className="text-sm font-medium">{order.address}</p>
                 </div>
                 {/* Customer Location Navigation */}
-                {order.customerCoords ? (
-                  <a
-                    href={`https://maps.google.com/?q=${order.customerCoords.lat},${order.customerCoords.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-black shadow-sm active:scale-95 transition-all w-full justify-center"
-                  >
-                    <Navigation className="w-3.5 h-3.5" />
-                    التوجه إلى العميل على الخريطة
-                  </a>
-                ) : (
-                  <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" />
-                    إحداثيات العميل غير محددة
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  {order.customerCoords ? (
+                    <button
+                      onClick={() => {
+                        if (onNavigate) onNavigate();
+                        onClose();
+                      }}
+                      className="flex-1 inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-2xl text-[10px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      توجيه للعميل (داخلي)
+                    </button>
+                  ) : (
+                    <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[9px] font-bold flex items-center justify-center gap-2 border border-slate-200">
+                      الموقع غير محدد
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

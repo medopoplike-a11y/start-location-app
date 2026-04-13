@@ -970,6 +970,8 @@ export default function DriverApp() {
             }}
             onToggleActive={toggleActive}
             onSync={manualSync}
+            autoAccept={autoAccept}
+            onToggleAutoAccept={toggleAutoAccept}
           />
 
           <main className="flex-1 relative">
