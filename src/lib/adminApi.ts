@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 
-export const fetchAdminOrders = async (limit = 100) => {
+export const fetchAdminOrders = async (limit = 1000) => {
   const { data, error } = await supabase
     .from('orders')
     .select('*, profiles:vendor_id(full_name, phone, location, area)')

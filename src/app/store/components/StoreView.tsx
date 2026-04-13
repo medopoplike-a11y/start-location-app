@@ -73,7 +73,7 @@ export default function StoreView({
   // Fetch Vendor Rating
   useState(() => {
     if (vendorId) {
-      supabase.from('ratings').select('rating').eq('to_user_id', vendorId)
+      supabase.from('ratings').select('rating').eq('to_id', vendorId)
         .then(({ data }) => {
           if (data && data.length > 0) {
             const avg = data.reduce((acc, r) => acc + r.rating, 0) / data.length;
@@ -109,10 +109,11 @@ export default function StoreView({
     try {
       const { error } = await supabase.from('ratings').insert({
         order_id: ratingOrder.id,
-        from_user_id: vendorId,
-        to_user_id: ratingOrder.driverId,
+        from_id: vendorId,
+        to_id: ratingOrder.driverId,
         rating,
-        comment
+        comment,
+        type: 'vendor_to_driver'
       });
 
       if (error) throw error;

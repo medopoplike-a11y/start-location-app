@@ -291,12 +291,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                             اتصال
                           </a>
                         )}
-                        {order.status === "in_transit" ? (
-                          <div className="flex-1 flex items-center justify-center gap-2 bg-sky-50 border border-sky-200 py-2.5 rounded-xl">
-                            <Clock className="w-4 h-4 text-sky-500" />
-                            <span className="text-xs font-black text-sky-700">جاري التوصيل للعميل...</span>
-                          </div>
-                        ) : already ? (
+                        {already ? (
                           <div className="flex-1 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 py-2.5 rounded-xl">
                             <Clock className="w-4 h-4 text-amber-500" />
                             <span className="text-xs font-black text-amber-700">بانتظار تأكيد المحل</span>

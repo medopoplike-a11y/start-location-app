@@ -33,7 +33,7 @@ export default function OrderHistoryView({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("الكل");
   const [typeFilter, setTypeFilter] = useState("الكل"); // 'single' or 'multi'
-  const [dateFilter] = useState("الكل"); // 'today', 'yesterday', 'this_week'
+  const [dateFilter, setDateFilter] = useState("الكل"); // 'today', 'yesterday', 'this_week'
 
   // Advanced Filtering Logic
   const filteredOrders = useMemo(() => {
@@ -52,7 +52,7 @@ export default function OrderHistoryView({
         (typeFilter === "فردي" && !isMulti);
 
       // Simple date filtering (can be expanded)
-      const orderDate = new Date(order.created_at);
+      const orderDate = new Date(order.status_updated_at || order.created_at);
       const today = new Date();
       const matchesDate = dateFilter === "الكل" || 
         (dateFilter === "اليوم" && orderDate.toDateString() === today.toDateString());
@@ -144,6 +144,14 @@ export default function OrderHistoryView({
               <option value="فردي">طلب فردي</option>
               <option value="متعدد">سكة (متعدد)</option>
             </select>
+            <select 
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-[10px] font-black outline-none cursor-pointer"
+            >
+              <option value="الكل">كل التواريخ</option>
+              <option value="اليوم">اليوم</option>
+            </select>
           </div>
         </div>
       </div>
@@ -178,7 +186,7 @@ export default function OrderHistoryView({
                         <span className="text-xs font-black text-slate-900">#{order.id}</span>
                         <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
                           <Clock className="w-2.5 h-2.5" />
-                          {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(order.status_updated_at || order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     </td>

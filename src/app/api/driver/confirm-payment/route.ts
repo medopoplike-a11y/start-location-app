@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    if (order.status !== 'delivered') {
-      return NextResponse.json({ error: 'Order must be delivered to confirm payment' }, { status: 400 });
+    if (order.status !== 'delivered' && order.status !== 'in_transit') {
+      return NextResponse.json({ error: 'Order must be picked up or delivered to confirm payment' }, { status: 400 });
     }
 
     // 2. Update order to mark payment confirmed

@@ -272,14 +272,15 @@ export const updateUserAccount = async (updates: { email?: string; password?: st
   }
 };
 
-export const submitRating = async (orderId: string, fromId: string, toId: string, rating: number, comment?: string) => {
+export const submitRating = async (orderId: string, fromId: string, toId: string, rating: number, comment?: string, type?: 'driver_to_vendor' | 'vendor_to_driver') => {
   try {
     const { error } = await supabase.from('ratings').insert([{
       order_id: orderId,
-      from_user_id: fromId,
-      to_user_id: toId,
+      from_id: fromId,
+      to_id: toId,
       rating,
-      comment
+      comment,
+      type: type || (fromId === toId ? 'vendor_to_driver' : 'driver_to_vendor') // Fallback logic if needed
     }]);
     return { error };
   } catch (error) {

@@ -29,7 +29,7 @@ export default function ReportsView({ allOrders }: ReportsViewProps) {
     
     // Filter by period
     const filteredByPeriod = delivered.filter(o => {
-      const orderDate = new Date(o.created_at);
+      const orderDate = new Date(o.status_updated_at || o.created_at);
       if (period === 'daily') return orderDate.toDateString() === now.toDateString();
       if (period === 'weekly') {
         const weekAgo = new Date();

@@ -350,7 +350,7 @@ export default function DriverApp() {
       }
       
       // Fetch average rating
-      const { data: ratingData } = await supabase.from('ratings').select('rating').eq('to_user_id', currentDriverId);
+      const { data: ratingData } = await supabase.from('ratings').select('rating').eq('to_id', currentDriverId);
       if (ratingData && ratingData.length > 0) {
         const avg = ratingData.reduce((acc, r) => acc + r.rating, 0) / ratingData.length;
         setRating(avg);
@@ -445,7 +445,7 @@ export default function DriverApp() {
        .select('*, vendor:vendor_id(full_name, phone, location, area)')
        .eq('driver_id', currentDriverId)
        .eq('status', 'delivered')
-       .gte('created_at', today.toISOString());
+       .gte('status_updated_at', today.toISOString()); // Use status_updated_at
      return data || [];
    }
 

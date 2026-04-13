@@ -294,7 +294,7 @@ export default function OrderDetailsModal({
                           key={star}
                           onClick={() => {
                             const comment = prompt("أضف تعليقاً (اختياري):") || "";
-                            submitRating(order.id, order.driverId || "", order.vendorId, star, comment)
+                            submitRating(order.id, order.driverId || "", order.vendorId, star, comment, 'driver_to_vendor')
                               .then(({ error }) => {
                                 if (!error) {
                                   alert("تم إرسال تقييمك بنجاح! شكراً لك.");
