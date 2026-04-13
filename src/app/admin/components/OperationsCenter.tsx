@@ -220,17 +220,28 @@ export default function OperationsCenter({
                         details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
                       }))}
                       vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
-                      orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned') && vendors.find(v => v.id_full === o.vendor_id)?.location).map(o => {
-                        const v = vendors.find(v => v.id_full === o.vendor_id)!;
+                      orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
+                        // Use customer location if available, otherwise fallback to vendor location
+                        const lat = o.customer_details?.coords?.lat;
+                        const lng = o.customer_details?.coords?.lng;
+                        
+                        // Fallback to vendor location only if customer coords are missing
+                        const v = vendors.find(v => v.id_full === o.vendor_id);
+                        const finalLat = lat ?? v?.location?.lat;
+                        const finalLng = lng ?? v?.location?.lng;
+
+                        if (finalLat == null || finalLng == null) return null;
+
                         return {
                           id: o.id,
                           name: o.vendor_full_name || "محل",
-                          lat: v.location!.lat!,
-                          lng: v.location!.lng!,
-                          status: o.status === 'pending' ? 'جاري البحث عن طيار' : 'تم التعيين - بانتظار التحصيل',
+                          lat: finalLat,
+                          lng: finalLng,
+                          status: o.status === 'pending' ? 'جاري البحث عن طيار' : 
+                                  o.status === 'assigned' ? 'تم التعيين - بانتظار التحصيل' : 'في الطريق للعميل',
                           details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
                         };
-                      })}
+                      }).filter((o): o is NonNullable<typeof o> => o !== null)}
                       zoom={13}
                       className="h-full w-full"
                     />

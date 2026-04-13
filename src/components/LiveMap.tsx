@@ -61,12 +61,60 @@ export default function LiveMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* عرض المناديب */}
+        {/* عرض المحلات */}
+        {vendors.filter(v => v.lat && v.lng).map((vendor) => (
+          <Marker 
+            key={`vendor-${vendor.id}`} 
+            position={[vendor.lat, vendor.lng]} 
+            icon={vendorIcon!}
+            zIndexOffset={100}
+          >
+            <Popup className="custom-popup">
+              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+                <p className="font-black text-indigo-600 mb-1">{vendor.name}</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mb-2">محل شريك</p>
+                {vendor.details && (
+                  <p className="text-[10px] text-slate-600 bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100">
+                    {vendor.details}
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* عرض الطلبات النشطة */}
+        {orders.filter(o => o.lat && o.lng).map((order) => (
+          <Marker 
+            key={`order-${order.id}`} 
+            position={[order.lat, order.lng]} 
+            icon={orderIcon!}
+            zIndexOffset={200}
+          >
+            <Popup className="custom-popup">
+              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  <p className="font-black text-rose-600">طلب: {order.name}</p>
+                </div>
+                <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
+                {order.details && (
+                  <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
+                    {order.details}
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* عرض المناديب - Rendered last to be on top */}
         {drivers.filter(d => d.lat && d.lng).map((driver) => (
           <Marker 
             key={`driver-${driver.id}`} 
             position={[driver.lat!, driver.lng!]} 
             icon={driver.status === 'busy' ? driverBusyIcon! : driverIcon!}
+            zIndexOffset={1000} // High z-index to stay on top
           >
             <Popup className="custom-popup">
               <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
@@ -89,51 +137,6 @@ export default function LiveMap({
                     </p>
                   )}
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* عرض المحلات */}
-        {vendors.filter(v => v.lat && v.lng).map((vendor) => (
-          <Marker 
-            key={`vendor-${vendor.id}`} 
-            position={[vendor.lat, vendor.lng]} 
-            icon={vendorIcon!}
-          >
-            <Popup className="custom-popup">
-              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                <p className="font-black text-indigo-600 mb-1">{vendor.name}</p>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mb-2">محل شريك</p>
-                {vendor.details && (
-                  <p className="text-[10px] text-slate-600 bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100">
-                    {vendor.details}
-                  </p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* عرض الطلبات النشطة */}
-        {orders.filter(o => o.lat && o.lng).map((order) => (
-          <Marker 
-            key={`order-${order.id}`} 
-            position={[order.lat, order.lng]} 
-            icon={orderIcon!}
-          >
-            <Popup className="custom-popup">
-              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                  <p className="font-black text-rose-600">طلب: {order.name}</p>
-                </div>
-                <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
-                {order.details && (
-                  <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
-                    {order.details}
-                  </p>
-                )}
               </div>
             </Popup>
           </Marker>

@@ -187,6 +187,20 @@ function AdminContent() {
     return () => clearInterval(interval);
   }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
 
+  // 8. Background Refresh Loop for Driver Locations (Fallback for real-time)
+  useEffect(() => {
+    if (!mounted || activeView !== "operations") return;
+
+    const backgroundRefresh = async () => {
+      // Only fetch profiles to update driver locations
+      console.log("[Polling] Refreshing driver locations (fallback)...");
+      await fetchProfiles();
+    };
+
+    const interval = setInterval(backgroundRefresh, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, [mounted, activeView, fetchProfiles]);
+
   // 7. Data Fetching Functions
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
@@ -266,10 +280,10 @@ function AdminContent() {
             const role = (p.role || '').toLowerCase();
             if (role !== 'driver' || !p.is_online) return false;
             
-            // Heartbeat: 10 mins threshold
-            const lastUpdate = new Date(p.last_location_update || 0).getTime();
+            // Heartbeat: 15 mins threshold for initial fetch (more lenient)
+            const lastUpdate = new Date(p.last_location_update || p.updated_at || 0).getTime();
             const now = Date.now();
-            return now - lastUpdate < 10 * 60 * 1000;
+            return now - lastUpdate < 15 * 60 * 1000;
           })
           .map((p) => {
           let loc = p.location;
@@ -396,30 +410,45 @@ function AdminContent() {
       // Delta Sync Optimization: Update specific states based on payload to avoid full re-fetch
       if (payload && payload.table === 'profiles' && payload.new) {
         const p = payload.new;
-        if (p.role === 'driver') {
+        
+        // Find if this is a driver (either from payload or from our existing state)
+        const existingProfile = allUsers.find(u => u.id === p.id);
+        const role = (p.role || existingProfile?.role || '').toLowerCase();
+        
+        if (role === 'driver') {
+          console.log(`[Real-time] Driver update: ${p.full_name || p.id} - Location:`, p.location);
+          
           setOnlineDrivers(prev => {
             const existing = prev.find(d => d.id === p.id);
-            let loc = p.location;
+            
+            // Use existing data for missing fields in payload
+            const fullName = p.full_name || existing?.name || existingProfile?.full_name || "غير معروف";
+            const isOnline = p.is_online !== undefined ? p.is_online : (existing ? true : true); // Assume online if we got an update
+            const lastUpdateVal = p.last_location_update || new Date().toISOString();
+            
+            let loc = p.location || existingProfile?.location;
             if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
             
-            const lastUpdate = new Date(p.last_location_update || 0).getTime();
+            const lastUpdate = new Date(lastUpdateVal).getTime();
             const now = Date.now();
-            const isFresh = now - lastUpdate < 10 * 60 * 1000;
+            // Be more lenient for the map: 30 mins threshold
+            const isFresh = now - lastUpdate < 30 * 60 * 1000;
             
             // If the driver is offline or not fresh, remove them from the list
-            if (!p.is_online || !isFresh) return prev.filter(d => d.id !== p.id);
+            if (!isOnline || !isFresh) return prev.filter(d => d.id !== p.id);
             
             const updatedDriver = {
               id: p.id,
-              name: p.full_name || "غير معروف",
+              name: fullName,
               lat: loc?.lat || null,
               lng: loc?.lng || null,
-              lastSeen: new Date(p.last_location_update || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+              lastSeen: new Date(lastUpdateVal).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+              rating: p.rating !== undefined ? p.rating : (existing?.rating || existingProfile?.rating || 0)
             };
             
             if (updatedDriver.lat === null || updatedDriver.lng === null) return prev.filter(d => d.id !== p.id);
             
-            // If already exists and location hasn't changed, don't trigger re-render
+            // Always update if location changed
             if (existing && existing.lat === updatedDriver.lat && existing.lng === updatedDriver.lng && existing.lastSeen === updatedDriver.lastSeen) {
               return prev;
             }
@@ -428,9 +457,16 @@ function AdminContent() {
             return [...prev, updatedDriver as OnlineDriver];
           });
           
+          // Also update allUsers to keep it fresh for future role checks
+          setAllUsers(prev => {
+            const exists = prev.find(u => u.id === p.id);
+            if (!exists) return prev;
+            return prev.map(u => u.id === p.id ? { ...u, ...p } : u);
+          });
+          
           // Optimization: If only location/online status of a driver changed, don't re-fetch EVERYTHING
           shouldFetchFull = false;
-        } else if (p.role === 'vendor') {
+        } else if (role === 'vendor') {
           // Optimization: Instant update for vendor location if it changes
           setVendors(prev => {
             const existing = prev.find(v => v.id_full === p.id);
