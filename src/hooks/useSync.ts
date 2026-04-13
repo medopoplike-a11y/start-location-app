@@ -91,6 +91,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     let profilesSub: RealtimeChannel | undefined;
     let walletSub: RealtimeChannel | undefined;
     let settlementsSub: RealtimeChannel | undefined;
+    let locationLogsSub: RealtimeChannel | undefined;
     let syncChannel: RealtimeChannel | undefined;
 
     const subscribe = async () => {
@@ -102,8 +103,6 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       }
 
       // 1. Postgres Changes Subscriptions with intelligent filtering
-      // For drivers, we don't want to filter by vendorId because they need to see ALL pending orders
-      // and orders assigned to them. RLS will handle the security.
       const orderFilterId = (isAdmin || userRole === 'driver') ? undefined : userId;
       
       ordersSub = subscribeToOrders(triggerUpdate, orderFilterId);
@@ -121,7 +120,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
           .subscribe();
 
         // 3. Admin-only: Listen to ALL location logs for ultra-accurate movement
-        supabase
+        locationLogsSub = supabase
           .channel('admin_location_stream')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'location_logs' }, triggerUpdate)
           .subscribe();
@@ -163,6 +162,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       if (profilesSub) supabase.removeChannel(profilesSub);
       if (walletSub) supabase.removeChannel(walletSub);
       if (settlementsSub) supabase.removeChannel(settlementsSub);
+      if (locationLogsSub) supabase.removeChannel(locationLogsSub);
       if (syncChannel) supabase.removeChannel(syncChannel);
     };
 

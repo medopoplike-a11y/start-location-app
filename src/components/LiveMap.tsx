@@ -26,6 +26,7 @@ interface MapPoint {
   targetLat?: number;
   targetLng?: number;
   lastSeen?: string;
+  lastSeenTimestamp?: number;
   type?: 'driver' | 'vendor' | 'order';
   status?: string;
   details?: string;
