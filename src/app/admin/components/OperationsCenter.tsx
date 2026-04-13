@@ -41,6 +41,7 @@ interface OperationsCenterProps {
   onRefresh: () => void;
   onBroadcastMessage: (msg: string) => void;
   onAssign: (orderId: string, driverId: string, driverName: string) => Promise<void>;
+  onToggleShiftLock: (driverId: string, currentStatus: boolean) => Promise<void>;
   onCancelOrder?: (orderId: string) => Promise<void>;
   onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
 }
@@ -63,6 +64,7 @@ export default function OperationsCenter({
   onRefresh,
   onBroadcastMessage,
   onAssign,
+  onToggleShiftLock,
   onCancelOrder,
   onUpdateStatus
 }: OperationsCenterProps) {
@@ -299,6 +301,7 @@ export default function OperationsCenter({
                     actionLoading={actionLoading}
                     onToggleAutoRetry={onToggleAutoRetry}
                     onToggleMaintenance={onToggleMaintenance}
+                    onToggleShiftLock={onToggleShiftLock}
                     onLockAllDrivers={onLockAllDrivers}
                     onUnlockAllDrivers={onUnlockAllDrivers}
                     onGlobalReset={onGlobalReset}

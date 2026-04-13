@@ -15,7 +15,7 @@ interface SystemControlViewProps {
   actionLoading: boolean;
   onToggleAutoRetry: (val: boolean) => void;
   onToggleMaintenance: (val: boolean) => void;
-  onToggleShiftLock?: (driverId: string, currentStatus: boolean) => void;
+  onToggleShiftLock?: (driverId: string, currentStatus: boolean) => Promise<void>;
   onLockAllDrivers: () => void;
   onUnlockAllDrivers: () => void;
   onGlobalReset: () => void;

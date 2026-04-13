@@ -302,7 +302,7 @@ function AdminContent() {
             is_online: p.is_online
           };
         })
-          .filter((d): d is OnlineDriver & { is_online: boolean } => d !== null);
+          .filter((d): d is OnlineDriver => d !== null);
         setOnlineDrivers(online);
         setAllUsers(typedProfiles.map((u) => ({
           id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
@@ -469,8 +469,8 @@ function AdminContent() {
               return prev;
             }
             
-            if (existing) return prev.map(d => d.id === p.id ? { ...existing, ...updatedDriver } as OnlineDriver & { is_online: boolean } : d);
-            return [...prev, updatedDriver as OnlineDriver & { is_online: boolean }];
+            if (existing) return prev.map(d => d.id === p.id ? { ...existing, ...updatedDriver } as OnlineDriver : d);
+            return [...prev, updatedDriver as OnlineDriver];
           });
           
           // Also update allUsers to keep it fresh for future role checks
@@ -1039,7 +1039,6 @@ function AdminContent() {
                 stats={stats} 
                 onlineDrivers={onlineDrivers} 
                 vendors={vendors} 
-                liveOrders={liveOrders} 
                 allOrders={allOrders}
                 systemHealth={systemHealth}
               />
