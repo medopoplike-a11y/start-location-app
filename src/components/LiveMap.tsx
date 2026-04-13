@@ -22,6 +22,7 @@ interface MapPoint {
   name: string;
   lat: number;
   lng: number;
+  path?: Array<{lat: number, lng: number}>;
   targetLat?: number;
   targetLng?: number;
   lastSeen?: string;
@@ -256,11 +257,24 @@ export default function LiveMap({
         {drivers.filter(d => d.lat && d.lng).map((driver) => {
           let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon! : driverIcon!) : driverOfflineIcon!;
           return (
-            <AnimatedMarker 
-              key={`driver-${driver.id}`} 
-              point={driver} 
-              icon={icon} 
-            />
+            <div key={`driver-group-${driver.id}`}>
+              <AnimatedMarker 
+                point={driver} 
+                icon={icon} 
+              />
+              {/* Draw movement trail (Breadcrumbs) - V0.9.9 */}
+              {driver.path && driver.path.length > 1 && (
+                <Polyline 
+                  positions={driver.path.map(p => [p.lat, p.lng] as [number, number])}
+                  pathOptions={{ 
+                    color: driver.status === 'busy' ? '#f59e0b' : '#10b981', 
+                    weight: 2,
+                    opacity: 0.4,
+                    smoothFactor: 1
+                  }}
+                />
+              )}
+            </div>
           );
         })}
       </MapContainer>

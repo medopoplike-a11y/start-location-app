@@ -157,6 +157,12 @@ function AdminContent() {
       // 4. Status & Online logic
       const isOnline = payload.is_online !== undefined ? payload.is_online : (existing?.is_online ?? true);
       
+      // 5. Breadcrumb Path (V0.9.9): Keep last 10 points for a movement trail
+      let updatedPath = existing?.path || [];
+      if (locChanged) {
+        updatedPath = [...updatedPath, { lat, lng }].slice(-10);
+      }
+
       const updatedDriver: OnlineDriver = {
         ...existing,
         ...payload,
@@ -164,6 +170,7 @@ function AdminContent() {
         name: payload.name || existing?.name || "كابتن",
         lat,
         lng,
+        path: updatedPath,
         lastSeen: source === 'realtime' ? "الآن" : (existing?.lastSeen || "تحديث..."),
         lastSeenTimestamp: payloadTs,
         is_online: isOnline,
