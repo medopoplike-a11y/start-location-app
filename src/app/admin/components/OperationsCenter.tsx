@@ -8,19 +8,26 @@ import {
   Settings, 
   RefreshCw, 
   Radio,
-  AlertTriangle,
-  ListFilter,
-  Monitor
+  Monitor,
+  LayoutGrid,
+  Map as MapIcon,
+  Zap,
+  Store,
+  User,
+  CheckCircle,
+  AlertCircle,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import OrdersView from "./OrdersView";
-import OrderDistributionView from "./OrderDistributionView";
 import SystemControlView from "./SystemControlView";
 import type { LiveOrderItem, DriverCard, ActivityItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
   ssr: false,
-  loading: () => <div className="h-full w-full bg-slate-50 animate-pulse flex items-center justify-center text-slate-400 font-black">جاري تحميل الخريطة...</div>
+  loading: () => <div className="h-full w-full bg-slate-50 dark:bg-slate-900 animate-pulse flex items-center justify-center text-slate-400 font-black">جاري تحميل الخريطة...</div>
 });
 
 interface OperationsCenterProps {
@@ -62,311 +69,272 @@ export default function OperationsCenter({
   onUnlockAllDrivers,
   onGlobalReset,
   onRefresh,
-  onBroadcastMessage,
   onAssign,
   onToggleShiftLock,
   onCancelOrder,
   onUpdateStatus
 }: OperationsCenterProps) {
-  const [activeTab, setActiveTab] = useState<"monitor" | "distribution" | "system" | "map">("map");
+  const [activeTab, setActiveTab] = useState<"operations" | "monitor" | "system">("operations");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [showSidePanel, setShowSidePanel] = useState(true);
 
-  const pendingOrdersCount = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending").length;
+  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
+  const availableDrivers = drivers.filter(d => !d.isShiftLocked && d.isOnline);
+  const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
+  
+  const pendingOrdersCount = pendingOrders.length;
   const activeDriversCount = onlineDrivers.length;
 
+  const handleAssign = async (driverId: string, driverName: string) => {
+    if (!selectedOrderId) return;
+    setAssigning(true);
+    try {
+      await onAssign(selectedOrderId, driverId, driverName);
+      setSelectedOrderId(null);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 pb-20">
-      {/* Integrated Dashboard Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* LEFT COLUMN: Pinned Real-time Monitor */}
-        <div className="w-full lg:w-80 shrink-0 space-y-4 lg:sticky lg:top-4">
-          <div className="drawer-glass rounded-[32px] p-6 text-slate-900 dark:text-white shadow-2xl">
-             <div className="flex items-center justify-between mb-6">
-               <div className="flex flex-col">
-                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">مركز التحكم الموحد</h3>
-                 <div className="flex items-center gap-2">
-                   <Monitor className="w-4 h-4 text-blue-500 dark:text-emerald-400" />
-                   <span className="text-sm font-black">حالة النظام الآن</span>
-                 </div>
-               </div>
-               <div className="flex h-2 w-2 relative">
-                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-               </div>
-             </div>
-             
-             <div className="space-y-6">
-               {/* Auto-Retry Switch */}
-               <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5">
-                 <div className="flex items-center justify-between mb-3">
-                   <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">التوزيع التلقائي الذكي</span>
-                   <button 
-                     onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
-                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none ${autoRetryEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
-                   >
-                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md ${autoRetryEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                   </button>
-                 </div>
-                 <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
-                   {autoRetryEnabled 
-                     ? "النظام يقوم حالياً بالبحث عن طيارين وتعيينهم تلقائياً لكل الطلبات المعلقة." 
-                     : "التوزيع التلقائي متوقف. يجب تعيين الطلبات يدوياً للطيارين."}
-                 </p>
-               </div>
-
-               {/* Quick Stats Grid */}
-               <div className="grid grid-cols-2 gap-3">
-                 <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3 border border-black/5 dark:border-white/5 flex flex-col items-center justify-center text-center">
-                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1">طلبات معلقة</p>
-                    <p className={`text-xl font-black ${pendingOrdersCount > 0 ? "text-amber-500" : "text-slate-400"}`}>{pendingOrdersCount}</p>
-                 </div>
-                 <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-3 border border-black/5 dark:border-white/5 flex flex-col items-center justify-center text-center">
-                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-1">كابتن متصل</p>
-                    <p className="text-xl font-black text-emerald-500">{activeDriversCount}</p>
-                 </div>
-               </div>
-
-               <button 
-                 onClick={onRefresh}
-                 disabled={actionLoading}
-                 className="w-full py-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-600/20 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
-               >
-                 <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? "animate-spin" : ""}`} />
-                 تحديث البيانات فوراً
-               </button>
-             </div>
-          </div>
-
-          {/* Activity Widget */}
-          <div className="drawer-glass rounded-[32px] p-6 shadow-sm hidden lg:block">
-             <div className="flex items-center justify-between mb-4">
-               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">آخر التحركات</h3>
-               <Activity className="w-3.5 h-3.5 text-blue-500" />
-             </div>
-             <div className="space-y-4">
-               {activities.slice(0, 4).map((act, i) => (
-                 <div key={i} className="flex gap-3 relative pb-4 last:pb-0">
-                   {i !== 3 && <div className="absolute top-3 right-[3px] w-0.5 h-full bg-slate-100 dark:bg-slate-800" />}
-                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 z-10" />
-                   <div>
-                     <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight">{act.text}</p>
-                     <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1">{act.time}</p>
-                   </div>
-                 </div>
-               ))}
-             </div>
-          </div>
+    <div className="h-[calc(100vh-120px)] flex flex-col overflow-hidden">
+      {/* Top Unified Navigation */}
+      <div className="flex items-center justify-between mb-4 bg-white/50 dark:bg-slate-900/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setActiveTab("operations")}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+              activeTab === "operations" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            غرفة العمليات المدمجة
+          </button>
+          <button 
+            onClick={() => setActiveTab("monitor")}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+              activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            المراقبة التفصيلية
+          </button>
+          <button 
+            onClick={() => setActiveTab("system")}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+              activeTab === "system" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            إعدادات النظام
+          </button>
         </div>
 
-        {/* RIGHT COLUMN: Dynamic Content & Tab Switching */}
-        <div className="flex-1 w-full space-y-6">
-          
-          {/* Main Workspace Navigation (Integrated) */}
-          <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 dark:bg-slate-900/50 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 z-40">
-            <button 
-              onClick={() => setActiveTab("map")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "map" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
-              }`}
-            >
-              <Radio className={`w-4 h-4 ${activeTab === "map" ? "text-white" : ""}`} />
-              الخريطة المباشرة
-            </button>
-            <button 
-              onClick={() => setActiveTab("monitor")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
-              }`}
-            >
-              <ListFilter className="w-4 h-4" />
-              مراقبة العمليات
-            </button>
-            <button 
-              onClick={() => setActiveTab("distribution")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "distribution" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
-              }`}
-            >
-              <Truck className="w-4 h-4" />
-              التوزيع اليدوي {pendingOrdersCount > 0 && (
-                <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">{pendingOrdersCount}</span>
-              )}
-            </button>
-            <button 
-              onClick={() => setActiveTab("system")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                activeTab === "system" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5"
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-              تحكم النظام
-            </button>
+        <div className="flex items-center gap-4 px-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-[10px] font-black text-slate-500 uppercase">{activeDriversCount} كابتن متصل</span>
           </div>
-
-          {/* Workspace Content */}
-          <div className="relative">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15, ease: "linear" }}
-              >
-                {activeTab === "map" && (
-                  <div className="glass-panel rounded-[40px] shadow-xl overflow-hidden h-[650px] relative border-none">
-                    <LiveMap
-                      drivers={onlineDrivers.map(d => ({
-                        ...d,
-                        isOnline: d.is_online,
-                        lastSeenTimestamp: d.lastSeenTimestamp,
-                        status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
-                        details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
-                      }))}
-                      vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
-                      orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
-                        // 1. Root Solution (V0.9.7): Link Order Marker to Driver Location if assigned
-                        // This ensures the order indicator MOVES with the driver instead of staying at the shop/customer
-                        const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
-                        
-                        // Use driver's real-time coords if they are moving/active
-                        const driverLat = assignedDriver?.lat;
-                        const driverLng = assignedDriver?.lng;
-
-                        // Default coords (Customer or Vendor)
-                        const customerLat = o.customer_details?.coords?.lat;
-                        const customerLng = o.customer_details?.coords?.lng;
-                        
-                        const v = vendors.find(v => v.id_full === o.vendor_id);
-                        const vendorLat = v?.location?.lat;
-                        const vendorLng = v?.location?.lng;
-
-                        // LOGIC: 
-                        // - If assigned/in_transit, use driver location for tracking
-                        // - If pending, use vendor location (since driver is still being searched)
-                        let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (driverLat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
-                        let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (driverLng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
-
-                        if (finalLat == null || finalLng == null) return null;
-
-                        return {
-                          id: o.id,
-                          name: o.vendor_full_name || "محل",
-                          lat: finalLat,
-                          lng: finalLng,
-                          targetLat: (o.status === 'assigned' ? vendorLat : customerLat) || undefined,
-                          targetLng: (o.status === 'assigned' ? vendorLng : customerLng) || undefined,
-                          status: o.status === 'pending' ? 'جاري البحث عن طيار' : 
-                                  o.status === 'assigned' ? 'تم التعيين - بانتظار التحصيل' : 'في الطريق للعميل',
-                          details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
-                        };
-                      }).filter((o): o is NonNullable<typeof o> => o !== null)}
-                      zoom={13}
-                      className="h-full w-full"
-                    />
-                    
-                    {/* Map Pinned Stats Overlay */}
-                    <div className="absolute bottom-8 right-8 z-10 flex flex-col gap-3">
-                       <div className="drawer-glass p-5 rounded-[32px] shadow-2xl space-y-3 min-w-[160px]">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                              <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">متاح</span>
-                            </div>
-                            <span className="text-xs font-black text-slate-900 dark:text-white">{onlineDrivers.filter(d => !allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))).length}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-                              <span className="text-[10px] font-black text-slate-700">مشغول</span>
-                            </div>
-                            <span className="text-xs font-black text-slate-900">{onlineDrivers.filter(d => allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))).length}</span>
-                          </div>
-                          <div className="h-px bg-slate-100 my-1" />
-                          <button 
-                            onClick={onRefresh}
-                            className="w-full py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl text-[9px] font-black flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all active:scale-95 mb-2"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            تحديث الخريطة والبيانات
-                          </button>
-                          <button 
-                            onClick={() => setActiveTab('distribution')}
-                            className="w-full py-2.5 bg-slate-900 text-white rounded-2xl text-[9px] font-black flex items-center justify-center gap-2 hover:bg-black transition-all active:scale-95"
-                          >
-                            <Truck className="w-3.5 h-3.5 text-emerald-400" />
-                            توزيع الطلبات
-                          </button>
-                       </div>
-                    </div>
-                  </div>
-                )}
-                {activeTab === "monitor" && (
-                  <OrdersView 
-                    liveOrders={liveOrders} 
-                    activities={activities} 
-                    onCancelOrder={onCancelOrder} 
-                    onUpdateStatus={onUpdateStatus}
-                  />
-                )}
-                {activeTab === "distribution" && (
-                  <OrderDistributionView 
-                    liveOrders={liveOrders} 
-                    drivers={drivers} 
-                    onAssign={onAssign} 
-                  />
-                )}
-                {activeTab === "system" && (
-                  <SystemControlView
-                    autoRetryEnabled={autoRetryEnabled}
-                    maintenanceMode={maintenanceMode}
-                    drivers={drivers}
-                    actionLoading={actionLoading}
-                    onToggleAutoRetry={onToggleAutoRetry}
-                    onToggleMaintenance={onToggleMaintenance}
-                    onToggleShiftLock={onToggleShiftLock}
-                    onLockAllDrivers={onLockAllDrivers}
-                    onUnlockAllDrivers={onUnlockAllDrivers}
-                    onGlobalReset={onGlobalReset}
-                    onBroadcastMessage={onBroadcastMessage}
-                    onRefresh={onRefresh}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+          <button onClick={onRefresh} disabled={actionLoading} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+            <RefreshCw className={`w-4 h-4 ${actionLoading ? "animate-spin" : ""}`} />
+          </button>
         </div>
       </div>
 
-      {/* Persistent System Status Bar */}
-      <AnimatePresence>
-        {maintenanceMode && (
-          <motion.div 
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            exit={{ y: 100 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] w-full max-w-md px-4"
-          >
-            <div className="p-4 rounded-[28px] shadow-2xl flex items-center justify-between border bg-red-600 border-red-500 text-white">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-black uppercase">وضع الصيانة نشط</p>
-                  <p className="text-[10px] font-bold text-white/80 tracking-tight">لا يمكن للمستخدمين دخول النظام حالياً</p>
+      <div className="flex-1 flex gap-4 overflow-hidden relative">
+        <AnimatePresence mode="wait">
+          {activeTab === "operations" ? (
+            <motion.div 
+              key="ops"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex gap-4 w-full h-full overflow-hidden"
+            >
+              {/* 1. Main Map Area (Integrated) */}
+              <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
+                <LiveMap
+                  drivers={onlineDrivers.map(d => ({
+                    ...d,
+                    isOnline: d.is_online,
+                    status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
+                    details: d.name
+                  }))}
+                  vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
+                  orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
+                    const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
+                    const v = vendors.find(v => v.id_full === o.vendor_id);
+                    const vendorLat = v?.location?.lat;
+                    const vendorLng = v?.location?.lng;
+                    const customerLat = o.customer_details?.coords?.lat;
+                    const customerLng = o.customer_details?.coords?.lng;
+
+                    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
+                    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
+
+                    if (finalLat == null || finalLng == null) return null;
+
+                    return {
+                      id: o.id,
+                      name: o.vendor_full_name || "محل",
+                      lat: finalLat,
+                      lng: finalLng,
+                      targetLat: (o.status === 'assigned' ? vendorLat : customerLat) || undefined,
+                      targetLng: (o.status === 'assigned' ? vendorLng : customerLng) || undefined,
+                      status: o.status === 'pending' ? 'بانتظار التعيين' : (o.status === 'assigned' ? 'تم التعيين' : 'في الطريق'),
+                    };
+                  }).filter((o): o is NonNullable<typeof o> => o !== null)}
+                  zoom={13}
+                  className="h-full w-full"
+                />
+
+                {/* Map Overlays: Quick Actions */}
+                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                  <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2">التوزيع التلقائي</p>
+                    <button 
+                      onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
+                      className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${
+                        autoRetryEnabled ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20" : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      <Zap className={`w-4 h-4 ${autoRetryEnabled ? "animate-pulse" : ""}`} />
+                      <span className="text-xs font-black">{autoRetryEnabled ? "مفعّل الآن" : "معطّل حالياً"}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button 
-                onClick={() => onToggleMaintenance(false)}
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-[10px] font-black transition-all"
+
+              {/* 2. Side Distribution Panel (Manual Distribution Integrated) */}
+              <motion.div 
+                animate={{ width: showSidePanel ? 400 : 0, opacity: showSidePanel ? 1 : 0 }}
+                className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-hidden"
               >
-                إيقاف الصيانة
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                      <Truck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع اليدوي</h3>
+                      <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات المعلقة {pendingOrdersCount > 0 && `(${pendingOrdersCount})`}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowSidePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                  {/* Pending Orders Section */}
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">الطلبات المنتظرة</h4>
+                    {pendingOrders.length === 0 ? (
+                      <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                        <CheckCircle className="w-8 h-8 text-emerald-500/20 mx-auto mb-2" />
+                        <p className="text-[11px] font-bold text-slate-400">لا توجد طلبات معلقة</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {pendingOrders.map(order => (
+                          <button
+                            key={order.id_full}
+                            onClick={() => setSelectedOrderId(selectedOrderId === order.id_full ? null : order.id_full)}
+                            className={`w-full text-right p-3 rounded-2xl border transition-all ${
+                              selectedOrderId === order.id_full 
+                              ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20" 
+                              : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <p className={`text-xs font-black ${selectedOrderId === order.id_full ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor}</p>
+                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${selectedOrderId === order.id_full ? "bg-white/20" : "bg-amber-100 text-amber-600"}`}>#{order.id}</span>
+                            </div>
+                            <p className={`text-[10px] font-bold ${selectedOrderId === order.id_full ? "text-white/70" : "text-slate-400"}`}>{order.customer} — {order.delivery_fee} ج.م</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Drivers Selection Section */}
+                  <AnimatePresence>
+                    {selectedOrderId && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">اختر طياراً للتعيين</h4>
+                        <div className="space-y-2">
+                          {availableDrivers.length === 0 ? (
+                            <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-2xl flex items-center gap-3">
+                              <AlertCircle className="w-4 h-4 text-rose-500" />
+                              <p className="text-[10px] font-bold text-rose-600">لا يوجد طيارين متاحين حالياً</p>
+                            </div>
+                          ) : (
+                            availableDrivers.map(driver => (
+                              <button
+                                key={driver.id}
+                                disabled={assigning}
+                                onClick={() => handleAssign(driver.id_full, driver.name)}
+                                className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-100 dark:border-slate-600">
+                                    <User className="w-4 h-4 text-slate-400" />
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs font-black text-slate-900 dark:text-white">{driver.name}</p>
+                                    <p className="text-[9px] font-bold text-slate-400">الطلبات النشطة: {allOrders.filter(o => o.driver_id === driver.id && (o.status === 'assigned' || o.status === 'in_transit')).length}</p>
+                                  </div>
+                                </div>
+                                <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <CheckCircle className="w-3 h-3 text-white" />
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+
+              {/* Sidebar Toggle (Floating) */}
+              {!showSidePanel && (
+                <button 
+                  onClick={() => setShowSidePanel(true)}
+                  className="absolute right-8 top-1/2 -translate-y-1/2 z-20 w-10 h-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-l-2xl shadow-xl flex items-center justify-center text-slate-400 hover:text-blue-500 transition-all"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
+            </motion.div>
+          ) : activeTab === "monitor" ? (
+            <motion.div key="monitor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
+              <OrdersView 
+                allOrders={allOrders} 
+                actionLoading={actionLoading}
+                onCancelOrder={onCancelOrder}
+                onUpdateStatus={onUpdateStatus}
+              />
+            </motion.div>
+          ) : (
+            <motion.div key="system" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
+              <SystemControlView 
+                maintenanceMode={maintenanceMode}
+                onToggleMaintenance={onToggleMaintenance}
+                onLockAllDrivers={onLockAllDrivers}
+                onUnlockAllDrivers={onUnlockAllDrivers}
+                onGlobalReset={onGlobalReset}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

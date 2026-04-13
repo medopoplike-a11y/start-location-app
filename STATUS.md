@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v0.9.12)
+## ✅ Project Status: Production Live (v0.9.13)
 
 **Last Deployment**: April 13, 2026 - 🎉 Full CI/CD Pipeline Active (GitHub -> Vercel Sync)
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v0.9.12]
+- **Mobile (Android)**: APK Build Status ✅ [v0.9.13]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
@@ -30,11 +30,11 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 - ✅ Mutual Rating System (Driver <-> Vendor)
 - ✅ Luxury Welcome Screen with Particles
 - ✅ Dark Mode Visibility Improvements
-- ✅ Force Cache Clearing & Web Parity (v0.9.12)
+- ✅ Force Cache Clearing & Web Parity (v0.9.13)
 - ✅ Automatic Vercel Deployment via GitHub Actions
 - ✅ ULTRA-SYNC & LERP Animation (Smooth Movement)
 - ✅ Smart Harmony Sync (No More Disappearing Drivers)
-- ✅ Precise Timestamp Tracking (v0.9.12)
+- ✅ Precise Timestamp Tracking (v0.9.13)
 - ✅ DB Index Optimization (Live Map Performance)
 - ✅ Stale Driver Auto-Cleanup (Admin View)
 - ✅ Dynamic Order Markers (Orders follow Drivers)
@@ -47,9 +47,11 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 - ✅ Vercel Build Stability Fixes (v0.9.11)
 - ✅ Full-Screen Navigation for Drivers (v0.9.12)
 - ✅ Floating Controls & Dynamic Task Panel
+- ✅ Integrated Admin Ops Center (Map + Manual Distribution) (v0.9.13)
+- ✅ Unified Control Room for Zero-Tension Dispatch
 
 ### 📦 **Latest Builds**
-- **APK v0.9.12**: ✅ Built & Available
+- **APK v0.9.13**: ✅ Built & Available
 - **Web**: ✅ Live on Vercel (Synced)
 - **Database**: ✅ 16 Tables (including location_logs)
 
@@ -57,4 +59,4 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 
 **Status:** 🟢 Active & Deployed  
 **Last Updated:** 2026-04-13  
-**Version:** 0.9.12
+**Version:** 0.9.13
