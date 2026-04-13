@@ -25,9 +25,6 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterPeriod>("today");
 
-  const commissionRate = 0.15;
-  const commissionPerOrder = 1;
-
   const now = new Date();
   const filteredHistory = (allHistory || []).filter((o: any) => {
     const updatedAt = o.statusUpdatedAt || o.status_updated_at || o.created_at;
@@ -40,7 +37,13 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
 
   const filteredFees = filteredHistory.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
   const filteredEarnings = filteredHistory.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
-  const totalCommission = filteredHistory.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0) * commissionRate + commissionPerOrder, 0);
+  
+  // Use actual commissions from financials if available, fallback to 15% + 1 EGP
+  const filteredSystemCommission = filteredHistory.reduce((acc, o) => {
+    const comm = o.financials?.system_commission ?? (o.financials?.delivery_fee ? o.financials.delivery_fee * commissionRate : 0);
+    const ins = o.financials?.driver_insurance ?? (o.status === 'delivered' ? 1 : 0);
+    return acc + comm + ins;
+  }, 0);
 
   const calculatedVendorDebt = (deliveredOrders || []).reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
 
@@ -86,7 +89,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <div>
               <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">إجمالي مديونية الشركة</p>
               <h3 className="text-3xl font-black text-white">
-                {systemBalance.toFixed(2)} 
+                {(systemBalance > 0 ? systemBalance : filteredSystemCommission).toFixed(2)} 
                 <span className="text-sm font-bold opacity-30 mr-1.5">ج.م</span>
               </h3>
             </div>
@@ -108,12 +111,18 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
           
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">عمولة النظام (١٥٪)</p>
-              <p className="text-sm font-black text-white">{(filteredFees * commissionRate).toFixed(2)} <span className="text-[10px] opacity-30">ج.م</span></p>
+              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">عمولة النظام</p>
+              <p className="text-sm font-black text-white">
+                {filteredHistory.reduce((acc, o) => acc + (o.financials?.system_commission || 0), 0).toFixed(2)} 
+                <span className="text-[10px] opacity-30">ج.م</span>
+              </p>
             </div>
             <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">تأمين ثابت ({filteredHistory.length} طلب)</p>
-              <p className="text-sm font-black text-white">{(filteredHistory.length * 1.0).toFixed(2)} <span className="text-[10px] opacity-30">ج.م</span></p>
+              <p className="text-[9px] font-black text-white/30 uppercase mb-1.5">تأمين ثابت ({filteredHistory.filter(o => o.status === 'delivered').length} طلب)</p>
+              <p className="text-sm font-black text-white">
+                {filteredHistory.reduce((acc, o) => acc + (o.financials?.driver_insurance || 0), 0).toFixed(2)} 
+                <span className="text-[10px] opacity-30">ج.م</span>
+              </p>
             </div>
           </div>
         </div>
@@ -172,7 +181,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                   {filteredHistory.slice(0, 30).map((order, idx) => {
                         const fee = (order.financials?.delivery_fee || 0);
                         const earn = (order.financials?.driver_earnings || 0);
-                        const comm = fee * commissionRate + commissionPerOrder;
+                        const comm = (order.financials?.system_commission || 0) + (order.financials?.driver_insurance || 0);
                         
                         return (
                       <motion.div

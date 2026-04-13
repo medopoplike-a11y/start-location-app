@@ -37,6 +37,7 @@ export interface Order {
     delivery_fee?: number;
     system_commission?: number;
     driver_earnings?: number;
+    driver_insurance?: number;
     prep_time?: string;
   };
 }
@@ -72,6 +73,7 @@ export interface DBDriverOrder {
     order_value?: number;
     system_commission?: number;
     driver_earnings?: number;
+    driver_insurance?: number;
   };
   distance?: number;
   status: Order["status"];

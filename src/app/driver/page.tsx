@@ -535,6 +535,7 @@ export default function DriverApp() {
         delivery_fee: db.financials?.delivery_fee,
         system_commission: db.financials?.system_commission,
         driver_earnings: db.financials?.driver_earnings,
+        driver_insurance: db.financials?.driver_insurance,
         prep_time: db.financials?.prep_time,
       },
     };

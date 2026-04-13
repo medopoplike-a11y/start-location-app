@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v0.9.20)
+## ✅ Project Status: Production Live (v0.9.21)
 
 **Last Deployment**: April 13, 2026 - 🎉 Full CI/CD Pipeline Active (GitHub -> Vercel Sync)
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v0.9.20]
+- **Mobile (Android)**: APK Build Status ✅ [v0.9.21]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
@@ -30,19 +30,21 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 - ✅ Mutual Rating System (Driver <-> Vendor)
 - ✅ Luxury Welcome Screen with Particles
 - ✅ Dark Mode Visibility Improvements
-- ✅ Force Cache Clearing & Web Parity (v0.9.20)
+- ✅ Force Cache Clearing & Web Parity (v0.9.21)
 - ✅ Automatic Vercel Deployment via GitHub Actions
 - ✅ ULTRA-SYNC & LERP Animation (Smooth Movement)
 - ✅ Smart Harmony Sync (No More Disappearing Drivers)
-- ✅ Precise Timestamp Tracking (v0.9.20)
+- ✅ Precise Timestamp Tracking (v0.9.21)
 - ✅ DB Index Optimization (Live Map Performance)
 - ✅ Stale Driver Auto-Cleanup (Admin View)
-- ✅ Professional In-app Navigation (v0.9.20)
-- ✅ Floating Map UI & Auto-Accept Toggle (v0.9.20)
-- ✅ 3D Map Tilt & Auto-Rotation (v0.9.20)
-- ✅ Stability Fixes for Background Tracking (v0.9.20)
-- ✅ Fix Pickup Button & 360 Map Rotation (v0.9.20)
-- ✅ Silent Navigation Activation (No UI Overlays) (v0.9.20)
+- ✅ Professional In-app Navigation (v0.9.21)
+- ✅ Floating Map UI & Auto-Accept Toggle (v0.9.21)
+- ✅ 3D Map Tilt & Auto-Rotation (v0.9.21)
+- ✅ Stability Fixes for Background Tracking (v0.9.21)
+- ✅ Fix Pickup Button & 360 Map Rotation (v0.9.21)
+- ✅ Silent Navigation Activation (No UI Overlays) (v0.9.21)
+- ✅ Fix Company Debt Calculation & Real-time Sync (v0.9.21)
+- ✅ Dynamic Order Financials in Driver Wallet (v0.9.21)
 - ✅ Final Sync Verification & Deployment (v0.9.19)
 - ✅ Dynamic Order Markers (Orders follow Drivers)
 - ✅ Real-time Path Visualization (Polylines)
