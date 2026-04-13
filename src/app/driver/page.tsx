@@ -109,6 +109,7 @@ export default function DriverApp() {
   const [activeDebtOrders, setActiveDebtOrders] = useState<DBDriverOrder[]>([]);
   const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
   const [isSurgeActive, setIsSurgeActive] = useState(false);
+  const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
 
   const withTimeout = async <T,>(label: string, promise: Promise<T>, ms: number): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -374,15 +375,16 @@ export default function DriverApp() {
       });
 
       // Re-add settlementsData processing
-      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('driver_id', currentDriverId).order('created_at', { ascending: false });
+      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
       if (settlementsData) {
-        void settlementsData.map(s => ({
+        const history = settlementsData.map(s => ({
           id: s.id,
-          vendor: "تسوية مديونية",
           amount: s.amount,
           status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
           date: new Date(s.created_at).toLocaleDateString('ar-EG')
         }));
+        setSettlementHistory(history);
+        setCache('driver_settlements', history);
       }
     } catch (err) {
       console.error("Error fetching stats:", err);
@@ -1000,6 +1002,7 @@ export default function DriverApp() {
                       orders={orders}
                       deliveredOrders={activeDebtOrders}
                       allHistory={todayHistory}
+                      settlementHistory={settlementHistory}
                       onConfirmPayment={handleConfirmPayment}
                       onOpenSettlementModal={() => setShowSettlementModal(true)}
                     />

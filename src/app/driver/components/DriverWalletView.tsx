@@ -13,13 +13,14 @@ interface WalletProps {
   orders: Order[];
   deliveredOrders: Order[];
   allHistory: Order[];
+  settlementHistory: any[]; // Add settlementHistory
   onConfirmPayment: (orderId: string) => Promise<void>;
   onOpenSettlementModal: () => void;
 }
 
 type FilterPeriod = "today" | "15days" | "month";
 
-export default function DriverWalletView({ todayDeliveryFees, vendorDebt, systemBalance, orders, deliveredOrders, allHistory, onConfirmPayment, onOpenSettlementModal }: WalletProps) {
+export default function DriverWalletView({ todayDeliveryFees, vendorDebt, systemBalance, orders, deliveredOrders, allHistory, settlementHistory, onConfirmPayment, onOpenSettlementModal }: WalletProps) {
   const [tab, setTab] = useState<"earnings" | "vendors">("earnings");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterPeriod>("today");
@@ -85,7 +86,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <div>
               <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">إجمالي مديونية الشركة</p>
               <h3 className="text-3xl font-black text-white">
-                {(systemBalance > 0 ? systemBalance : totalCommission).toFixed(2)} 
+                {systemBalance.toFixed(2)} 
                 <span className="text-sm font-bold opacity-30 mr-1.5">ج.م</span>
               </h3>
             </div>
@@ -211,6 +212,40 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
               <Download className="w-5 h-5" />
               تصدير الأرباح
             </button>
+
+            {/* Settlement History (NEW) */}
+            {settlementHistory && settlementHistory.length > 0 && (
+              <div className="bg-gray-50/50 rounded-[32px] border border-gray-100 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Banknote className="w-4 h-4 text-gray-400" />
+                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">سجل تسوية المديونيات</h4>
+                </div>
+                <div className="space-y-3">
+                  {settlementHistory.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                          s.status === 'تم السداد' ? 'bg-emerald-50 text-emerald-500' : 
+                          s.status === 'مرفوض' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'
+                        }`}>
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-gray-900">{s.amount} ج.م</p>
+                          <p className="text-[9px] font-bold text-gray-400">{s.date}</p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1.5 rounded-full text-[9px] font-black ${
+                        s.status === 'تم السداد' ? 'bg-emerald-100 text-emerald-700' : 
+                        s.status === 'مرفوض' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {s.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
