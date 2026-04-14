@@ -234,23 +234,29 @@ function AdminContent() {
       const driverCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
         const w = wallets.find((wal) => wal.user_id === p.id);
         const lastSeenStr = p.last_location_update || p.updated_at;
+        const lastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
+        const diff = Date.now() - lastUpdateTs;
+        const mins = Math.floor(diff / 60000);
+
+        // GHOST PROTECTION (V0.9.56): If no update for 30+ mins, force offline in UI
+        const isActuallyOnline = !!p.is_online && mins < 30;
+
         let relativeTime = "غير متوفر";
         if (lastSeenStr) {
-          const diff = Date.now() - new Date(lastSeenStr).getTime();
-          const mins = Math.floor(diff / 60000);
           if (mins < 1) relativeTime = "الآن";
           else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
-          else relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
+          else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
+          else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
         }
 
         return { 
           id: p.id.slice(0, 8), 
           id_full: p.id, 
           name: p.full_name || "بدون اسم", 
-          status: p.is_locked ? "محظور" : (p.is_online ? "متصل" : "غير متصل"), 
+          status: p.is_locked ? "محظور" : (isActuallyOnline ? "متصل" : "غير متصل"), 
           lastSeen: relativeTime,
           isShiftLocked: !!p.is_locked, 
-          isOnline: !!p.is_online, 
+          isOnline: isActuallyOnline, 
           earnings: w?.balance || 0, 
           debt: (w?.debt || 0) + (w?.system_balance || 0), 
           totalOrders: 0,

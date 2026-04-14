@@ -63,7 +63,8 @@ function getRelativeTime(timestamp?: number) {
   if (diff < 10) return "الآن";
   if (diff < 60) return `منذ ${diff} ثانية`;
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
-  return `منذ ${Math.floor(diff / 3600)} ساعة`;
+  if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
+  return `منذ ${Math.floor(diff / 86400)} يوم`;
 }
 
 // New helper component for map event handling
