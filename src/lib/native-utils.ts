@@ -278,136 +278,57 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
       return null;
     }
 
-    // 2. Optimized Background Geolocation Config (v0.9.50 - ROOT CAUSE FIX)
+    // 2. Optimized Background Geolocation Config (v0.9.60 - FIX BUILD ERROR)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 4000; // Slightly more conservative (4s) to prevent DB throttling while in background
+    const DB_UPDATE_INTERVAL = 4000;
 
-    const watcherId = await Promise.race([
-      BackgroundGeolocation.addWatcher(
-        {
-          backgroundMessage: "تطبيق ستارت يعمل لتحديث موقعك لضمان جودة الخدمة...",
-          backgroundTitle: "تتبع الموقع في الخلفية نشط",
-          requestPermissions: true,
-          staleLocationInterval: 5000, // 5 seconds
-          distanceFilter: 2, // 2 meters filter (saves battery vs 1m)
-          // ULTIMATE PERSISTENCE FLAGS (V0.9.50)
-          persist: true,
-          forceAccuracy: true,
-          stationaryRadius: 2,
-          // Android-specific: High priority persistent service (V0.9.55)
-          notificationTitle: "تطبيق ستارت يعمل",
-          notificationText: "جاري تتبع موقعك في الخلفية لضمان دقة الطلبات",
-          notificationIconColor: "#3b82f6",
-          notificationImportance: 5, // Max importance for Android
-          priority: 1, // High priority
-          interval: 3000,
-          fastestInterval: 1000,
-          activitiesInterval: 10000,
-          stopOnTerminate: false,
-          startOnBoot: true,
-          heartbeatInterval: 60000, // Keep service alive every minute
-          enableHeadless: true // Run even if UI is destroyed
-        },
-        async (location: any, error: any) => {
-          if (error) {
-            console.warn("BG Watcher Error:", error);
-            return;
-          }
-
-          if (location && location.latitude && location.longitude) {
-            // Ignore low accuracy points (> 50m) to prevent map jumping
-            if (location.accuracy && location.accuracy > 50) return;
-
-            const loc = { 
-              lat: location.latitude, 
-              lng: location.longitude,
-              heading: location.bearing || 0,
-              speed: location.speed || 0,
-              accuracy: location.accuracy || 0
-            };
-            if (onUpdate) onUpdate(loc);
-
-            const now = Date.now();
-            if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
-            lastDbUpdate = now;
-
-            try {
-              // 1. Get Session Token for Authorization (V0.9.52 - Native Fix)
-              let accessToken = SUPABASE_KEY;
-              try {
-                const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
-                if (sessionStr) {
-                  const session = JSON.parse(sessionStr);
-                  if (session.access_token) accessToken = session.access_token;
-                }
-              } catch (e) { console.warn("BG: Session read failed", e); }
-
-              const headers = {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal'
-              };
-
-              // ULTIMATE NATIVE SYNC: Using CapacitorHttp to bypass WebView suspension (Root Cause Fix)
-              await Promise.allSettled([
-                // 1. Update Profile (Latest State) - High Priority (V0.9.57)
-                CapacitorHttp.patch({
-                  url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-                  headers,
-                  data: {
-                    location: {
-                      lat: location.latitude,
-                      lng: location.longitude,
-                      heading: location.bearing || 0,
-                      speed: location.speed || 0,
-                      accuracy: location.accuracy || 0,
-                      ts: now
-                    },
-                    is_online: true,
-                    last_location_update: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  }
-                }).then(res => {
-                  if (res.status >= 400) console.warn("BG Native Patch Error:", res.status, res.data);
-                }),
-
-                // 2. Insert into Logs (High-Frequency History)
-                CapacitorHttp.post({
-                  url: `${SUPABASE_URL}/rest/v1/location_logs`,
-                  headers,
-                  data: {
-                    user_id: userId,
-                    lat: location.latitude,
-                    lng: location.longitude,
-                    speed: location.speed || 0,
-                    heading: location.bearing || 0,
-                    accuracy: location.accuracy || 0
-                  }
-                }).then(res => {
-                  if (res.status >= 400) console.warn("BG Native Post Error:", res.status, res.data);
-                })
-              ]);
-            } catch (e) {
-              console.warn("BG Native Update Exception", e);
-            }
-          }
+    // Start the main location watcher
+    const mainWatcherId = await BackgroundGeolocation.addWatcher(
+      {
+        backgroundMessage: "تطبيق ستارت يعمل لتحديث موقعك لضمان جودة الخدمة...",
+        backgroundTitle: "تتبع الموقع في الخلفية نشط",
+        requestPermissions: true,
+        staleLocationInterval: 5000,
+        distanceFilter: 2,
+        persist: true,
+        forceAccuracy: true,
+        stationaryRadius: 2,
+        notificationTitle: "تطبيق ستارت يعمل",
+        notificationText: "جاري تتبع موقعك في الخلفية لضمان دقة الطلبات",
+        notificationIconColor: "#3b82f6",
+        notificationImportance: 5,
+        priority: 1,
+        interval: 3000,
+        fastestInterval: 1000,
+        activitiesInterval: 10000,
+        stopOnTerminate: false,
+        startOnBoot: true,
+        heartbeatInterval: 60,
+        enableHeadless: true
+      },
+      async (location: any, error: any) => {
+        if (error) {
+          console.warn("BG Watcher Error:", error);
+          return;
         }
-      ),
-      // 3. Background Heartbeat (V0.9.58): Ensure Online status stays true even if stationary
-      BackgroundGeolocation.addWatcher(
-        {
-          requestPermissions: false,
-          staleLocationInterval: 60000,
-          distanceFilter: 50, // Stationary detection
-          heartbeatInterval: 60, // 60 seconds
-          backgroundTitle: "تطبيق ستارت يعمل",
-          backgroundMessage: "تحديث الحالة مستمر في الخلفية"
-        },
-        async (location: any) => {
-          // Every minute, force update is_online to true via Native HTTP
+
+        if (location && location.latitude && location.longitude) {
+          if (location.accuracy && location.accuracy > 50) return;
+
+          const loc = { 
+            lat: location.latitude, 
+            lng: location.longitude,
+            heading: location.bearing || 0,
+            speed: location.speed || 0,
+            accuracy: location.accuracy || 0
+          };
+          if (onUpdate) onUpdate(loc);
+
+          const now = Date.now();
+          if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
+          lastDbUpdate = now;
+
           try {
-            const now = Date.now();
             let accessToken = SUPABASE_KEY;
             try {
               const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
@@ -420,27 +341,49 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
             const headers = {
               'apikey': SUPABASE_KEY,
               'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
             };
 
-            await CapacitorHttp.patch({
-              url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-              headers,
-              data: {
-                is_online: true,
-                last_location_update: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-            });
-            console.log("BG Heartbeat: Online status synced");
-          } catch (e) { console.warn("BG Heartbeat Sync Error", e); }
+            await Promise.allSettled([
+              CapacitorHttp.patch({
+                url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+                headers,
+                data: {
+                  location: {
+                    lat: location.latitude,
+                    lng: location.longitude,
+                    heading: location.bearing || 0,
+                    speed: location.speed || 0,
+                    accuracy: location.accuracy || 0,
+                    ts: now
+                  },
+                  is_online: true,
+                  last_location_update: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              }),
+              CapacitorHttp.post({
+                url: `${SUPABASE_URL}/rest/v1/location_logs`,
+                headers,
+                data: {
+                  user_id: userId,
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  speed: location.speed || 0,
+                  heading: location.bearing || 0,
+                  accuracy: location.accuracy || 0
+                }
+              })
+            ]);
+          } catch (e) {
+            console.warn("BG Native Update Exception", e);
+          }
         }
-      ),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 10000))
-    ]) as unknown as any[];
+      }
+    );
 
-    const watcherId = results.find(id => typeof id === 'string') as string;
-    return watcherId;
+    return mainWatcherId;
   } catch (err) {
     console.error('Background Tracking Failed:', err);
     return null;
