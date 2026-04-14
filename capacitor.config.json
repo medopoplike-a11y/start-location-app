@@ -37,10 +37,12 @@
     },
     "BackgroundGeolocation": {
       "staleLocationInterval": 10000,
-      "distanceFilter": 10,
+      "distanceFilter": 2,
       "stopOnTerminate": false,
       "startOnBoot": true,
-      "foregroundService": true
+      "foregroundService": true,
+      "enableHeadless": true,
+      "heartbeatInterval": 60
     },
     "SplashScreen": {
       "launchShowDuration": 3000,
