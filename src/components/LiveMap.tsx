@@ -66,123 +66,6 @@ function getRelativeTime(timestamp?: number) {
   return `منذ ${Math.floor(diff / 3600)} ساعة`;
 }
 
-// Helper component for smooth marker movement
-function AnimatedMarker({ point, icon, mapRotation = 0, mapTilt = 0 }: { point: MapPoint, icon: L.DivIcon | L.Icon, mapRotation?: number, mapTilt?: number }) {
-  const markerRef = useRef<L.Marker>(null);
-  const animationRef = useRef<number>(0);
-  const prevPosRef = useRef<[number, number]>([point.lat, point.lng]);
-  const targetPosRef = useRef<[number, number]>([point.lat, point.lng]);
-  const startTimeRef = useRef<number>(0);
-  const prevTimestampRef = useRef<number>(0);
-  const [duration, setDuration] = useState(2000);
-
-  // Counter-rotate the marker icon to keep it upright
-  useEffect(() => {
-    if (markerRef.current) {
-      const element = markerRef.current.getElement();
-      if (element) {
-        // Counter-rotate to stay upright regardless of map rotation/tilt
-        // We use transition to match the map's rotation speed
-        element.style.transition = 'transform 0.5s ease-in-out';
-        element.style.transform = `rotateZ(${mapRotation}deg) rotateX(${-mapTilt}deg)`;
-      }
-    }
-  }, [mapRotation, mapTilt]);
-
-  useEffect(() => {
-    if (markerRef.current) {
-      const newPos: [number, number] = [point.lat, point.lng];
-      
-      if (newPos[0] !== targetPosRef.current[0] || newPos[1] !== targetPosRef.current[1]) {
-        // Calculate dynamic duration based on update frequency
-        const nowTs = point.lastSeenTimestamp || Date.now();
-        if (prevTimestampRef.current > 0) {
-          const diff = nowTs - prevTimestampRef.current;
-          // Set duration to slightly less than update interval for smooth transition
-          // but clamp it between 500ms and 5000ms
-          setDuration(Math.max(500, Math.min(diff * 0.9, 5000)));
-        }
-        prevTimestampRef.current = nowTs;
-
-        // Start new interpolation animation
-        prevPosRef.current = [markerRef.current.getLatLng().lat, markerRef.current.getLatLng().lng];
-        targetPosRef.current = newPos;
-        startTimeRef.current = performance.now();
-
-        const animate = (currentTime: number) => {
-          const elapsed = currentTime - startTimeRef.current;
-          const progress = Math.min(elapsed / duration, 1);
-          
-          // Smooth easing
-          const easeProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-          if (markerRef.current) {
-            const currentLat = prevPosRef.current[0] + (targetPosRef.current[0] - prevPosRef.current[0]) * easeProgress;
-            const currentLng = prevPosRef.current[1] + (targetPosRef.current[1] - prevPosRef.current[1]) * easeProgress;
-            markerRef.current.setLatLng([currentLat, currentLng]);
-          }
-
-          if (progress < 1) {
-            animationRef.current = requestAnimationFrame(animate);
-          }
-        };
-
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    }
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [point.lat, point.lng, duration]);
-
-  const [displayTime, setRelativeTime] = useState(getRelativeTime(point.lastSeenTimestamp));
-
-  // Update relative time ticker every 5 seconds
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setRelativeTime(getRelativeTime(point.lastSeenTimestamp));
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [point.lastSeenTimestamp]);
-
-  return (
-    <Marker 
-      ref={markerRef}
-      position={[point.lat, point.lng]} 
-      icon={icon}
-      zIndexOffset={1000}
-    >
-      <Popup className="custom-popup">
-        <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex flex-col">
-              <p className="font-black text-slate-900 leading-none">{point.name}</p>
-              {point.isOnline === false && (
-                <span className="text-[8px] text-red-500 font-bold mt-1">غير متصل حالياً</span>
-              )}
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
-              point.status === 'busy' ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
-            }`}>
-              {point.status === 'busy' ? "في طلب" : "متاح"}
-            </span>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] text-slate-500 flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
-              آخر ظهور: <span className="font-bold text-slate-700">{displayTime}</span>
-            </p>
-            {point.details && (
-              <p className="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                {point.details}
-              </p>
-            )}
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
-}
-
 // New helper component for map event handling
 function MapEvents({ onZoom, onInteraction }: { onZoom: (zoom: number) => void, onInteraction: () => void }) {
   const map = useMap();
@@ -205,8 +88,6 @@ function MapEvents({ onZoom, onInteraction }: { onZoom: (zoom: number) => void, 
     }
   });
 
-  // TECHNICAL FIX: Auto-rotate map labels and adjust viewport correctly
-  // This makes Leaflet feel more "Technical" and "Alive"
   useEffect(() => {
     if (!map) return;
     const interval = setInterval(() => {
@@ -216,49 +97,6 @@ function MapEvents({ onZoom, onInteraction }: { onZoom: (zoom: number) => void, 
   }, [map]);
 
   return null;
-}
-
-// 1. New Component for Road-based Routing (OSRM)
-function RoutingMachine({ from, to, color = '#3b82f6' }: { from: [number, number], to: [number, number], color?: string }) {
-  const [route, setRoute] = useState<[number, number][]>([]);
-
-  useEffect(() => {
-    if (!from[0] || !to[0]) return;
-
-    const fetchRoute = async () => {
-      try {
-        // Use OSRM Public API for road-based routing
-        const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (data.routes && data.routes.length > 0) {
-          const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
-          setRoute(coords);
-        }
-      } catch (e) {
-        console.warn("Routing failed, falling back to straight line", e);
-        setRoute([from, to]);
-      }
-    };
-
-    fetchRoute();
-  }, [from[0], from[1], to[0], to[1]]);
-
-  if (route.length === 0) return null;
-
-  return (
-    <Polyline 
-      positions={route}
-      pathOptions={{ 
-        color, 
-        weight: 5, 
-        opacity: 0.7,
-        lineJoin: 'round',
-        dashArray: '1, 10' // Dot effect for navigation feel
-      }}
-    />
-  );
 }
 
 // Helper component to update map view ONLY when explicitly requested or on first mount
@@ -296,148 +134,130 @@ export default function LiveMap({
   const isMounted = typeof window !== 'undefined';
   const [isFollowing, setIsFollowing] = useState(autoCenterOnDrivers);
   const [mapTheme] = useState<keyof typeof MAP_THEMES>('standard');
-  const [mapRotation, setMapRotation] = useState(0);
-  const [mapTilt, setMapTilt] = useState(0);
   
-  // REAL NAVIGATION ENGINE (v0.9.48)
-  // Sync map orientation and tilt with driver movement for "Google Maps" experience
-  useEffect(() => {
-    if (isFollowing && drivers.length > 0) {
-      const activeDriver = drivers[0];
-      // If driver is moving (has heading), rotate map to face their direction
-      if (activeDriver.heading !== undefined) {
-        setMapRotation(activeDriver.heading);
-        setMapTilt(45); // Navigation 3D Tilt
-      }
-    } else if (!isFollowing) {
-      setMapTilt(0); // Reset tilt when exploring
-    }
-  }, [drivers, isFollowing]);
-
   if (!isMounted || !driverIcon) return <div className={className + " bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 font-bold"}>جاري تشغيل محرك الملاحة...</div>;
 
   return (
     <div className={`${className} relative group transition-all duration-300 overflow-hidden bg-slate-100`}>
-      {/* 
-          V0.9.48: Real-Time Navigation Engine Wrapper
-          Adds CSS-based 3D perspective to simulate Google Maps Vector Engine.
-      */}
-      <div 
-        className="absolute inset-[-50%] transition-all duration-700 ease-in-out origin-center"
-        style={{ 
-          transform: `perspective(1200px) rotateX(${mapTilt}deg) rotateZ(${-mapRotation}deg)`,
-          width: '200%',
-          height: '200%'
-        }}
+      <MapContainer 
+        center={center} 
+        zoom={zoom} 
+        scrollWheelZoom={true}
+        zoomControl={false}
+        className="h-full w-full z-10"
+        dragging={true}
+        touchZoom={true}
+        doubleClickZoom={true}
       >
-        <MapContainer 
+        <ChangeView 
           center={center} 
-          zoom={zoom} 
-          scrollWheelZoom={true}
-          zoomControl={false}
-          className="h-full w-full z-10"
-          dragging={true}
-          touchZoom={true}
-          doubleClickZoom={true}
-        >
-          <ChangeView 
-            center={center} 
-            zoom={isFollowing ? 18 : zoom} 
-            force={isFollowing} 
-          />
-          
-          {/* Main Map Layer (v0.9.47) */}
-          <TileLayer
-            attribution='&copy; Google Maps Data'
-            url={MAP_THEMES[mapTheme]}
-            maxZoom={20}
-          />
-          
-          <MapEvents 
-            onZoom={(z) => {}} 
-            onInteraction={() => setIsFollowing(false)} 
-          />
+          zoom={isFollowing ? 18 : zoom} 
+          force={isFollowing} 
+        />
+        
+        {/* Main Map Layer (v0.9.52 - Simplified) */}
+        <TileLayer
+          attribution='&copy; OpenStreetMap'
+          url={MAP_THEMES[mapTheme]}
+          maxZoom={20}
+        />
+        
+        <MapEvents 
+          onZoom={(z) => {}} 
+          onInteraction={() => setIsFollowing(false)} 
+        />
 
-          {/* عرض المحلات */}
-          {vendors.filter(v => v.lat && v.lng).map((vendor) => (
+        {/* عرض المحلات */}
+        {vendors.filter(v => v.lat != null && v.lng != null).map((vendor) => (
+          <Marker 
+            key={`vendor-${vendor.id}`} 
+            position={[vendor.lat, vendor.lng]} 
+            icon={vendorIcon!}
+            zIndexOffset={100}
+          >
+            <Popup className="custom-popup">
+              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+                <p className="font-black text-indigo-600 mb-1">{vendor.name}</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mb-2">محل شريك</p>
+                {vendor.details && (
+                  <p className="text-[10px] text-slate-600 bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100">
+                    {vendor.details}
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* عرض الطلبات النشطة */}
+        {orders.filter(o => o.lat != null && o.lng != null).map((order) => (
+          <div key={`order-group-${order.id}`}>
             <Marker 
-              key={`vendor-${vendor.id}`} 
-              position={[vendor.lat, vendor.lng]} 
-              icon={vendorIcon!}
-              zIndexOffset={100}
+              position={[order.lat, order.lng]} 
+              icon={orderIcon!}
+              zIndexOffset={200}
             >
               <Popup className="custom-popup">
                 <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                  <p className="font-black text-indigo-600 mb-1">{vendor.name}</p>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mb-2">محل شريك</p>
-                  {vendor.details && (
-                    <p className="text-[10px] text-slate-600 bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100">
-                      {vendor.details}
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-rose-500" />
+                    <p className="font-black text-rose-600">طلب: {order.name}</p>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
+                  {order.details && (
+                    <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
+                      {order.details}
                     </p>
                   )}
                 </div>
               </Popup>
             </Marker>
-          ))}
+          </div>
+        ))}
 
-          {/* عرض الطلبات النشطة */}
-          {orders.filter(o => o.lat && o.lng).map((order) => (
-            <div key={`order-group-${order.id}`}>
-              <Marker 
-                position={[order.lat, order.lng]} 
-                icon={orderIcon!}
-                zIndexOffset={200}
-              >
-                <Popup className="custom-popup">
-                  <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full bg-rose-500" />
-                      <p className="font-black text-rose-600">طلب: {order.name}</p>
-                    </div>
-                    <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
-                    {order.details && (
-                      <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
-                        {order.details}
-                      </p>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            </div>
-          ))}
-
-          {/* عرض المناديب - Rendered last to be on top */}
-          {drivers.filter(d => d.lat && d.lng).map((driver) => {
+        {/* عرض المناديب - Rendered last to be on top */}
+        {drivers.filter(d => d.lat != null && d.lng != null).map((driver) => {
           let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon! : driverIcon!) : driverOfflineIcon!;
           
           return (
-            <div key={`driver-group-${driver.id}`}>
-              <AnimatedMarker 
-                point={driver} 
-                icon={icon} 
-                mapRotation={mapRotation}
-                mapTilt={mapTilt}
-              />
-            </div>
+            <Marker 
+              key={`driver-${driver.id}`}
+              position={[driver.lat, driver.lng]} 
+              icon={icon}
+              zIndexOffset={1000}
+            >
+              <Popup className="custom-popup">
+                <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col">
+                      <p className="font-black text-slate-900 leading-none">{driver.name}</p>
+                      {driver.isOnline === false && (
+                        <span className="text-[8px] text-red-500 font-bold mt-1">غير متصل حالياً</span>
+                      )}
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                      driver.status === 'busy' ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+                    }`}>
+                      {driver.status === 'busy' ? "في طلب" : "متاح"}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-slate-300" />
+                      آخر ظهور: <span className="font-bold text-slate-700">{getRelativeTime(driver.lastSeenTimestamp)}</span>
+                    </p>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
           );
         })}
-        </MapContainer>
-      </div>
+      </MapContainer>
 
-      {/* Simplified Control Panel (v0.9.51) */}
+      {/* Simplified Control Panel (v0.9.52) */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
-        {/* Recenter Button Only */}
         <button 
-          onClick={() => {
-            setIsFollowing(!isFollowing);
-            if (!isFollowing) {
-              setMapTilt(45);
-              if (drivers.length > 0) setMapRotation(drivers[0].heading || 0);
-            } else {
-              setMapTilt(0);
-              setMapRotation(0);
-            }
-          }}
+          onClick={() => setIsFollowing(!isFollowing)}
           className={`p-4 rounded-[24px] shadow-2xl transition-all border flex items-center justify-center ${
             isFollowing 
             ? 'bg-blue-600 text-white border-blue-400 scale-110 shadow-blue-500/20' 
