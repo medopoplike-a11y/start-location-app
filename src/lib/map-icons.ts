@@ -18,7 +18,7 @@ if (typeof window !== 'undefined') {
   });
 
   driverIcon = L.divIcon({
-    html: `<div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center border-4 border-white shadow-xl transform -translate-x-1/2 -translate-y-1/2 animate-pulse">
+    html: `<div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center border-4 border-white shadow-xl transform -translate-x-1/2 -translate-y-1/2">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
           </div>`,
     className: '',
@@ -45,7 +45,7 @@ if (typeof window !== 'undefined') {
   });
 
   orderIcon = L.divIcon({
-    html: `<div class="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center border-4 border-white shadow-xl transform -translate-x-1/2 -translate-y-1/2 animate-bounce">
+    html: `<div class="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center border-4 border-white shadow-xl transform -translate-x-1/2 -translate-y-1/2">
             <div class="w-2 h-2 bg-white rounded-full"></div>
           </div>`,
     className: '',

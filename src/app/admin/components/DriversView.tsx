@@ -120,9 +120,14 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                           <UserCog className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <div className={`flex items-center gap-1.5 mt-0.5 ${d.isShiftLocked ? "text-red-400" : "text-emerald-500"}`}>
-                        {d.isShiftLocked ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                      <div className={`flex items-center gap-1.5 mt-0.5 ${d.isShiftLocked ? "text-red-400" : (d.isOnline ? "text-emerald-500" : "text-slate-400")}`}>
+                        {d.isShiftLocked ? <XCircle className="w-3 h-3" /> : (d.isOnline ? <CheckCircle2 className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />)}
                         <span className="text-[10px] font-black uppercase">{d.status}</span>
+                        {d.lastSeen && !d.isOnline && (
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200">
+                            {d.lastSeen}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

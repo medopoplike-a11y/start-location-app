@@ -1,8 +1,14 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { supabase, supabaseLock } from './supabaseClient';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Toast } from '@capacitor/toast';
 import { Preferences } from '@capacitor/preferences';
+import { config } from './config';
+
+// Constants for direct native API calls (V0.9.52)
+const SUPABASE_URL = config.supabase.url;
+const SUPABASE_KEY = config.supabase.anonKey;
+const SESSION_KEY = 'start-location-v1-session';
 
 /**
  * دالة للاهتزاز البسيط عند النقر أو حدوث إجراء
@@ -96,7 +102,10 @@ export const requestBackgroundLocationPermission = async () => {
 
   try {
     const { Geolocation } = await import('@capacitor/geolocation');
-    return await Geolocation.requestPermissions();
+    // For Android 10+, we MUST request backgroundLocation explicitly
+    return await Geolocation.requestPermissions({ 
+      permissions: ['location', 'coarseLocation', 'backgroundLocation'] 
+    });
   } catch (e) {
     console.warn('Native: Failed to request background location permission', e);
   }
@@ -258,32 +267,43 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
       return null;
     }
 
-    // 1. Request all necessary permissions first
+    // 1. Request all necessary permissions first (Including Background for Android 10+)
     const { Geolocation } = await import('@capacitor/geolocation');
-    const perm = await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
+    const perm = await Geolocation.requestPermissions({ 
+      permissions: ['location', 'coarseLocation', 'backgroundLocation'] 
+    });
     
     if (perm.location !== 'granted') {
       console.warn('Location permission not granted');
       return null;
     }
 
-    // 2. Optimized Background Geolocation Config (v0.9.49)
+    // 2. Optimized Background Geolocation Config (v0.9.50 - ROOT CAUSE FIX)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 2000; // Even faster updates (2s) for admin precision
+    const DB_UPDATE_INTERVAL = 4000; // Slightly more conservative (4s) to prevent DB throttling while in background
 
     const watcherId = await Promise.race([
       BackgroundGeolocation.addWatcher(
         {
-          backgroundMessage: "جاري تتبع موقعك بدقة عالية لضمان جودة الخدمة...",
-          backgroundTitle: "تطبيق ستارت يعمل في الخلفية",
+          backgroundMessage: "تطبيق ستارت يعمل لتحديث موقعك لضمان جودة الخدمة...",
+          backgroundTitle: "تتبع الموقع في الخلفية نشط",
           requestPermissions: true,
-          staleLocationInterval: 3000, // 3 seconds
-          distanceFilter: 1, // 1 meter filter for maximum precision
-          // Additional technical flags for Android/iOS persistence
-          // (Depends on specific plugin version, using standard robust keys)
+          staleLocationInterval: 5000, // 5 seconds
+          distanceFilter: 2, // 2 meters filter (saves battery vs 1m)
+          // ULTIMATE PERSISTENCE FLAGS (V0.9.50)
           persist: true,
           forceAccuracy: true,
-          stationaryRadius: 1
+          stationaryRadius: 2,
+          // Android-specific: These are often missing and cause service death
+          notificationTitle: "تطبيق ستارت يعمل",
+          notificationText: "جاري تتبع موقعك في الخلفية لضمان دقة الطلبات",
+          notificationIconColor: "#3b82f6",
+          priority: 1, // High priority
+          interval: 3000,
+          fastestInterval: 1000,
+          activitiesInterval: 10000,
+          stopOnTerminate: false,
+          startOnBoot: true
         },
         async (location: any, error: any) => {
           if (error) {
@@ -309,12 +329,30 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
             lastDbUpdate = now;
 
             try {
-              // ULTIMATE SYNC: Parallel update for speed
-              await Promise.all([
+              // 1. Get Session Token for Authorization (V0.9.52 - Native Fix)
+              let accessToken = SUPABASE_KEY;
+              try {
+                const { value: sessionStr } = await Preferences.get({ key: SESSION_KEY });
+                if (sessionStr) {
+                  const session = JSON.parse(sessionStr);
+                  if (session.access_token) accessToken = session.access_token;
+                }
+              } catch (e) { console.warn("BG: Session read failed", e); }
+
+              const headers = {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              };
+
+              // ULTIMATE NATIVE SYNC: Using CapacitorHttp to bypass WebView suspension (Root Cause Fix)
+              await Promise.allSettled([
                 // 1. Update Profile (Latest State)
-                supabase
-                  .from('profiles')
-                  .update({
+                CapacitorHttp.patch({
+                  url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+                  headers,
+                  data: {
                     location: {
                       lat: location.latitude,
                       lng: location.longitude,
@@ -326,23 +364,25 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
                     is_online: true,
                     last_location_update: new Date().toISOString(),
                     updated_at: new Date().toISOString()
-                  })
-                  .eq('id', userId),
+                  }
+                }),
 
                 // 2. Insert into Logs (High-Frequency History)
-                supabase
-                  .from('location_logs')
-                  .insert({
+                CapacitorHttp.post({
+                  url: `${SUPABASE_URL}/rest/v1/location_logs`,
+                  headers,
+                  data: {
                     user_id: userId,
                     lat: location.latitude,
                     lng: location.longitude,
                     speed: location.speed || 0,
                     heading: location.bearing || 0,
                     accuracy: location.accuracy || 0
-                  })
+                  }
+                })
               ]);
             } catch (e) {
-              console.warn("BG Update Exception", e);
+              console.warn("BG Native Update Exception", e);
             }
           }
         }

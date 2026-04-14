@@ -283,22 +283,6 @@ function ChangeView({ center, zoom, force }: { center: [number, number]; zoom: n
   return null;
 }
 
-// Advanced Heading Icon (The Blue Beam) for real navigation feel (v0.9.48)
-const headingIcon = typeof window !== 'undefined' ? L.divIcon({
-  html: `<div class="relative w-12 h-12 flex items-center justify-center">
-          <div class="absolute w-8 h-8 bg-blue-500/20 rounded-full animate-ping"></div>
-          <div class="relative w-6 h-6 bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-            <svg viewBox="0 0 24 24" class="w-4 h-4 text-white fill-current transform" style="transform: rotate(0deg);">
-              <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
-            </svg>
-          </div>
-          <div class="absolute -top-8 w-1 h-16 bg-gradient-to-t from-blue-500/40 to-transparent blur-[2px] origin-bottom"></div>
-        </div>`,
-  className: '',
-  iconSize: [48, 48],
-  iconAnchor: [24, 24],
-}) : null;
-
 export default function LiveMap({ 
   drivers = [], 
   vendors = [],
@@ -311,7 +295,7 @@ export default function LiveMap({
 }: LiveMapProps) {
   const isMounted = typeof window !== 'undefined';
   const [isFollowing, setIsFollowing] = useState(autoCenterOnDrivers);
-  const [mapTheme, setMapTheme] = useState<keyof typeof MAP_THEMES>('professional');
+  const [mapTheme] = useState<keyof typeof MAP_THEMES>('standard');
   const [mapRotation, setMapRotation] = useState(0);
   const [mapTilt, setMapTilt] = useState(0);
   
@@ -407,7 +391,7 @@ export default function LiveMap({
                 <Popup className="custom-popup">
                   <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      <div className="w-2 h-2 rounded-full bg-rose-500" />
                       <p className="font-black text-rose-600">طلب: {order.name}</p>
                     </div>
                     <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
@@ -419,15 +403,6 @@ export default function LiveMap({
                   </div>
                 </Popup>
               </Marker>
-              
-              {/* Draw road-based route to target if available */}
-              {order.targetLat && order.targetLng && (
-                <RoutingMachine 
-                  from={[order.lat, order.lng]} 
-                  to={[order.targetLat, order.targetLng]} 
-                  color="#f43f5e" 
-                />
-              )}
             </div>
           ))}
 
@@ -435,64 +410,23 @@ export default function LiveMap({
           {drivers.filter(d => d.lat && d.lng).map((driver) => {
           let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon! : driverIcon!) : driverOfflineIcon!;
           
-          // Use Blue Heading Icon if navigating and following
-          const currentIcon = (isFollowing && driver.heading !== undefined) ? headingIcon! : icon;
-
           return (
             <div key={`driver-group-${driver.id}`}>
               <AnimatedMarker 
                 point={driver} 
-                icon={currentIcon} 
+                icon={icon} 
                 mapRotation={mapRotation}
                 mapTilt={mapTilt}
               />
-              {/* ... existing polyline ... */}
-              
-              {/* Draw road-based route for active driver if they have a target */}
-              {driver.targetLat && driver.targetLng && (
-                <RoutingMachine 
-                  from={[driver.lat, driver.lng]} 
-                  to={[driver.targetLat, driver.targetLng]} 
-                  color={driver.status === 'busy' ? '#f59e0b' : '#10b981'} 
-                />
-              )}
-
-              {/* Draw movement trail (Breadcrumbs) - V0.9.9 */}
-              {driver.path && driver.path.length > 1 && (
-                <Polyline 
-                  positions={driver.path.map(p => [p.lat, p.lng] as [number, number])}
-                  pathOptions={{ 
-                    color: driver.status === 'busy' ? '#f59e0b' : '#10b981', 
-                    weight: 2,
-                    opacity: 0.4,
-                    smoothFactor: 1
-                  }}
-                />
-              )}
             </div>
           );
         })}
         </MapContainer>
       </div>
 
-      {/* Smart Control Panel (v0.9.47) */}
+      {/* Simplified Control Panel (v0.9.51) */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
-        {/* Start Navigation Button (v0.9.48) */}
-        {orders.length > 0 && !isFollowing && (
-          <button 
-            onClick={() => {
-              setIsFollowing(true);
-              setMapTilt(45);
-              if (drivers.length > 0) setMapRotation(drivers[0].heading || 0);
-            }}
-            className="bg-emerald-600 text-white px-6 py-4 rounded-[28px] shadow-2xl flex items-center gap-3 animate-bounce active:scale-95 transition-all border-2 border-emerald-400"
-          >
-            <Zap className="w-5 h-5 fill-current" />
-            <span className="text-[14px] font-black">بدء الملاحة الذكية</span>
-          </button>
-        )}
-
-        {/* Recenter Button */}
+        {/* Recenter Button Only */}
         <button 
           onClick={() => {
             setIsFollowing(!isFollowing);
@@ -513,31 +447,6 @@ export default function LiveMap({
         >
           <Navigation className={`w-6 h-6 ${isFollowing ? 'fill-current' : ''}`} />
         </button>
-
-        {/* Theme Toggle Button */}
-        <div className="bg-white/90 backdrop-blur-md rounded-[24px] shadow-2xl border border-white/20 overflow-hidden flex flex-col">
-          <button 
-            onClick={() => setMapTheme('professional')}
-            className={`p-4 transition-colors ${mapTheme === 'professional' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}
-            title="خريطة احترافية"
-          >
-            <MapIcon className="w-6 h-6" />
-          </button>
-          <button 
-            onClick={() => setMapTheme('satellite')}
-            className={`p-4 transition-colors border-t border-slate-100 ${mapTheme === 'satellite' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}
-            title="قمر صناعي"
-          >
-            <Layers className="w-6 h-6" />
-          </button>
-          <button 
-            onClick={() => setMapTheme('standard')}
-            className={`p-4 transition-colors border-t border-slate-100 ${mapTheme === 'standard' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}
-            title="خريطة كلاسيكية"
-          >
-            <Zap className="w-6 h-6" />
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -626,12 +626,14 @@ export default function DriverApp() {
         }
       }
       
-      // 2. Background DB Update
+      // 2. Background DB Update (V0.9.52 - FIXED OFFLINE LOGIC)
       if (driverId) {
-        const { error } = await supabase.from('profiles').update({ is_online: newStatus }).eq('id', driverId);
-        if (error) {
-          console.error("Online toggle: Supabase update error", error);
-        }
+        // If turning OFF, explicitly set is_online: false
+        // If turning ON, explicitly set is_online: true
+        await supabase.from('profiles').update({ 
+          is_online: newStatus,
+          updated_at: new Date().toISOString()
+        }).eq('id', driverId);
       }
       
       // Small delay to allow tracking logic to initialize/cleanup
