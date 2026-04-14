@@ -332,7 +332,7 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
               // 1. Get Session Token for Authorization (V0.9.52 - Native Fix)
               let accessToken = SUPABASE_KEY;
               try {
-                const { value: sessionStr } = await Preferences.get({ key: SESSION_KEY });
+                const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
                 if (sessionStr) {
                   const session = JSON.parse(sessionStr);
                   if (session.access_token) accessToken = session.access_token;
@@ -365,6 +365,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
                     last_location_update: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                   }
+                }).then(res => {
+                  if (res.status >= 400) console.warn("BG Native Patch Error:", res.status, res.data);
                 }),
 
                 // 2. Insert into Logs (High-Frequency History)
@@ -379,6 +381,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
                     heading: location.bearing || 0,
                     accuracy: location.accuracy || 0
                   }
+                }).then(res => {
+                  if (res.status >= 400) console.warn("BG Native Post Error:", res.status, res.data);
                 })
               ]);
             } catch (e) {

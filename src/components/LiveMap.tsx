@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Navigation, Clock, Zap, Map as MapIcon, Layers } from 'lucide-react';
 
-import { driverIcon, driverBusyIcon, vendorIcon, orderIcon } from '@/lib/map-icons';
+import { driverIcon, driverBusyIcon, vendorIcon, orderIcon, defaultIcon } from '@/lib/map-icons';
 
 // Advanced Technical Styles for "Real" Integrated Look (v0.9.47)
 const MAP_THEMES = {
@@ -168,11 +168,11 @@ export default function LiveMap({
         />
 
         {/* عرض المحلات */}
-        {vendors.filter(v => v.lat != null && v.lng != null).map((vendor) => (
+        {vendors.filter(v => v.lat && v.lng).map((vendor) => (
           <Marker 
             key={`vendor-${vendor.id}`} 
             position={[vendor.lat, vendor.lng]} 
-            icon={vendorIcon!}
+            icon={vendorIcon || defaultIcon!}
             zIndexOffset={100}
           >
             <Popup className="custom-popup">
@@ -190,11 +190,11 @@ export default function LiveMap({
         ))}
 
         {/* عرض الطلبات النشطة */}
-        {orders.filter(o => o.lat != null && o.lng != null).map((order) => (
+        {orders.filter(o => o.lat && o.lng).map((order) => (
           <div key={`order-group-${order.id}`}>
             <Marker 
               position={[order.lat, order.lng]} 
-              icon={orderIcon!}
+              icon={orderIcon || defaultIcon!}
               zIndexOffset={200}
             >
               <Popup className="custom-popup">
@@ -216,14 +216,14 @@ export default function LiveMap({
         ))}
 
         {/* عرض المناديب - Rendered last to be on top */}
-        {drivers.filter(d => d.lat != null && d.lng != null).map((driver) => {
-          let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon! : driverIcon!) : driverOfflineIcon!;
+        {drivers.filter(d => d.lat && d.lng).map((driver) => {
+          let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon : driverIcon) : driverOfflineIcon;
           
           return (
             <Marker 
               key={`driver-${driver.id}`}
               position={[driver.lat, driver.lng]} 
-              icon={icon}
+              icon={icon || defaultIcon!}
               zIndexOffset={1000}
             >
               <Popup className="custom-popup">

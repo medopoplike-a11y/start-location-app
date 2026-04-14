@@ -19,6 +19,9 @@
     }
   },
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "CapacitorUpdater": {
       "autoUpdate": false,
       "stats": false,

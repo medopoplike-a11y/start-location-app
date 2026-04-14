@@ -133,6 +133,14 @@ export default function DriverApp() {
       try {
         console.log("Native Tracking: Initializing sequence...");
         
+        // 0. Set Online Status in DB immediately (V0.9.54)
+        if (driverId) {
+          await supabase.from('profiles').update({ 
+            is_online: true,
+            updated_at: new Date().toISOString()
+          }).eq('id', driverId);
+        }
+
         // 1. Keep Awake
         await KeepAwake.keepAwake().catch(err => console.warn("KeepAwake error:", err));
         

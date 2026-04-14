@@ -196,6 +196,7 @@ function AdminContent() {
   }, []);
 
   const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
+    // Process ALL profiles for registry first
     profiles.forEach(p => {
       if ((p.role || '').toLowerCase() === 'driver') {
         let loc = p.location;
@@ -205,13 +206,14 @@ function AdminContent() {
         const lastUpdateStr = p.last_location_update || p.updated_at;
         const lastUpdateTs = lastUpdateStr ? new Date(lastUpdateStr).getTime() : 0;
         
-        // V0.9.50: Show ALL drivers with coordinates on the map, filtering logic moved to LiveMap
+        const hasCoords = normalizedLoc && normalizedLoc.lat != null && normalizedLoc.lng != null;
+        
         if (hasCoords) {
           updateDriverRegistry({
             id: p.id,
             name: p.full_name || "غير معروف",
-            lat: normalizedLoc!.lat,
-            lng: normalizedLoc!.lng,
+            lat: normalizedLoc!.lat!,
+            lng: normalizedLoc!.lng!,
             lastSeenTimestamp: lastUpdateTs,
             is_online: p.is_online,
             status: p.is_online ? 'available' : 'busy',
@@ -220,7 +222,7 @@ function AdminContent() {
         }
       }
     });
-    
+
     const users = profiles.map((u) => ({
       id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
     }));
@@ -228,7 +230,8 @@ function AdminContent() {
 
     if (wallets) {
       setTotalSystemDebt(wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
-      setDrivers(profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
+      
+      const driverCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
         const w = wallets.find((wal) => wal.user_id === p.id);
         const lastSeenStr = p.last_location_update || p.updated_at;
         let relativeTime = "غير متوفر";
@@ -259,8 +262,10 @@ function AdminContent() {
           monthly_salary: p.monthly_salary || 0, 
           rating: p.rating || 0
         };
-      }));
-      setVendors(profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
+      });
+      setDrivers(driverCards);
+
+      const vendorCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
         const w = wallets.find((wal) => wal.user_id === p.id);
         let loc = p.location;
         if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
@@ -269,7 +274,8 @@ function AdminContent() {
           id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location,
           email: p.email, phone: p.phone, commission_type: (p as any).commission_type, commission_value: (p as any).commission_value, billing_type: (p as any).billing_type || 'commission', monthly_salary: (p as any).monthly_salary || 0, rating: p.rating || 0
         };
-      }));
+      });
+      setVendors(vendorCards);
     }
   }, [updateDriverRegistry]);
 
