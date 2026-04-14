@@ -150,14 +150,14 @@ function AdminContent() {
       
       if (lat === 0 || lng === 0) return prev;
 
-      // 3. Force move for Realtime updates (V0.9.8)
+      // 3. Force move for Realtime updates (V0.9.50)
       // Even if the movement is tiny, we want the marker to move in Realtime
-      const locChanged = source === 'realtime' || Math.abs(existing?.lat || 0 - lat) > 0.000001 || Math.abs(existing?.lng || 0 - lng) > 0.000001;
+      const locChanged = source === 'realtime' || Math.abs((existing?.lat || 0) - lat) > 0.000001 || Math.abs((existing?.lng || 0) - lng) > 0.000001;
 
       // 4. Status & Online logic
       const isOnline = payload.is_online !== undefined ? payload.is_online : (existing?.is_online ?? true);
       
-      // 5. Breadcrumb Path (V0.9.49): Keep last 30 points for a detailed movement trail
+      // 5. Breadcrumb Path (V0.9.50): Keep last 30 points for a detailed movement trail
       let updatedPath = existing?.path || [];
       if (locChanged) {
         updatedPath = [...updatedPath, { lat, lng }].slice(-30);
@@ -181,7 +181,7 @@ function AdminContent() {
       if (existing) {
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
         
-        // V0.9.49: Ultra-fast updates for Real-time (250ms) to ensure smooth marker movement
+        // V0.9.50: Ultra-fast updates for Real-time (250ms) to ensure smooth marker movement
         const cooldown = source === 'realtime' ? 250 : 5000;
         if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < cooldown)) {
           return prev;
@@ -205,11 +205,8 @@ function AdminContent() {
         const lastUpdateStr = p.last_location_update || p.updated_at;
         const lastUpdateTs = lastUpdateStr ? new Date(lastUpdateStr).getTime() : 0;
         
-        const hasCoords = normalizedLoc?.lat != null && normalizedLoc?.lng != null;
-        // ONLY SHOW ON MAP: Online drivers OR those active in the last 15 minutes
-        const isRecent = (Date.now() - lastUpdateTs) < 15 * 60 * 1000;
-
-        if (hasCoords && (p.is_online || isRecent)) {
+        // V0.9.50: Show ALL drivers with coordinates on the map, filtering logic moved to LiveMap
+        if (hasCoords) {
           updateDriverRegistry({
             id: p.id,
             name: p.full_name || "غير معروف",
