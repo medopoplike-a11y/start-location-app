@@ -272,8 +272,9 @@ export const assignOrderToNearestDriver = async (
   vendorLocation?: { lat: number; lng: number }
 ): Promise<{ success: boolean; driverName?: string; error?: string }> => {
   // 1. Get all online drivers with auto_accept enabled
-  // Heartbeat check: only consider drivers who updated their location in the last 10 minutes
-  const fiveMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  // Heartbeat check (V0.9.62): only consider drivers who updated their location in the last 30 minutes
+  // (Increased from 10 to 30 mins to match Admin UI resilience)
+  const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
   const { data: onlineDrivers, error: driversError } = await supabase
     .from('profiles')
@@ -282,7 +283,7 @@ export const assignOrderToNearestDriver = async (
     .eq('is_online', true)
     .eq('auto_accept', true)
     .eq('is_locked', false)
-    .gt('last_location_update', fiveMinsAgo);
+    .gt('last_location_update', thirtyMinsAgo);
 
   if (driversError || !onlineDrivers?.length) {
     return { success: false, error: 'لا يوجد طيارين متاحين الآن' };

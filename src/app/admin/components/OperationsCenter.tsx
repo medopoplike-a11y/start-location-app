@@ -80,7 +80,15 @@ export default function OperationsCenter({
   const [showSidePanel, setShowSidePanel] = useState(true);
 
   const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
-  const availableDrivers = drivers.filter(d => !d.isShiftLocked && d.isOnline);
+  
+  // V0.9.62: Consider a driver available if they are in the online registry (real-time)
+  // or if their profile says they are online. This prevents "No available drivers"
+  // when background sync is slightly delayed.
+  const availableDrivers = drivers.filter(d => {
+    const isInRegistry = onlineDrivers.some(od => od.id === d.id_full);
+    return !d.isShiftLocked && (d.isOnline || isInRegistry);
+  });
+  
   const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
   
   const pendingOrdersCount = pendingOrders.length;

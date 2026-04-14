@@ -256,10 +256,11 @@ function AdminContent() {
         const diff = Date.now() - lastUpdateTs;
         const mins = Math.floor(diff / 60000);
 
-        // GHOST PROTECTION (V0.9.58): 
+        // GHOST PROTECTION (V0.9.62): 
         // 1. Consider online if profile says so AND it was updated in last 30 mins
-        // 2. ALSO check if we have a recent real-time log (handled in registry update)
-        const isActuallyOnline = !!p.is_online && mins < 30;
+        // 2. ALSO check if we have a recent real-time log in the registry
+        const isInRealtimeRegistry = onlineDrivers.some(od => od.id === p.id);
+        const isActuallyOnline = (!!p.is_online && mins < 30) || isInRealtimeRegistry;
 
         let relativeTime = "غير متوفر";
         if (lastSeenStr) {
