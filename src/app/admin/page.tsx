@@ -133,13 +133,23 @@ function AdminContent() {
       const now = Date.now();
       
       // 1. Timestamp Protection: Never let old data overwrite new data
-      // Prefer the explicit timestamp from payload if available
       const payloadTs = payload.lastSeenTimestamp || (source === 'realtime' ? now : 0);
       
       if (existing && existing.lastSeenTimestamp && payloadTs < existing.lastSeenTimestamp) {
-        // Only ignore if it's from DB and we have a newer Realtime update
-        // or if both are Realtime and this one is older (out of order delivery)
-        if (source === 'db' || (source === 'realtime' && (existing.lastSeenTimestamp - payloadTs) > 100)) {
+        // GHOST PROTECTION (V0.9.57): If DB data is older than current memory, 
+        // ONLY update status/online, but KEEP the newer location we already have.
+        if (source === 'db') {
+          const newDrivers = [...prev];
+          newDrivers[existingIndex] = {
+            ...existing,
+            is_online: payload.is_online !== undefined ? payload.is_online : existing.is_online,
+            status: payload.status || existing.status
+          };
+          return newDrivers;
+        }
+        
+        // If both are Realtime and this one is older (out of order delivery)
+        if (source === 'realtime' && (existing.lastSeenTimestamp - payloadTs) > 100) {
            return prev;
         }
       }

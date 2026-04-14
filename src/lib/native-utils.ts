@@ -351,7 +351,7 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
 
               // ULTIMATE NATIVE SYNC: Using CapacitorHttp to bypass WebView suspension (Root Cause Fix)
               await Promise.allSettled([
-                // 1. Update Profile (Latest State)
+                // 1. Update Profile (Latest State) - High Priority (V0.9.57)
                 CapacitorHttp.patch({
                   url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
                   headers,
