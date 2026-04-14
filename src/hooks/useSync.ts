@@ -64,10 +64,11 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
           if (isActive) {
             console.log("useSync: App became active, triggering light sync...");
-            triggerUpdate();
-            // Don't fully unsubscribe/resubscribe here anymore. 
-            // Supabase Real-time handles reconnection automatically.
-            // Manual teardown/rebuild was causing freezes on resume.
+            // ULTIMATE RESUME SYNC (V0.9.59)
+            // Re-establish session and heartbeat to prevent freeze
+            supabase.auth.getSession().then(() => {
+              triggerUpdate();
+            });
           }
         });
 
@@ -183,13 +184,16 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
     // Heartbeat to keep connection alive
     const interval = setInterval(() => {
-      if (syncChannel && syncChannel.state === 'joined') {
-        syncChannel.send({
-          type: 'broadcast',
-          event: 'heartbeat',
-          payload: { timestamp: new Date().toISOString() }
-        });
-      }
+      // V0.9.59: Only heartbeat if session is valid
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session && syncChannel && syncChannel.state === 'joined') {
+          syncChannel.send({
+            type: 'broadcast',
+            event: 'heartbeat',
+            payload: { timestamp: new Date().toISOString() }
+          });
+        }
+      });
     }, 15000); // 15 seconds heartbeat for stability
 
     return () => {
