@@ -294,16 +294,19 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           persist: true,
           forceAccuracy: true,
           stationaryRadius: 2,
-          // Android-specific: These are often missing and cause service death
+          // Android-specific: High priority persistent service (V0.9.55)
           notificationTitle: "تطبيق ستارت يعمل",
           notificationText: "جاري تتبع موقعك في الخلفية لضمان دقة الطلبات",
           notificationIconColor: "#3b82f6",
+          notificationImportance: 5, // Max importance for Android
           priority: 1, // High priority
           interval: 3000,
           fastestInterval: 1000,
           activitiesInterval: 10000,
           stopOnTerminate: false,
-          startOnBoot: true
+          startOnBoot: true,
+          heartbeatInterval: 60000, // Keep service alive every minute
+          enableHeadless: true // Run even if UI is destroyed
         },
         async (location: any, error: any) => {
           if (error) {
