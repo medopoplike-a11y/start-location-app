@@ -188,6 +188,14 @@ function AdminContent() {
         rating: payload.rating ?? existing?.rating ?? 0
       };
 
+      // V0.9.58: If we get a real-time location log, the driver is CERTAINLY online.
+      // Sync this to the main drivers list to fix "No available drivers"
+      if (source === 'realtime') {
+        setDrivers(current => current.map(d => 
+          d.id_full === payload.id ? { ...d, isOnline: true, status: d.isShiftLocked ? "محظور" : "متصل" } : d
+        ));
+      }
+
       if (existing) {
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
         
@@ -248,7 +256,9 @@ function AdminContent() {
         const diff = Date.now() - lastUpdateTs;
         const mins = Math.floor(diff / 60000);
 
-        // GHOST PROTECTION (V0.9.56): If no update for 30+ mins, force offline in UI
+        // GHOST PROTECTION (V0.9.58): 
+        // 1. Consider online if profile says so AND it was updated in last 30 mins
+        // 2. ALSO check if we have a recent real-time log (handled in registry update)
         const isActuallyOnline = !!p.is_online && mins < 30;
 
         let relativeTime = "غير متوفر";
@@ -259,14 +269,16 @@ function AdminContent() {
           else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
         }
 
+        const isOnlineValue = isActuallyOnline;
+
         return { 
           id: p.id.slice(0, 8), 
           id_full: p.id, 
           name: p.full_name || "بدون اسم", 
-          status: p.is_locked ? "محظور" : (isActuallyOnline ? "متصل" : "غير متصل"), 
+          status: p.is_locked ? "محظور" : (isOnlineValue ? "متصل" : "غير متصل"), 
           lastSeen: relativeTime,
           isShiftLocked: !!p.is_locked, 
-          isOnline: isActuallyOnline, 
+          isOnline: isOnlineValue, 
           earnings: w?.balance || 0, 
           debt: (w?.debt || 0) + (w?.system_balance || 0), 
           totalOrders: 0,

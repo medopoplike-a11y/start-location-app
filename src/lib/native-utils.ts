@@ -394,12 +394,55 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           }
         }
       ),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 10000))
-    ]);
+      // 3. Background Heartbeat (V0.9.58): Ensure Online status stays true even if stationary
+      BackgroundGeolocation.addWatcher(
+        {
+          requestPermissions: false,
+          staleLocationInterval: 60000,
+          distanceFilter: 50, // Stationary detection
+          heartbeatInterval: 60, // 60 seconds
+          backgroundTitle: "تطبيق ستارت يعمل",
+          backgroundMessage: "تحديث الحالة مستمر في الخلفية"
+        },
+        async (location: any) => {
+          // Every minute, force update is_online to true via Native HTTP
+          try {
+            const now = Date.now();
+            let accessToken = SUPABASE_KEY;
+            try {
+              const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
+              if (sessionStr) {
+                const session = JSON.parse(sessionStr);
+                if (session.access_token) accessToken = session.access_token;
+              }
+            } catch (e) {}
 
+            const headers = {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            };
+
+            await CapacitorHttp.patch({
+              url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+              headers,
+              data: {
+                is_online: true,
+                last_location_update: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            });
+            console.log("BG Heartbeat: Online status synced");
+          } catch (e) { console.warn("BG Heartbeat Sync Error", e); }
+        }
+      ),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("BG_WATCHER_TIMEOUT")), 10000))
+    ]) as unknown as any[];
+
+    const watcherId = results.find(id => typeof id === 'string') as string;
     return watcherId;
-  } catch (e) {
-    console.error('Background Tracking Failed:', e);
+  } catch (err) {
+    console.error('Background Tracking Failed:', err);
     return null;
   }
 };
