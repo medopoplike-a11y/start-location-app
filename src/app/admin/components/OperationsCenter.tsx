@@ -187,7 +187,7 @@ export default function OperationsCenter({
                     isOnline: d.isOnline,
                     status: allOrders.some(o => o.driver_id === d.id_full && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
                     details: d.name,
-                    lastSeenTimestamp: d.lastSeen === "الآن" ? Date.now() : undefined // Helper for relative time in popup
+                    lastSeenTimestamp: d.lastSeenTimestamp || (d.location?.ts) || (d.lastSeen === "الآن" ? Date.now() : undefined)
                   }))}
                   vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
                   orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {

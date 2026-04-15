@@ -64,6 +64,10 @@ export interface DriverCard {
   commission_value?: number;
   monthly_salary?: number;
   rating?: number;
+  lastSeen?: string;
+  lastSeenTimestamp?: number;
+  isOnline?: boolean;
+  location?: { lat: number; lng: number; ts?: number } | null;
 }
 
 export interface VendorCard {

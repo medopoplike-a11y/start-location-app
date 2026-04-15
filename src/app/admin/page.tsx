@@ -221,7 +221,8 @@ function AdminContent() {
             isOnline: isOnlineStatus, 
             status: d.isShiftLocked ? "محظور" : (isOnlineStatus ? "متصل" : "غير متصل"),
             location: { lat, lng, ts: payloadTs },
-            lastSeen: relativeTime
+            lastSeen: relativeTime,
+            lastSeenTimestamp: payloadTs
           };
         }
         return d;
@@ -325,6 +326,7 @@ function AdminContent() {
         name: p.full_name || "بدون اسم", 
         status: p.is_locked ? "محظور" : (isOnlineValue ? "متصل" : "غير متصل"), 
         lastSeen: relativeTime,
+        lastSeenTimestamp: registryEntry?.lastSeenTimestamp || lastUpdateTs,
         isShiftLocked: !!p.is_locked, 
         isOnline: isOnlineValue, 
         earnings: w?.balance || 0, 

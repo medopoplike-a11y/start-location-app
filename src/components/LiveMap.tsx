@@ -56,10 +56,11 @@ interface LiveMapProps {
 
 // Helper function for relative time
 function getRelativeTime(timestamp?: number) {
-  if (!timestamp) return "غير معروف";
+  if (!timestamp || timestamp <= 0) return "غير معروف";
   const now = Date.now();
   const diff = Math.floor((now - timestamp) / 1000);
   
+  if (diff < 0) return "الآن"; // Clock drift protection
   if (diff < 10) return "الآن";
   if (diff < 60) return `منذ ${diff} ثانية`;
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
