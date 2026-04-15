@@ -143,9 +143,11 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
   // V0.9.76: More robust update with row-level condition check
   let query = supabase.from('orders').update(updates).eq('id', orderId);
   
-  // If we're assigning, the order MUST still be pending
+  // V0.9.78: Improved re-assignment logic. 
+  // If status is 'assigned', it must be 'pending' OR already 'assigned' (for re-assignment).
+  // If it's 'in_transit', we allow re-assignment too if requested by admin.
   if (status === 'assigned') {
-    query = query.in('status', ['pending']);
+    query = query.in('status', ['pending', 'assigned', 'in_transit']);
   }
 
   // Use select() to check if the update actually happened

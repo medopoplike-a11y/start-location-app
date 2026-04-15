@@ -79,7 +79,7 @@ export default function OperationsCenter({
   const [assigning, setAssigning] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
 
-  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
+  const pendingOrders = allOrders.filter(o => o.status === "pending" || o.status === "assigned" || o.status === "in_transit");
   
   // V0.9.62: Consider a driver available if they are in the online registry (real-time)
   // or if their profile says they are online. This prevents "No available drivers"
@@ -91,7 +91,7 @@ export default function OperationsCenter({
   
   const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
   
-  const pendingOrdersCount = pendingOrders.length;
+  const pendingOrdersCount = allOrders.filter(o => o.status === "pending").length;
   const activeDriversCount = onlineDrivers.length;
 
   const handleAssign = async (driverId: string, driverName: string) => {
@@ -175,9 +175,9 @@ export default function OperationsCenter({
                   }))}
                   vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
                   orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
-                    // V0.9.71: Improved tracking logic - The order marker should strictly follow 
-                    // the driver's LIVE coordinates from the drivers list, not the onlineDrivers registry
-                    const assignedDriver = o.driver_id ? drivers.find(d => d.id_full === o.driver_id) : null;
+                    // V0.9.78: CRITICAL FIX - Use the real-time onlineDrivers registry for order tracking
+                    // instead of the static drivers list which only updates on full refresh.
+                    const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
                     const v = vendors.find(v => v.id_full === o.vendor_id);
                     const vendorLat = v?.location?.lat;
                     const vendorLng = v?.location?.lng;
@@ -185,8 +185,8 @@ export default function OperationsCenter({
                     const customerLng = o.customer_details?.coords?.lng;
 
                     // Use driver's live location if assigned/in_transit, otherwise fallback to vendor/customer
-                    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.location?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
-                    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.location?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
+                    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
+                    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
 
                     if (finalLat == null || finalLng == null) return null;
 
@@ -232,8 +232,8 @@ export default function OperationsCenter({
                       <Truck className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع اليدوي</h3>
-                      <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات المعلقة {pendingOrdersCount > 0 && `(${pendingOrdersCount})`}</p>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع والتحكم</h3>
+                      <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات النشطة ({pendingOrders.length})</p>
                     </div>
                   </div>
                   <button onClick={() => setShowSidePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
@@ -242,9 +242,9 @@ export default function OperationsCenter({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                  {/* Pending Orders Section */}
+                  {/* Active Orders Section (V0.9.78) */}
                   <div>
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">الطلبات المنتظرة</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">قائمة الطلبات النشطة</h4>
                     {pendingOrders.length === 0 ? (
                       <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
                         <CheckCircle className="w-8 h-8 text-emerald-500/20 mx-auto mb-2" />
@@ -263,10 +263,19 @@ export default function OperationsCenter({
                             }`}
                           >
                             <div className="flex justify-between items-start mb-1">
-                              <p className={`text-xs font-black ${selectedOrderId === order.id_full ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor}</p>
-                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${selectedOrderId === order.id_full ? "bg-white/20" : "bg-amber-100 text-amber-600"}`}>#{order.id}</span>
+                              <p className={`text-xs font-black ${selectedOrderId === order.id_full ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor_full_name}</p>
+                              <div className="flex flex-col items-end gap-1">
+                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${selectedOrderId === order.id_full ? "bg-white/20" : "bg-amber-100 text-amber-600"}`}>#{order.id.slice(0, 8)}</span>
+                                <span className={`text-[7px] font-black px-1 py-0.5 rounded-md ${
+                                  order.status === 'pending' ? 'bg-slate-100 text-slate-500' :
+                                  order.status === 'assigned' ? 'bg-sky-100 text-sky-600' :
+                                  'bg-indigo-100 text-indigo-600'
+                                }`}>
+                                  {order.status === 'pending' ? 'بانتظار التعيين' : order.status === 'assigned' ? 'تم التعيين' : 'في الطريق'}
+                                </span>
+                              </div>
                             </div>
-                            <p className={`text-[10px] font-bold ${selectedOrderId === order.id_full ? "text-white/70" : "text-slate-400"}`}>{order.customer} — {order.delivery_fee} ج.م</p>
+                            <p className={`text-[10px] font-bold ${selectedOrderId === order.id_full ? "text-white/70" : "text-slate-400"}`}>{order.customer_details?.name} — {order.financials?.delivery_fee} ج.م</p>
                           </button>
                         ))}
                       </div>
@@ -291,7 +300,7 @@ export default function OperationsCenter({
                           ) : (
                             availableDrivers.map(driver => (
                               <button
-                                key={driver.id}
+                                key={driver.id_full}
                                 disabled={assigning}
                                 onClick={() => handleAssign(driver.id_full, driver.name)}
                                 className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group"
@@ -302,7 +311,14 @@ export default function OperationsCenter({
                                   </div>
                                   <div className="text-right">
                                     <p className="text-xs font-black text-slate-900 dark:text-white">{driver.name}</p>
-                                    <p className="text-[9px] font-bold text-slate-400">الطلبات النشطة: {allOrders.filter(o => o.driver_id === driver.id && (o.status === 'assigned' || o.status === 'in_transit')).length}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-[9px] font-bold text-slate-400">الطلبات: {allOrders.filter(o => o.driver_id === driver.id_full && (o.status === 'assigned' || o.status === 'in_transit')).length}</p>
+                                      {onlineDrivers.find(od => od.id === driver.id_full)?.is_online ? (
+                                        <span className="text-[7px] font-black text-emerald-500 uppercase">متصل الآن</span>
+                                      ) : (
+                                        <span className="text-[7px] font-black text-slate-400 uppercase">آخر ظهور: {driver.lastSeen}</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

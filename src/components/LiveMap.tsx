@@ -255,8 +255,8 @@ export default function LiveMap({
         })}
       </MapContainer>
 
-      {/* Simplified Control Panel (v0.9.52) */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
+      {/* Simplified Control Panel (v0.9.52) - REMOVED AS PER USER REQUEST */}
+      {/* <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
         <button 
           onClick={() => setIsFollowing(!isFollowing)}
           className={`p-4 rounded-[24px] shadow-2xl transition-all border flex items-center justify-center ${
@@ -268,7 +268,7 @@ export default function LiveMap({
         >
           <Navigation className={`w-6 h-6 ${isFollowing ? 'fill-current' : ''}`} />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }
