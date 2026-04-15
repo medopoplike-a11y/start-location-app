@@ -155,30 +155,26 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 -- 3. سياسات الحماية لجدول الملفات الشخصية (Profiles)
 DO $$ 
 BEGIN
+  -- حذف السياسات القديمة لضمان التحديث
+  DROP POLICY IF EXISTS "Users can view their own profiles" ON profiles;
+  DROP POLICY IF EXISTS "Anyone can view relevant profiles" ON profiles;
+  DROP POLICY IF EXISTS "Users can update their own profiles" ON profiles;
+  DROP POLICY IF EXISTS "Admins can manage all profiles" ON profiles;
+
   -- السماح للمستخدمين بقراءة ملفاتهم الشخصية فقط
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own profiles') THEN
-    CREATE POLICY "Users can view their own profiles" ON profiles FOR SELECT USING (auth.uid() = id);
-  END IF;
+  CREATE POLICY "Users can view their own profiles" ON profiles FOR SELECT USING (auth.uid() = id);
 
   -- السماح للمستخدمين برؤية الملفات الشخصية ذات الصلة (المطاعم والطيارين والأدمن)
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anyone can view relevant profiles') THEN
-    CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (
-      true
-    );
-  END IF;
+  CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (true);
   
   -- السماح للمستخدمين بتحديث ملفاتهم الشخصية فقط
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update their own profiles') THEN
-    CREATE POLICY "Users can update their own profiles" ON profiles FOR UPDATE USING (auth.uid() = id);
-  END IF;
+  CREATE POLICY "Users can update their own profiles" ON profiles FOR UPDATE USING (auth.uid() = id);
 
-  -- السماح للأدمن بإدارة جميع الملفات الشخصية (تجنب التكرار اللا نهائي مع دعم الإيميل)
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can manage all profiles') THEN
-    CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
-      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
-    );
-  END IF;
+  -- السماح للأدمن بإدارة جميع الملفات الشخصية
+  CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  );
 END $$;
 
 -- 4. تفعيل خاصية إنشاء ملف شخصي ومحفظة تلقائياً عند التسجيل
@@ -954,7 +950,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP POLICY IF EXISTS "Admins can manage all profiles" ON profiles;
 CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
   (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 );
 

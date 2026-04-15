@@ -244,7 +244,7 @@ function AdminContent() {
     });
   }, []);
 
-  const processProfiles = useCallback((profiles: ProfileRow[], wallets?: WalletRow[]) => {
+  const processProfiles = useCallback((profiles: ProfileRow[], walletsData?: WalletRow[]) => {
     // Process ALL profiles for registry first
     profiles.forEach(p => {
       if ((p.role || '').toLowerCase() === 'driver') {
@@ -277,84 +277,88 @@ function AdminContent() {
     }));
     setAllUsers(users);
 
-    if (wallets) {
-      setWallets(wallets);
-      setTotalSystemDebt(wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
+    // Use internal wallets state if walletsData not provided (e.g. from cache load)
+    const activeWallets = walletsData || wallets;
+
+    const driverCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
+      const w = activeWallets.find((wal) => wal.user_id === p.id);
+      const lastSeenStr = p.last_location_update || p.updated_at;
+      const lastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
+      const diff = Date.now() - lastUpdateTs;
+      const mins = Math.floor(diff / 60000);
+
+      // V0.9.72: Registry-First Strategy - Single Source of Truth for position
+      // Check both ref and the state we just updated via updateDriverRegistry
+      const registryEntry = onlineDriversRef.current.find(od => od.id === p.id);
       
-      const driverCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
-        const w = wallets.find((wal) => wal.user_id === p.id);
-        const lastSeenStr = p.last_location_update || p.updated_at;
-        const lastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
-        const diff = Date.now() - lastUpdateTs;
-        const mins = Math.floor(diff / 60000);
+      // Online if registry says so OR profile says so within last 60 mins
+      const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && mins < 60);
 
-        // V0.9.72: Registry-First Strategy - Single Source of Truth for position
-        const registryEntry = onlineDriversRef.current.find(od => od.id === p.id);
-        
-        // Online if registry says so OR profile says so within last 60 mins
-        const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && mins < 60);
+      let relativeTime = "غير متوفر";
+      if (registryEntry?.lastSeen === "الآن") {
+        relativeTime = "الآن";
+      } else if (lastSeenStr) {
+        if (mins < 1) relativeTime = "الآن";
+        else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
+        else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
+        else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
+      }
 
-        let relativeTime = "غير متوفر";
-        if (registryEntry?.lastSeen === "الآن") {
-          relativeTime = "الآن";
-        } else if (lastSeenStr) {
-          if (mins < 1) relativeTime = "الآن";
-          else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
-          else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
-          else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
-        }
+      const isOnlineValue = isActuallyOnline;
 
-        const isOnlineValue = isActuallyOnline;
-
-        // V0.9.72: CRITICAL - Prefer the registry location ALWAYS if it exists
-        // This prevents the "jumping" effect and ensures we stay at the last known high-precision point
-        let currentLocation = p.location;
-        if (registryEntry && (registryEntry.lat != null && registryEntry.lng != null)) {
-          currentLocation = { 
-            lat: registryEntry.lat, 
-            lng: registryEntry.lng, 
-            ts: registryEntry.lastSeenTimestamp || Date.now() 
-          };
-        } else if (typeof currentLocation === 'string') {
-          try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
-        }
-
-        return { 
-          id: p.id.slice(0, 8), 
-          id_full: p.id, 
-          name: p.full_name || "بدون اسم", 
-          status: p.is_locked ? "محظور" : (isOnlineValue ? "متصل" : "غير متصل"), 
-          lastSeen: relativeTime,
-          isShiftLocked: !!p.is_locked, 
-          isOnline: isOnlineValue, 
-          earnings: w?.balance || 0, 
-          debt: (w?.debt || 0) + (w?.system_balance || 0), 
-          totalOrders: 0,
-          email: p.email, 
-          phone: p.phone, 
-          max_active_orders: p.max_active_orders || 3, 
-          billing_type: p.billing_type || 'commission', 
-          commission_value: p.commission_value || 15, 
-          monthly_salary: p.monthly_salary || 0, 
-          rating: p.rating || 0,
-          location: currentLocation // Pass the most accurate location
+      // V0.9.72: CRITICAL - Prefer the registry location ALWAYS if it exists
+      // This prevents the "jumping" effect and ensures we stay at the last known high-precision point
+      let currentLocation = p.location;
+      if (registryEntry && (registryEntry.lat != null && registryEntry.lng != null)) {
+        currentLocation = { 
+          lat: registryEntry.lat, 
+          lng: registryEntry.lng, 
+          ts: registryEntry.lastSeenTimestamp || Date.now() 
         };
-      });
-      setDrivers(driverCards);
+      } else if (typeof currentLocation === 'string') {
+        try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
+      }
 
-      const vendorCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
-        const w = wallets.find((wal) => wal.user_id === p.id);
-        let loc = p.location;
-        if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-        const location = typeof loc === "object" && loc !== null ? loc : null;
-        return { 
-          id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location,
-          email: p.email, phone: p.phone, commission_type: (p as any).commission_type, commission_value: (p as any).commission_value, billing_type: (p as any).billing_type || 'commission', monthly_salary: (p as any).monthly_salary || 0, rating: p.rating || 0
-        };
-      });
-      setVendors(vendorCards);
+      return { 
+        id: p.id.slice(0, 8), 
+        id_full: p.id, 
+        name: p.full_name || "بدون اسم", 
+        status: p.is_locked ? "محظور" : (isOnlineValue ? "متصل" : "غير متصل"), 
+        lastSeen: relativeTime,
+        isShiftLocked: !!p.is_locked, 
+        isOnline: isOnlineValue, 
+        earnings: w?.balance || 0, 
+        debt: (w?.debt || 0) + (w?.system_balance || 0), 
+        totalOrders: 0,
+        email: p.email, 
+        phone: p.phone, 
+        max_active_orders: p.max_active_orders || 3, 
+        billing_type: p.billing_type || 'commission', 
+        commission_value: p.commission_value || 15, 
+        monthly_salary: p.monthly_salary || 0, 
+        rating: p.rating || 0,
+        location: currentLocation // Pass the most accurate location
+      };
+    });
+    setDrivers(driverCards);
+
+    const vendorCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
+      const w = activeWallets.find((wal) => wal.user_id === p.id);
+      let loc = p.location;
+      if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+      const location = typeof loc === "object" && loc !== null ? loc : null;
+      return { 
+        id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location,
+        email: p.email, phone: p.phone, commission_type: (p as any).commission_type, commission_value: (p as any).commission_value, billing_type: (p as any).billing_type || 'commission', monthly_salary: (p as any).monthly_salary || 0, rating: p.rating || 0
+      };
+    });
+    setVendors(vendorCards);
+
+    if (walletsData) {
+      setWallets(walletsData);
+      setTotalSystemDebt(walletsData.reduce((acc, w) => acc + (w.system_balance || 0), 0));
     }
-  }, [updateDriverRegistry, onlineDrivers]); // V0.9.79: Re-added onlineDrivers to trigger UI refresh on presence changes
+  }, [updateDriverRegistry, onlineDrivers, wallets]); // V0.9.79: Re-added onlineDrivers to trigger UI refresh on presence changes
 
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
