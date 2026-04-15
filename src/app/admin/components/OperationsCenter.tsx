@@ -163,11 +163,11 @@ export default function OperationsCenter({
               {/* 1. Main Map Area (Integrated) */}
               <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                 <LiveMap
-                  drivers={drivers.filter(d => d.isOnline || d.location).map(d => ({
+                  drivers={drivers.filter(d => d.location?.lat != null && d.location?.lng != null).map(d => ({
                     id: d.id_full,
                     name: d.name,
-                    lat: d.location?.lat || 0,
-                    lng: d.location?.lng || 0,
+                    lat: d.location!.lat,
+                    lng: d.location!.lng,
                     isOnline: d.isOnline,
                     status: allOrders.some(o => o.driver_id === d.id_full && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
                     details: d.name,

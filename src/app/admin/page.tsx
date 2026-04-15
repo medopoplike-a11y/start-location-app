@@ -277,13 +277,14 @@ function AdminContent() {
         const diff = Date.now() - lastUpdateTs;
         const mins = Math.floor(diff / 60000);
 
-        // GHOST PROTECTION (V0.9.70): 
-        // 1. Check registry for fresh real-time data first
+        // V0.9.72: Registry-First Strategy - Single Source of Truth for position
         const registryEntry = onlineDrivers.find(od => od.id === p.id);
-        const isActuallyOnline = (!!p.is_online && mins < 60) || !!registryEntry;
+        
+        // Online if registry says so OR profile says so within last 60 mins
+        const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && mins < 60);
 
         let relativeTime = "غير متوفر";
-        if (registryEntry && registryEntry.lastSeen === "الآن") {
+        if (registryEntry?.lastSeen === "الآن") {
           relativeTime = "الآن";
         } else if (lastSeenStr) {
           if (mins < 1) relativeTime = "الآن";
@@ -294,10 +295,15 @@ function AdminContent() {
 
         const isOnlineValue = isActuallyOnline;
 
-        // V0.9.70: Use registry location if available to prevent "jumping" back to old DB location
+        // V0.9.72: CRITICAL - Prefer the registry location ALWAYS if it exists
+        // This prevents the "jumping" effect and ensures we stay at the last known high-precision point
         let currentLocation = p.location;
-        if (registryEntry) {
-          currentLocation = { lat: registryEntry.lat, lng: registryEntry.lng, ts: registryEntry.lastSeenTimestamp };
+        if (registryEntry && (registryEntry.lat != null && registryEntry.lng != null)) {
+          currentLocation = { 
+            lat: registryEntry.lat, 
+            lng: registryEntry.lng, 
+            ts: registryEntry.lastSeenTimestamp || Date.now() 
+          };
         } else if (typeof currentLocation === 'string') {
           try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
         }
@@ -320,7 +326,7 @@ function AdminContent() {
           commission_value: p.commission_value || 15, 
           monthly_salary: p.monthly_salary || 0, 
           rating: p.rating || 0,
-          location: currentLocation // Ensure location is passed to markers
+          location: currentLocation // Pass the most accurate location
         };
       });
       setDrivers(driverCards);
@@ -337,7 +343,7 @@ function AdminContent() {
       });
       setVendors(vendorCards);
     }
-  }, [updateDriverRegistry]);
+  }, [updateDriverRegistry, onlineDrivers]);
 
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
