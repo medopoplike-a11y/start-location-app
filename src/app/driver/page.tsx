@@ -965,8 +965,8 @@ export default function DriverApp() {
       setShowSettlementModal(false);
       setSettlementAmount("");
       fetchStats(driverId);
-    } catch (err) {
-      toastError("حدث خطأ أثناء إرسال الطلب. حاول مرة أخرى.");
+    } catch (err: any) {
+      toastError(`حدث خطأ أثناء إرسال الطلب: ${err.message || "حاول مرة أخرى"}`);
       console.error("Settlement error:", err);
     } finally {
       setRequestingSettlement(false);

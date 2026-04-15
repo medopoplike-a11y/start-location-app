@@ -37,6 +37,7 @@ const UserManagementView = dynamic(() => import("./components/UserManagementView
 const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), { ssr: false });
 const OrderHistoryView = dynamic(() => import("./components/OrderHistoryView"), { ssr: false });
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
+const WalletsView = dynamic(() => import('./components/WalletsView'), { ssr: false });
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
@@ -90,7 +91,8 @@ function AdminContent() {
       title: "الإدارة والبيانات",
       items: [
         { id: "users", label: "المستخدمين", icon: Users },
-        { id: "settlements", label: "التسويات المالية", icon: Wallet },
+        { id: "wallets", label: "مراقبة المحافظ", icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
+        { id: "settlements", label: "التسويات المالية", icon: FileText },
         { id: "reports", label: "التقارير المالية", icon: BarChart3 },
       ]
     },
@@ -117,6 +119,7 @@ function AdminContent() {
   }, [onlineDrivers]);
 
   const [settlements, setSettlements] = useState<SettlementItem[]>([]);
+  const [wallets, setWallets] = useState<WalletRow[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
   
@@ -275,6 +278,7 @@ function AdminContent() {
     setAllUsers(users);
 
     if (wallets) {
+      setWallets(wallets);
       setTotalSystemDebt(wallets.reduce((acc, w) => acc + (w.system_balance || 0), 0));
       
       const driverCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
@@ -1301,6 +1305,10 @@ function AdminContent() {
 
             {activeView === "reports" && (
               <ReportsView allOrders={allOrders} />
+            )}
+
+            {activeView === "wallets" && (
+              <WalletsView users={allUsers} wallets={wallets} />
             )}
 
             {activeView === "settlements" && (

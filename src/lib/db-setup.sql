@@ -216,12 +216,10 @@ BEGIN
     national_id = EXCLUDED.national_id,
     location = EXCLUDED.location;
 
-  -- إذا كان طيار، ننشئ له محفظة تلقائياً
-  IF user_role = 'driver' THEN
-    INSERT INTO public.wallets (user_id, balance, debt, debt_limit)
-    VALUES (new.id, 0, 0, 1000)
-    ON CONFLICT (user_id) DO NOTHING;
-  END IF;
+  -- إنشاء محفظة تلقائياً لجميع المستخدمين (مناديب ومحلات) لدعم نظام العمولات والتسويات
+  INSERT INTO public.wallets (user_id, balance, debt, debt_limit)
+  VALUES (new.id, 0, 0, 1000)
+  ON CONFLICT (user_id) DO NOTHING;
 
   RETURN new;
 EXCEPTION WHEN OTHERS THEN
@@ -479,6 +477,10 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view their own settlements') THEN
     CREATE POLICY "Users can view their own settlements" ON settlements FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert their own settlements') THEN
+    CREATE POLICY "Users can insert their own settlements" ON settlements FOR INSERT WITH CHECK (auth.uid() = user_id);
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can manage all settlements') THEN

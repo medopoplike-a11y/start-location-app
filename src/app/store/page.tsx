@@ -1027,8 +1027,8 @@ function StoreContent() {
       setShowSettlementModal(false);
       setSettlementAmount("");
       if (vendorId) updateData(vendorId);
-    } catch (err) {
-      error("حدث خطأ أثناء إرسال الطلب. حاول مرة أخرى.");
+    } catch (err: any) {
+      error(`حدث خطأ أثناء إرسال الطلب: ${err.message || "حاول مرة أخرى"}`);
       console.error("Settlement error:", err);
     } finally {
       setRequestingSettlement(false);

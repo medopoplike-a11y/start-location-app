@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ListFilter, History, Search, Zap, Activity, Truck } from "lucide-react";
+import { Zap, Activity, Truck } from "lucide-react";
 import DriverOrdersView from "./DriverOrdersView";
-import DriverHistoryView from "./DriverHistoryView";
 import type { Order, DBDriverOrder } from "../types";
 
 interface DriverOperationsHubProps {
@@ -42,42 +41,24 @@ export default function DriverOperationsHub({
   onDeliverCustomer,
   onPreviewImage
 }: DriverOperationsHubProps) {
-  const [viewMode, setViewMode] = useState<"orders" | "history">("orders");
-
   const activeOrdersCount = orders.filter(o => o.status === "assigned" || o.status === "in_transit").length;
 
   return (
     <div className="space-y-6">
-      {/* View Switcher */}
+      {/* View Switcher - SIMPLIFIED (NO HISTORY) */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex p-1 bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl w-fit shadow-sm">
-          <button
-            onClick={() => setViewMode("orders")}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-              viewMode === "orders"
-                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
+          <div
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black bg-slate-900 text-white shadow-lg shadow-slate-200"
           >
             <Truck className="w-4 h-4" />
             المهام والطلبات
             {activeOrdersCount > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-lg text-[9px] ${viewMode === "orders" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500"}`}>
+              <span className="px-1.5 py-0.5 rounded-lg text-[9px] bg-white/20 text-white">
                 {activeOrdersCount}
               </span>
             )}
-          </button>
-          <button
-            onClick={() => setViewMode("history")}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-              viewMode === "history"
-                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <History className="w-4 h-4" />
-            سجل اليوم
-          </button>
+          </div>
         </div>
 
         <div className="hidden md:flex items-center gap-3">
@@ -92,35 +73,28 @@ export default function DriverOperationsHub({
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={viewMode}
+          key="orders-view"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
-          {viewMode === "orders" ? (
-            <DriverOrdersView
-              todayDeliveryFees={todayDeliveryFees}
-              vendorDebt={vendorDebt}
-              isActive={isActive}
-              driverLocation={driverLocation}
-              driverId={driverId}
-              orders={orders}
-              autoAccept={autoAccept}
-              onToggleAutoAccept={onToggleAutoAccept}
-              onAcceptOrder={onAcceptOrder}
-              onPickupOrder={onPickupOrder}
-              onDeliverOrder={onDeliverOrder}
-              onConfirmPayment={onConfirmPayment}
-              onDeliverCustomer={onDeliverCustomer}
-              onPreviewImage={onPreviewImage}
-            />
-          ) : (
-            <DriverHistoryView 
-              history={todayHistory} 
-              onPreviewImage={onPreviewImage}
-            />
-          )}
+          <DriverOrdersView
+            todayDeliveryFees={todayDeliveryFees}
+            vendorDebt={vendorDebt}
+            isActive={isActive}
+            driverLocation={driverLocation}
+            driverId={driverId}
+            orders={orders}
+            autoAccept={autoAccept}
+            onToggleAutoAccept={onToggleAutoAccept}
+            onAcceptOrder={handleAcceptOrder}
+            onPickupOrder={handlePickupOrder}
+            onDeliverOrder={handleDeliverOrder}
+            onConfirmPayment={handleConfirmPayment}
+            onDeliverCustomer={handleDeliverCustomer}
+            onPreviewImage={onPreviewImage}
+          />
         </motion.div>
       </AnimatePresence>
     </div>
