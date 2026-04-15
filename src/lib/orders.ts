@@ -323,18 +323,11 @@ export const assignOrderToNearestDriver = async (
     return { success: false, error: 'جميع الطيارين مشغولون (وصلوا للحد الأقصى للطلبات)' };
   }
 
-  // 4. Advanced sorting:
-  // - First priority: Driver with FEWEST active customers (Load balancing)
-  // - Second priority: Nearest distance to vendor (Efficiency)
+  // 4. Advanced sorting (V0.9.64):
+  // - First priority: Nearest distance to vendor (Efficiency)
+  // - Second priority: Driver with FEWEST active customers (Load balancing)
   const sorted = available.sort((a, b) => {
-    // 1. Customer count check (Primary - Load Balancing)
-    const aCustomers = activeCustomerCounts[a.id] || 0;
-    const bCustomers = activeCustomerCounts[b.id] || 0;
-    if (aCustomers !== bCustomers) {
-      return aCustomers - bCustomers;
-    }
-
-    // 2. Distance check (Secondary - Efficiency)
+    // 1. Distance check (Primary - Efficiency)
     if (vendorLocation && a.location && b.location) {
       try {
         const aLoc = typeof a.location === 'string' ? JSON.parse(a.location) : a.location;
@@ -343,12 +336,19 @@ export const assignOrderToNearestDriver = async (
         if (aLoc?.lat && aLoc?.lng && bLoc?.lat && bLoc?.lng) {
           const distA = haversineKm(vendorLocation, aLoc);
           const distB = haversineKm(vendorLocation, bLoc);
-          return distA - distB;
+          
+          // If distance difference is significant (> 10m), use distance
+          if (Math.abs(distA - distB) > 0.01) {
+            return distA - distB;
+          }
         }
       } catch (e) {}
     }
 
-    return 0;
+    // 2. Customer count check (Secondary - Load Balancing)
+    const aCustomers = activeCustomerCounts[a.id] || 0;
+    const bCustomers = activeCustomerCounts[b.id] || 0;
+    return aCustomers - bCustomers;
   });
 
   const best = sorted[0];
