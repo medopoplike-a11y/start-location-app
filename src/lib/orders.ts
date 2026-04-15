@@ -166,16 +166,42 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
  * الاشتراكات الحية (Real-time Subscriptions)
  */
 
-export const subscribeToOrders = (callback: () => void, vendorId?: string) => {
-  const channel = supabase.channel(`orders${vendorId ? `:${vendorId}` : ''}`);
+export const subscribeToOrders = (callback: () => void, filterId?: string, role: 'driver' | 'vendor' | 'admin' = 'admin') => {
+  const channelId = `orders:${role}${filterId ? `:${filterId}` : ''}`;
+  const channel = supabase.channel(channelId);
   
-  if (vendorId) {
+  if (role === 'vendor' && filterId) {
     return channel
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'orders',
-        filter: `vendor_id=eq.${vendorId}`
+        filter: `vendor_id=eq.${filterId}`
+      }, callback)
+      .subscribe();
+  }
+
+  if (role === 'driver' && filterId) {
+    // V0.9.68: Drivers only listen to their own assigned orders OR new pending orders
+    // We use two handlers in one channel for efficiency
+    return channel
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `driver_id=eq.${filterId}`
+      }, callback)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `status=eq.pending`
+      }, callback)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `status=eq.pending`
       }, callback)
       .subscribe();
   }

@@ -18,16 +18,17 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerUpdate = useCallback((payload?: any) => {
-    // Faster debounce for real-time feel (50ms instead of 100ms)
+    // V0.9.68: Optimized debounce (300ms instead of 50ms) to prevent UI thrashing 
+    // during many simultaneous updates
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
     syncTimeoutRef.current = setTimeout(() => {
       setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      setTimeout(() => setIsSyncing(false), 300); // Shorter feedback
+      setTimeout(() => setIsSyncing(false), 500); 
       syncTimeoutRef.current = null;
-    }, 50); 
+    }, 300); 
   }, []);
 
   useEffect(() => {
@@ -122,9 +123,10 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       }
 
       // 1. Postgres Changes Subscriptions with intelligent filtering
-      const orderFilterId = (isAdmin || userRole === 'driver') ? undefined : userId;
+      const filterId = isAdmin ? undefined : userId;
+      const role: 'driver' | 'vendor' | 'admin' = isAdmin ? 'admin' : (userRole as any || 'admin');
       
-      ordersSub = subscribeToOrders(triggerUpdate, orderFilterId);
+      ordersSub = subscribeToOrders(triggerUpdate, filterId, role);
       profilesSub = subscribeToProfiles(triggerUpdate, isAdmin ? undefined : userId);
       
       if (isAdmin) {

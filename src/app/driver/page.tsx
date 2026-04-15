@@ -295,7 +295,7 @@ export default function DriverApp() {
 
       // Ensure Online status is synced with DB if isActive is true
       if (isActive) {
-        await supabase.from('profiles').update({ is_online: true }).eq('id', currentDriverId);
+        supabase.from('profiles').update({ is_online: true }).eq('id', currentDriverId).catch(() => {});
       }
 
       setLoading(false);
@@ -303,7 +303,7 @@ export default function DriverApp() {
 
     setup();
     return () => clearTimeout(hardFallback);
-  }, [user, authProfile, authLoading, isActive]);
+  }, [user, authProfile, authLoading]); // V0.9.68: Removed isActive to prevent full reload on toggle
 
   useEffect(() => {
     // Web-only Location Tracker: If on native, we use the specialized tracking sequence instead
@@ -590,25 +590,37 @@ export default function DriverApp() {
   }
 
   const isRefreshingRef = useRef(false);
-  const manualSync = async () => {
+  const manualSync = async (payload?: any) => {
     if (!driverId || isRefreshingRef.current) return;
     isRefreshingRef.current = true;
+    
+    // V0.9.68: Granular sync to prevent fetching everything on every tiny update
+    const table = payload?.table;
+    const isOrderUpdate = table === 'orders' || !table;
+    const isProfileUpdate = table === 'profiles' || !table;
+    const isWalletUpdate = table === 'wallets' || !table;
+    
     try {
-      await Promise.allSettled([
-        withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000),
-        withTimeout('sync.fetchStats', fetchStats(driverId), 15000),
-        withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000),
-        withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000),
-      ]);
+      const tasks: Promise<any>[] = [];
+      if (isOrderUpdate) {
+        tasks.push(withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000));
+        tasks.push(withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000));
+      }
+      if (isProfileUpdate || isWalletUpdate) {
+        tasks.push(withTimeout('sync.fetchStats', fetchStats(driverId), 15000));
+        tasks.push(withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000));
+      }
+      
+      await Promise.allSettled(tasks);
     } finally {
       isRefreshingRef.current = false;
     }
   };
 
   // Sync with useSync hook
-  useSync(driverId || undefined, () => {
+  useSync(driverId || undefined, (payload) => {
     if (driverId && !isRefreshingRef.current) {
-      manualSync();
+      manualSync(payload);
     }
   });
 
@@ -698,20 +710,19 @@ export default function DriverApp() {
             return;
           }
 
-          const newOrders = await getAvailableOrders();
-          if (newOrders.length > 0) {
-            const firstOrder = newOrders[0];
+          // V0.9.68: Use cached orders from real-time instead of polling DB every 5s
+          const availableOrders = ordersRef.current.filter(o => o.status === 'pending' && !o.driverId);
+          
+          if (availableOrders.length > 0) {
+            const firstOrder = availableOrders[0];
             
             // Check if the order we are about to accept would put us over the limit
-            const orderCustomers = Array.isArray(firstOrder.customer_details?.customers) ? firstOrder.customer_details.customers.length : 1;
+            const orderCustomers = Array.isArray(firstOrder.customers) ? firstOrder.customers.length : 1;
             if (currentCustomersCount + orderCustomers > 3) {
               console.log("Auto-accept: Accepting this order would exceed the 3-customer limit");
               return;
             }
 
-            // Check if already assigned or status changed
-            if (firstOrder.driver_id || firstOrder.status !== 'pending') return;
-            
             const { error } = await supabase
               .from('orders')
               .update({ 
@@ -724,7 +735,8 @@ export default function DriverApp() {
 
             if (!error) {
               toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
-              void fetchOrders(driverId);
+              // No need to manually fetchOrders here as the Realtime subscription 
+              // will trigger a refresh via useSync
             }
           }
         } catch (err) {
