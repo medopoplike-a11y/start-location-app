@@ -33,7 +33,25 @@ export default function DriverHeader({
   ratingCount = 0,
   autoAccept,
   onToggleAutoAccept,
-}: DriverHeaderProps) {
+  activeView = "orders", // V0.9.91: Hide controls in wallet view to prevent overlap
+}: DriverHeaderProps & { activeView?: string }) {
+  // Only show floating controls in orders/map view to prevent overlapping with wallet/settings headers
+  if (activeView === "wallet" || activeView === "settings") {
+    return (
+      <header className="fixed top-4 left-4 right-4 z-[1001] flex items-center justify-between gap-2 pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={onOpenDrawer}
+            className="p-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl hover:bg-white dark:hover:bg-slate-800 rounded-2xl transition-all border border-white/20 dark:border-slate-800 shadow-xl text-slate-900 dark:text-slate-100"
+          >
+            <Menu className="w-5 h-5" />
+          </motion.button>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="fixed top-4 left-4 right-4 z-[1001] flex items-center justify-between gap-2 pointer-events-none">
       {/* Left side: Menu and Profile (Floating Card) */}

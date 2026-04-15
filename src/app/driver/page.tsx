@@ -1026,6 +1026,7 @@ export default function DriverApp() {
             onSync={manualSync}
             autoAccept={autoAccept}
             onToggleAutoAccept={toggleAutoAccept}
+            activeView={activeTab}
           />
 
           <main className="flex-1 relative">

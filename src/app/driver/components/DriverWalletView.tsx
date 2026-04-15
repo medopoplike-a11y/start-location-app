@@ -64,26 +64,28 @@ export default function DriverWalletView({
     <div className="space-y-8 pt-2 pb-12 overflow-x-hidden" dir="rtl">
       {/* Summary Header */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-900/10 relative overflow-hidden">
+        <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-900/10 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
           <div className="flex items-center gap-2 mb-2 relative z-10">
             <TrendingUp className="w-4 h-4 text-emerald-200" />
             <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">إجمالي الأرباح</p>
           </div>
-          <h3 className="text-3xl font-black relative z-10 tabular-nums">
+          <h3 className="text-2xl font-black relative z-10 tabular-nums leading-none">
             {safeTodayFees.toFixed(0)} 
-            <span className="text-xs font-bold opacity-50 mr-1">ج.م</span>
+            <span className="text-[10px] font-bold opacity-50 mr-1">ج.م</span>
           </h3>
           <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">المستحقة لك اليوم</p>
         </div>
 
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-20 h-20 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-all" />
           <div className="flex items-center gap-2 mb-2 relative z-10">
             <CreditCard className="w-4 h-4 text-orange-500" />
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">مديونية المحلات</p>
           </div>
-          <h3 className="text-3xl font-black text-slate-900 relative z-10 tabular-nums">
+          <h3 className="text-2xl font-black text-slate-900 relative z-10 tabular-nums leading-none">
             {displayVendorDebt.toLocaleString()} 
-            <span className="text-xs font-bold text-slate-300 mr-1">ج.م</span>
+            <span className="text-[10px] font-bold text-slate-300 mr-1">ج.م</span>
           </h3>
           <p className="text-[10px] font-bold text-slate-400 mt-2 relative z-10">يجب ردها للمطاعم</p>
         </div>
