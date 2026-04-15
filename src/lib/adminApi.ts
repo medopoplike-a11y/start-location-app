@@ -75,26 +75,15 @@ export const toggleDriverLock = async (driverId: string, isLocked: boolean) => {
 };
 
 export const resetUserDataAdmin = async (targetUserId: string) => {
-  // Note: For reset, we might still need an API route if it involves auth deletion
-  // but for data cleanup, we can do it here if RLS allows.
-  // For now, let's keep it as is or use a RPC if available.
-  const { error } = await supabase.rpc('reset_user_data', { target_user_id: targetUserId });
-  if (error) {
-    // Fallback if RPC not defined
-    const { error: delOrders } = await supabase.from('orders').delete().or(`vendor_id.eq.${targetUserId},driver_id.eq.${targetUserId}`);
-    const { error: delSettlements } = await supabase.from('settlements').delete().eq('user_id', targetUserId);
-    const { error: resetWallet } = await supabase.from('wallets').update({ balance: 0, debt: 0, total_earnings: 0 }).eq('user_id', targetUserId);
-    if (delOrders || delSettlements || resetWallet) throw new Error("Partial reset failed");
-  }
-  return { success: true };
+  const { data, error } = await supabase.rpc('reset_wallets', { p_user_id: targetUserId });
+  if (error) throw error;
+  return { success: true, data };
 };
 
 export const resetAllSystemDataAdmin = async () => {
-  // This definitely needs an API route or a very powerful RPC
-  // For mobile, we might have to rely on the server if it's too complex.
-  // But let's try to do as much as possible via direct calls if we have to.
-  console.warn("resetAllSystemDataAdmin called - should ideally be done via API");
-  return { success: false, error: "Only available on web/server" };
+  const { data, error } = await supabase.rpc('reset_wallets', { p_user_id: null });
+  if (error) throw error;
+  return { success: true, data };
 };
 
 export const fetchAdminAppConfig = async () => {

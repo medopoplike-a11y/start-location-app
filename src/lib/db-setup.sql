@@ -816,6 +816,56 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- دالة لتصفير مديونيات مستخدم معين أو جميع المستخدمين
+CREATE OR REPLACE FUNCTION reset_wallets(p_user_id UUID DEFAULT NULL)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- التحقق من صلاحيات الأدمن
+  IF NOT (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  ) THEN
+    RAISE EXCEPTION 'غير مصرح للآدمن فقط.';
+  END IF;
+
+  IF p_user_id IS NOT NULL THEN
+    -- تصفير مستخدم واحد
+    UPDATE public.wallets 
+    SET 
+      balance = 0, 
+      debt = 0, 
+      system_balance = 0,
+      updated_at = NOW()
+    WHERE user_id = p_user_id;
+  ELSE
+    -- تصفير الجميع
+    UPDATE public.wallets 
+    SET 
+      balance = 0, 
+      debt = 0, 
+      system_balance = 0,
+      updated_at = NOW();
+  END IF;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- دالة لاستلام الطلب من قبل الطيار وتغيير الحالة إلى "في الطريق"
+CREATE OR REPLACE FUNCTION handle_order_pickup(p_order_id UUID, p_driver_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE public.orders
+  SET 
+    status = 'in_transit',
+    status_updated_at = NOW()
+  WHERE id = p_order_id AND driver_id = p_driver_id;
+  
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 12. جدول الرسائل (Order Messages) للدردشة بين الأطراف
 CREATE TABLE IF NOT EXISTS order_messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

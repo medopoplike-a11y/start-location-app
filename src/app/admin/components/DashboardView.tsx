@@ -199,72 +199,7 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
         </div>
       </div>
 
-      {/* Lower Section: Live Map */}
-      <div className="drawer-glass rounded-[40px] shadow-sm overflow-hidden group border-none">
-        <div className="p-8 border-b border-black/5 dark:border-white/5 flex justify-between items-center bg-white/20 dark:bg-white/5">
-          <div className="space-y-1">
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-3">
-              <MapIcon className="w-6 h-6 text-blue-500 group-hover:rotate-12 transition-transform" />
-              خريطة العمليات المباشرة
-            </h3>
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">تتبع لحظي للمناديب والمحلات النشطة</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{onlineDrivers.length} طيار متصل</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="h-[500px] relative">
-          <LiveMap
-            drivers={onlineDrivers.map(d => ({
-              ...d,
-              isOnline: d.is_online,
-              status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
-              details: allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name ? `جاري العمل على طلب من ${allOrders.find(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit'))?.vendor_full_name}` : undefined
-            }))}
-            vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات اليوم: ${v.orders}` }] : [])}
-            orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
-              // Use customer location if available, otherwise fallback to vendor location
-              const lat = o.customer_details?.coords?.lat;
-              const lng = o.customer_details?.coords?.lng;
-              
-              // Fallback to vendor location only if customer coords are missing
-              const v = vendors.find(v => v.id_full === o.vendor_id);
-              const finalLat = lat ?? v?.location?.lat;
-              const finalLng = lng ?? v?.location?.lng;
 
-              if (finalLat == null || finalLng == null) return null;
-
-              return {
-                id: o.id,
-                name: o.vendor_full_name || "محل",
-                lat: finalLat,
-                lng: finalLng,
-                status: o.status === 'pending' ? 'جاري البحث عن طيار' : 
-                        o.status === 'assigned' ? 'تم التعيين - بانتظار التحصيل' : 'في الطريق للعميل',
-                details: `قيمة الطلب: ${o.financials?.order_value} ج.م`
-              };
-            }).filter((o): o is NonNullable<typeof o> => o !== null)}
-            zoom={13}
-            className="h-full w-full"
-          />
-          {/* Map Overlay for extra premium feel */}
-          <div className="absolute bottom-8 left-8 z-[10] flex flex-col gap-3">
-             <div className="drawer-glass p-4 rounded-2xl shadow-2xl flex items-center gap-4 border-none">
-                <div className="w-10 h-10 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-600/10">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">المنطقة الرئيسية</p>
-                  <p className="text-[11px] font-black text-slate-800 dark:text-slate-200 tracking-tight">مدينة الشروق</p>
-                </div>
-             </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
