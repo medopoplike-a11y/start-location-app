@@ -793,39 +793,15 @@ export default function DriverApp() {
     setCache('driver_orders', updatedOrders); // Immediate cache update for native feel
 
     try {
-      // 1. Check if order is still pending to avoid race conditions
-      const { data: currentOrder, error: fetchError } = await supabase
-        .from('orders')
-        .select('status, driver_id')
-        .eq('id', orderId)
-        .single();
-
-      if (fetchError || !currentOrder) {
-        throw new Error("لم يتم العثور على الطلب أو حدث خطأ في الاتصال");
-      }
-
-      if (currentOrder.status !== 'pending' || currentOrder.driver_id) {
-        throw new Error("عذراً، هذا الطلب تم قبوله من قبل طيار آخر.");
-      }
-
-      // 2. Perform the update with a condition (double check)
-      // V0.9.40: Accept only updates status to assigned, financials NOT registered yet
-      const { error: dbError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'assigned', 
-          driver_id: driverId,
-          status_updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .eq('status', 'pending'); // Ensure it's still pending during update
+      // V0.9.77: Using robust updateOrderStatus which handles race conditions in one step
+      const { error: dbError } = await updateOrderStatus(orderId, 'assigned', driverId);
 
       if (dbError) throw dbError;
       
       toastSuccess("تم قبول الطلب بنجاح! توجه للمحل للاستلام.");
       
-      // Update data in background
-      await Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
+      // Update data in background (V0.9.77 - Non-blocking)
+      void Promise.allSettled([fetchOrders(driverId), fetchStats(driverId)]);
     } catch (err: any) {
       // Rollback on error
       setOrders(originalOrders);
@@ -846,7 +822,7 @@ export default function DriverApp() {
     try {
       console.log("DriverPage: Updating order status to in_transit for", orderId);
       
-      // V0.9.40: Financial Registration now happens at Pickup
+      // V0.9.77: Improved performance by not awaiting background stats/sync
       const { data, error: dbError } = await supabase.rpc('handle_order_pickup', {
         p_order_id: orderId,
         p_driver_id: driverId
@@ -855,6 +831,8 @@ export default function DriverApp() {
       if (dbError) throw dbError;
       
       toastSuccess("تم استلام الطلب وتسجيله مالياً! في الطريق...");
+      
+      // Background Updates (Non-blocking)
       void Promise.allSettled([
         fetchOrders(driverId), 
         fetchStats(driverId),
@@ -893,6 +871,8 @@ export default function DriverApp() {
       
       console.log("DriverPage: Delivered successfully", data);
       toastSuccess("تم التوصيل بنجاح! مبروك...");
+      
+      // Background Updates (Non-blocking)
       void Promise.allSettled([
         fetchOrders(driverId), 
         fetchStats(driverId),
@@ -921,24 +901,26 @@ export default function DriverApp() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: newCustomers } : o));
 
     try {
-      // Get current customer_details from DB to be safe
-      const { data: dbOrder } = await supabase.from('orders').select('customer_details').eq('id', orderId).single();
-      if (dbOrder) {
-        const updatedDetails = {
-          ...dbOrder.customer_details,
+      // V0.9.77: Optimized - update directly without intermediate select if possible
+      // or at least handle backgrounding better
+      const { error } = await supabase.from('orders').update({ 
+        customer_details: {
+          ...order.customer_details,
           customers: newCustomers
-        };
-        const { error } = await supabase.from('orders').update({ customer_details: updatedDetails }).eq('id', orderId);
-        if (error) throw error;
-        toastSuccess(`تم تسليم العميل ${newCustomers[customerIndex].name} بنجاح`);
-      }
+        } 
+      }).eq('id', orderId);
+
+      if (error) throw error;
+      toastSuccess(`تم تسليم العميل ${newCustomers[customerIndex].name} بنجاح`);
     } catch (err) {
       console.error('Deliver customer failed:', err);
+      toastError("فشل تحديث حالة العميل");
     }
   };
 
   const handleConfirmPayment = async (orderId: string) => {
     try {
+      // V0.9.77: Non-blocking background sync
       const { data, error } = await supabase.rpc('confirm_driver_payment', {
         p_order_id: orderId,
         p_driver_id: driverId
@@ -948,10 +930,12 @@ export default function DriverApp() {
       
       toastSuccess("تم تأكيد تسليم المبلغ للمحل بنجاح");
       
-      // Update local state
+      // Update local state immediately
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driverConfirmedAt: new Date().toISOString() } : o));
-      fetchActiveDebtOrders(driverId!);
-      fetchStats(driverId!);
+      
+      // Background refreshes
+      void fetchActiveDebtOrders(driverId!);
+      void fetchStats(driverId!);
     } catch (err: any) {
       console.error("Error confirming payment:", err);
       toastError(err.message || "فشل تأكيد تسليم المبلغ");
