@@ -140,26 +140,38 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
   };
   if (driverId) updates.driver_id = driverId;
 
-  // If accepting, ensure it's still pending
+  // V0.9.76: More robust update with row-level condition check
   let query = supabase.from('orders').update(updates).eq('id', orderId);
   
+  // If we're assigning, the order MUST still be pending
   if (status === 'assigned') {
-    query = query.eq('status', 'pending');
+    query = query.in('status', ['pending']);
   }
 
-  const result = await query.select().single();
+  // Use select() to check if the update actually happened
+  const { data, error, count } = await query.select();
   
-  // Instant Sync via Broadcast - Optimization: Use existing system-wide channel
-  if (!result.error) {
-    const channel = supabase.channel('system_sync');
-    channel.send({
-      type: 'broadcast',
-      event: 'sync-update',
-      payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
-    });
+  if (error) {
+    console.error("updateOrderStatus: Database error:", error);
+    return { data: null, error };
   }
 
-  return result;
+  if (!data || data.length === 0) {
+    const msg = status === 'assigned' 
+      ? 'فشل التعيين: الطلب لم يعد متاحاً (ربما تم تعيينه بالفعل أو استلامه)' 
+      : 'لم يتم العثور على الطلب أو لا يمكن تحديثه';
+    return { data: null, error: { message: msg, code: 'NOT_FOUND' } };
+  }
+
+  // Broadcast sync event for real-time consistency
+  const channel = supabase.channel('system_sync');
+  channel.send({
+    type: 'broadcast',
+    event: 'sync-update',
+    payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
+  });
+
+  return { data: data[0], error: null };
 };
 
 /**

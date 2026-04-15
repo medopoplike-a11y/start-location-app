@@ -912,11 +912,13 @@ function AdminContent() {
 
     try {
       const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || "فشل تعيين الطلب");
+      }
       addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
-    } catch (err) {
+    } catch (err: any) {
       setLiveOrders(originalLiveOrders);
-      alert("فشل تعيين الطلب");
+      alert(err.message || "فشل تعيين الطلب");
     }
   }, [liveOrders, addActivity]);
 
