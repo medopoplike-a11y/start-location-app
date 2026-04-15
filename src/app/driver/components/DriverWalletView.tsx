@@ -232,7 +232,6 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
               </>
             )}
           </motion.div>
-        )}
       </AnimatePresence>
     </div>
   );
