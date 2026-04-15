@@ -238,32 +238,32 @@ export default function OrderDetailsModal({
               </div>
 
               {/* Vendor Actions - Simplified & Non-Confusing (v0.9.46) */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {order.vendorCoords ? (
-                  <>
+                  <div className="flex gap-2">
                     <button
                       onClick={() => {
                         if (onNavigate) onNavigate();
                         onClose();
                       }}
-                      className="inline-flex items-center gap-2 bg-sky-500 text-white px-4 py-3.5 rounded-2xl text-[11px] font-black shadow-lg shadow-sky-100 active:scale-95 transition-all justify-center"
+                      className="flex-1 inline-flex items-center gap-2 bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 px-4 py-3 rounded-2xl text-[10px] font-black active:scale-95 transition-all justify-center border border-sky-200 dark:border-sky-800"
                     >
-                      <Navigation className="w-4 h-4" />
-                      خريطة التطبيق
+                      <Navigation className="w-3.5 h-3.5" />
+                      توجيه (داخلي)
                     </button>
                     <button
                       onClick={() => {
                         const { lat, lng } = order.vendorCoords!;
                         openExternalMap(lat, lng, order.vendor);
                       }}
-                      className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3.5 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
+                      className="inline-flex items-center gap-2 bg-slate-50 dark:bg-slate-800 text-slate-500 px-4 py-3 rounded-2xl text-[10px] font-black border border-slate-200 dark:border-slate-700 active:scale-95 transition-all justify-center"
+                      title="خرائط الهاتف"
                     >
-                      <Navigation className="w-4 h-4 text-emerald-500 rotate-45" />
-                      خريطة الهاتف
+                      <Navigation className="w-3.5 h-3.5 rotate-45" />
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <div className="col-span-2 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
+                  <div className="col-span-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[10px] font-bold flex items-center justify-center gap-2 border border-slate-200">
                     <MapPin className="w-3.5 h-3.5" />
                     الموقع غير متاح — اتصل بالمحل
                   </div>
@@ -282,21 +282,7 @@ export default function OrderDetailsModal({
               )}
             </div>
 
-            {/* Routing / Map Buttons (Only for active sikka) */}
-            {order.status === 'in_transit' && order.vendorCoords && order.customers && order.customers.length > 0 && (
-              <button
-                onClick={() => {
-                  if (onNavigate) onNavigate();
-                  onClose();
-                }}
-                className="w-full inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-4 rounded-[28px] text-[12px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
-              >
-                <Navigation className="w-5 h-5" />
-                رسم خط سير السكة بالكامل (داخلي)
-              </button>
-            )}
-
-                {/* Sikka Total Summary */}
+            {/* Financial Summary */}
                 {order.customers && order.customers.length > 0 && (
                   <div className="bg-slate-900 dark:bg-black rounded-[32px] p-5 text-white shadow-xl shadow-slate-200 dark:shadow-none flex items-center justify-between">
                     <div className="space-y-1">
@@ -373,29 +359,32 @@ export default function OrderDetailsModal({
                       <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                         <Phone size={18} />
                       </a>
-                      <button
-                        onClick={() => {
-                          if (onNavigate) onNavigate();
-                          onClose();
-                        }}
-                        className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
-                      >
-                        <MapPin size={18} />
-                      </button>
                       
-                      {/* External Map for Customer (v0.9.73 - Improved Fallback) */}
+                      {/* Navigate to Customer (v0.9.80 - Compact) */}
                       {((cust as any).lat || (cust as any).coords?.lat || (order.customers?.length === 1 && order.customerCoords)) && (
-                        <button
-                          onClick={() => {
-                            const lat = (cust as any).lat || (cust as any).coords?.lat || order.customerCoords?.lat;
-                            const lng = (cust as any).lng || (cust as any).coords?.lng || order.customerCoords?.lng;
-                            if (lat && lng) openExternalMap(lat, lng, cust.name);
-                          }}
-                          className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm active:scale-90 transition-all"
-                          title="خريطة الهاتف"
-                        >
-                          <Navigation className="w-5 h-5 rotate-45" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              if (onNavigate) onNavigate();
+                              onClose();
+                            }}
+                            className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl flex items-center justify-center text-indigo-500 shadow-sm active:scale-90 transition-all"
+                            title="توجيه داخلي"
+                          >
+                            <Navigation className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              const lat = (cust as any).lat || (cust as any).coords?.lat || order.customerCoords?.lat;
+                              const lng = (cust as any).lng || (cust as any).coords?.lng || order.customerCoords?.lng;
+                              if (lat && lng) openExternalMap(lat, lng, cust.name);
+                            }}
+                            className="w-10 h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center text-slate-400 shadow-sm active:scale-90 transition-all"
+                            title="خرائط الهاتف"
+                          >
+                            <Navigation className="w-4 h-4 rotate-45" />
+                          </button>
+                        </>
                       )}
                     </div>
                         </div>
@@ -457,31 +446,7 @@ export default function OrderDetailsModal({
                 </div>
                 {/* Customer Location Navigation */}
                 <div className="flex gap-2">
-                  {order.customerCoords ? (
-                    <>
-                      <button
-                        onClick={() => {
-                          if (onNavigate) onNavigate();
-                          onClose();
-                        }}
-                        className="flex-1 inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-2xl text-[10px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
-                      >
-                        <Navigation className="w-4 h-4" />
-                        توجيه للعميل (داخلي)
-                      </button>
-                      <button
-                        onClick={() => {
-                          const { lat, lng } = order.customerCoords!;
-                          openExternalMap(lat, lng, order.customer);
-                        }}
-                        className="inline-flex items-center gap-2 bg-white text-slate-700 px-4 py-3 rounded-2xl text-[10px] font-black border border-slate-200 shadow-sm active:scale-95 transition-all justify-center"
-                        title="خريطة الهاتف"
-                      >
-                        <Navigation className="w-4 h-4 text-emerald-500 rotate-45" />
-                        <span className="mr-1">خريطة الهاتف</span>
-                      </button>
-                    </>
-                  ) : (
+                  {!order.customerCoords && (
                     <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[9px] font-bold flex items-center justify-center gap-2 border border-slate-200">
                       الموقع غير محدد
                     </div>

@@ -226,7 +226,7 @@ export default function DriverOrdersView({
             center={mapCenter}
             zoom={16}
             className="h-full w-full"
-            autoCenterOnDrivers={true}
+            autoCenterOnDrivers={false}
             isNavigating={isNavigating}
           />
         ) : (
@@ -312,8 +312,24 @@ export default function DriverOrdersView({
                                 <p className="text-[9px] font-bold text-slate-400 mt-1">{order.status === 'assigned' ? 'بانتظار الاستلام' : 'جاري التوصيل'}</p>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex flex-col items-end gap-2">
                               <p className="text-xs font-black text-emerald-600">{order.fee}</p>
+                              {order.status !== 'delivered' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsNavigating(!isNavigating);
+                                  }}
+                                  className={`p-2 rounded-xl border transition-all ${
+                                    isNavigating 
+                                    ? "bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-100" 
+                                    : "bg-white dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700"
+                                  }`}
+                                  title="تفعيل/إلغاء التوجيه على الخريطة"
+                                >
+                                  <Navigation className={`w-3.5 h-3.5 ${isNavigating ? "animate-pulse" : ""}`} />
+                                </button>
+                              )}
                             </div>
                           </div>
 

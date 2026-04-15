@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Navigation, Clock, Zap, Map as MapIcon, Layers } from 'lucide-react';
+import { Clock, Zap, Map as MapIcon, Layers } from 'lucide-react';
 
 import { driverIcon, driverBusyIcon, vendorIcon, orderIcon, defaultIcon } from '@/lib/map-icons';
 
@@ -254,21 +254,6 @@ export default function LiveMap({
           );
         })}
       </MapContainer>
-
-      {/* Simplified Control Panel (v0.9.52) - REMOVED AS PER USER REQUEST */}
-      {/* <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
-        <button 
-          onClick={() => setIsFollowing(!isFollowing)}
-          className={`p-4 rounded-[24px] shadow-2xl transition-all border flex items-center justify-center ${
-            isFollowing 
-            ? 'bg-blue-600 text-white border-blue-400 scale-110 shadow-blue-500/20' 
-            : 'bg-white/90 backdrop-blur-md text-slate-600 border-white/20'
-          }`}
-          title={isFollowing ? "إيقاف التتبع" : "إعادة التمركز"}
-        >
-          <Navigation className={`w-6 h-6 ${isFollowing ? 'fill-current' : ''}`} />
-        </button>
-      </div> */}
     </div>
   );
 }
