@@ -81,7 +81,7 @@ export default function OperationsCenter({
 
   const pendingOrders = allOrders.filter(o => o.status === "pending" || o.status === "assigned" || o.status === "in_transit");
   
-  // V0.9.79: Get ALL potential drivers for manual assignment, not just online ones
+  // V0.9.86: Get ALL potential drivers for manual assignment, not just online ones
   // but prioritize online drivers in the list.
   const allPotentialDrivers = drivers.map(d => {
     const isInRegistry = onlineDrivers.find(od => od.id === d.id_full);
@@ -258,7 +258,7 @@ export default function OperationsCenter({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                  {/* Active Orders Section (V0.9.79 Redesign) */}
+                  {/* Active Orders Section (V0.9.86 Redesign) */}
                   <div>
                     <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">قائمة الطلبات النشطة والتحكم</h4>
                     {pendingOrders.length === 0 ? (
@@ -308,7 +308,7 @@ export default function OperationsCenter({
                                 )}
                               </button>
 
-                              {/* Action Buttons for Selected Order (V0.9.79) */}
+                              {/* Action Buttons for Selected Order (V0.9.86) */}
                               <AnimatePresence>
                                 {isSelected && (
                                   <motion.div 
@@ -339,7 +339,7 @@ export default function OperationsCenter({
                     )}
                   </div>
 
-                  {/* Drivers Selection Section (V0.9.79 - Professional List) */}
+                  {/* Drivers Selection Section (V0.9.86 - Professional List) */}
                   <AnimatePresence>
                     {selectedOrderId && (
                       <motion.div

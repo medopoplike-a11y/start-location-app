@@ -133,7 +133,7 @@ export default function DriverApp() {
       try {
         console.log("Native Tracking: Initializing sequence...");
         
-        // 0. Set Online Status in DB immediately (V0.9.54)
+        // 0. Set Online Status in DB immediately (V0.9.86)
         if (driverId) {
           await supabase.from('profiles').update({ 
             is_online: true,

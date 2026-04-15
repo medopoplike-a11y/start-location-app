@@ -64,7 +64,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
         appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App became active, triggering ULTIMATE RESUME SYNC (V0.9.74)...");
+            console.log("useSync: App became active, triggering ULTIMATE RESUME SYNC (V0.9.86)...");
             
             // 1. Force Refresh Session (V0.9.74)
             // getSession() might return stale data after long backgrounding
