@@ -550,10 +550,11 @@ function AdminContent() {
       console.log("[Polling] Refreshing driver locations (fallback)...");
       await fetchProfiles();
 
-      // 2. Cleanup stale drivers (Inactive for more than 15 mins and offline)
+      // 2. Cleanup stale drivers from the Real-time Registry (Inactive for more than 1 hour and offline)
+      // V0.9.71: Increased threshold to 1 hour to prevent flickering/disappearing
       setOnlineDrivers(prev => {
         const now = Date.now();
-        const threshold = 15 * 60 * 1000;
+        const threshold = 60 * 60 * 1000;
         return prev.filter(d => d.is_online || (now - (d.lastSeenTimestamp || 0) < threshold));
       });
     };

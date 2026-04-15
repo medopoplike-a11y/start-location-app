@@ -175,15 +175,18 @@ export default function OperationsCenter({
                   }))}
                   vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
                   orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
-                    const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
+                    // V0.9.71: Improved tracking logic - The order marker should strictly follow 
+                    // the driver's LIVE coordinates from the drivers list, not the onlineDrivers registry
+                    const assignedDriver = o.driver_id ? drivers.find(d => d.id_full === o.driver_id) : null;
                     const v = vendors.find(v => v.id_full === o.vendor_id);
                     const vendorLat = v?.location?.lat;
                     const vendorLng = v?.location?.lng;
                     const customerLat = o.customer_details?.coords?.lat;
                     const customerLng = o.customer_details?.coords?.lng;
 
-                    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
-                    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
+                    // Use driver's live location if assigned/in_transit, otherwise fallback to vendor/customer
+                    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.location?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
+                    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.location?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
 
                     if (finalLat == null || finalLng == null) return null;
 
