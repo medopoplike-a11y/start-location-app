@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, CreditCard, CheckCircle, Clock, Banknote, Store, AlertCircle, MapPin } from "lucide-react";
+import { TrendingUp, CreditCard, CheckCircle, Clock, Banknote, Store, AlertCircle, MapPin, Phone } from "lucide-react";
 import type { Order } from "../types";
 
 interface WalletProps {
@@ -29,8 +29,6 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
     setConfirmingId(null);
   };
 
-  const filterLabels: Record<FilterPeriod, string> = { today: "اليوم", "15days": "١٥ يوم", month: "الشهر" };
-
   return (
     <div className="space-y-8 pt-4 pb-12">
       {/* فريم فاصل */}
@@ -50,7 +48,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <TrendingUp className="w-4 h-4 text-emerald-200" />
             <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">إجمالي الأرباح</p>
           </div>
-          <h3 className="text-3xl font-black relative z-10 tabular-nums">{totalEarnings.toFixed(0)} <span className="text-xs font-bold opacity-50">ج.م</span></h3>
+          <h3 className="text-3xl font-black relative z-10 tabular-nums">{(totalEarnings || 0).toFixed(0)} <span className="text-xs font-bold opacity-50">ج.م</span></h3>
           <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">المستحقة لك</p>
         </div>
 
@@ -77,7 +75,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <div>
               <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.25em] mb-1">إجمالي مديونية الشركة</p>
               <h3 className="text-4xl font-black text-white tabular-nums tracking-tight">
-                {totalSystemCommission.toFixed(2)} 
+                {(totalSystemCommission || 0).toFixed(2)} 
                 <span className="text-sm font-bold opacity-30 mr-2">ج.م</span>
               </h3>
             </div>
@@ -101,14 +99,14 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <div className="bg-white/5 p-5 rounded-[24px] border border-white/10 hover:bg-white/10 transition-colors">
               <p className="text-[10px] font-black text-white/30 uppercase mb-2 tracking-wider">عمولة النظام</p>
               <p className="text-lg font-black text-white tabular-nums">
-                {totalSystemCommission.toFixed(2)} 
+                {(totalSystemCommission || 0).toFixed(2)} 
                 <span className="text-[11px] opacity-30 mr-1">ج.م</span>
               </p>
             </div>
             <div className="bg-white/5 p-5 rounded-[24px] border border-white/10 hover:bg-white/10 transition-colors">
               <p className="text-[10px] font-black text-white/30 uppercase mb-2 tracking-wider">الطلبات الموصلة</p>
               <p className="text-lg font-black text-white tabular-nums">
-                {deliveredOrders.length}
+                {(deliveredOrders || []).length}
                 <span className="text-[11px] opacity-30 mr-1"> طلب</span>
               </p>
             </div>
@@ -123,8 +121,8 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
           <span className="flex items-center justify-center gap-2.5 font-black text-[13px]">
             <Banknote className="w-5 h-5 text-orange-500" />
             مديونية المحلات (المعلقة)
-            {deliveredOrders.length > 0 && (
-              <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-orange-500/20">{deliveredOrders.length}</span>
+            {(deliveredOrders || []).length > 0 && (
+              <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-orange-500/20">{(deliveredOrders || []).length}</span>
             )}
           </span>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-orange-500 rounded-t-full" />
@@ -133,7 +131,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
 
       <AnimatePresence mode="wait">
         <motion.div key="vendors" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-            {deliveredOrders.length === 0 ? (
+            {(deliveredOrders || []).length === 0 ? (
               <div className="text-center py-16 bg-green-50 rounded-[28px] border border-green-100">
                 <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
                 <p className="text-sm font-black text-green-700">لا توجد مديونيات معلقة</p>
@@ -146,7 +144,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                     يجب عليك تسليم مبلغ المديونية للمحل ثم الضغط على &quot;تأكيد التسليم&quot; حتى يتمكن المحل من تأكيد الاستلام.
                   </p>
                 </div>
-                {deliveredOrders.map((order: any, idx) => {
+                {(deliveredOrders || []).map((order: any, idx) => {
                   const vendorName = order.vendor || order.vendor_name || "محل غير معروف";
                   const vendorPhone = order.vendorPhone || order.vendor_phone || "";
                   const vendorArea = order.vendorArea || order.vendor_area || "";
