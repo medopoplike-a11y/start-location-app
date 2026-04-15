@@ -319,28 +319,14 @@ export const assignOrderToNearestDriver = async (
 
   const available = onlineDrivers.filter((d) => (activeCustomerCounts[d.id] || 0) < (maxOrdersMap[d.id] || 3));
 
-  // 4. Distance Radius Filter (V0.9.65): 
-  // Don't auto-assign if the driver is more than 6km away (Operational limit)
-  const MAX_RADIUS_KM = 6;
-  const withinRadius = available.filter(d => {
-    if (!vendorLocation || !d.location) return true; // Fallback if no location data
-    try {
-      const loc = typeof d.location === 'string' ? JSON.parse(d.location) : d.location;
-      if (loc?.lat && loc?.lng) {
-        return haversineKm(vendorLocation, loc) <= MAX_RADIUS_KM;
-      }
-    } catch (e) {}
-    return true;
-  });
-
-  if (!withinRadius.length) {
-    return { success: false, error: 'لا يوجد طيارين متاحين في نطاق الـ 6 كم حالياً' };
+  if (!available.length) {
+    return { success: false, error: 'جميع الطيارين مشغولون (وصلوا للحد الأقصى للطلبات)' };
   }
 
-  // 5. Advanced sorting (V0.9.64):
+  // 4. Advanced sorting (V0.9.66 - Unlimited Radius):
   // - First priority: Nearest distance to vendor (Efficiency)
   // - Second priority: Driver with FEWEST active customers (Load balancing)
-  const sorted = withinRadius.sort((a, b) => {
+  const sorted = available.sort((a, b) => {
     // 1. Distance check (Primary - Efficiency)
     if (vendorLocation && a.location && b.location) {
       try {
