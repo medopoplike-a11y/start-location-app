@@ -818,11 +818,16 @@ function AdminContent() {
       const { error } = await supabase.from('settlements').update({ status: newStatus }).eq('id', settlementId);
       if (error) throw error;
       addActivity(`تم ${newStatus === "approved" ? "اعتماد" : "رفض"} تسوية`);
+      
+      // V0.9.90: CRITICAL - Trigger a full data refresh to ensure wallets update correctly in UI
+      setTimeout(() => {
+        fetchData(true);
+      }, 1000);
     } catch (err) {
       setSettlements(originalSettlements);
       alert("فشل تحديث حالة التسوية");
     }
-  }, [settlements, addActivity]);
+  }, [settlements, addActivity, fetchData]);
 
   const handleResetUser = useCallback(async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;

@@ -518,14 +518,15 @@ BEGIN
         UPDATE public.wallets 
         SET 
             balance = balance + drv_earnings,
-            -- مديونية المحل (debt) تمت معالجتها بالفعل عند الاستلام (in_transit)
-            system_balance = system_balance + sys_comm + drv_ins
+            system_balance = system_balance + sys_comm + drv_ins,
+            created_at = NOW() -- تحديث التوقيت لضمان المزامنة
         WHERE user_id = new.driver_id;
 
         -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة + نصيب المحل من التأمين)
         UPDATE public.wallets
         SET
-            system_balance = system_balance + vnd_comm + vnd_ins
+            system_balance = system_balance + vnd_comm + vnd_ins,
+            created_at = NOW()
         WHERE user_id = new.vendor_id;
     END IF;
 
@@ -561,27 +562,14 @@ BEGIN
     IF (new.status = 'approved' AND (old.status IS NULL OR old.status != 'approved')) THEN
         -- خصم مبلغ التسوية من مديونية الشركة (system_balance)
         UPDATE public.wallets 
-        SET system_balance = system_balance - new.amount
+        SET 
+            system_balance = system_balance - new.amount,
+            created_at = NOW()
         WHERE user_id = new.user_id;
     END IF;
     RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ج. تغيير حالة الطلب عند تأكيد المحل لاستلام المبلغ
-CREATE OR REPLACE FUNCTION public.handle_payment_confirmation()
-RETURNS trigger AS $$
-BEGIN
-    -- عند تأكيد المحل لاستلام المبلغ، يتم تغيير حالة الطلب إلى "في الطريق"
-    IF (NEW.vendor_collected_at IS NOT NULL AND OLD.vendor_collected_at IS NULL AND NEW.status = 'assigned') THEN
-        UPDATE public.orders SET status = 'in_transit' WHERE id = NEW.id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- إنشاء التريجر إذا لم يكن موجوداً
-DROP TRIGGER IF EXISTS on_vendor_confirm_set_in_transit ON public.orders;
 
 -- ربط الدالة بتريجر على جدول التسويات
 DROP TRIGGER IF EXISTS on_settlement_approval ON public.settlements;
