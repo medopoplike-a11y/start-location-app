@@ -188,18 +188,34 @@ function AdminContent() {
         rating: payload.rating ?? existing?.rating ?? 0
       };
 
-      // V0.9.69: If we get a real-time location log, the driver is CERTAINLY online.
-      // Sync this to the main drivers list to ensure they appear on the map and in lists immediately
-      if (source === 'realtime') {
-        setDrivers(current => current.map(d => 
-          d.id_full === payload.id ? { 
+      // V0.9.70: Unified Sync - Update BOTH registries to prevent "jumping"
+      // This ensures the map markers (from drivers list) and lists stay in sync
+      setDrivers(current => current.map(d => {
+        if (d.id_full === payload.id) {
+          const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
+          
+          // Calculate relative time for the card
+          let relativeTime = d.lastSeen;
+          if (source === 'realtime') {
+            relativeTime = "الآن";
+          } else if (payload.lastSeenTimestamp) {
+            const mins = Math.floor((Date.now() - payload.lastSeenTimestamp) / 60000);
+            if (mins < 1) relativeTime = "الآن";
+            else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
+            else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
+            else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
+          }
+
+          return { 
             ...d, 
-            isOnline: true, 
-            status: d.isShiftLocked ? "محظور" : "متصل",
-            location: { lat, lng, ts: payloadTs } // Critical: Update location for map markers
-          } : d
-        ));
-      }
+            isOnline: isOnlineStatus, 
+            status: d.isShiftLocked ? "محظور" : (isOnlineStatus ? "متصل" : "غير متصل"),
+            location: { lat, lng, ts: payloadTs },
+            lastSeen: relativeTime
+          };
+        }
+        return d;
+      }));
 
       if (existing) {
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
@@ -239,7 +255,7 @@ function AdminContent() {
             lng: normalizedLoc!.lng!,
             lastSeenTimestamp: lastUpdateTs,
             is_online: p.is_online,
-            status: p.is_online ? 'available' : 'busy',
+            status: p.is_online ? 'available' : undefined,
             rating: p.rating || 0
           }, 'db');
         }
@@ -261,14 +277,15 @@ function AdminContent() {
         const diff = Date.now() - lastUpdateTs;
         const mins = Math.floor(diff / 60000);
 
-        // GHOST PROTECTION (V0.9.67): 
-        // 1. Consider online if profile says so AND it was updated in last 60 mins
-        // 2. ALSO check if we have a recent real-time log in the registry
-        const isInRealtimeRegistry = onlineDrivers.some(od => od.id === p.id);
-        const isActuallyOnline = (!!p.is_online && mins < 60) || isInRealtimeRegistry;
+        // GHOST PROTECTION (V0.9.70): 
+        // 1. Check registry for fresh real-time data first
+        const registryEntry = onlineDrivers.find(od => od.id === p.id);
+        const isActuallyOnline = (!!p.is_online && mins < 60) || !!registryEntry;
 
         let relativeTime = "غير متوفر";
-        if (lastSeenStr) {
+        if (registryEntry && registryEntry.lastSeen === "الآن") {
+          relativeTime = "الآن";
+        } else if (lastSeenStr) {
           if (mins < 1) relativeTime = "الآن";
           else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
           else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
@@ -277,9 +294,11 @@ function AdminContent() {
 
         const isOnlineValue = isActuallyOnline;
 
-        // V0.9.67: Safely parse and extract location data
+        // V0.9.70: Use registry location if available to prevent "jumping" back to old DB location
         let currentLocation = p.location;
-        if (typeof currentLocation === 'string') {
+        if (registryEntry) {
+          currentLocation = { lat: registryEntry.lat, lng: registryEntry.lng, ts: registryEntry.lastSeenTimestamp };
+        } else if (typeof currentLocation === 'string') {
           try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
         }
 
