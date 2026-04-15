@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp, Eye, User } from "lucide-react";
 import type { DBDriverOrder } from "../types";
 
 interface DriverHistoryViewProps {
