@@ -109,6 +109,13 @@ function AdminContent() {
   const [vendors, setVendors] = useState<VendorCard[]>([]);
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
+  const onlineDriversRef = useRef<OnlineDriver[]>([]);
+  
+  // Sync ref with state for stable callbacks (V0.9.75)
+  useEffect(() => {
+    onlineDriversRef.current = onlineDrivers;
+  }, [onlineDrivers]);
+
   const [settlements, setSettlements] = useState<SettlementItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
@@ -278,7 +285,7 @@ function AdminContent() {
         const mins = Math.floor(diff / 60000);
 
         // V0.9.72: Registry-First Strategy - Single Source of Truth for position
-        const registryEntry = onlineDrivers.find(od => od.id === p.id);
+        const registryEntry = onlineDriversRef.current.find(od => od.id === p.id);
         
         // Online if registry says so OR profile says so within last 60 mins
         const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && mins < 60);
@@ -343,7 +350,7 @@ function AdminContent() {
       });
       setVendors(vendorCards);
     }
-  }, [updateDriverRegistry, onlineDrivers]);
+  }, [updateDriverRegistry]);
 
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
@@ -717,7 +724,7 @@ function AdminContent() {
     return () => {
       clearTimeout(hardFallback);
     };
-  }, [mounted, authLoading, fetchData, user, getErrorMessage]);
+  }, [mounted, authLoading, user]); // fetchData removed from deps to prevent infinite loop (V0.9.75)
 
   useEffect(() => {
     if (allOrders.length > 0) {
