@@ -594,7 +594,19 @@ export default function DriverApp() {
     if (!driverId || isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     
-    // V0.9.68: Granular sync to prevent fetching everything on every tiny update
+    // V0.9.74: Background Session Refresh
+    // Long backgrounding often invalidates the Supabase session token
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        console.log("manualSync: No active session found, refreshing...");
+        await supabase.auth.refreshSession();
+      }
+    } catch (e) {
+      console.warn("manualSync: Session check failed", e);
+    }
+
+    // Granular sync to prevent fetching everything on every tiny update
     const table = payload?.table;
     const isOrderUpdate = table === 'orders' || !table;
     const isProfileUpdate = table === 'profiles' || !table;
@@ -635,7 +647,7 @@ export default function DriverApp() {
       const newStatus = !isActive;
       setActionLoading(true);
       
-      // 1. Update UI and Local State immediately for responsiveness
+      // 1. Update UI and Local State immediately for responsiveness (Optimistic)
       setIsActive(newStatus);
       
       if (typeof window !== "undefined") {
@@ -646,22 +658,27 @@ export default function DriverApp() {
         }
       }
       
-      // 2. Background DB Update (V0.9.52 - FIXED OFFLINE LOGIC)
+      // 2. Background DB Update (V0.9.74 - NON-BLOCKING UI)
       if (driverId) {
-        // If turning OFF, explicitly set is_online: false
-        // If turning ON, explicitly set is_online: true
-        await supabase.from('profiles').update({ 
-          is_online: newStatus,
-          updated_at: new Date().toISOString()
-        }).eq('id', driverId);
+        // We perform the update with a timeout but don't AWAIT it to prevent UI freeze
+        withTimeout('toggleActive.dbUpdate', 
+          supabase.from('profiles').update({ 
+            is_online: newStatus,
+            updated_at: new Date().toISOString()
+          }).eq('id', driverId),
+          10000
+        ).catch(err => {
+          console.warn("Online toggle: DB update failed in background", err);
+          // Heartbeat or next sync will eventually fix the DB state
+        });
       }
       
-      // Small delay to allow tracking logic to initialize/cleanup
-      setTimeout(() => setActionLoading(false), 1500);
+      // Small delay for visual feedback, then unlock
+      setTimeout(() => setActionLoading(false), 1000);
       
     } catch (err) {
       console.error("Online toggle: Fatal error", err);
-      setIsActive(isActive); // Rollback UI
+      setIsActive(!isActive); // Rollback UI on fatal catch
       setActionLoading(false);
       toastError("حدث خطأ أثناء تبديل الحالة");
     }

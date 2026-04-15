@@ -62,14 +62,33 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         const { App } = await import("@capacitor/app");
         const { Network } = await import("@capacitor/network");
 
-        appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
+        appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App became active, triggering light sync...");
-            // ULTIMATE RESUME SYNC (V0.9.59)
-            // Re-establish session and heartbeat to prevent freeze
-            supabase.auth.getSession().then(() => {
-              triggerUpdate();
-            });
+            console.log("useSync: App became active, triggering ULTIMATE RESUME SYNC (V0.9.74)...");
+            
+            // 1. Force Refresh Session (V0.9.74)
+            // getSession() might return stale data after long backgrounding
+            try {
+              const { data, error } = await supabase.auth.refreshSession();
+              if (error) {
+                console.warn("useSync: Session refresh failed, falling back to getSession", error);
+                await supabase.auth.getSession();
+              }
+              
+              // 2. Self-Healing Realtime: Check and Reconnect if necessary
+              if (!supabase.realtime.isConnected()) {
+                console.log("useSync: Realtime disconnected, reconnecting...");
+                supabase.realtime.connect();
+              }
+
+              // 3. Force Re-subscribe to all channels to clear zombie connections
+              await subscribe();
+              
+              // 4. Trigger UI Update
+              triggerUpdate({ source: 'foreground_resume' });
+            } catch (e) {
+              console.error("useSync: Foreground resume fatal error", e);
+            }
           }
         });
 
