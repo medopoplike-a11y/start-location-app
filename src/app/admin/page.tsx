@@ -350,7 +350,7 @@ function AdminContent() {
       });
       setVendors(vendorCards);
     }
-  }, [updateDriverRegistry]);
+  }, [updateDriverRegistry, onlineDrivers]); // V0.9.79: Re-added onlineDrivers to trigger UI refresh on presence changes
 
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
@@ -572,7 +572,7 @@ function AdminContent() {
       });
     };
 
-    const interval = setInterval(backgroundRefresh, 30000); // Every 30 seconds (faster for admin)
+    const interval = setInterval(backgroundRefresh, 10000); // V0.9.79: Faster refresh (10s) for better dashboard response
     return () => clearInterval(interval);
   }, [mounted, activeView, fetchProfiles]);
 

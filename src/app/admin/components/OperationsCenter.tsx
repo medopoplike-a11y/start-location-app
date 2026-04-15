@@ -81,15 +81,18 @@ export default function OperationsCenter({
 
   const pendingOrders = allOrders.filter(o => o.status === "pending" || o.status === "assigned" || o.status === "in_transit");
   
-  // V0.9.62: Consider a driver available if they are in the online registry (real-time)
-  // or if their profile says they are online. This prevents "No available drivers"
-  // when background sync is slightly delayed.
-  const availableDrivers = drivers.filter(d => {
-    const isInRegistry = onlineDrivers.some(od => od.id === d.id_full);
-    return !d.isShiftLocked && (d.isOnline || isInRegistry);
-  });
-  
-  const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
+  // V0.9.79: Get ALL potential drivers for manual assignment, not just online ones
+  // but prioritize online drivers in the list.
+  const allPotentialDrivers = drivers.map(d => {
+    const isInRegistry = onlineDrivers.find(od => od.id === d.id_full);
+    return {
+      ...d,
+      isActuallyOnline: d.isOnline || !!isInRegistry,
+      liveLocation: isInRegistry ? { lat: isInRegistry.lat, lng: isInRegistry.lng } : d.location
+    };
+  }).sort((a, b) => (b.isActuallyOnline ? 1 : 0) - (a.isActuallyOnline ? 1 : 0));
+
+  const selectedOrder = allOrders.find(o => o.id === selectedOrderId);
   
   const pendingOrdersCount = allOrders.filter(o => o.status === "pending").length;
   const activeDriversCount = onlineDrivers.length;
@@ -100,6 +103,19 @@ export default function OperationsCenter({
     try {
       await onAssign(selectedOrderId, driverId, driverName);
       setSelectedOrderId(null);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleUnassign = async (orderId: string) => {
+    if (!confirm("هل أنت متأكد من إلغاء تعيين هذا الطلب وإعادته لقائمة الانتظار؟")) return;
+    setAssigning(true);
+    try {
+      if (onUpdateStatus) {
+        await onUpdateStatus(orderId, 'pending');
+        setSelectedOrderId(null);
+      }
     } finally {
       setAssigning(false);
     }
@@ -242,90 +258,152 @@ export default function OperationsCenter({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                  {/* Active Orders Section (V0.9.78) */}
+                  {/* Active Orders Section (V0.9.79 Redesign) */}
                   <div>
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">قائمة الطلبات النشطة</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">قائمة الطلبات النشطة والتحكم</h4>
                     {pendingOrders.length === 0 ? (
                       <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
                         <CheckCircle className="w-8 h-8 text-emerald-500/20 mx-auto mb-2" />
-                        <p className="text-[11px] font-bold text-slate-400">لا توجد طلبات معلقة</p>
+                        <p className="text-[11px] font-bold text-slate-400">لا توجد طلبات نشطة</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {pendingOrders.map(order => (
-                          <button
-                            key={order.id_full}
-                            onClick={() => setSelectedOrderId(selectedOrderId === order.id_full ? null : order.id_full)}
-                            className={`w-full text-right p-3 rounded-2xl border transition-all ${
-                              selectedOrderId === order.id_full 
-                              ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20" 
-                              : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800"
-                            }`}
-                          >
-                            <div className="flex justify-between items-start mb-1">
-                              <p className={`text-xs font-black ${selectedOrderId === order.id_full ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor_full_name}</p>
-                              <div className="flex flex-col items-end gap-1">
-                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${selectedOrderId === order.id_full ? "bg-white/20" : "bg-amber-100 text-amber-600"}`}>#{order.id.slice(0, 8)}</span>
-                                <span className={`text-[7px] font-black px-1 py-0.5 rounded-md ${
-                                  order.status === 'pending' ? 'bg-slate-100 text-slate-500' :
-                                  order.status === 'assigned' ? 'bg-sky-100 text-sky-600' :
-                                  'bg-indigo-100 text-indigo-600'
-                                }`}>
-                                  {order.status === 'pending' ? 'بانتظار التعيين' : order.status === 'assigned' ? 'تم التعيين' : 'في الطريق'}
-                                </span>
-                              </div>
+                        {pendingOrders.map(order => {
+                          const isSelected = selectedOrderId === order.id;
+                          const assignedDriver = order.driver_id ? drivers.find(d => d.id_full === order.driver_id) : null;
+                          
+                          return (
+                            <div key={order.id} className="flex flex-col gap-1">
+                              <button
+                                onClick={() => setSelectedOrderId(isSelected ? null : order.id)}
+                                className={`w-full text-right p-4 rounded-[24px] border transition-all ${
+                                  isSelected 
+                                  ? "bg-slate-900 text-white border-slate-800 shadow-xl" 
+                                  : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-blue-200"
+                                }`}
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex flex-col">
+                                    <p className={`text-xs font-black ${isSelected ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor_full_name}</p>
+                                    <p className={`text-[10px] font-bold ${isSelected ? "text-white/60" : "text-slate-400"}`}>{order.customer_details?.name || "عميل"}</p>
+                                  </div>
+                                  <span className={`text-[8px] font-black px-2 py-1 rounded-lg ${
+                                    order.status === 'pending' ? 'bg-amber-100 text-amber-600' :
+                                    order.status === 'assigned' ? 'bg-sky-100 text-sky-600' :
+                                    'bg-indigo-100 text-indigo-600'
+                                  }`}>
+                                    {order.status === 'pending' ? 'بانتظار التعيين' : order.status === 'assigned' ? 'تم التعيين' : 'في الطريق'}
+                                  </span>
+                                </div>
+
+                                {order.driver_id && (
+                                  <div className={`flex items-center gap-2 mt-2 pt-2 border-t ${isSelected ? "border-white/10" : "border-slate-50 dark:border-slate-700"}`}>
+                                    <div className="w-6 h-6 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-500">
+                                      <User size={12} />
+                                    </div>
+                                    <p className={`text-[10px] font-black ${isSelected ? "text-blue-400" : "text-blue-600"}`}>
+                                      الكابتن: {assignedDriver?.name || "غير معروف"}
+                                    </p>
+                                  </div>
+                                )}
+                              </button>
+
+                              {/* Action Buttons for Selected Order (V0.9.79) */}
+                              <AnimatePresence>
+                                {isSelected && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex gap-2 px-2 pb-2"
+                                  >
+                                    {order.status !== 'pending' && (
+                                      <button 
+                                        onClick={() => handleUnassign(order.id)}
+                                        className="flex-1 py-2 bg-rose-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-rose-500/20"
+                                      >
+                                        إلغاء التعيين
+                                      </button>
+                                    )}
+                                    <button 
+                                      className="flex-1 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-amber-500/20"
+                                    >
+                                      تغيير الطيار
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
-                            <p className={`text-[10px] font-bold ${selectedOrderId === order.id_full ? "text-white/70" : "text-slate-400"}`}>{order.customer_details?.name} — {order.financials?.delivery_fee} ج.م</p>
-                          </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
 
-                  {/* Drivers Selection Section */}
+                  {/* Drivers Selection Section (V0.9.79 - Professional List) */}
                   <AnimatePresence>
                     {selectedOrderId && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
+                        className="pt-4 border-t border-slate-100 dark:border-slate-800"
                       >
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">اختر طياراً للتعيين</h4>
+                        <div className="flex items-center justify-between mb-4 px-2">
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase">اختر طياراً للتعيين</h4>
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{allPotentialDrivers.length} كابتن</span>
+                        </div>
+                        
                         <div className="space-y-2">
-                          {availableDrivers.length === 0 ? (
+                          {allPotentialDrivers.length === 0 ? (
                             <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-2xl flex items-center gap-3">
                               <AlertCircle className="w-4 h-4 text-rose-500" />
-                              <p className="text-[10px] font-bold text-rose-600">لا يوجد طيارين متاحين حالياً</p>
+                              <p className="text-[10px] font-bold text-rose-600">لا يوجد طيارين مسجلين</p>
                             </div>
                           ) : (
-                            availableDrivers.map(driver => (
-                              <button
-                                key={driver.id_full}
-                                disabled={assigning}
-                                onClick={() => handleAssign(driver.id_full, driver.name)}
-                                className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-100 dark:border-slate-600">
-                                    <User className="w-4 h-4 text-slate-400" />
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-xs font-black text-slate-900 dark:text-white">{driver.name}</p>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-[9px] font-bold text-slate-400">الطلبات: {allOrders.filter(o => o.driver_id === driver.id_full && (o.status === 'assigned' || o.status === 'in_transit')).length}</p>
-                                      {onlineDrivers.find(od => od.id === driver.id_full)?.is_online ? (
-                                        <span className="text-[7px] font-black text-emerald-500 uppercase">متصل الآن</span>
-                                      ) : (
-                                        <span className="text-[7px] font-black text-slate-400 uppercase">آخر ظهور: {driver.lastSeen}</span>
-                                      )}
+                            allPotentialDrivers.map(driver => {
+                              const isCurrentlyAssigned = selectedOrder?.driver_id === driver.id_full;
+                              const activeOrdersCount = allOrders.filter(o => o.driver_id === driver.id_full && (o.status === 'assigned' || o.status === 'in_transit')).length;
+
+                              return (
+                                <button
+                                  key={driver.id_full}
+                                  disabled={assigning || isCurrentlyAssigned}
+                                  onClick={() => handleAssign(driver.id_full, driver.name)}
+                                  className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all group ${
+                                    isCurrentlyAssigned 
+                                    ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 cursor-default" 
+                                    : "bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 hover:shadow-md"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                                      driver.isActuallyOnline ? "bg-emerald-50 text-emerald-500 border-emerald-100" : "bg-slate-100 text-slate-400 border-slate-200"
+                                    }`}>
+                                      <User size={18} />
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs font-black text-slate-900 dark:text-white">{driver.name}</p>
+                                        <div className={`w-1.5 h-1.5 rounded-full ${driver.isActuallyOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
+                                      </div>
+                                      <p className="text-[9px] font-bold text-slate-400">
+                                        {activeOrdersCount} طلبات نشطة • {driver.isActuallyOnline ? "متصل" : `آخر ظهور: ${driver.lastSeen}`}
+                                      </p>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <CheckCircle className="w-3 h-3 text-white" />
-                                </div>
-                              </button>
-                            ))
+                                  
+                                  {isCurrentlyAssigned ? (
+                                    <div className="bg-emerald-500 text-white px-2 py-1 rounded-lg text-[8px] font-black">
+                                      معين حالياً
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-slate-100 shadow-sm text-emerald-500">
+                                      <CheckCircle size={16} />
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })
                           )}
                         </div>
                       </motion.div>
