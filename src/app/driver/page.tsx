@@ -1064,7 +1064,6 @@ export default function DriverApp() {
                         todayDeliveryFees={todayDeliveryFees}
                         vendorDebt={vendorDebt}
                         systemBalance={systemBalance}
-                        orders={orders}
                         deliveredOrders={activeDebtOrders}
                         allHistory={todayHistory}
                         settlementHistory={settlementHistory}
@@ -1105,6 +1104,8 @@ export default function DriverApp() {
           onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
           onSelectSettings={() => { setActiveTab("settings"); setShowDrawer(false); }}
           onSignOut={handleSignOut}
+          driverName={driverName}
+          activeView={activeTab}
         />
 
         <ImagePreviewModal

@@ -94,12 +94,12 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
             <div className="bg-green-50 border border-green-100 rounded-[24px] p-4 text-center">
               <TrendingUp className="w-5 h-5 text-green-500 mx-auto mb-1" />
               <p className="text-[9px] font-bold text-green-600 uppercase">صافي أرباحك</p>
-              <p className="text-lg font-black text-green-700">{totalEarnings.toFixed(2)} ج.م</p>
+              <p className="text-lg font-black text-green-700">{(totalEarnings || 0).toFixed(2)} ج.م</p>
             </div>
             <div className="bg-sky-50 border border-sky-100 rounded-[24px] p-4 text-center">
               <Banknote className="w-5 h-5 text-sky-500 mx-auto mb-1" />
               <p className="text-[9px] font-bold text-sky-600 uppercase">إجمالي المبالغ</p>
-              <p className="text-lg font-black text-sky-700">{totalOrderValue.toLocaleString()} ج.م</p>
+              <p className="text-lg font-black text-sky-700">{(totalOrderValue || 0).toLocaleString()} ج.م</p>
             </div>
           </div>
 
@@ -107,20 +107,20 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
           <div className="bg-orange-50 border border-orange-100 rounded-[24px] p-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] font-black text-orange-700">عمولة الشركة المستحقة (يومي)</p>
-              <span className="text-base font-black text-orange-600">{totalCommission.toFixed(2)} ج.م</span>
+              <span className="text-base font-black text-orange-600">{(totalCommission || 0).toFixed(2)} ج.م</span>
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between text-[10px] text-orange-600 font-bold">
-                <span>نسبة على سعر التوصيل ({(commissionRate * 100).toFixed(0)}%)</span>
-                <span>{(totalDeliveryFees * commissionRate).toFixed(2)} ج.م</span>
+                <span>نسبة على سعر التوصيل ({((commissionRate || 0) * 100).toFixed(0)}%)</span>
+                <span>{(totalDeliveryFees * (commissionRate || 0)).toFixed(2)} ج.م</span>
               </div>
               <div className="flex justify-between text-[10px] text-orange-600 font-bold">
                 <span>رسوم ثابتة ({filtered.length} × {commissionPerOrder} ج.م)</span>
-                <span>{(filtered.length * commissionPerOrder).toFixed(2)} ج.م</span>
+                <span>{(filtered.length * (commissionPerOrder || 0)).toFixed(2)} ج.م</span>
               </div>
               <div className="flex justify-between text-[10px] text-orange-800 font-black border-t border-orange-200 pt-1.5 mt-1">
                 <span>إجمالي رسوم التوصيل</span>
-                <span>{totalDeliveryFees.toFixed(2)} ج.م</span>
+                <span>{(totalDeliveryFees || 0).toFixed(2)} ج.م</span>
               </div>
             </div>
           </div>

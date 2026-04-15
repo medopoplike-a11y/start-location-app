@@ -10,24 +10,42 @@ interface WalletProps {
   vendorDebt: number;
   systemBalance: number;
   deliveredOrders: Order[];
+  allHistory?: Order[];
+  settlementHistory?: any[];
   onConfirmPayment: (orderId: string) => Promise<void>;
   onOpenSettlementModal: () => void;
 }
 
-export default function DriverWalletView({ todayDeliveryFees, vendorDebt, systemBalance, deliveredOrders, onConfirmPayment, onOpenSettlementModal }: WalletProps) {
+export default function DriverWalletView({ 
+  todayDeliveryFees, 
+  vendorDebt, 
+  systemBalance, 
+  deliveredOrders = [], 
+  allHistory = [], 
+  settlementHistory = [], 
+  onConfirmPayment, 
+  onOpenSettlementModal 
+}: WalletProps) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  // Total statistics (simplified as daily history is removed)
-  const totalEarnings = todayDeliveryFees; // Or use a total earnings prop if available
-  const totalSystemCommission = systemBalance;
+  // Total statistics
+  const totalEarnings = todayDeliveryFees || 0;
+  const totalSystemCommission = systemBalance || 0;
 
-  const calculatedVendorDebt = (deliveredOrders || []).reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
+  const calculatedVendorDebt = (deliveredOrders || []).reduce((acc, o) => acc + (o?.financials?.order_value || 0), 0);
 
   const handleConfirm = async (orderId: string) => {
-    setConfirmingId(orderId);
-    await onConfirmPayment(orderId);
-    setConfirmingId(null);
+    try {
+      setConfirmingId(orderId);
+      await onConfirmPayment(orderId);
+    } catch (err) {
+      console.error("WalletView: Confirm payment failed", err);
+    } finally {
+      setConfirmingId(null);
+    }
   };
+
+  const safeVendorDebt = vendorDebt > 0 ? vendorDebt : calculatedVendorDebt;
 
   return (
     <div className="space-y-8 pt-4 pb-12">
@@ -48,7 +66,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <TrendingUp className="w-4 h-4 text-emerald-200" />
             <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">إجمالي الأرباح</p>
           </div>
-          <h3 className="text-3xl font-black relative z-10 tabular-nums">{(totalEarnings || 0).toFixed(0)} <span className="text-xs font-bold opacity-50">ج.م</span></h3>
+          <h3 className="text-3xl font-black relative z-10 tabular-nums">{(totalEarnings).toFixed(0)} <span className="text-xs font-bold opacity-50">ج.م</span></h3>
           <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">المستحقة لك</p>
         </div>
 
@@ -58,7 +76,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <CreditCard className="w-4 h-4 text-orange-500" />
             <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">مديونية المحلات</p>
           </div>
-          <h3 className="text-3xl font-black text-gray-900 relative z-10 tabular-nums">{(vendorDebt > 0 ? vendorDebt : calculatedVendorDebt).toLocaleString()} <span className="text-xs font-bold text-gray-300">ج.م</span></h3>
+          <h3 className="text-3xl font-black text-gray-900 relative z-10 tabular-nums">{(safeVendorDebt || 0).toLocaleString()} <span className="text-xs font-bold text-gray-300">ج.م</span></h3>
           <p className="text-[10px] font-bold text-gray-400 mt-2 relative z-10">يجب ردها للمطاعم</p>
         </div>
       </div>
@@ -75,7 +93,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <div>
               <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.25em] mb-1">إجمالي مديونية الشركة</p>
               <h3 className="text-4xl font-black text-white tabular-nums tracking-tight">
-                {(totalSystemCommission || 0).toFixed(2)} 
+                {(totalSystemCommission).toFixed(2)} 
                 <span className="text-sm font-bold opacity-30 mr-2">ج.م</span>
               </h3>
             </div>
@@ -99,7 +117,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             <div className="bg-white/5 p-5 rounded-[24px] border border-white/10 hover:bg-white/10 transition-colors">
               <p className="text-[10px] font-black text-white/30 uppercase mb-2 tracking-wider">عمولة النظام</p>
               <p className="text-lg font-black text-white tabular-nums">
-                {(totalSystemCommission || 0).toFixed(2)} 
+                {(totalSystemCommission).toFixed(2)} 
                 <span className="text-[11px] opacity-30 mr-1">ج.م</span>
               </p>
             </div>
@@ -145,15 +163,18 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                   </p>
                 </div>
                 {(deliveredOrders || []).map((order: any, idx) => {
+                  if (!order) return null;
                   const vendorName = order.vendor || order.vendor_name || "محل غير معروف";
                   const vendorPhone = order.vendorPhone || order.vendor_phone || "";
                   const vendorArea = order.vendorArea || order.vendor_area || "";
-                  const amount = order.orderValue || order.financials?.order_value || 0;
-                  const deliveryFee = order.financials?.delivery_fee || 0;
+                  const amount = Number(order.orderValue || order.financials?.order_value || 0);
+                  const deliveryFee = Number(order.financials?.delivery_fee || 0);
                   const already = !!(order.driverConfirmedAt || order.driver_confirmed_at);
+                  const orderId = order.id || `temp-${idx}`;
+
                   return (
                     <motion.div
-                      key={order.id}
+                      key={orderId}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}
@@ -172,7 +193,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                                 {vendorArea}
                               </p>
                             )}
-                            <p className="text-[9px] font-bold text-slate-400">#{order.id.slice(0, 8)}</p>
+                            <p className="text-[9px] font-bold text-slate-400">#{orderId.toString().slice(0, 8)}</p>
                           </div>
                         </div>
                         <div className="text-left bg-orange-50 px-3 py-2 rounded-2xl border border-orange-100">
@@ -185,7 +206,7 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                       <div className="grid grid-cols-3 gap-2 mb-3 bg-slate-50 rounded-xl p-3">
                         <div className="text-center">
                           <p className="text-[8px] text-slate-400 font-bold">العميل</p>
-                          <p className="text-[10px] font-black text-slate-700 truncate">{order.customer}</p>
+                          <p className="text-[10px] font-black text-slate-700 truncate">{order.customer || "عميل"}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-[8px] text-slate-400 font-bold">التوصيل</p>
@@ -215,12 +236,12 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
                         ) : (
                           <motion.button
                             whileTap={{ scale: 0.97 }}
-                            disabled={confirmingId === order.id}
-                            onClick={() => handleConfirm(order.id)}
+                            disabled={confirmingId === orderId}
+                            onClick={() => handleConfirm(orderId)}
                             className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl font-black text-xs shadow-lg shadow-emerald-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                           >
                             <CheckCircle className="w-4 h-4" />
-                            {confirmingId === order.id ? "جاري..." : "تأكيد تسليم المبلغ"}
+                            {confirmingId === orderId ? "جاري..." : "تأكيد تسليم المبلغ"}
                           </motion.button>
                         )}
                       </div>
@@ -231,6 +252,38 @@ export default function DriverWalletView({ todayDeliveryFees, vendorDebt, system
             )}
           </motion.div>
       </AnimatePresence>
+
+      {/* Settlement History Section (v0.9.88) */}
+      {(settlementHistory || []).length > 0 && (
+        <div className="mt-8 space-y-4 px-1">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+            <h4 className="font-black text-slate-900 text-sm">سجل تسويات المديونية</h4>
+          </div>
+          {(settlementHistory || []).map((s: any, idx) => (
+            <div key={s.id || idx} className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  s.status === 'تم السداد' ? 'bg-green-50 text-green-600' : 
+                  s.status === 'جاري المراجعة' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
+                }`}>
+                  <Banknote size={20} />
+                </div>
+                <div>
+                  <p className="text-[13px] font-black text-slate-900">{s.amount} ج.م</p>
+                  <p className="text-[10px] font-bold text-slate-400">{s.date}</p>
+                </div>
+              </div>
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${
+                s.status === 'تم السداد' ? 'bg-green-100 text-green-700' : 
+                s.status === 'جاري المراجعة' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {s.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
