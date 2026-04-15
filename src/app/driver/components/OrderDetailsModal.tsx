@@ -258,7 +258,7 @@ export default function OrderDetailsModal({
                       }}
                       className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3.5 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
                     >
-                      <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="G" />
+                      <Navigation className="w-4 h-4 text-emerald-500 rotate-45" />
                       خريطة الهاتف
                     </button>
                   </>
@@ -369,32 +369,32 @@ export default function OrderDetailsModal({
                               لا توجد فاتورة
                             </div>
                           )}
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                          <Phone size={18} />
-                        </a>
-                        <button
-                          onClick={() => {
-                            if (onNavigate) onNavigate();
-                            onClose();
-                          }}
-                          className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
-                        >
-                          <MapPin size={18} />
-                        </button>
-                      </div>
+                    <div className="flex gap-2">
+                      <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                        <Phone size={18} />
+                      </a>
+                      <button
+                        onClick={() => {
+                          if (onNavigate) onNavigate();
+                          onClose();
+                        }}
+                        className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-red-500 shadow-sm active:scale-90 transition-all"
+                      >
+                        <MapPin size={18} />
+                      </button>
                       
-                      {/* External Map for Customer (v0.9.46) */}
-                      {cust.lat && cust.lng && (
+                      {/* External Map for Customer (v0.9.73 - Improved Fallback) */}
+                      {((cust as any).lat || (cust as any).coords?.lat || (order.customers?.length === 1 && order.customerCoords)) && (
                         <button
                           onClick={() => {
-                            openExternalMap(cust.lat!, cust.lng!, cust.name);
+                            const lat = (cust as any).lat || (cust as any).coords?.lat || order.customerCoords?.lat;
+                            const lng = (cust as any).lng || (cust as any).coords?.lng || order.customerCoords?.lng;
+                            if (lat && lng) openExternalMap(lat, lng, cust.name);
                           }}
-                          className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
+                          className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm active:scale-90 transition-all"
                           title="خريطة الهاتف"
                         >
-                          <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-5 h-5" alt="G" />
+                          <Navigation className="w-5 h-5 rotate-45" />
                         </button>
                       )}
                     </div>
@@ -477,7 +477,8 @@ export default function OrderDetailsModal({
                         className="inline-flex items-center gap-2 bg-white text-slate-700 px-4 py-3 rounded-2xl text-[10px] font-black border border-slate-200 shadow-sm active:scale-95 transition-all justify-center"
                         title="خريطة الهاتف"
                       >
-                        <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="G" />
+                        <Navigation className="w-4 h-4 text-emerald-500 rotate-45" />
+                        <span className="mr-1">خريطة الهاتف</span>
                       </button>
                     </>
                   ) : (
