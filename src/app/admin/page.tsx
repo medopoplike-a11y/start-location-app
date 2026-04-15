@@ -188,11 +188,16 @@ function AdminContent() {
         rating: payload.rating ?? existing?.rating ?? 0
       };
 
-      // V0.9.58: If we get a real-time location log, the driver is CERTAINLY online.
-      // Sync this to the main drivers list to fix "No available drivers"
+      // V0.9.69: If we get a real-time location log, the driver is CERTAINLY online.
+      // Sync this to the main drivers list to ensure they appear on the map and in lists immediately
       if (source === 'realtime') {
         setDrivers(current => current.map(d => 
-          d.id_full === payload.id ? { ...d, isOnline: true, status: d.isShiftLocked ? "محظور" : "متصل" } : d
+          d.id_full === payload.id ? { 
+            ...d, 
+            isOnline: true, 
+            status: d.isShiftLocked ? "محظور" : "متصل",
+            location: { lat, lng, ts: payloadTs } // Critical: Update location for map markers
+          } : d
         ));
       }
 
