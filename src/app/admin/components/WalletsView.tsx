@@ -9,22 +9,25 @@ interface WalletsViewProps {
   wallets: WalletRow[];
 }
 
-export default function WalletsView({ users, wallets }: WalletsViewProps) {
-  const mergedData = users.map(user => {
-    const wallet = wallets.find(w => w.user_id === user.id);
-    return {
-      ...user,
-      balance: wallet?.balance || 0,
-      debt: wallet?.debt || 0,
-      system_balance: wallet?.system_balance || 0,
-    };
-  }).filter(u => u.role !== 'admin'); // Don't show admin wallets
+export default function WalletsView({ users = [], wallets = [] }: WalletsViewProps) {
+  const mergedData = (users || [])
+    .filter(u => u && u.id) // Ensure valid user object
+    .map(user => {
+      const wallet = (wallets || []).find(w => w && w.user_id === user.id);
+      return {
+        ...user,
+        balance: wallet?.balance || 0,
+        debt: wallet?.debt || 0,
+        system_balance: wallet?.system_balance || 0,
+      };
+    }).filter(u => u && u.role !== 'admin'); // Don't show admin wallets
 
-  const totalDriverDebt = mergedData
-    .filter(u => u.role === 'driver')
-    .reduce((acc, curr) => acc + curr.debt, 0);
+  const totalDriverDebt = (mergedData || [])
+    .filter(u => u && u.role === 'driver')
+    .reduce((acc, curr) => acc + (curr.debt || 0), 0);
 
-  const totalSystemCommission = mergedData.reduce((acc, curr) => acc + curr.system_balance, 0);
+  const totalSystemCommission = (mergedData || [])
+    .reduce((acc, curr) => acc + (curr.system_balance || 0), 0);
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -37,7 +40,7 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">إجمالي عمولات الشركة</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white">{totalSystemCommission.toLocaleString('ar-EG')} <span className="text-xs opacity-50">ج.م</span></h3>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white">{(totalSystemCommission || 0).toLocaleString('ar-EG')} <span className="text-xs opacity-50">ج.م</span></h3>
             </div>
           </div>
         </div>
@@ -49,7 +52,7 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">مديونية الطيارين للمحلات</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white">{totalDriverDebt.toLocaleString('ar-EG')} <span className="text-xs opacity-50">ج.م</span></h3>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white">{(totalDriverDebt || 0).toLocaleString('ar-EG')} <span className="text-xs opacity-50">ج.م</span></h3>
             </div>
           </div>
         </div>
@@ -61,7 +64,7 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">عدد المحافظ النشطة</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white">{mergedData.length}</h3>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white">{(mergedData || []).length}</h3>
             </div>
           </div>
         </div>
@@ -72,7 +75,7 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
           <h3 className="font-black text-slate-900 dark:text-white">تفاصيل كافة المحافظ</h3>
           <div className="flex gap-2">
-            <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-500">الكل: {mergedData.length}</span>
+            <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-500">الكل: {(mergedData || []).length}</span>
           </div>
         </div>
 
@@ -89,7 +92,7 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-              {mergedData.map((user) => (
+              {(mergedData || []).map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group">
                   <td className="py-5 pr-8">
                     <div className="flex items-center gap-3">
@@ -97,8 +100,8 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
                         <User size={20} />
                       </div>
                       <div>
-                        <p className="font-black text-slate-900 dark:text-slate-100 text-sm">{user.full_name}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">{user.phone}</p>
+                        <p className="font-black text-slate-900 dark:text-slate-100 text-sm">{user.full_name || "بدون اسم"}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">{user.phone || "بدون هاتف"}</p>
                       </div>
                     </div>
                   </td>
@@ -111,17 +114,17 @@ export default function WalletsView({ users, wallets }: WalletsViewProps) {
                     </span>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-200 text-xs">
-                    {user.role === 'driver' ? `${user.balance.toLocaleString('ar-EG')} ج.م` : '-'}
+                    {user.role === 'driver' ? `${(user.balance || 0).toLocaleString('ar-EG')} ج.م` : '-'}
                   </td>
                   <td className="py-5 text-center font-black text-amber-600 text-xs">
-                    {user.role === 'driver' ? `${user.debt.toLocaleString('ar-EG')} ج.م` : '-'}
+                    {user.role === 'driver' ? `${(user.debt || 0).toLocaleString('ar-EG')} ج.م` : '-'}
                   </td>
                   <td className="py-5 text-center font-black text-blue-600 text-xs">
-                    {user.system_balance.toLocaleString('ar-EG')} ج.م
+                    {(user.system_balance || 0).toLocaleString('ar-EG')} ج.م
                   </td>
                   <td className="py-5 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      {user.system_balance > 0 ? (
+                      {(user.system_balance || 0) > 0 ? (
                         <span className="flex items-center gap-1 text-[10px] font-black text-rose-500 bg-rose-50 dark:bg-rose-900/20 px-2 py-1 rounded-lg border border-rose-100 dark:border-rose-900/30">
                           <ArrowUpRight size={12} />
                           مطلوب سداد
