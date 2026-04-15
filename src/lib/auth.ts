@@ -236,11 +236,22 @@ export const updateUserAccount = async (updates: { email?: string; password?: st
     if (updates.email) profileUpdates.email = updates.email;
 
     if (Object.keys(profileUpdates).length > 0) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(profileUpdates)
-        .eq('id', user.id);
-      if (profileError) throw profileError;
+      // Use RPC for better reliability and bypassing RLS complexity
+      const { error: profileError } = await supabase.rpc('update_user_details', {
+        new_full_name: updates.full_name,
+        new_phone: updates.phone,
+        new_area: updates.area,
+        new_vehicle_type: updates.vehicle_type
+      });
+      
+      if (profileError) {
+        console.warn('update_user_details RPC failed, falling back to direct update:', profileError);
+        const { error: fallbackError } = await supabase
+          .from('profiles')
+          .update(profileUpdates)
+          .eq('id', user.id);
+        if (fallbackError) throw fallbackError;
+      }
     }
 
     return { error: null };

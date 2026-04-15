@@ -1,3 +1,6 @@
+-- 0. تفعيل الإضافات المطلوبة
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- 1. إنشاء جدول الملفات الشخصية (Profiles) إذا لم يكن موجوداً
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
@@ -858,3 +861,100 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE order_messages;
   END IF;
 END $$;
+
+-- 13. تحسين نظام تحديث بيانات المستخدمين وتزامنها بين Auth و Profiles
+-- أ. دالة لتحديث بيانات الملف الشخصي تلقائياً عند تحديث بيانات المستخدم في Auth
+CREATE OR REPLACE FUNCTION public.handle_update_user() 
+RETURNS trigger AS $$
+BEGIN
+  UPDATE public.profiles
+  SET 
+    email = COALESCE(new.email, email),
+    full_name = COALESCE(new.raw_user_meta_data->>'full_name', full_name),
+    phone = COALESCE(new.raw_user_meta_data->>'phone', phone),
+    area = COALESCE(new.raw_user_meta_data->>'area', area),
+    vehicle_type = COALESCE(new.raw_user_meta_data->>'vehicle_type', vehicle_type),
+    national_id = COALESCE(new.raw_user_meta_data->>'national_id', national_id)
+  WHERE id = new.id;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ربط الدالة بتريجر على جدول auth.users
+DROP TRIGGER IF EXISTS on_auth_user_updated ON auth.users;
+CREATE TRIGGER on_auth_user_updated
+  AFTER UPDATE ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_update_user();
+
+-- ب. دالة (RPC) للأدمن لتحديث بيانات أي مستخدم (الإيميل، الباسورد، البيانات الأساسية)
+CREATE OR REPLACE FUNCTION update_user_admin(
+  target_user_id UUID,
+  new_email TEXT DEFAULT NULL,
+  new_password TEXT DEFAULT NULL,
+  new_full_name TEXT DEFAULT NULL,
+  new_phone TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- 1. التحقق من صلاحيات الأدمن (من خلال JWT أو جدول البروفايلات)
+  IF NOT (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  ) THEN
+    RAISE EXCEPTION 'غير مصرح للآدمن فقط.';
+  END IF;
+
+  -- 2. تحديث جدول auth.users (يتطلب SECURITY DEFINER)
+  UPDATE auth.users
+  SET 
+    email = COALESCE(new_email, email),
+    encrypted_password = CASE WHEN new_password IS NOT NULL THEN crypt(new_password, gen_salt('bf')) ELSE encrypted_password END,
+    raw_user_meta_data = raw_user_meta_data || 
+      jsonb_build_object(
+        'full_name', COALESCE(new_full_name, raw_user_meta_data->>'full_name'),
+        'phone', COALESCE(new_phone, raw_user_meta_data->>'phone')
+      )
+  WHERE id = target_user_id;
+
+  -- 3. تحديث جدول profiles مباشرة لضمان السرعة (رغم وجود التريجر)
+  UPDATE public.profiles
+  SET 
+    email = COALESCE(new_email, email),
+    full_name = COALESCE(new_full_name, full_name),
+    phone = COALESCE(new_phone, phone)
+  WHERE id = target_user_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ج. دالة (RPC) للمستخدمين لتحديث بياناتهم الخاصة لتجاوز مشاكل RLS المحتملة
+CREATE OR REPLACE FUNCTION update_user_details(
+  new_full_name TEXT DEFAULT NULL,
+  new_phone TEXT DEFAULT NULL,
+  new_area TEXT DEFAULT NULL,
+  new_vehicle_type TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE public.profiles
+  SET 
+    full_name = COALESCE(new_full_name, full_name),
+    phone = COALESCE(new_phone, phone),
+    area = COALESCE(new_area, area),
+    vehicle_type = COALESCE(new_vehicle_type, vehicle_type)
+  WHERE id = auth.uid();
+  
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- د. تحديث سياسة RLS للبروفايلات لتكون أكثر مرونة مع الآدمن
+DROP POLICY IF EXISTS "Admins can manage all profiles" ON profiles;
+CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
