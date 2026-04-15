@@ -44,6 +44,7 @@ export default function DriverApp() {
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
   const [vendorDebt, setVendorDebt] = useState<number>(0);
   const [systemBalance, setSystemBalance] = useState<number>(0);
+  const [balance, setBalance] = useState<number>(0); // Overall Earnings
   const [autoAccept, setAutoAccept] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
@@ -133,7 +134,7 @@ export default function DriverApp() {
       try {
         console.log("Native Tracking: Initializing sequence...");
         
-        // 0. Set Online Status in DB immediately (V0.9.86)
+        // 0. Set Online Status in DB immediately (V0.9.87)
         if (driverId) {
           await supabase.from('profiles').update({ 
             is_online: true,
@@ -271,6 +272,7 @@ export default function DriverApp() {
         setVendorDebt(cachedStats.vendorDebt || 0);
         setTodayDeliveryFees(cachedStats.todayDeliveryFees || 0);
         setSystemBalance(cachedStats.systemBalance || 0);
+        setBalance(cachedStats.balance || 0);
       }
 
       if (authLoading) return;
@@ -344,7 +346,7 @@ export default function DriverApp() {
   async function fetchStats(currentDriverId: string) {
     setLastSyncTime(new Date());
     try {
-      const { data: walletData } = await supabase.from('wallets').select('debt, system_balance').eq('user_id', currentDriverId).single();
+      const { data: walletData } = await supabase.from('wallets').select('debt, system_balance, balance').eq('user_id', currentDriverId).maybeSingle();
       const { data: uncollectedOrders } = await supabase
         .from('orders')
         .select('financials')
@@ -354,18 +356,27 @@ export default function DriverApp() {
       
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
-      const { data: todayOrders } = await supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'delivered').gte('created_at', startOfToday.toISOString());
+      
+      // V0.9.87: Query by status_updated_at instead of created_at for accurate daily earnings
+      const { data: todayOrders } = await supabase.from('orders')
+        .select('financials')
+        .eq('driver_id', currentDriverId)
+        .eq('status', 'delivered')
+        .gte('status_updated_at', startOfToday.toISOString());
       
       const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
       if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
       let finalBalance = systemBalance;
+      let finalOverallBalance = balance;
       let finalDebt = vendorDebt;
       let finalFees = todayDeliveryFees;
 
       if (walletData) {
         finalBalance = walletData.system_balance || 0;
+        finalOverallBalance = walletData.balance || 0;
         setSystemBalance(finalBalance);
+        setBalance(finalOverallBalance);
       }
       
       // Fetch average rating
@@ -389,7 +400,8 @@ export default function DriverApp() {
       setCache('driver_stats', { 
         vendorDebt: finalDebt, 
         todayDeliveryFees: finalFees,
-        systemBalance: finalBalance 
+        systemBalance: finalBalance,
+        balance: finalOverallBalance
       });
 
       // Re-add settlementsData processing
@@ -1065,6 +1077,7 @@ export default function DriverApp() {
                         todayDeliveryFees={todayDeliveryFees}
                         vendorDebt={vendorDebt}
                         systemBalance={systemBalance}
+                        overallBalance={balance}
                         deliveredOrders={activeDebtOrders}
                         allHistory={todayHistory}
                         settlementHistory={settlementHistory}

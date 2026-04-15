@@ -514,27 +514,32 @@ BEGIN
 
     -- 1. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
-        -- تحديث محفظة الطيار: زيادة الأرباح، زيادة مديونية الشركة (العمولة + نصيب التأمين)
-        UPDATE public.wallets 
+        -- التأكد من وجود محفظة للطيار قبل التحديث
+        INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+        VALUES (new.driver_id, drv_earnings, 0, sys_comm + drv_ins)
+        ON CONFLICT (user_id) DO UPDATE 
         SET 
-            balance = balance + drv_earnings,
-            system_balance = system_balance + sys_comm + drv_ins,
-            created_at = NOW() -- تحديث التوقيت لضمان المزامنة
-        WHERE user_id = new.driver_id;
+            balance = wallets.balance + EXCLUDED.balance,
+            system_balance = wallets.system_balance + EXCLUDED.system_balance,
+            created_at = NOW();
 
-        -- تحديث محفظة المحل: زيادة مديونية الشركة (العمولة + نصيب المحل من التأمين)
-        UPDATE public.wallets
+        -- التأكد من وجود محفظة للمحل قبل التحديث
+        INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+        VALUES (new.vendor_id, 0, 0, vnd_comm + vnd_ins)
+        ON CONFLICT (user_id) DO UPDATE
         SET
-            system_balance = system_balance + vnd_comm + vnd_ins,
-            created_at = NOW()
-        WHERE user_id = new.vendor_id;
+            system_balance = wallets.system_balance + EXCLUDED.system_balance,
+            created_at = NOW();
     END IF;
 
     -- 2. جديد: عند استلام الطلب من المحل (In Transit) - تسجيل المديونية على الطيار للمحل
     IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
-        UPDATE public.wallets 
-        SET debt = debt + order_val
-        WHERE user_id = new.driver_id;
+        INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+        VALUES (new.driver_id, 0, order_val, 0)
+        ON CONFLICT (user_id) DO UPDATE
+        SET 
+            debt = wallets.debt + EXCLUDED.debt,
+            created_at = NOW();
     END IF;
 
     -- 3. عند تحصيل المحل للمبلغ من الطيار (Vendor Collected): خصم قيمة الطلب فقط من مديونية الطيار
@@ -747,9 +752,11 @@ BEGIN
 END $$;
 
 -- إدراج البيانات الافتراضية إذا لم تكن موجودة
-INSERT INTO app_config (id, latest_version, min_version, force_update)
-VALUES (1, '0.1.0', '0.1.0', FALSE)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
+VALUES (1, '0.9.87-ULTIMATE-BEAST', '0.1.0', 'https://github.com/medopoplike/start-location-app/releases', 15, 20)
+ON CONFLICT (id) DO UPDATE SET 
+    latest_version = EXCLUDED.latest_version,
+    updated_at = NOW();
 
 -- تفعيل RLS لجدول app_config
 ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
@@ -803,6 +810,20 @@ BEGIN
   RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- دالة لإصلاح المحافظ المفقودة لجميع المستخدمين (Run manually if needed)
+CREATE OR REPLACE FUNCTION fix_missing_wallets()
+RETURNS void AS $$
+BEGIN
+  INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+  SELECT id, 0, 0, 0
+  FROM public.profiles
+  ON CONFLICT (user_id) DO NOTHING;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- تشغيل الإصلاح فوراً عند تشغيل ملف الإعداد
+SELECT fix_missing_wallets();
 
 -- دالة لتصفير مديونيات مستخدم معين أو جميع المستخدمين
 CREATE OR REPLACE FUNCTION reset_wallets(p_user_id UUID DEFAULT NULL)

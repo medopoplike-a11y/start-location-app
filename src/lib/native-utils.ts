@@ -278,7 +278,7 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
       return null;
     }
 
-    // 2. Optimized Background Geolocation Config (v0.9.86 - FORCE SYNC)
+    // 2. Optimized Background Geolocation Config (v0.9.87: Radical fix for background tracking consistency)
     let lastDbUpdate = 0;
     const DB_UPDATE_INTERVAL = 4000;
 

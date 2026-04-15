@@ -231,7 +231,15 @@ function StoreContent() {
     checkRestoredResult();
   }, []); // Only once on mount
 
-  const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "", email: "", password: "" });
+  const [settingsData, setSettingsData] = useState({ 
+    name: "", 
+    phone: "", 
+    area: "", 
+    email: "", 
+    password: "",
+    billing_type: 'commission' as 'commission' | 'fixed_salary',
+    monthly_salary: 0
+  });
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
 
@@ -366,7 +374,9 @@ function StoreContent() {
             phone: profile.phone || "",
             area: profile.area || "",
             email: profile.email || "",
-            password: ""
+            password: "",
+            billing_type: (profile as any).billing_type || 'commission',
+            monthly_salary: (profile as any).monthly_salary || 0
           });
 
           // Update appConfig with vendor's specific billing settings
@@ -703,7 +713,8 @@ function StoreContent() {
           driverInsuranceFee: appConfig.safe_ride_fee,
           vendorInsuranceFee: appConfig.vendor_fee,
           surgePricingActive: appConfig.surge_pricing_active,
-          surgePricingMultiplier: appConfig.surge_pricing_multiplier
+          surgePricingMultiplier: appConfig.surge_pricing_multiplier,
+          billingType: settingsData.billing_type // V0.9.87: Correctly pass vendor's billing type (commission vs fixed salary)
         }
       );
 

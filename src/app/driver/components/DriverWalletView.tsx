@@ -9,6 +9,7 @@ interface WalletProps {
   todayDeliveryFees: number;
   vendorDebt: number;
   systemBalance: number;
+  overallBalance?: number;
   deliveredOrders: Order[];
   allHistory?: Order[];
   settlementHistory?: any[];
@@ -28,6 +29,7 @@ export default function DriverWalletView({
   todayDeliveryFees = 0, 
   vendorDebt = 0, 
   systemBalance = 0, 
+  overallBalance = 0,
   deliveredOrders = [], 
   settlementHistory = [], 
   onConfirmPayment, 
@@ -38,6 +40,7 @@ export default function DriverWalletView({
   // Hard numeric fallbacks
   const safeTodayFees = Number(todayDeliveryFees) || 0;
   const safeSystemBalance = Number(systemBalance) || 0;
+  const safeOverallBalance = Number(overallBalance) || 0;
   const safeOrdersList = Array.isArray(deliveredOrders) ? deliveredOrders : [];
   const safeSettlements = Array.isArray(settlementHistory) ? settlementHistory : [];
 
@@ -71,10 +74,12 @@ export default function DriverWalletView({
             <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">إجمالي الأرباح</p>
           </div>
           <h3 className="text-2xl font-black relative z-10 tabular-nums leading-none">
-            {safeTodayFees.toFixed(0)} 
+            {safeOverallBalance.toFixed(0)} 
             <span className="text-[10px] font-bold opacity-50 mr-1">ج.م</span>
           </h3>
-          <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">المستحقة لك اليوم</p>
+          <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">
+            {safeTodayFees > 0 ? `+${safeTodayFees} ج.م اليوم` : "لا أرباح جديدة اليوم"}
+          </p>
         </div>
 
         <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
@@ -99,7 +104,7 @@ export default function DriverWalletView({
               <AlertCircle className="w-7 h-7 text-orange-500" />
             </div>
             <div>
-              <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1">إجمالي مديونية الشركة</p>
+              <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1">إجمالي مديونية الشركة (تراكمي)</p>
               <h3 className="text-4xl font-black text-white tabular-nums">
                 {safeSystemBalance.toFixed(2)} 
                 <span className="text-sm font-bold opacity-30 mr-2">ج.م</span>
@@ -118,14 +123,14 @@ export default function DriverWalletView({
 
         <div className="grid grid-cols-2 gap-4 relative z-10">
           <div className="bg-white/5 p-5 rounded-[24px] border border-white/10">
-            <p className="text-[10px] font-black text-white/30 uppercase mb-2">عمولة النظام</p>
+            <p className="text-[10px] font-black text-white/30 uppercase mb-2">مستحقات الشركة (عمولة + تأمين)</p>
             <p className="text-lg font-black text-white tabular-nums">
               {safeSystemBalance.toFixed(2)}
               <span className="text-[11px] opacity-30 mr-1"> ج.م</span>
             </p>
           </div>
           <div className="bg-white/5 p-5 rounded-[24px] border border-white/10">
-            <p className="text-[10px] font-black text-white/30 uppercase mb-2">الطلبات الموصلة</p>
+            <p className="text-[10px] font-black text-white/30 uppercase mb-2">مديونيات معلقة</p>
             <p className="text-lg font-black text-white tabular-nums">
               {safeOrdersList.length}
               <span className="text-[11px] opacity-30 mr-1"> طلب</span>

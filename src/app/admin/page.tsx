@@ -360,7 +360,7 @@ function AdminContent() {
       setWallets(walletsData);
       setTotalSystemDebt(walletsData.reduce((acc, w) => acc + (w.system_balance || 0), 0));
     }
-  }, [updateDriverRegistry, onlineDrivers, wallets]); // V0.9.86: Re-added onlineDrivers to trigger UI refresh on presence changes
+  }, [updateDriverRegistry, onlineDrivers, wallets]); // V0.9.87: Re-added onlineDrivers to trigger UI refresh on presence changes
 
   const getErrorMessage = useCallback((error: unknown): string => {
     if (error instanceof Error) return error.message;
@@ -582,7 +582,7 @@ function AdminContent() {
       });
     };
 
-    const interval = setInterval(backgroundRefresh, 10000); // V0.9.86: Faster refresh (10s) for better dashboard response
+    const interval = setInterval(backgroundRefresh, 10000); // V0.9.87: Faster refresh (10s) for better dashboard response
     return () => clearInterval(interval);
   }, [mounted, activeView, fetchProfiles]);
 
@@ -1178,7 +1178,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.86-ULTIMATE-BEAST
+                V0.9.87-ULTIMATE-BEAST
               </p>
             </div>
           </div>
