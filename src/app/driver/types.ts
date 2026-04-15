@@ -31,6 +31,8 @@ export interface Order {
     status: 'pending' | 'delivered';
     deliveredAt?: string;
     invoice_url?: string;
+    lat?: number;
+    lng?: number;
   }>;
   financials?: {
     order_value?: number;
@@ -65,6 +67,8 @@ export interface DBDriverOrder {
       deliveryFee: number;
       status: 'pending' | 'delivered';
       deliveredAt?: string;
+      lat?: number;
+      lng?: number;
     }>;
   };
   financials: {

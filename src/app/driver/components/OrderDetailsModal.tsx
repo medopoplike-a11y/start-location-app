@@ -253,7 +253,7 @@ export default function OrderDetailsModal({
                     </button>
                     <button
                       onClick={() => {
-                        const [lat, lng] = order.vendorCoords!;
+                        const { lat, lng } = order.vendorCoords!;
                         openExternalMap(lat, lng, order.vendor);
                       }}
                       className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-4 py-3.5 rounded-2xl text-[11px] font-black border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95 transition-all justify-center"
@@ -458,16 +458,28 @@ export default function OrderDetailsModal({
                 {/* Customer Location Navigation */}
                 <div className="flex gap-2">
                   {order.customerCoords ? (
-                    <button
-                      onClick={() => {
-                        if (onNavigate) onNavigate();
-                        onClose();
-                      }}
-                      className="flex-1 inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-2xl text-[10px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
-                    >
-                      <Navigation className="w-4 h-4" />
-                      توجيه للعميل (داخلي)
-                    </button>
+                    <>
+                      <button
+                        onClick={() => {
+                          if (onNavigate) onNavigate();
+                          onClose();
+                        }}
+                        className="flex-1 inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-3 rounded-2xl text-[10px] font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all justify-center"
+                      >
+                        <Navigation className="w-4 h-4" />
+                        توجيه للعميل (داخلي)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const { lat, lng } = order.customerCoords!;
+                          openExternalMap(lat, lng, order.customer);
+                        }}
+                        className="inline-flex items-center gap-2 bg-white text-slate-700 px-4 py-3 rounded-2xl text-[10px] font-black border border-slate-200 shadow-sm active:scale-95 transition-all justify-center"
+                        title="خريطة الهاتف"
+                      >
+                        <img src="https://www.google.com/images/branding/product/ico/maps15_24dp.ico" className="w-4 h-4" alt="G" />
+                      </button>
+                    </>
                   ) : (
                     <div className="flex-1 bg-slate-100 text-slate-400 px-4 py-3 rounded-2xl text-[9px] font-bold flex items-center justify-center gap-2 border border-slate-200">
                       الموقع غير محدد
