@@ -163,11 +163,15 @@ export default function OperationsCenter({
               {/* 1. Main Map Area (Integrated) */}
               <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                 <LiveMap
-                  drivers={onlineDrivers.map(d => ({
-                    ...d,
-                    isOnline: d.is_online,
-                    status: allOrders.some(o => o.driver_id === d.id && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
-                    details: d.name
+                  drivers={drivers.filter(d => d.isOnline || d.location).map(d => ({
+                    id: d.id_full,
+                    name: d.name,
+                    lat: d.location?.lat || 0,
+                    lng: d.location?.lng || 0,
+                    isOnline: d.isOnline,
+                    status: allOrders.some(o => o.driver_id === d.id_full && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
+                    details: d.name,
+                    lastSeenTimestamp: d.lastSeen === "الآن" ? Date.now() : undefined // Helper for relative time in popup
                   }))}
                   vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
                   orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {

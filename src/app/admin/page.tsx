@@ -256,11 +256,11 @@ function AdminContent() {
         const diff = Date.now() - lastUpdateTs;
         const mins = Math.floor(diff / 60000);
 
-        // GHOST PROTECTION (V0.9.62): 
-        // 1. Consider online if profile says so AND it was updated in last 30 mins
+        // GHOST PROTECTION (V0.9.67): 
+        // 1. Consider online if profile says so AND it was updated in last 60 mins
         // 2. ALSO check if we have a recent real-time log in the registry
         const isInRealtimeRegistry = onlineDrivers.some(od => od.id === p.id);
-        const isActuallyOnline = (!!p.is_online && mins < 30) || isInRealtimeRegistry;
+        const isActuallyOnline = (!!p.is_online && mins < 60) || isInRealtimeRegistry;
 
         let relativeTime = "غير متوفر";
         if (lastSeenStr) {
@@ -271,6 +271,12 @@ function AdminContent() {
         }
 
         const isOnlineValue = isActuallyOnline;
+
+        // V0.9.67: Safely parse and extract location data
+        let currentLocation = p.location;
+        if (typeof currentLocation === 'string') {
+          try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
+        }
 
         return { 
           id: p.id.slice(0, 8), 
@@ -289,7 +295,8 @@ function AdminContent() {
           billing_type: p.billing_type || 'commission', 
           commission_value: p.commission_value || 15, 
           monthly_salary: p.monthly_salary || 0, 
-          rating: p.rating || 0
+          rating: p.rating || 0,
+          location: currentLocation // Ensure location is passed to markers
         };
       });
       setDrivers(driverCards);

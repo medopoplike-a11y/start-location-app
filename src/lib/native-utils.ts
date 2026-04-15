@@ -372,7 +372,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
                   lng: location.longitude,
                   speed: location.speed || 0,
                   heading: location.bearing || 0,
-                  accuracy: location.accuracy || 0
+                  accuracy: location.accuracy || 0,
+                  created_at: new Date().toISOString() // Ensure timestamp is set for logs
                 }
               })
             ]);
