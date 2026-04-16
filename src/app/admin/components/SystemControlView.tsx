@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Shield, AlertTriangle, Truck,
-  CheckCircle2, Activity, Lock, Unlock, RefreshCw
+  CheckCircle2, Activity, Lock, Unlock, RefreshCw, RotateCcw
 } from "lucide-react";
 import type { DriverCard } from "../types";
 
