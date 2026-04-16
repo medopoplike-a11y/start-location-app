@@ -595,12 +595,11 @@ function AdminContent() {
   }, [activeView, fetchData]);
   const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, (payload) => {
     if (mounted && !authLoading && user) {
-      let shouldFetchFull = true;
-
-      // V0.9.93: Ultra-Precise Tracking & Status Handler
+      // V0.9.94: STRICT SYNC LOGIC
+      // 1. Location updates (Broadcast/Profiles with location) -> Update registry ONLY
       if (payload?.source === 'broadcast' || payload?.source === 'profiles' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
         const newData = payload.new || payload.payload?.new;
-        if (newData?.location || newData?.is_online !== undefined) {
+        if (newData?.location) {
           updateDriverRegistry({
             id: newData.id,
             lat: newData.location?.lat,
@@ -608,16 +607,11 @@ function AdminContent() {
             is_online: newData.is_online,
             lastSeenTimestamp: newData.location?.ts || Date.now()
           }, 'realtime'); 
-          
-          // If it was a status change, we might need a full refresh for dispatch lists
-          if (newData.is_online !== undefined) {
-            fetchProfiles();
-          }
-          shouldFetchFull = false;
+          return; // STOP HERE: No need for full fetch for location updates
         }
       }
 
-      // 1. Direct Location Logs Real-time (ULTRA-ACCURATE)
+      // 2. Direct Location Logs (Real-time tracking) -> Update registry ONLY
       if (payload && payload.table === 'location_logs' && payload.new) {
         const log = payload.new;
         updateDriverRegistry({
@@ -626,10 +620,12 @@ function AdminContent() {
           lng: log.lng,
           lastSeenTimestamp: new Date(log.created_at).getTime()
         }, 'realtime');
-        shouldFetchFull = false;
+        return; // STOP HERE
       }
 
-      if (shouldFetchFull) fetchData();
+      // 3. Structural Changes (Orders, Status, Wallets) -> Fetch specific data or full data
+      console.log(`[Admin-Sync] Structural change detected: ${payload?.source || payload?.table}. Fetching data...`);
+      fetchData();
     }
   }, true);
 
@@ -691,10 +687,8 @@ function AdminContent() {
 
       try {
         setLoading(true);
-        // Force direct server fetch
+        // V0.9.94: SINGLE INITIALIZATION FETCH
         await fetchData(true);
-        // Second fetch to ensure real-time is settled
-        setTimeout(() => fetchData(true), 2000);
       } catch (e) {
         setError(`فشل في تهيئة النظام: ${getErrorMessage(e)}`);
       } finally {

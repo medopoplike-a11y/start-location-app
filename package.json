@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "0.9.93-ULTIMATE-STABILITY",
+  "version": "0.9.94-SINGLE-STREAM",
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",

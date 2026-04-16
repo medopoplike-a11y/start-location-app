@@ -42,7 +42,7 @@ export default function RootLayout({
                   });
                 }
                 // Force reload if we find a version mismatch in localStorage
-                const currentVersion = "V0.9.93-ULTIMATE-STABILITY";
+                const currentVersion = "V0.9.94-SINGLE-STREAM";
                 const storedVersion = localStorage.getItem('app_version');
                 if (storedVersion && storedVersion !== currentVersion) {
                   localStorage.setItem('app_version', currentVersion);

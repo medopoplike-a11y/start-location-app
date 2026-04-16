@@ -42,11 +42,13 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
   /**
    * SELF-HEALING: Cleanup all zombie channels before re-subscribing
+   * V0.9.94: Enhanced singleton channel management
    */
   const cleanupChannels = useCallback(async () => {
     if (channelsRef.current.length > 0) {
-      console.log(`useSync: Cleaning up ${channelsRef.current.length} channels...`);
-      await Promise.all(channelsRef.current.map(ch => supabase.removeChannel(ch)));
+      console.log(`useSync: Terminating ${channelsRef.current.length} active channels...`);
+      // Use removeAllChannels for absolute certainty
+      await supabase.removeAllChannels();
       channelsRef.current = [];
     }
   }, []);
@@ -54,40 +56,39 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const subscribe = useCallback(async () => {
     if (!userId || !isMountedRef.current) return;
     
+    // Ensure absolute clean state before subscribing
     await cleanupChannels();
     
-    console.log("useSync: Initializing master subscription sequence...");
+    console.log("useSync: Establishing singleton data stream...");
     
     const newChannels: RealtimeChannel[] = [];
+    const timestamp = Date.now();
 
-    // 1. Orders Channel
+    // 1. Unified Orders Channel (Unique name per session)
     const orderChannel = subscribeToOrders(isAdmin ? undefined : userId, (payload) => {
-      console.log("useSync: Order update received", payload.eventType);
       triggerUpdate({ source: 'orders', event: payload.eventType });
     });
     newChannels.push(orderChannel);
 
-    // 2. Wallets Channel
-    const walletChannel = subscribeToWallets(userId, () => {
-      console.log("useSync: Wallet update received");
-      triggerUpdate({ source: 'wallets' });
-    });
-    newChannels.push(walletChannel);
-
-    // 3. Settlements Channel
-    const settlementChannel = subscribeToSettlements(userId, () => {
-      console.log("useSync: Settlement update received");
-      triggerUpdate({ source: 'settlements' });
-    });
-    newChannels.push(settlementChannel);
-
-    // 4. Profiles Channel (Global for Admin, Self for Driver)
+    // 2. Unified Profiles Channel
     const profileChannel = subscribeToProfiles((payload) => {
-      // V0.9.93: Improved profile sync filtering
       if (!isAdmin && payload.new?.id !== userId) return;
       triggerUpdate({ source: 'profiles', event: payload.eventType, payload });
     });
     newChannels.push(profileChannel);
+
+    // 3. User-specific channels (Wallets & Settlements)
+    if (userId) {
+      const walletChannel = subscribeToWallets(userId, () => {
+        triggerUpdate({ source: 'wallets' });
+      });
+      newChannels.push(walletChannel);
+
+      const settlementChannel = subscribeToSettlements(userId, () => {
+        triggerUpdate({ source: 'settlements' });
+      });
+      newChannels.push(settlementChannel);
+    }
 
     channelsRef.current = newChannels;
     triggerUpdate({ source: 'initial_subscribe' });
