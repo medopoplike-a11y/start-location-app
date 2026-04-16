@@ -20,6 +20,8 @@ interface UserManagementViewProps {
   onDeleteUser?: (userId: string, userName: string) => Promise<void>;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onResetUser: (userId: string, userName: string) => void;
+  onSettleVendorDebt?: (userId: string, userName: string) => void;
+  onSettleSystemDebt?: (userId: string, userName: string) => void;
 }
 
 export default function UserManagementView({
@@ -33,7 +35,9 @@ export default function UserManagementView({
   onUpdateUserDetails,
   onDeleteUser,
   onToggleShiftLock,
-  onResetUser
+  onResetUser,
+  onSettleVendorDebt,
+  onSettleSystemDebt
 }: UserManagementViewProps) {
   const [activeTab, setActiveTab] = useState<"drivers" | "vendors" | "accounts">("drivers");
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,6 +110,8 @@ export default function UserManagementView({
                 onDeleteUser={onDeleteUser}
                 onToggleShiftLock={onToggleShiftLock}
                 onResetUser={onResetUser}
+                onSettleVendorDebt={onSettleVendorDebt}
+                onSettleSystemDebt={onSettleSystemDebt}
               />
             )}
             {activeTab === "vendors" && (
@@ -116,6 +122,7 @@ export default function UserManagementView({
                 onUpdateUserDetails={onUpdateUserDetails}
                 onDeleteUser={onDeleteUser}
                 onResetUser={onResetUser}
+                onSettleSystemDebt={onSettleSystemDebt}
               />
             )}
             {activeTab === "accounts" && (

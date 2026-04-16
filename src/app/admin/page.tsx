@@ -845,12 +845,38 @@ function AdminContent() {
       const { error: cleanupError } = await supabase.rpc('cleanup_user_orders', { p_user_id: userId });
       if (cleanupError) throw cleanupError;
 
-      alert("تم تصفير حساب المستخدم وتنظيف السجل بنجاح!");
+      toastSuccess(`تم تصفير بيانات ${userName} بالكامل`);
       addActivity(`تم تصفير حساب ${userName}`);
       fetchData(true);
-    } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
+    } catch (error) { toastError(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
-  }, [addActivity, fetchData, getErrorMessage]);
+  }, [addActivity, fetchData, getErrorMessage, toastSuccess, toastError]);
+
+  const handleSettleVendorDebt = useCallback(async (userId: string, userName: string) => {
+    if (!confirm(`هل أنت متأكد من سداد مديونية المحلات لـ ${userName}؟`)) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc('settle_vendor_debt', { p_user_id: userId });
+      if (error) throw error;
+      toastSuccess(`تم سداد مديونية المحلات لـ ${userName} بنجاح`);
+      addActivity(`سداد مديونية محلات لـ ${userName}`);
+      fetchData();
+    } catch (error) { toastError(`خطأ: ${getErrorMessage(error)}`); }
+    setActionLoading(false);
+  }, [addActivity, fetchData, getErrorMessage, toastSuccess, toastError]);
+
+  const handleSettleSystemDebt = useCallback(async (userId: string, userName: string) => {
+    if (!confirm(`هل أنت متأكد من سداد عمولة الشركة لـ ${userName}؟`)) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc('settle_system_debt', { p_user_id: userId });
+      if (error) throw error;
+      toastSuccess(`تم سداد عمولة الشركة لـ ${userName} بنجاح`);
+      addActivity(`سداد عمولة شركة لـ ${userName}`);
+      fetchData();
+    } catch (error) { toastError(`خطأ: ${getErrorMessage(error)}`); }
+    setActionLoading(false);
+  }, [addActivity, fetchData, getErrorMessage, toastSuccess, toastError]);
 
   const handleGlobalReset = useCallback(async () => {
     if (!confirm("تحذير: هل أنت متأكد من تصفير كافة حسابات النظام وتنظيف جميع السجلات؟")) return;
@@ -1351,7 +1377,13 @@ function AdminContent() {
             )}
 
             {activeView === "wallets" && (
-              <WalletsView users={allUsers} wallets={wallets} />
+              <WalletsView 
+                users={allUsers} 
+                wallets={wallets} 
+                onResetUser={handleResetUser}
+                onSettleVendorDebt={handleSettleVendorDebt}
+                onSettleSystemDebt={handleSettleSystemDebt}
+              />
             )}
 
             {activeView === "settlements" && (

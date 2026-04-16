@@ -41,6 +41,11 @@ export default function DriverWalletView({
   const safeTodayFees = Number(todayDeliveryFees) || 0;
   const safeSystemBalance = Number(systemBalance) || 0;
   const safeOverallBalance = Number(overallBalance) || 0;
+  
+  // V1.2.6: Visual Guard - If cumulative is 0 but today is > 0, we show today's at least to prevent user panic
+  // (Note: This is just for UI display if sync is slow)
+  const displayOverallBalance = Math.max(safeOverallBalance, safeTodayFees);
+
   const safeOrdersList = (Array.isArray(deliveredOrders) ? deliveredOrders : []).filter(Boolean);
   const safeSettlements = (Array.isArray(settlementHistory) ? settlementHistory : []).filter(Boolean);
 
@@ -82,7 +87,7 @@ export default function DriverWalletView({
             <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">إجمالي الأرباح</p>
           </div>
           <h3 className="text-2xl font-black relative z-10 tabular-nums leading-none flex items-baseline gap-1">
-            {safeOverallBalance.toLocaleString()} 
+            {displayOverallBalance.toLocaleString()} 
             <span className="text-[10px] font-bold opacity-50">ج.م</span>
           </h3>
           <p className="text-[10px] font-bold text-emerald-100/60 mt-2 relative z-10">

@@ -565,6 +565,7 @@ BEGIN
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
         -- تحديث محفظة الطيار (إضافة الأرباح)
         IF new.driver_id IS NOT NULL THEN
+            -- V1.2.6: Using atomic arithmetic to prevent balance overwrite
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
             VALUES (new.driver_id, COALESCE(drv_earnings, 0), 0, COALESCE(sys_comm, 0) + COALESCE(drv_ins, 0))
             ON CONFLICT (user_id) DO UPDATE 
@@ -588,6 +589,7 @@ BEGIN
     -- 3. عند استلام الطلب من المحل (In Transit) - تسجيل المديونية فقط الآن
     IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
         IF new.driver_id IS NOT NULL THEN
+            -- V1.2.6: Atomic addition for debt
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
             VALUES (new.driver_id, 0, COALESCE(order_val, 0), 0)
             ON CONFLICT (user_id) DO UPDATE
@@ -1049,13 +1051,31 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- هـ. وظائف تنظيف السجلات وتصفير الحسابات (جديد V0.9.92)
 
--- 1. تصفير محفظة مستخدم محدد (بشكل كامل وجذري)
+-- 1. تصفير مديونية المحلات فقط (سداد مديونية المطعم)
+CREATE OR REPLACE FUNCTION settle_vendor_debt(p_user_id UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE wallets 
+  SET debt = 0, updated_at = NOW()
+  WHERE user_id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. تصفير مديونية الشركة فقط (سداد عمولة الشركة)
+CREATE OR REPLACE FUNCTION settle_system_debt(p_user_id UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE wallets 
+  SET system_balance = 0, updated_at = NOW()
+  WHERE user_id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. تصفير محفظة مستخدم محدد (بشكل كامل وجذري - للأدمن فقط)
 CREATE OR REPLACE FUNCTION reset_wallet_balance(p_user_id UUID)
 RETURNS void AS $$
 BEGIN
-  -- V1.2.0: Also cleanup orders when resetting wallet to maintain synchronization
-  DELETE FROM orders WHERE (vendor_id = p_user_id OR driver_id = p_user_id) AND status IN ('delivered', 'cancelled');
-  
+  -- V1.2.6: Safety - This clears EVERYTHING (Earnings, Debt, Commission)
   UPDATE wallets 
   SET balance = 0, debt = 0, system_balance = 0, updated_at = NOW()
   WHERE user_id = p_user_id;

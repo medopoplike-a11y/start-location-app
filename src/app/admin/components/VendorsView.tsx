@@ -13,9 +13,10 @@ interface VendorsViewProps {
   onUpdateUserDetails?: (userId: string, updates: any) => Promise<void>;
   onDeleteUser?: (userId: string, userName: string) => Promise<void>;
   onResetUser: (userId: string, userName: string) => void;
+  onSettleSystemDebt?: (userId: string, userName: string) => void;
 }
 
-export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBilling, onUpdateUserDetails, onDeleteUser, onResetUser }: VendorsViewProps) {
+export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBilling, onUpdateUserDetails, onDeleteUser, onResetUser, onSettleSystemDebt }: VendorsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDetailsId, setEditingDetailsId] = useState<string | null>(null);
   const [tempData, setTempData] = useState<{ 
@@ -284,10 +285,18 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                   </div>
                 </div>
 
-                <button onClick={() => onResetUser(v.id_full, v.name)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-xs font-black bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all">
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  تصفير البيانات
-                </button>
+                <div className="flex gap-2">
+                  {onSettleSystemDebt && (
+                    <button onClick={() => onSettleSystemDebt(v.id_full, v.name)} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all">
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      سداد عمولة الشركة
+                    </button>
+                  )}
+                  <button onClick={() => onResetUser(v.id_full, v.name)} className="px-4 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[10px] font-black bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all">
+                    <Trash2 className="w-3.5 h-3.5" />
+                    تصفير شامل
+                  </button>
+                </div>
               </motion.div>
             );
           })}
