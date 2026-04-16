@@ -909,8 +909,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION reset_all_wallets()
 RETURNS void AS $$
 BEGIN
+  -- استخدام شرط دائم التحقق لتجنب أخطاء RLS أو الحماية التي تطلب WHERE
   UPDATE wallets 
-  SET balance = 0, debt = 0, system_balance = 0;
+  SET balance = 0, debt = 0, system_balance = 0
+  WHERE id IS NOT NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

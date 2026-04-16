@@ -468,8 +468,10 @@ function AdminContent() {
         const typedProfiles = profiles as ProfileRow[];
         setCache('admin_profiles', typedProfiles); // Cache profiles
         
-        const { data: wallets } = await supabase.from('wallets').select('*');
-        processProfiles(typedProfiles, (wallets as WalletRow[]) || []);
+        const { data: walletsData, error: walletsError } = await supabase.from('wallets').select('*');
+        if (walletsError) throw walletsError;
+        
+        processProfiles(typedProfiles, (walletsData as WalletRow[]) || []);
       }
     } catch (err) {
       console.error("Admin: Error fetching profiles:", err);
