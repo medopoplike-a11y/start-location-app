@@ -560,15 +560,28 @@ function AdminContent() {
 
   const manualSync = useCallback(async (payload?: any) => {
     if (!mounted) return;
-    if (payload?.source === 'location_update') {
-      fetchProfiles();
+    
+    // V1.4.0: Optimized real-time location and status updates
+    if (payload?.source === 'location_update' || (payload?.source === 'profiles' && payload?.event === 'UPDATE')) {
+      const data = payload.payload?.new || payload.payload;
+      if (data?.id) {
+        updateDriverRegistry({
+          id: data.id,
+          name: data.full_name || "غير معروف",
+          lat: data.location?.lat,
+          lng: data.location?.lng,
+          is_online: data.is_online,
+          lastSeenTimestamp: data.last_location_update ? new Date(data.last_location_update).getTime() : Date.now()
+        }, 'realtime');
+      }
       return;
     }
+
     if (isDataFetchingRef.current) return;
     try {
       await fetchData();
     } catch (e) {}
-  }, [mounted, fetchProfiles, fetchData]);
+  }, [mounted, fetchData, updateDriverRegistry]);
 
   const handleRefresh = useCallback(async () => {
     try {

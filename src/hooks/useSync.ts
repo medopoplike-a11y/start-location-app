@@ -80,7 +80,22 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     // 2. Unified Profiles Channel
     const profileChannel = subscribeToProfiles((payload) => {
       if (!isAdmin && payload.new?.id !== userId) return;
-      triggerUpdate({ source: 'profiles', event: payload.eventType, payload });
+      
+      // V1.4.0: Special handling for location updates in Admin view
+      if (isAdmin && payload.eventType === 'UPDATE' && payload.new?.location) {
+        triggerUpdate({ 
+          source: 'location_update', 
+          payload: {
+            id: payload.new.id,
+            location: payload.new.location,
+            is_online: payload.new.is_online,
+            full_name: payload.new.full_name,
+            last_location_update: payload.new.last_location_update || new Date().toISOString()
+          } 
+        });
+      } else {
+        triggerUpdate({ source: 'profiles', event: payload.eventType, payload });
+      }
     });
     newChannels.push(profileChannel);
 
