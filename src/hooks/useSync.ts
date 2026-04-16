@@ -120,6 +120,30 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     }).subscribe();
     newChannels.push(broadcastChannel);
 
+    // 5. Admin-only: Subscribe to real-time driver location broadcasts
+    // Drivers publish here via the singleton broadcast channel in native-utils.ts
+    if (isAdmin) {
+      const driverLocChannel = supabase.channel('global:driver-locations');
+      driverLocChannel
+        .on('broadcast', { event: 'location_update' }, (msg) => {
+          if (!msg.payload?.id) return;
+          triggerUpdate({
+            source: 'location_update',
+            payload: {
+              id: msg.payload.id,
+              location: msg.payload.location,
+              is_online: true,
+              last_location_update: new Date().toISOString(),
+              ts: msg.payload.ts || Date.now()
+            }
+          });
+        })
+        .subscribe((status) => {
+          console.log(`useSync: Admin driver-locations channel → ${status}`);
+        });
+      newChannels.push(driverLocChannel);
+    }
+
     channelsRef.current = newChannels;
     triggerUpdate({ source: 'initial_subscribe' });
   }, [userId, isAdmin, triggerUpdate, cleanupChannels]);

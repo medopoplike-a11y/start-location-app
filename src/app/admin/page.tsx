@@ -670,8 +670,24 @@ function AdminContent() {
 
   const { lastSync, isSyncing, triggerUpdate } = useSync(user?.id, (payload) => {
     if (mounted && !authLoading && user) {
-      // V0.9.94: STRICT SYNC LOGIC
-      if (payload?.source === 'broadcast' || payload?.source === 'profiles' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
+
+      // ── Real-time driver location broadcast (highest priority, no DB fetch needed) ──
+      if (payload?.source === 'location_update') {
+        const d = payload.payload;
+        if (d?.id && d?.location?.lat != null && d?.location?.lng != null) {
+          updateDriverRegistry({
+            id: d.id,
+            lat: d.location.lat,
+            lng: d.location.lng,
+            is_online: d.is_online !== undefined ? d.is_online : true,
+            lastSeenTimestamp: d.ts || Date.now()
+          }, 'realtime');
+        }
+        return; // Skip full data fetch – location-only update
+      }
+
+      // ── DB profile changes (online status, full_name, etc.) ──
+      if (payload?.source === 'profiles' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
         const newData = payload.new || payload.payload?.new;
         if (newData) {
           updateDriverRegistry({
@@ -679,12 +695,8 @@ function AdminContent() {
             lat: newData.location?.lat,
             lng: newData.location?.lng,
             is_online: newData.is_online,
-            lastSeenTimestamp: newData.location?.ts || (payload.source === 'broadcast' ? Date.now() : (newData.last_location_update ? new Date(newData.last_location_update).getTime() : Date.now()))
-          }, payload.source === 'broadcast' ? 'realtime' : 'db'); 
-          
-          if (newData.location) {
-             manualSync({ source: 'location_update', id: newData.id });
-          }
+            lastSeenTimestamp: newData.location?.ts || (newData.last_location_update ? new Date(newData.last_location_update).getTime() : Date.now())
+          }, 'db');
           if (newData.location && !newData.full_name && !newData.role) return;
         }
       }
@@ -700,6 +712,7 @@ function AdminContent() {
         return;
       }
 
+      // ── Structural changes (orders, wallets, etc.) → full refresh ──
       console.log(`[Admin-Sync] Structural change detected: ${payload?.source || payload?.table}. Fetching data...`);
       fetchData();
     }
@@ -961,7 +974,7 @@ function AdminContent() {
     setAppConfig(prev => ({ ...prev, maintenance_mode: val }));
     try {
       await updateAdminAppConfig({ ...appConfig, maintenance_mode: val });
-      addActivity(`تم ${val ? "تفعيل" : "إيقاف"}	وضع الصيانة`);
+      addActivity(`تم ${val ? "تفعيل" : "إيقاف"}        وضع الصيانة`);
     } catch (e) { 
       setAppConfig(originalConfig);
       console.error(e); 

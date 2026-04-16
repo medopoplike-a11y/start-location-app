@@ -10,7 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking } from "@/lib/native-utils";
+import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -197,6 +197,9 @@ export default function DriverApp() {
           foregroundWatcherRef.current = null;
           await stopForegroundTracking(id).catch(err => console.error("Stop FG error:", err));
         }
+
+        // Clean up the persistent broadcast channel when driver goes offline
+        await cleanupBroadcastChannel().catch(() => {});
       } catch (err) {
         console.error("Native Tracking: Stop error", err);
       }
@@ -317,29 +320,23 @@ export default function DriverApp() {
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
-        // Limit updates to once every 10 seconds to save battery (improved for admin real-time view)
-        if (now - lastLocationUpdate < 10000) return;
+        // Limit updates to once every 3 seconds for smooth admin map updates
+        if (now - lastLocationUpdate < 3000) return;
         
         const newLocation = { 
           lat: position.coords.latitude, 
           lng: position.coords.longitude,
-          heading: position.coords.heading || 0
+          heading: position.coords.heading || 0,
+          speed: position.coords.speed || 0,
+          accuracy: position.coords.accuracy || 0
         };
         setDriverLocation(newLocation);
         setLastLocationUpdate(now);
 
-        // V0.9.92: DUAL BROADCAST (Real-time + Persistence)
-        const profileChannel = supabase.channel('global:profiles');
-        profileChannel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            profileChannel.send({
-              type: 'broadcast',
-              event: 'location_update',
-              payload: { id: driverId, location: newLocation }
-            }).catch(() => {});
-          }
-        });
+        // 1. Broadcast immediately via persistent singleton (no channel-leak)
+        sendLocationBroadcast(driverId, newLocation);
 
+        // 2. Persist to DB
         await supabase.from('profiles').update({ 
           location: { ...newLocation, ts: now },
           is_online: true,

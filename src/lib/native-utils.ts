@@ -161,6 +161,48 @@ let lastCheckTime = 0;
 let isChecking = false;
 const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown
 
+// ─── Singleton Broadcast Channel ───────────────────────────────────────────
+// Re-using a single channel instance prevents the channel-leak bug where a new
+// channel was created every 3-4 seconds, leaving hundreds of zombie connections.
+let _broadcastChannel: ReturnType<typeof supabase.channel> | null = null;
+let _broadcastReady = false;
+
+const getBroadcastChannel = () => {
+  if (!_broadcastChannel) {
+    _broadcastChannel = supabase.channel('global:driver-locations');
+    _broadcastChannel.subscribe((status) => {
+      _broadcastReady = status === 'SUBSCRIBED';
+    });
+  }
+  return _broadcastChannel;
+};
+
+export const sendLocationBroadcast = async (
+  userId: string,
+  loc: { lat: number; lng: number; heading?: number; speed?: number; accuracy?: number }
+) => {
+  try {
+    const ch = getBroadcastChannel();
+    if (_broadcastReady) {
+      await ch.send({
+        type: 'broadcast',
+        event: 'location_update',
+        payload: { id: userId, location: loc, ts: Date.now() }
+      });
+    }
+  } catch (e) {
+    // Silent – DB update is the authoritative source of truth
+  }
+};
+
+export const cleanupBroadcastChannel = async () => {
+  if (_broadcastChannel) {
+    try { await supabase.removeChannel(_broadcastChannel); } catch (_) {}
+    _broadcastChannel = null;
+    _broadcastReady = false;
+  }
+};
+
 /**
  * نظام التحديث التلقائي الذكي (OTA)
  * يقوم بالتحقق من جدول app_config في Supabase وتحميل التحديث فوراً
@@ -324,18 +366,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           };
           if (onUpdate) onUpdate(loc);
 
-          // V0.9.92: DUAL BROADCAST (Real-time + Persistence)
-          // 1. Send immediate real-time broadcast (Ultra-fast, doesn't wait for DB)
-          const profileChannel = supabase.channel('global:profiles');
-          profileChannel.subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              profileChannel.send({
-                type: 'broadcast',
-                event: 'location_update',
-                payload: { id: userId, location: loc }
-              }).catch(() => {});
-            }
-          });
+          // Broadcast via persistent singleton channel (fixes channel-leak bug)
+          sendLocationBroadcast(userId, loc);
 
           const now = Date.now();
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
@@ -449,28 +481,29 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
       async (position, error) => {
         if (error || !position) return;
         
-        const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const speed = position.coords.speed || 0;
+        const loc = { 
+          lat: position.coords.latitude, 
+          lng: position.coords.longitude,
+          heading: position.coords.heading || 0,
+          speed,
+          accuracy: position.coords.accuracy || 0
+        };
         if (onUpdate) onUpdate(loc);
 
         const now = Date.now();
-        const speed = position.coords.speed || 0;
-        // DYNAMIC GPS STREAM (V0.9.0): 
-        // 1s interval if moving fast (> 2m/s), 2s if slow, 5s if stationary
+        // DYNAMIC GPS STREAM: 1s fast, 2s slow, 5s stationary
         const dynamicInterval = speed > 2 ? 1000 : (speed > 0 ? 2000 : 5000);
         
         if (now - lastSentTs < dynamicInterval) return;
         lastSentTs = now;
 
-        console.log(`[ULTIMATE-STREAM] Speed: ${speed}m/s - Interval: ${dynamicInterval}ms`);
+        // 1. Broadcast immediately via persistent singleton channel
+        sendLocationBroadcast(userId, loc);
+
+        // 2. Persist to DB
         await supabase.from('profiles').update({
-          location: {
-            lat: loc.lat,
-            lng: loc.lng,
-            heading: position.coords.heading || 0,
-            speed: speed,
-            accuracy: position.coords.accuracy || 0,
-            ts: now 
-          },
+          location: { ...loc, ts: now },
           is_online: true,
           last_location_update: new Date().toISOString(),
           updated_at: new Date().toISOString()
