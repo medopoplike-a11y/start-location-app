@@ -889,7 +889,63 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- د. تحديث رقم النسخة في الإعدادات
-UPDATE public.app_config SET latest_version = '0.9.95-FULL-SYNC-UNIFIED', updated_at = NOW() WHERE id = 1;
+UPDATE public.app_config 
+SET latest_version = '0.9.92', updated_at = NOW() 
+WHERE id = 1;
+
+-- هـ. وظائف تنظيف السجلات وتصفير الحسابات (جديد V0.9.92)
+
+-- 1. تصفير محفظة مستخدم محدد
+CREATE OR REPLACE FUNCTION reset_wallet_balance(p_user_id UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE wallets 
+  SET balance = 0, debt = 0, system_balance = 0
+  WHERE user_id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. تصفير كافة المحافظ
+CREATE OR REPLACE FUNCTION reset_all_wallets()
+RETURNS void AS $$
+BEGIN
+  UPDATE wallets 
+  SET balance = 0, debt = 0, system_balance = 0;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. تنظيف سجل الطلبات لمستخدم محدد (أرشفة أو حذف)
+-- هنا سنقوم بحذف الطلبات المكتملة أو الملغاة فقط للحفاظ على سلامة النظام
+CREATE OR REPLACE FUNCTION cleanup_user_orders(p_user_id UUID)
+RETURNS void AS $$
+BEGIN
+  DELETE FROM orders 
+  WHERE (vendor_id = p_user_id OR driver_id = p_user_id)
+  AND status IN ('delivered', 'cancelled');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4. تنظيف كافة الطلبات المكتملة
+CREATE OR REPLACE FUNCTION cleanup_all_orders()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM orders 
+  WHERE status IN ('delivered', 'cancelled');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. إلغاء تعيين طلب وإعادته للانتظار
+CREATE OR REPLACE FUNCTION unassign_order_admin(p_order_id UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE orders 
+  SET 
+    driver_id = NULL, 
+    status = 'pending',
+    status_updated_at = NOW()
+  WHERE id = p_order_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ضمان وجود كافة المحافظ مرة أخرى كإجراء احترازي
 SELECT fix_missing_wallets();

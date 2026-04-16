@@ -11,23 +11,23 @@ interface WalletsViewProps {
 
 export default function WalletsView({ users = [], wallets = [] }: WalletsViewProps) {
   const mergedData = (users || [])
-    .filter(u => u && u.id) // Ensure valid user object
+    .filter(u => u && u.id) 
     .map(user => {
       const wallet = (wallets || []).find(w => w && w.user_id === user.id);
       return {
         ...user,
-        balance: wallet?.balance || 0,
-        debt: wallet?.debt || 0,
-        system_balance: wallet?.system_balance || 0,
+        balance: Number(wallet?.balance) || 0,
+        debt: Number(wallet?.debt) || 0,
+        system_balance: Number(wallet?.system_balance) || 0,
       };
-    }).filter(u => u && u.role !== 'admin'); // Don't show admin wallets
+    }).filter(u => u && u.role !== 'admin');
 
   const totalDriverDebt = (mergedData || [])
     .filter(u => u && u.role === 'driver')
-    .reduce((acc, curr) => acc + (curr.debt || 0), 0);
+    .reduce((acc, curr) => acc + (Number(curr.debt) || 0), 0);
 
   const totalSystemCommission = (mergedData || [])
-    .reduce((acc, curr) => acc + (curr.system_balance || 0), 0);
+    .reduce((acc, curr) => acc + (Number(curr.system_balance) || 0), 0);
 
   return (
     <div className="space-y-6" dir="rtl">

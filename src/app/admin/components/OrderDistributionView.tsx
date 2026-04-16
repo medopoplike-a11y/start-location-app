@@ -9,16 +9,37 @@ interface OrderDistributionViewProps {
   liveOrders: LiveOrderItem[];
   drivers: DriverCard[];
   onAssign: (orderId: string, driverId: string, driverName: string) => Promise<void>;
+  onUnassign?: (orderId: string) => Promise<void>;
+  onRefresh?: () => void;
 }
 
-export default function OrderDistributionView({ liveOrders, drivers, onAssign }: OrderDistributionViewProps) {
+export default function OrderDistributionView({ liveOrders, drivers, onAssign, onUnassign, onRefresh }: OrderDistributionViewProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
 
-  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
+  // V0.9.92: Include ALL orders in the sidebar for management, not just pending ones
+  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending" || o.status === "تم التعيين" || o.status === "في الطريق");
   const availableDrivers = drivers.filter(d => !d.isShiftLocked);
   const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
+
+  // ... (sortedDrivers logic)
+
+  const handleUnassign = async (orderId: string) => {
+    if (!confirm("هل أنت متأكد من إلغاء تعيين هذا الطلب؟")) return;
+    setAssigning(true);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { error } = await supabase.rpc('unassign_order_admin', { p_order_id: orderId });
+      if (error) throw error;
+      if (onRefresh) onRefresh();
+      setSelectedOrderId(null);
+    } catch (err: any) {
+      alert("فشل إلغاء التعيين");
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   // Advanced Sorting for Manual Distribution Helpers
   const sortedDrivers = [...availableDrivers].sort((a, b) => {
@@ -132,6 +153,22 @@ export default function OrderDistributionView({ liveOrders, drivers, onAssign }:
                       {order.delivery_fee} ج.م
                     </div>
                   </div>
+
+                  {/* V0.9.92: Unassign Button for already assigned orders */}
+                  {selectedOrderId === order.id_full && order.driver_id && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="mt-3 pt-3 border-t border-sky-200"
+                    >
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleUnassign(order.id_full); }}
+                        className="w-full py-2 bg-rose-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-rose-200"
+                      >
+                        إلغاء تعيين {order.driver || "الطيار"}
+                      </button>
+                    </motion.div>
+                  )}
                 </motion.button>
               ))}
             </div>

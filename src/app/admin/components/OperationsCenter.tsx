@@ -112,25 +112,33 @@ export default function OperationsCenter({
     if (!confirm("هل أنت متأكد من إلغاء تعيين هذا الطلب وإعادته لقائمة الانتظار؟")) return;
     setAssigning(true);
     try {
-      if (onUpdateStatus) {
-        // V0.9.90: Fixed unassign logic to clear driver_id explicitly
-        const { error } = await supabase
-          .from('orders')
-          .update({ 
-            status: 'pending', 
-            driver_id: null,
-            status_updated_at: new Date().toISOString()
-          })
-          .eq('id', orderId);
-          
-        if (error) throw error;
+      // V0.9.92: Using RPC for reliable unassigning
+      const { error } = await supabase.rpc('unassign_order_admin', { p_order_id: orderId });
         
-        setSelectedOrderId(null);
-        if (onRefresh) onRefresh();
-      }
+      if (error) throw error;
+      
+      setSelectedOrderId(null);
+      if (onRefresh) onRefresh();
     } catch (err: any) {
       console.error("Unassign failed:", err);
       alert("فشل إلغاء التعيين: " + (err.message || "خطأ في الاتصال"));
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleChangeDriver = async (orderId: string) => {
+    if (!confirm("هل تريد تغيير الطيار لهذا الطلب؟ سيتم إرجاع الطلب للانتظار لتتمكن من اختيار طيار جديد.")) return;
+    setAssigning(true);
+    try {
+      const { error } = await supabase.rpc('unassign_order_admin', { p_order_id: orderId });
+      if (error) throw error;
+      
+      // Keep selectedOrderId to immediately show available drivers for re-assignment
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      console.error("Change driver failed:", err);
+      alert("فشل تغيير الطيار");
     } finally {
       setAssigning(false);
     }
@@ -341,6 +349,7 @@ export default function OperationsCenter({
                                       </button>
                                     )}
                                     <button 
+                                      onClick={() => handleChangeDriver(order.id)}
                                       className="flex-1 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-amber-500/20"
                                     >
                                       تغيير الطيار

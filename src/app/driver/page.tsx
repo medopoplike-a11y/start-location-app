@@ -352,21 +352,36 @@ export default function DriverApp() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [driverId, isActive, lastLocationUpdate]);
 
-  async function fetchStats(currentDriverId: string) {
+  const fetchStats = async (currentDriverId: string) => {
     setLastSyncTime(new Date());
     try {
-      const { data: walletData } = await supabase.from('wallets').select('debt, system_balance, balance').eq('user_id', currentDriverId).maybeSingle();
+      // V0.9.92: Improved Wallet Fetching with Auto-Creation fallback
+      let { data: walletData, error: walletError } = await supabase
+        .from('wallets')
+        .select('debt, system_balance, balance')
+        .eq('user_id', currentDriverId)
+        .maybeSingle();
+      
+      if (!walletData && !walletError) {
+        console.log("DriverPage: Wallet not found, creating one...");
+        const { data: newWallet, error: createError } = await supabase
+          .from('wallets')
+          .insert({ user_id: currentDriverId, balance: 0, debt: 0, system_balance: 0 })
+          .select()
+          .single();
+        if (!createError) walletData = newWallet;
+      }
+
       const { data: uncollectedOrders } = await supabase
         .from('orders')
         .select('financials')
         .eq('driver_id', currentDriverId)
-        .in('status', ['in_transit', 'delivered']) // Include in_transit to show debt on pickup
+        .in('status', ['in_transit', 'delivered']) 
         .is('vendor_collected_at', null);
       
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
       
-      // V0.9.87: Query by status_updated_at instead of created_at for accurate daily earnings
       const { data: todayOrders } = await supabase.from('orders')
         .select('financials')
         .eq('driver_id', currentDriverId)
@@ -376,59 +391,42 @@ export default function DriverApp() {
       const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
       if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
-      let finalBalance = systemBalance;
-      let finalOverallBalance = balance;
-      let finalDebt = vendorDebt;
-      let finalFees = todayDeliveryFees;
+      let finalBalance = 0;
+      let finalOverallBalance = 0;
+      let finalDebt = 0;
+      let finalFees = 0;
 
       if (walletData) {
-        finalBalance = walletData.system_balance || 0;
-        finalOverallBalance = walletData.balance || 0;
-        setSystemBalance(finalBalance);
-        setBalance(finalOverallBalance);
-      }
-      
-      // Fetch average rating
-      const { data: ratingData } = await supabase.from('ratings').select('rating').eq('to_id', currentDriverId);
-      if (ratingData && ratingData.length > 0) {
-        const avg = ratingData.reduce((acc, r) => acc + r.rating, 0) / ratingData.length;
-        setRating(avg);
-        setRatingCount(ratingData.length);
+        finalBalance = Number(walletData.system_balance) || 0;
+        finalOverallBalance = Number(walletData.balance) || 0;
+        finalDebt = Number(walletData.debt) || 0;
       }
 
-      if (uncollectedOrders) {
-        finalDebt = uncollectedOrders.reduce((acc, order) => acc + (order.financials?.order_value || 0), 0);
-        setVendorDebt(finalDebt);
-      }
       if (todayOrders) {
-        finalFees = todayOrders.reduce((acc, order) => acc + (order.financials?.delivery_fee || 0), 0);
-        setTodayDeliveryFees(finalFees);
+        finalFees = todayOrders.reduce((acc, o) => acc + (Number(o.financials?.driver_earnings) || 0), 0);
       }
 
-      // Update cache in one go
-      setCache('driver_stats', { 
-        vendorDebt: finalDebt, 
-        todayDeliveryFees: finalFees,
-        systemBalance: finalBalance,
-        balance: finalOverallBalance
-      });
+      setSystemBalance(finalBalance);
+       setBalance(finalOverallBalance);
+       setVendorDebt(finalDebt);
+       setTodayDeliveryFees(finalFees);
+ 
+       // V0.9.92: Re-add settlements data fetching
+       const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
+       if (settlementsData) {
+         const history = settlementsData.map(s => ({
+           id: s.id,
+           amount: s.amount,
+           status: s.status === 'approved' ? "تم السداد" : (s.status === 'pending' ? "جاري المراجعة" : "مرفوض"),
+           date: new Date(s.created_at).toLocaleDateString('ar-EG')
+         }));
+         setSettlementHistory(history);
+       }
 
-      // Re-add settlementsData processing
-      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
-      if (settlementsData) {
-        const history = settlementsData.map(s => ({
-          id: s.id,
-          amount: s.amount,
-          status: s.status === 'approved' ? "تم السداد" : s.status === 'pending' ? "جاري المراجعة" : "مرفوض",
-          date: new Date(s.created_at).toLocaleDateString('ar-EG')
-        }));
-        setSettlementHistory(history);
-        setCache('driver_settlements', history);
-      }
     } catch (err) {
-      console.error("Error fetching stats:", err);
+      console.error("DriverPage: fetchStats failed", err);
     }
-  }
+  };
 
   const handleUpdateProfile = async () => {
     if (!driverId) return;
@@ -589,26 +587,22 @@ export default function DriverApp() {
     }
   }
 
-  async function fetchTodayHistory(currentDriverId: string) {
+  const fetchTodayHistory = async (currentDriverId: string) => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, vendor:vendor_id(full_name, phone, location, area)')
+      // V0.9.92: Fetch more history (last 50 orders) instead of just today
+      const { data, error } = await supabase.from('orders')
+        .select('*')
         .eq('driver_id', currentDriverId)
-        .or(`created_at.gte.${today.toISOString()},status_updated_at.gte.${today.toISOString()}`)
-        .order('created_at', { ascending: false });
+        .in('status', ['delivered', 'cancelled'])
+        .order('status_updated_at', { ascending: false })
+        .limit(50);
       
       if (error) throw error;
-      const mapped = (data || []).map(mapDBOrderToUI);
-      setTodayHistory(mapped as any);
-      setCache('driver_today_history', mapped);
+      if (data) setTodayHistory(data as any);
     } catch (err) {
-      console.error("fetchTodayHistory error:", err);
+      console.error("DriverPage: fetchHistory failed", err);
     }
-  }
+  };
 
   const isRefreshingRef = useRef(false);
   const manualSync = async (payload?: any) => {

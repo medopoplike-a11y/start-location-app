@@ -140,7 +140,7 @@ export default function SystemControlView({
       <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm space-y-6">
         <div className="flex items-center gap-3">
           <Truck className="w-5 h-5 text-slate-400" />
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">إدارة الأسطول السريعة</h3>
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">إدارة الأسطول والبيانات</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -174,6 +174,22 @@ export default function SystemControlView({
               </div>
             </div>
             <span className="text-xs font-black text-slate-300 group-hover:text-emerald-400">{lockedDrivers.length} محظور</span>
+          </button>
+
+          {/* Global Reset Button */}
+          <button
+            onClick={onGlobalReset}
+            className="flex items-center justify-between p-5 rounded-[24px] bg-red-600 text-white hover:bg-red-700 transition-all group shadow-lg shadow-red-200"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                <RotateCcw className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-black">تصفير الحسابات للكل</p>
+                <p className="text-[10px] text-white/60 font-bold">تصفير كافة المحافظ وتنظيف السجلات</p>
+              </div>
+            </div>
           </button>
         </div>
       </div>

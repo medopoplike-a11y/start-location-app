@@ -798,25 +798,39 @@ function AdminContent() {
   }, [settlements, addActivity, fetchData]);
 
   const handleResetUser = useCallback(async (userId: string, userName: string) => {
-    if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟`)) return;
+    if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟ سيتم حذف الطلبات المكتملة وتصفير المحفظة.`)) return;
     setActionLoading(true);
     try {
-      await resetUserDataAdmin(userId);
-      alert("تم التصفير!");
-      addActivity(`تم تصفير بيانات ${userName}`);
-      fetchData();
+      // 1. Reset Wallet
+      const { error: walletError } = await supabase.rpc('reset_wallet_balance', { p_user_id: userId });
+      if (walletError) throw walletError;
+
+      // 2. Cleanup History
+      const { error: cleanupError } = await supabase.rpc('cleanup_user_orders', { p_user_id: userId });
+      if (cleanupError) throw cleanupError;
+
+      alert("تم تصفير حساب المستخدم وتنظيف السجل بنجاح!");
+      addActivity(`تم تصفير حساب ${userName}`);
+      fetchData(true);
     } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage]);
 
   const handleGlobalReset = useCallback(async () => {
-    if (!confirm("تحذير: هل أنت متأكد من تصفير كافة بيانات النظام؟")) return;
+    if (!confirm("تحذير: هل أنت متأكد من تصفير كافة حسابات النظام وتنظيف جميع السجلات؟")) return;
     setActionLoading(true);
     try {
-      await resetAllSystemDataAdmin();
-      alert("تم التصفير الشامل!");
-      addActivity("تم تنفيذ تصفير شامل للنظام");
-      fetchData();
+      // 1. Reset All Wallets
+      const { error: walletError } = await supabase.rpc('reset_all_wallets');
+      if (walletError) throw walletError;
+
+      // 2. Cleanup All History
+      const { error: cleanupError } = await supabase.rpc('cleanup_all_orders');
+      if (cleanupError) throw cleanupError;
+
+      alert("تم التصفير الشامل للنظام بنجاح!");
+      addActivity("تم تنفيذ تصفير شامل للنظام وتنظيف السجلات");
+      fetchData(true);
     } catch (error) { alert(`خطأ: ${getErrorMessage(error)}`); }
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage]);

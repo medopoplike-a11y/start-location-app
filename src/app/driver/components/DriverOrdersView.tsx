@@ -74,39 +74,58 @@ export default function DriverOrdersView({
   const [activeOrderTab, setActiveOrderTab] = useState<"available" | "active" | "history">("active");
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // Optimistic UI improvements: use a local state for actions to prevent double-clicks and lag
+  const [localOrders, setLocalOrders] = useState<Order[]>(orders);
+
+  useEffect(() => {
+    setLocalOrders(orders);
+  }, [orders]);
+
   // 1. Action Handlers
   const handleAccept = async (orderId: string) => {
+    if (actionLoading) return;
     setActionLoading(true);
+    // Optimistic Update
+    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' } : o));
     try {
       await onAcceptOrder(orderId);
-      // Status update is handled via props/real-time, but we can close modal
       setSelectedOrder(null);
+    } catch (err) {
+      setLocalOrders(orders); // Rollback
     } finally {
       setActionLoading(false);
     }
   };
 
   const handlePickup = async (orderId: string) => {
+    if (actionLoading) return;
     setActionLoading(true);
+    // Optimistic Update
+    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' } : o));
     try {
       await onPickupOrder(orderId);
-      // Status will update via props, but we need to update the selectedOrder 
-      // if the modal is open to reflect the new state.
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: 'in_transit' } : null);
       }
+    } catch (err) {
+      setLocalOrders(orders); // Rollback
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeliver = async (orderId: string) => {
+    if (actionLoading) return;
     setActionLoading(true);
+    // Optimistic Update
+    setLocalOrders(prev => prev.filter(o => o.id !== orderId));
     try {
       await onDeliverOrder(orderId);
       setRatingOrder(selectedOrder);
       setSelectedOrder(null);
       setIsNavigating(false);
+    } catch (err) {
+      setLocalOrders(orders); // Rollback
     } finally {
       setActionLoading(false);
     }
@@ -156,9 +175,9 @@ export default function DriverOrdersView({
   };
 
   // Map Data Preparation
-  const availableOrders = useMemo(() => orders.filter(o => o.status === 'pending'), [orders]);
-  const activeOrders = useMemo(() => orders.filter(o => o.status === 'assigned' || o.status === 'in_transit'), [orders]);
-  const completedOrders = useMemo(() => orders.filter(o => o.status === 'delivered'), [orders]);
+  const availableOrders = useMemo(() => localOrders.filter(o => o.status === 'pending'), [localOrders]);
+  const activeOrders = useMemo(() => localOrders.filter(o => o.status === 'assigned' || o.status === 'in_transit'), [localOrders]);
+  const completedOrders = useMemo(() => localOrders.filter(o => o.status === 'delivered'), [localOrders]);
 
   const vendorMarkers = useMemo(() => 
     activeOrders
@@ -275,6 +294,15 @@ export default function DriverOrdersView({
               <Maximize2 className="w-3.5 h-3.5" />
               المتاحة ({availableOrders.length})
             </button>
+            <button 
+              onClick={() => { setActiveOrderTab("history"); setIsPanelExpanded(true); }}
+              className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black transition-all flex items-center justify-center gap-2 ${
+                activeOrderTab === "history" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              المكتملة ({completedOrders.length})
+            </button>
           </div>
         </div>
 
@@ -379,6 +407,30 @@ export default function DriverOrdersView({
                       <div className="text-center py-10">
                         <Zap className="w-10 h-10 text-slate-200 mx-auto mb-2" />
                         <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات متاحة الآن</p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {activeOrderTab === "history" && (
+                  <motion.div key="history-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    {completedOrders.length > 0 ? (
+                      completedOrders.map((order) => (
+                        <div key={order.id} className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-[28px] border border-emerald-100 dark:border-emerald-800/30">
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-black text-xs text-slate-900 dark:text-white">{order.vendor}</h4>
+                            <span className="text-emerald-600 font-black text-[10px] bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">مكتمل</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                            <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {order.customer}</p>
+                            <p className="font-black text-emerald-600">{order.fee}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10">
+                        <CheckCircle2 className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                        <p className="text-[10px] font-bold text-slate-400">سجل الطلبات المكتملة فارغ</p>
                       </div>
                     )}
                   </motion.div>
