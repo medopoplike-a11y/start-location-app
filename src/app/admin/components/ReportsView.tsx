@@ -20,12 +20,12 @@ interface ReportsViewProps {
   allOrders: AdminOrder[];
 }
 
-export default function ReportsView({ allOrders }: ReportsViewProps) {
+export default function ReportsView({ allOrders = [] }: ReportsViewProps) {
   const [period, setFilterPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
 
   const stats = useMemo(() => {
     const now = new Date();
-    const delivered = allOrders.filter(o => o.status === 'delivered');
+    const delivered = Array.isArray(allOrders) ? allOrders.filter(o => o.status === 'delivered') : [];
     
     // Filter by period
     const filteredByPeriod = delivered.filter(o => {

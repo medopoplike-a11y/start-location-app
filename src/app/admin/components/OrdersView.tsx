@@ -23,13 +23,13 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: s
 
 const statusFilters = ["الكل", "جاري البحث", "تم التعيين", "في الطريق", "تم التوصيل", "ملغي"];
 
-export default function OrdersView({ liveOrders, activities, onCancelOrder, onUpdateStatus }: OrdersViewProps) {
+export default function OrdersView({ liveOrders = [], activities = [], onCancelOrder, onUpdateStatus }: OrdersViewProps) {
   const [filter, setFilter] = useState("الكل");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const allOrders = [...liveOrders];
+  const allOrders = Array.isArray(liveOrders) ? [...liveOrders] : [];
   const filtered = filter === "الكل" ? allOrders : allOrders.filter(o => o.status === filter);
 
   const handleCancel = async (orderId: string) => {

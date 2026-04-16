@@ -13,14 +13,14 @@ interface OrderDistributionViewProps {
   onRefresh?: () => void;
 }
 
-export default function OrderDistributionView({ liveOrders, drivers, onAssign, onUnassign, onRefresh }: OrderDistributionViewProps) {
+export default function OrderDistributionView({ liveOrders = [], drivers = [], onAssign, onUnassign, onRefresh }: OrderDistributionViewProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
 
   // V0.9.92: Include ALL orders in the sidebar for management, not just pending ones
-  const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending" || o.status === "تم التعيين" || o.status === "في الطريق");
-  const availableDrivers = drivers.filter(d => !d.isShiftLocked);
+  const pendingOrders = Array.isArray(liveOrders) ? liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending" || o.status === "تم التعيين" || o.status === "في الطريق") : [];
+  const availableDrivers = Array.isArray(drivers) ? drivers.filter(d => d && !d.isShiftLocked) : [];
   const selectedOrder = pendingOrders.find(o => o.id_full === selectedOrderId);
 
   // ... (sortedDrivers logic)

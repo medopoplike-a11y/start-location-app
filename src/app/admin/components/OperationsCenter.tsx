@@ -450,8 +450,8 @@ export default function OperationsCenter({
           ) : activeTab === "monitor" ? (
             <motion.div key="monitor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
               <OrdersView 
-                allOrders={allOrders} 
-                actionLoading={actionLoading}
+                liveOrders={liveOrders} 
+                activities={activities}
                 onCancelOrder={onCancelOrder}
                 onUpdateStatus={onUpdateStatus}
               />
