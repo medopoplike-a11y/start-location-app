@@ -202,6 +202,15 @@ function AdminContent() {
       // This ensures the map markers (from drivers list) and lists stay in sync
       setDrivers(current => current.map(d => {
         if (d.id_full === payload.id) {
+          // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
+          if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp) {
+            return {
+              ...d,
+              isOnline: payload.is_online !== undefined ? payload.is_online : d.isOnline,
+              status: d.isShiftLocked ? "محظور" : (payload.is_online !== undefined ? (payload.is_online ? "متصل" : "غير متصل") : d.status),
+            };
+          }
+
           const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
           
           // Calculate relative time for the card
@@ -284,38 +293,42 @@ function AdminContent() {
     const driverCards = driversFromProfiles.map((p) => {
       const w = activeWallets.find((wal) => wal.user_id === p.id);
       const lastSeenStr = p.last_location_update || p.updated_at;
-      const lastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
-      const diff = Date.now() - lastUpdateTs;
-      const mins = Math.floor(diff / 60000);
-
+      const dbLastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
+      
       // V0.9.72: Registry-First Strategy - Single Source of Truth for position
-      // Check both ref and the state we just updated via updateDriverRegistry
       const registryEntry = onlineDriversRef.current.find(od => od.id === p.id);
       
-      // Online if registry says so OR profile says so within last 60 mins
-      const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && mins < 60);
+      // V1.0.1: Improved Online Logic - Use registry if exists and fresh, otherwise DB
+      const registryIsFresh = registryEntry && (Date.now() - (registryEntry.lastSeenTimestamp || 0) < 15 * 60 * 1000); // 15 mins
+      const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && (Date.now() - dbLastUpdateTs < 30 * 60 * 1000));
 
       let relativeTime = "غير متوفر";
-      if (registryEntry?.lastSeen === "الآن") {
+      const finalLastUpdateTs = Math.max(dbLastUpdateTs, registryEntry?.lastSeenTimestamp || 0);
+      const mins = Math.floor((Date.now() - finalLastUpdateTs) / 60000);
+
+      if (registryEntry?.lastSeen === "الآن" || mins < 1) {
         relativeTime = "الآن";
-      } else if (lastSeenStr) {
-        if (mins < 1) relativeTime = "الآن";
-        else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
+      } else if (finalLastUpdateTs > 0) {
+        if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
         else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
         else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
       }
 
       const isOnlineValue = isActuallyOnline;
 
-      // V0.9.72: CRITICAL - Prefer the registry location ALWAYS if it exists
-      // This prevents the "jumping" effect and ensures we stay at the last known high-precision point
+      // V0.9.72: CRITICAL - Prefer the registry location ALWAYS if it exists and is newer
       let currentLocation = p.location;
-      if (registryEntry && (registryEntry.lat != null && registryEntry.lng != null)) {
+      const currentInState = drivers.find(d => d.id_full === p.id);
+      
+      if (registryEntry && (registryEntry.lat != null && registryEntry.lng != null) && (registryEntry.lastSeenTimestamp || 0) >= dbLastUpdateTs) {
         currentLocation = { 
           lat: registryEntry.lat, 
           lng: registryEntry.lng, 
           ts: registryEntry.lastSeenTimestamp || Date.now() 
         };
+      } else if (currentInState?.location?.ts && currentInState.location.ts > dbLastUpdateTs) {
+        // Fallback to existing state if it's newer than DB (prevents jumping back to 6-day-old DB data)
+        currentLocation = currentInState.location;
       } else if (typeof currentLocation === 'string') {
         try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
       }
@@ -326,7 +339,7 @@ function AdminContent() {
         name: p.full_name || "بدون اسم", 
         status: p.is_locked ? "محظور" : (isOnlineValue ? "متصل" : "غير متصل"), 
         lastSeen: relativeTime,
-        lastSeenTimestamp: registryEntry?.lastSeenTimestamp || lastUpdateTs,
+        lastSeenTimestamp: finalLastUpdateTs,
         isShiftLocked: !!p.is_locked, 
         isOnline: isOnlineValue, 
         earnings: w?.balance || 0, 
@@ -339,7 +352,7 @@ function AdminContent() {
         commission_value: p.commission_value || 15, 
         monthly_salary: p.monthly_salary || 0, 
         rating: p.rating || 0,
-        location: currentLocation // Pass the most accurate location
+        location: currentLocation 
       };
     });
     setDrivers(driverCards);
@@ -598,18 +611,21 @@ function AdminContent() {
   const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, (payload) => {
     if (mounted && !authLoading && user) {
       // V0.9.94: STRICT SYNC LOGIC
-      // 1. Location updates (Broadcast/Profiles with location) -> Update registry ONLY
+      // 1. Location & Profile updates (Broadcast/Profiles) -> Update registry ONLY
       if (payload?.source === 'broadcast' || payload?.source === 'profiles' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
         const newData = payload.new || payload.payload?.new;
-        if (newData?.location) {
+        if (newData) {
           updateDriverRegistry({
             id: newData.id,
             lat: newData.location?.lat,
             lng: newData.location?.lng,
             is_online: newData.is_online,
-            lastSeenTimestamp: newData.location?.ts || Date.now()
-          }, 'realtime'); 
-          return; // STOP HERE: No need for full fetch for location updates
+            lastSeenTimestamp: newData.location?.ts || (payload.source === 'broadcast' ? Date.now() : (newData.last_location_update ? new Date(newData.last_location_update).getTime() : Date.now()))
+          }, payload.source === 'broadcast' ? 'realtime' : 'db'); 
+          
+          // Only stop here if it's a pure location update (to avoid heavy fetch)
+          // If other important fields changed, we might still want to fetchData()
+          if (newData.location && !newData.full_name && !newData.role) return;
         }
       }
 
