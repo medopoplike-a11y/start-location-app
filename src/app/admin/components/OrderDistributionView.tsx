@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Truck, Store, User, MapPin, Banknote, CheckCircle, Zap, AlertCircle, X } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import type { LiveOrderItem, DriverCard } from "../types";
 
 interface OrderDistributionViewProps {
@@ -29,7 +30,6 @@ export default function OrderDistributionView({ liveOrders = [], drivers = [], o
     if (!confirm("هل أنت متأكد من إلغاء تعيين هذا الطلب؟")) return;
     setAssigning(true);
     try {
-      const { supabase } = await import("@/lib/supabaseClient");
       const { error } = await supabase.rpc('unassign_order_admin', { p_order_id: orderId });
       if (error) throw error;
       if (onRefresh) onRefresh();

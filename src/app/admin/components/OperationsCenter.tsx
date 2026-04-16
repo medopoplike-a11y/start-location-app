@@ -21,6 +21,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { supabase } from "@/lib/supabaseClient";
 import OrdersView from "./OrdersView";
 import SystemControlView from "./SystemControlView";
 import type { LiveOrderItem, DriverCard, ActivityItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
