@@ -890,8 +890,36 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- د. تحديث رقم النسخة في الإعدادات
 UPDATE public.app_config 
-SET latest_version = '0.9.92', updated_at = NOW() 
+SET latest_version = '1.0.0-STABLE-INDUSTRIAL', updated_at = NOW() 
 WHERE id = 1;
+
+-- و. فهارس متقدمة إضافية للأداء الفائق (Ultra-Performance Indices)
+CREATE INDEX IF NOT EXISTS idx_orders_driver_delivered ON public.orders (driver_id, status) WHERE status = 'delivered';
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_delivered ON public.orders (vendor_id, status) WHERE status = 'delivered';
+CREATE INDEX IF NOT EXISTS idx_settlements_user_status ON public.settlements (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_order_messages_order_created ON public.order_messages (order_id, created_at ASC);
+
+-- ز. دالة مراقبة صحة النظام (System Health Monitor)
+CREATE OR REPLACE FUNCTION get_system_health_stats()
+RETURNS JSONB AS $$
+DECLARE
+  v_active_drivers INTEGER;
+  v_pending_orders INTEGER;
+  v_total_system_debt FLOAT;
+BEGIN
+  SELECT COUNT(*) INTO v_active_drivers FROM public.profiles WHERE role = 'driver' AND is_online = true;
+  SELECT COUNT(*) INTO v_pending_orders FROM public.orders WHERE status = 'pending';
+  SELECT SUM(system_balance) INTO v_total_system_debt FROM public.wallets;
+  
+  RETURN jsonb_build_object(
+    'active_drivers', v_active_drivers,
+    'pending_orders', v_pending_orders,
+    'total_system_debt', COALESCE(v_total_system_debt, 0),
+    'status', 'healthy',
+    'timestamp', NOW()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- هـ. وظائف تنظيف السجلات وتصفير الحسابات (جديد V0.9.92)
 

@@ -62,11 +62,18 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     console.log("useSync: Establishing singleton data stream...");
     
     const newChannels: RealtimeChannel[] = [];
-    const timestamp = Date.now();
 
-    // 1. Unified Orders Channel (Unique name per session)
+    // 1. Unified Orders Channel
     const orderChannel = subscribeToOrders(isAdmin ? undefined : userId, (payload) => {
       triggerUpdate({ source: 'orders', event: payload.eventType });
+    });
+    
+    // V1.0.0: Enhanced error handling for channel connectivity
+    orderChannel.subscribe(async (status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.warn("useSync: Order channel failed, retrying in 5s...");
+        setTimeout(() => isMountedRef.current && subscribe(), 5000);
+      }
     });
     newChannels.push(orderChannel);
 
@@ -89,6 +96,14 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       });
       newChannels.push(settlementChannel);
     }
+
+    // 4. V1.0.0: Global Broadcast Channel for ultra-low latency updates (e.g., direct messages or SOS)
+    const broadcastChannel = supabase.channel(`broadcast:global:${userId}`);
+    broadcastChannel.on('broadcast', { event: 'system_alert' }, (payload) => {
+      console.log("useSync: Received system broadcast", payload);
+      triggerUpdate({ source: 'broadcast', payload });
+    }).subscribe();
+    newChannels.push(broadcastChannel);
 
     channelsRef.current = newChannels;
     triggerUpdate({ source: 'initial_subscribe' });

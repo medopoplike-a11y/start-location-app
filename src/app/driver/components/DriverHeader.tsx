@@ -68,6 +68,7 @@ export default function DriverHeader({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <h1 className="text-[10px] font-black text-slate-900 dark:text-slate-100 leading-none tracking-tight uppercase">Start</h1>
+              <span className="text-[7px] font-black text-blue-500/60 dark:text-blue-400/60">V1.0.0</span>
               {isSurgeActive && (
                 <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
               )}

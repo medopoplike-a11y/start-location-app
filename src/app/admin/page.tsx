@@ -1090,11 +1090,11 @@ function AdminContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-hidden transition-colors duration-500" dir="rtl">
-      {/* Sidebar */}
+      {/* Sidebar - V1.0.0 GLASSMORPHISM DESIGN */}
       <motion.aside 
         initial={false} 
         animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} 
-        className="drawer-glass fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500"
+        className="drawer-glass fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500 border-l border-white/10 dark:border-slate-800/50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl shadow-2xl"
       >
         <div className="p-6 flex items-center gap-4 border-b border-white/10 dark:border-slate-800/50 h-24">
           <div className="flex-shrink-0 bg-white/50 dark:bg-slate-800/50 p-2 rounded-2xl backdrop-blur-md border border-white/40 dark:border-slate-700/40 shadow-sm">
@@ -1176,7 +1176,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.95-FULL-SYNC-UNIFIED
+                V1.0.0-STABLE-RELEASE
               </p>
             </div>
           </div>
