@@ -364,12 +364,34 @@ export default function DriverOrdersView({
                               </div>
                             </div>
                             
-                            <button
-                              onClick={() => setSelectedOrder(order)}
-                              className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl font-black text-[11px]"
-                            >
-                              إدارة الطلب
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setSelectedOrder(order)}
+                                className="flex-1 bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl font-black text-[11px]"
+                              >
+                                إدارة الطلب
+                              </button>
+                              
+                              {/* V1.0.9: Quick Action Buttons on Card */}
+                              {order.status === 'assigned' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handlePickup(order.id); }}
+                                  disabled={actionLoading}
+                                  className="flex-1 bg-sky-500 text-white py-3 rounded-xl font-black text-[11px] shadow-lg shadow-sky-100"
+                                >
+                                  {actionLoading ? "جاري..." : "تأكيد الاستلام"}
+                                </button>
+                              )}
+                              
+                              {order.status === 'in_transit' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                                  className="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-black text-[11px] shadow-lg shadow-indigo-100"
+                                >
+                                  إنهاء السكة
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       ))
