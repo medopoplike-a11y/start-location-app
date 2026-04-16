@@ -165,6 +165,21 @@ function AdminContent() {
   const [appConfig, setAppConfig] = useState<any>(null); // Start with null to prevent old data fallback
 
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
+  const broadcastAlert = useCallback(async (message: string) => {
+    try {
+      const channel = supabase.channel('system_alerts');
+      await channel.send({
+        type: 'broadcast',
+        event: 'system_alert',
+        payload: { message, timestamp: new Date().toISOString() }
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Broadcast failed:", error);
+      throw error;
+    }
+  }, []);
+
   const updateDriverRegistry = useCallback((payload: Partial<OnlineDriver> & { id: string }, source: 'db' | 'realtime') => {
     setOnlineDrivers(prev => {
       const existingIndex = prev.findIndex(d => d.id === payload.id);
