@@ -411,6 +411,15 @@ function AdminContent() {
   }, []);
 
   // 7. Data Fetching Functions (Moved UP to avoid TDZ)
+  const fetchAppConfig = useCallback(async () => {
+    try {
+      const data = await fetchAdminAppConfig();
+      if (data) setAppConfig(data);
+    } catch (err) {
+      console.error('Admin: Error fetching app config:', err);
+    }
+  }, []);
+
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
       // If we only need live orders for operations center, fetch a smaller subset
@@ -480,6 +489,11 @@ function AdminContent() {
     }
   }, [translateStatus]);
 
+  const fetchSettlements = useCallback(async () => {
+    const { data } = await supabase.from('settlements').select('*, profiles!user_id(full_name, role)').eq('status', 'pending').order('created_at', { ascending: true });
+    if (data) setSettlements(data);
+  }, []);
+
   const fetchProfiles = useCallback(async () => {
     try {
       const profiles = await fetchAdminProfiles();
@@ -496,20 +510,6 @@ function AdminContent() {
       console.error("Admin: Error fetching profiles:", err);
     }
   }, [processProfiles]);
-
-  const fetchSettlements = useCallback(async () => {
-    const { data } = await supabase.from('settlements').select('*, profiles!user_id(full_name, role)').eq('status', 'pending').order('created_at', { ascending: true });
-    if (data) setSettlements(data);
-  }, []);
-
-  const fetchAppConfig = useCallback(async () => {
-    try {
-      const data = await fetchAdminAppConfig();
-      if (data) setAppConfig(data);
-    } catch (err) {
-      console.error('Admin: Error fetching app config:', err);
-    }
-  }, []);
 
   const isDataFetchingRef = useRef(false);
   
