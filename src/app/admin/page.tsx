@@ -54,6 +54,61 @@ import { useSync } from "@/hooks/useSync";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import { useRef } from "react";
 
+// --- Static Helpers (Outside component to avoid TDZ) ---
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message?: unknown }).message || "حدث خطأ");
+  }
+  return "حدث خطأ";
+};
+
+const translateStatus = (status: string) => {
+  const statuses: Record<string, string> = { 
+    pending: "جاري البحث", 
+    assigned: "تم التعيين", 
+    in_transit: "في الطريق", 
+    delivered: "تم التوصيل", 
+    cancelled: "ملغي" 
+  };
+  return statuses[status] || status;
+};
+
+const formatCurrency = (value: number) => {
+  try {
+    if (isNaN(value) || value === null || value === undefined) return "0";
+    return value.toLocaleString('ar-EG');
+  } catch (e) {
+    return String(value || 0);
+  }
+};
+
+const menuGroups = [
+  {
+    title: "التشغيل والعمليات",
+    items: [
+      { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
+      { id: "order-history", label: "سجل الطلبات والفواتير", icon: FileText },
+      { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
+    ]
+  },
+  {
+    title: "الإدارة والبيانات",
+    items: [
+      { id: "users", label: "المستخدمين", icon: Users },
+      { id: "wallets", label: "مراقبة المحافظ", icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
+      { id: "settlements", label: "التسويات المالية", icon: FileText },
+      { id: "reports", label: "التقارير المالية", icon: BarChart3 },
+    ]
+  },
+  {
+    title: "الإعدادات",
+    items: [
+      { id: "settings", label: "إعدادات النظام", icon: Settings },
+    ]
+  }
+];
+
 export default function AdminPanel() {
   return (
     <AuthGuard allowedRoles={["admin"]}>
@@ -77,33 +132,6 @@ function AdminContent() {
   const [autoRetryEnabled, setAutoRetryEnabled] = useState(true);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
-  // 3. Sidebar Menu Groups
-  const menuGroups = [
-    {
-      title: "التشغيل والعمليات",
-      items: [
-        { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
-        { id: "order-history", label: "سجل الطلبات والفواتير", icon: FileText },
-        { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
-      ]
-    },
-    {
-      title: "الإدارة والبيانات",
-      items: [
-        { id: "users", label: "المستخدمين", icon: Users },
-        { id: "wallets", label: "مراقبة المحافظ", icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
-        { id: "settlements", label: "التسويات المالية", icon: FileText },
-        { id: "reports", label: "التقارير المالية", icon: BarChart3 },
-      ]
-    },
-    {
-      title: "الإعدادات",
-      items: [
-        { id: "settings", label: "إعدادات النظام", icon: Settings },
-      ]
-    }
-  ];
-
   // 3. Data State
   const [drivers, setDrivers] = useState<DriverCard[]>([]);
   const [liveOrders, setLiveOrders] = useState<LiveOrderItem[]>([]);
@@ -122,6 +150,7 @@ function AdminContent() {
   const [wallets, setWallets] = useState<WalletRow[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
+  const isDataFetchingRef = useRef(false);
   
   // 4. Financial State
   const [totalProfits, setTotalProfits] = useState(0);
@@ -380,19 +409,6 @@ function AdminContent() {
     }
   }, [updateDriverRegistry, onlineDrivers, wallets]); // V0.9.87: Re-added onlineDrivers to trigger UI refresh on presence changes
 
-  const getErrorMessage = useCallback((error: unknown): string => {
-    if (error instanceof Error) return error.message;
-    if (typeof error === "object" && error !== null && "message" in error) {
-      return String((error as { message?: unknown }).message || "حدث خطأ");
-    }
-    return "حدث خطأ";
-  }, []);
-
-  const translateStatus = useCallback((status: string) => {
-    const statuses: Record<string, string> = { pending: "جاري البحث", assigned: "تم التعيين", in_transit: "في الطريق", delivered: "تم التوصيل", cancelled: "ملغي" };
-    return statuses[status] || status;
-  }, []);
-
   const addActivity = useCallback((text: string) => {
     setActivityLog(prev => [{
       id: Math.random().toString(36).substring(2, 11),
@@ -401,16 +417,7 @@ function AdminContent() {
     }, ...prev].slice(0, 5));
   }, []);
 
-  const formatCurrency = useCallback((value: number) => {
-    try {
-      if (isNaN(value) || value === null || value === undefined) return "0";
-      return value.toLocaleString('ar-EG');
-    } catch (e) {
-      return String(value || 0);
-    }
-  }, []);
-
-  // 7. Data Fetching Functions (Moved UP to avoid TDZ)
+  // 7. Data Fetching Functions (Corrected Order to avoid TDZ)
   const fetchAppConfig = useCallback(async () => {
     try {
       const data = await fetchAdminAppConfig();
@@ -422,17 +429,12 @@ function AdminContent() {
 
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
-      // If we only need live orders for operations center, fetch a smaller subset
-      // If we need history, fetch the 100 most recent
       const data = fullHistory ? await fetchAdminOrders(200) : await fetchLiveOrders();
-      
       if (data) {
         const typedData = (data as AdminOrder[]).map(o => ({
           ...o,
           status_label: translateStatus(o.status)
         }));
-        
-        // Merge with existing orders to maintain history in UI if needed
         if (!fullHistory) {
           setAllOrders(prev => {
             const merged = [...typedData, ...prev.filter(p => p.status === 'delivered' || p.status === 'cancelled')].slice(0, 300);
@@ -442,51 +444,32 @@ function AdminContent() {
         } else {
           setAllOrders(typedData);
         }
-
-        setCache('admin_orders', typedData); // Cache latest fetch
-        
-        // V1.0.4: Corrected filter to include assigned/in_transit for distribution management
+        setCache('admin_orders', typedData);
         const live = typedData.filter((o) => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').map((o) => {
-          // Handle both array and object responses from Supabase joins
           const rawProfiles = (o as any).profiles;
           const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
           const vName = vendorProfile.full_name || o.vendor_full_name || "محل غير معروف";
-          
           return {
-            id: o.id.slice(0, 8),
-            id_full: o.id,
-            vendor: vName,
-            customer: o.customer_details?.name || "عميل",
-            status: translateStatus(o.status),
-            driver: o.driver_id ? "تم التعيين" : null,
-            driver_id: o.driver_id,
-            amount: o.financials?.order_value || 0,
-            delivery_fee: o.financials?.delivery_fee || 0,
-            created_at: o.created_at,
-            customers: o.customer_details?.customers
+            id: o.id.slice(0, 8), id_full: o.id, vendor: vName, customer: o.customer_details?.name || "عميل",
+            status: translateStatus(o.status), driver: o.driver_id ? "تم التعيين" : null, driver_id: o.driver_id,
+            amount: o.financials?.order_value || 0, delivery_fee: o.financials?.delivery_fee || 0,
+            created_at: o.created_at, customers: o.customer_details?.customers
           };
         });
         setLiveOrders(live);
-        
-        // Update activities only on important events
         if (typedData.length > 0) {
           setActivities(typedData.slice(0, 5).map((o) => {
             const rawProfiles = (o as any).profiles;
             const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
             const vName = vendorProfile.full_name || o.vendor_full_name || "محل";
-            
             return {
-              id: o.id,
-              type: 'order',
-              text: `طلب جديد من ${vName} بقيمة ${o.financials?.order_value} ج.م`,
+              id: o.id, type: 'order', text: `طلب جديد من ${vName} بقيمة ${o.financials?.order_value} ج.م`,
               time: new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
             };
           }));
         }
       }
-    } catch (err) {
-      console.error("Admin: Error fetching orders:", err);
-    }
+    } catch (err) { console.error("Admin: Error fetching orders:", err); }
   }, [translateStatus]);
 
   const fetchSettlements = useCallback(async () => {
@@ -499,52 +482,23 @@ function AdminContent() {
       const profiles = await fetchAdminProfiles();
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
-        setCache('admin_profiles', typedProfiles); // Cache profiles
-        
+        setCache('admin_profiles', typedProfiles);
         const { data: walletsData, error: walletsError } = await supabase.from('wallets').select('*');
         if (walletsError) throw walletsError;
-        
         processProfiles(typedProfiles, (walletsData as WalletRow[]) || []);
       }
-    } catch (err) {
-      console.error("Admin: Error fetching profiles:", err);
-    }
+    } catch (err) { console.error("Admin: Error fetching profiles:", err); }
   }, [processProfiles]);
-
-  const isDataFetchingRef = useRef(false);
-  
-  // V1.0.4: Specialized light refresh for location updates to keep map reactive
-  const manualSync = useCallback(async (payload?: any) => {
-    if (!mounted) return;
-    
-    if (payload?.source === 'location_update') {
-      fetchProfiles();
-      return;
-    }
-
-    if (isDataFetchingRef.current) return;
-    isDataFetchingRef.current = true;
-    
-    try {
-      await fetchData();
-    } finally {
-      isDataFetchingRef.current = false;
-    }
-  }, [mounted, fetchProfiles, fetchData]);
 
   const fetchData = useCallback(async (fullHistory = false) => {
     if (isDataFetchingRef.current) return;
     try {
       isDataFetchingRef.current = true;
       setError(null);
-      
       const fetchWithTimeout = async (promise: Promise<any>, label: string) => {
-        const timeout = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 10000)
-        );
+        const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 10000));
         return Promise.race([promise, timeout]);
       };
-
       await Promise.allSettled([
         fetchWithTimeout(fetchProfiles(), "بيانات المستخدمين"),
         fetchWithTimeout(fetchOrders(fullHistory), "بيانات الطلبات"),
@@ -554,10 +508,20 @@ function AdminContent() {
     } catch (err) {
       console.error("Admin: Global fetch error:", err);
       setError(getErrorMessage(err));
-    } finally {
-      isDataFetchingRef.current = false;
-    }
+    } finally { isDataFetchingRef.current = false; }
   }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
+
+  const manualSync = useCallback(async (payload?: any) => {
+    if (!mounted) return;
+    if (payload?.source === 'location_update') {
+      fetchProfiles();
+      return;
+    }
+    if (isDataFetchingRef.current) return;
+    try {
+      await fetchData();
+    } catch (e) {}
+  }, [mounted, fetchProfiles, fetchData]);
 
   const handleRefresh = useCallback(async () => {
     try {
@@ -634,10 +598,19 @@ function AdminContent() {
       fetchData(true);
     }
   }, [activeView, fetchData]);
-  const { lastSync, isSyncing, broadcastAlert } = useSync(undefined, (payload) => {
+
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      KeepAwake.keepAwake().catch(() => {});
+      return () => {
+        KeepAwake.allowSleep().catch(() => {});
+      };
+    }
+  }, [mounted]);
+
+  const { lastSync, isSyncing, triggerUpdate } = useSync(user?.id, (payload) => {
     if (mounted && !authLoading && user) {
       // V0.9.94: STRICT SYNC LOGIC
-      // 1. Location & Profile updates (Broadcast/Profiles) -> Update registry ONLY
       if (payload?.source === 'broadcast' || payload?.source === 'profiles' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
         const newData = payload.new || payload.payload?.new;
         if (newData) {
@@ -649,17 +622,13 @@ function AdminContent() {
             lastSeenTimestamp: newData.location?.ts || (payload.source === 'broadcast' ? Date.now() : (newData.last_location_update ? new Date(newData.last_location_update).getTime() : Date.now()))
           }, payload.source === 'broadcast' ? 'realtime' : 'db'); 
           
-          // V1.0.4: If location changed, trigger a re-render of the map by updating state
           if (newData.location) {
              manualSync({ source: 'location_update', id: newData.id });
           }
-
-          // Only stop here if it's a pure location update (to avoid heavy fetch)
           if (newData.location && !newData.full_name && !newData.role) return;
         }
       }
 
-      // 2. Direct Location Logs (Real-time tracking) -> Update registry ONLY
       if (payload && payload.table === 'location_logs' && payload.new) {
         const log = payload.new;
         updateDriverRegistry({
@@ -668,24 +637,13 @@ function AdminContent() {
           lng: log.lng,
           lastSeenTimestamp: new Date(log.created_at).getTime()
         }, 'realtime');
-        return; // STOP HERE
+        return;
       }
 
-      // 3. Structural Changes (Orders, Status, Wallets) -> Fetch specific data or full data
       console.log(`[Admin-Sync] Structural change detected: ${payload?.source || payload?.table}. Fetching data...`);
       fetchData();
     }
   }, true);
-
-  // KeepAwake: Prevent screen sleep if admin is using mobile to monitor
-  useEffect(() => {
-    if (mounted && typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
-      KeepAwake.keepAwake().catch(() => {});
-      return () => {
-        KeepAwake.allowSleep().catch(() => {});
-      };
-    }
-  }, [mounted]);
 
   useEffect(() => {
     setMounted(true);

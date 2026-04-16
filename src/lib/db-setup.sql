@@ -512,29 +512,30 @@ BEGIN
     sys_comm := COALESCE((new.financials->>'system_commission')::FLOAT, 0);
     vnd_comm := COALESCE((new.financials->>'vendor_commission')::FLOAT, 0);
     ins_fee := COALESCE((new.financials->>'insurance_fee')::FLOAT, 0);
-    drv_ins := COALESCE((new.financials->>'driver_insurance')::FLOAT, ins_fee / 2);
-    vnd_ins := COALESCE((new.financials->>'vendor_insurance')::FLOAT, ins_fee / 2);
+    -- V1.0.9: Ensuring insurance fees are never NULL even if ins_fee is 0
+    drv_ins := COALESCE((new.financials->>'driver_insurance')::FLOAT, COALESCE(ins_fee, 0) / 2);
+    vnd_ins := COALESCE((new.financials->>'vendor_insurance')::FLOAT, COALESCE(ins_fee, 0) / 2);
 
     -- 2. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
         -- تحديث محفظة الطيار (إضافة الأرباح)
         IF new.driver_id IS NOT NULL THEN
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-            VALUES (new.driver_id, drv_earnings, 0, sys_comm + drv_ins)
+            VALUES (new.driver_id, COALESCE(drv_earnings, 0), 0, COALESCE(sys_comm, 0) + COALESCE(drv_ins, 0))
             ON CONFLICT (user_id) DO UPDATE 
             SET 
-                balance = COALESCE(wallets.balance, 0) + EXCLUDED.balance,
-                system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
+                balance = COALESCE(wallets.balance, 0) + COALESCE(EXCLUDED.balance, 0),
+                system_balance = COALESCE(wallets.system_balance, 0) + COALESCE(EXCLUDED.system_balance, 0),
                 updated_at = NOW();
         END IF;
 
         -- تحديث محفظة المحل (إضافة عمولة الشركة)
         IF new.vendor_id IS NOT NULL THEN
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-            VALUES (new.vendor_id, 0, 0, vnd_comm + vnd_ins)
+            VALUES (new.vendor_id, 0, 0, COALESCE(vnd_comm, 0) + COALESCE(vnd_ins, 0))
             ON CONFLICT (user_id) DO UPDATE
             SET
-                system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
+                system_balance = COALESCE(wallets.system_balance, 0) + COALESCE(EXCLUDED.system_balance, 0),
                 updated_at = NOW();
         END IF;
     END IF;
@@ -543,10 +544,10 @@ BEGIN
     IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
         IF new.driver_id IS NOT NULL THEN
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-            VALUES (new.driver_id, 0, order_val, 0)
+            VALUES (new.driver_id, 0, COALESCE(order_val, 0), 0)
             ON CONFLICT (user_id) DO UPDATE
             SET 
-                debt = COALESCE(wallets.debt, 0) + EXCLUDED.debt,
+                debt = COALESCE(wallets.debt, 0) + COALESCE(EXCLUDED.debt, 0),
                 updated_at = NOW();
         END IF;
     END IF;
@@ -556,7 +557,7 @@ BEGIN
         IF new.driver_id IS NOT NULL THEN
             UPDATE public.wallets 
             SET 
-                debt = COALESCE(debt, 0) - order_val,
+                debt = COALESCE(debt, 0) - COALESCE(order_val, 0),
                 updated_at = NOW()
             WHERE user_id = new.driver_id;
         END IF;
