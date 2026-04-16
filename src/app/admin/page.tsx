@@ -597,6 +597,21 @@ function AdminContent() {
     if (mounted && !authLoading && user) {
       let shouldFetchFull = true;
 
+      // V0.9.92: High-Precision Tracking Handler (Broadcast + Postgres)
+      if (payload?.source === 'broadcast' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
+        const newData = payload.new;
+        if (newData?.location) {
+          updateDriverRegistry({
+            id: newData.id,
+            lat: newData.location.lat,
+            lng: newData.location.lng,
+            is_online: newData.is_online,
+            lastSeenTimestamp: newData.location.ts || Date.now()
+          }, 'realtime'); 
+          shouldFetchFull = false;
+        }
+      }
+
       // 1. Direct Location Logs Real-time (ULTRA-ACCURATE)
       if (payload && payload.table === 'location_logs' && payload.new) {
         const log = payload.new;
@@ -606,11 +621,11 @@ function AdminContent() {
           lng: log.lng,
           lastSeenTimestamp: new Date(log.created_at).getTime()
         }, 'realtime');
-        return; // Skip profile sync if log was successful
+        shouldFetchFull = false;
       }
 
       // 2. Profile Real-time (Fallback/Status)
-      if (payload && payload.table === 'profiles' && payload.new) {
+      if (payload && payload.table === 'profiles' && payload.new && !payload.source) {
         const p = payload.new;
         const old = payload.old;
         
@@ -1193,7 +1208,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.91-MAP-ACCURACY
+                V0.9.92-LIVE-TRACKING-FIX
               </p>
             </div>
           </div>

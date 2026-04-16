@@ -225,47 +225,40 @@ export const subscribeToOrders = (callback: () => void, filterId?: string, role:
     .subscribe();
 };
 
-export const subscribeToProfiles = (callback: (payload?: any) => void, profileId?: string) => {
-  const channel = supabase.channel(`profiles${profileId ? `:${profileId}` : ''}`);
-  
-  if (profileId) {
-    return channel
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'profiles',
-        filter: `id=eq.${profileId}`
-      }, (payload) => callback(payload))
-      .subscribe();
-  }
+/**
+ * استدعاء القناة الموحدة لمتابعة كافة البروفايلات (Postgres + Broadcast)
+ */
+export const subscribeToProfiles = (callback: (payload: any) => void) => {
+  const channel = supabase.channel('global:profiles');
 
-  // For global profile changes (like online status and location)
   return channel
-    .on('postgres_changes', { 
-      event: '*', 
-      schema: 'public', 
-      table: 'profiles'
-    }, (payload) => {
-      if (payload.event === 'DELETE' || payload.event === 'INSERT') {
-        callback(payload);
-        return;
-      }
-
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
       const oldData = payload.old as any;
       const newData = payload.new as any;
       
-      // Trigger update if:
-      // 1. is_online changed
-      // 2. location changed (crucial for admin map)
-      // 3. is_locked changed
+      // V0.9.92: Improved Postgres change detection
       if (
         !oldData || 
         oldData.is_online !== newData.is_online || 
         JSON.stringify(oldData.location) !== JSON.stringify(newData.location) ||
         oldData.is_locked !== newData.is_locked
       ) {
-        callback(payload);
+        callback({ ...payload, source: 'postgres' });
       }
+    })
+    // V0.9.92: NEW - Listen to Real-time Broadcast for high-frequency location updates
+    .on('broadcast', { event: 'location_update' }, ({ payload }) => {
+      console.log(`[ULTIMATE-TRACKING] Broadcast received for ${payload.id}`);
+      callback({
+        eventType: 'UPDATE',
+        new: {
+          id: payload.id,
+          location: payload.location,
+          is_online: true,
+          last_location_update: new Date().toISOString()
+        },
+        source: 'broadcast'
+      });
     })
     .subscribe();
 };

@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V0.9.91-MAP-ACCURACY";
+  const VERSION = "V0.9.92-LIVE-TRACKING-FIX";
 
   const router = useRouter();
   const { user, profile } = useAuth();

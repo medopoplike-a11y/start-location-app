@@ -324,59 +324,74 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           };
           if (onUpdate) onUpdate(loc);
 
+          // V0.9.92: DUAL BROADCAST (Real-time + Persistence)
+          // 1. Send immediate real-time broadcast (Ultra-fast, doesn't wait for DB)
+          const profileChannel = supabase.channel('global:profiles');
+          profileChannel.send({
+            type: 'broadcast',
+            event: 'location_update',
+            payload: { id: userId, location: loc }
+          }).catch(() => {});
+
           const now = Date.now();
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
           lastDbUpdate = now;
 
           try {
-            let accessToken = SUPABASE_KEY;
-            try {
-              const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
-              if (sessionStr) {
-                const session = JSON.parse(sessionStr);
-                if (session.access_token) accessToken = session.access_token;
-              }
-            } catch (e) {}
+            // V0.9.92: Use the standard supabase client first as it handles session auto-refresh
+            // Fallback to CapacitorHttp ONLY if standard client fails (native background issues)
+            const { error: dbError } = await supabase.from('profiles').update({
+              location: { ...loc, ts: now },
+              is_online: true,
+              last_location_update: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }).eq('id', userId);
 
-            const headers = {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=minimal'
-            };
+            if (dbError) {
+              console.warn("BG Tracker: Supabase client failed, falling back to CapacitorHttp", dbError);
+              
+              let accessToken = SUPABASE_KEY;
+              try {
+                const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
+                if (sessionStr) {
+                  const session = JSON.parse(sessionStr);
+                  if (session.access_token) accessToken = session.access_token;
+                }
+              } catch (e) {}
 
-            await Promise.allSettled([
-              CapacitorHttp.patch({
-                url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-                headers,
-                data: {
-                  location: {
+              const headers = {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              };
+
+              await Promise.allSettled([
+                CapacitorHttp.patch({
+                  url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+                  headers,
+                  data: {
+                    location: { ...loc, ts: now },
+                    is_online: true,
+                    last_location_update: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                }),
+                CapacitorHttp.post({
+                  url: `${SUPABASE_URL}/rest/v1/location_logs`,
+                  headers,
+                  data: {
+                    user_id: userId,
                     lat: location.latitude,
                     lng: location.longitude,
-                    heading: location.bearing || 0,
                     speed: location.speed || 0,
+                    heading: location.bearing || 0,
                     accuracy: location.accuracy || 0,
-                    ts: now
-                  },
-                  is_online: true,
-                  last_location_update: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                }
-              }),
-              CapacitorHttp.post({
-                url: `${SUPABASE_URL}/rest/v1/location_logs`,
-                headers,
-                data: {
-                  user_id: userId,
-                  lat: location.latitude,
-                  lng: location.longitude,
-                  speed: location.speed || 0,
-                  heading: location.bearing || 0,
-                  accuracy: location.accuracy || 0,
-                  created_at: new Date().toISOString() // Ensure timestamp is set for logs
-                }
-              })
-            ]);
+                    created_at: new Date().toISOString()
+                  }
+                })
+              ]);
+            }
           } catch (e) {
             console.warn("BG Native Update Exception", e);
           }

@@ -326,8 +326,16 @@ export default function DriverApp() {
         setDriverLocation(newLocation);
         setLastLocationUpdate(now);
 
+        // V0.9.92: DUAL BROADCAST (Real-time + Persistence)
+        const profileChannel = supabase.channel('global:profiles');
+        profileChannel.send({
+          type: 'broadcast',
+          event: 'location_update',
+          payload: { id: driverId, location: newLocation }
+        }).catch(() => {});
+
         await supabase.from('profiles').update({ 
-          location: newLocation,
+          location: { ...newLocation, ts: now },
           is_online: true,
           last_location_update: new Date().toISOString(),
           updated_at: new Date().toISOString()

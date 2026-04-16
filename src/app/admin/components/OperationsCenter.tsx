@@ -265,7 +265,7 @@ export default function OperationsCenter({
                     <div>
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع والتحكم</h3>
                       <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات النشطة ({pendingOrders.length})</p>
-                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.91-MAP-ACCURACY</span>
+                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.92-LIVE-TRACKING-FIX</span>
                     </div>
                   </div>
                   <button onClick={() => setShowSidePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
