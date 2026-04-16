@@ -888,16 +888,12 @@ export default function DriverApp() {
 
     try {
       console.log("DriverPage: Delivering order", orderId);
-      const { data, error: dbError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'delivered', 
-          driver_id: driverId,
-          status_updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
+      
+      // V1.0.5: Using RPC for reliable delivery status update
+      const { data, error: dbError } = await supabase.rpc('complete_order_driver', {
+        p_order_id: orderId,
+        p_driver_id: driverId
+      });
 
       if (dbError) throw dbError;
       
@@ -911,10 +907,10 @@ export default function DriverApp() {
         fetchActiveDebtOrders(driverId),
         fetchTodayHistory(driverId)
       ]);
-    } catch (err) {
+    } catch (err: any) {
       console.error("DriverPage: handleDeliverOrder failed", err);
       setOrders(originalOrders);
-      toastError("فشل إتمام الطلب. حاول مرة أخرى.");
+      toastError(err.message || "فشل إتمام الطلب. حاول مرة أخرى.");
     }
   };
 

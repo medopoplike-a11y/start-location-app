@@ -892,8 +892,61 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- د. تحديث رقم النسخة في الإعدادات
 UPDATE public.app_config 
-SET latest_version = '1.0.0-STABLE-INDUSTRIAL', updated_at = NOW() 
+SET latest_version = '1.0.5-FIX', updated_at = NOW() 
 WHERE id = 1;
+
+-- ح. إصلاحات استقرار جدول المحافظ (جديد V1.0.5)
+DO $$ 
+BEGIN 
+  -- إضافة عمود updated_at المفقود في جدول المحافظ
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wallets' AND column_name='updated_at') THEN
+    ALTER TABLE wallets ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
+-- دالة لتحديث التوقيت تلقائياً
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- ربط التريجر بجدول المحافظ
+DROP TRIGGER IF EXISTS update_wallets_updated_at ON wallets;
+CREATE TRIGGER update_wallets_updated_at
+    BEFORE UPDATE ON wallets
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_updated_at_column();
+
+-- ط. دالة إتمام الطلب (RPC) لتجاوز مشاكل التحديث في الواجهة
+CREATE OR REPLACE FUNCTION complete_order_driver(p_order_id UUID, p_driver_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_rows_affected INTEGER;
+BEGIN
+  UPDATE public.orders
+  SET 
+    status = 'delivered',
+    status_updated_at = NOW()
+  WHERE id = p_order_id 
+    AND driver_id = p_driver_id
+    AND status IN ('assigned', 'in_transit'); -- السماح بالإتمام من أي حالة نشطة
+  
+  GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+  
+  IF v_rows_affected = 0 THEN
+    -- التحقق إذا كان الطلب مكتملاً بالفعل (Idempotency)
+    IF EXISTS (SELECT 1 FROM public.orders WHERE id = p_order_id AND status = 'delivered') THEN
+      RETURN TRUE;
+    END IF;
+    RAISE EXCEPTION 'فشل إتمام الطلب: الطلب غير موجود أو غير مسند إليك.';
+  END IF;
+  
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- و. فهارس متقدمة إضافية للأداء الفائق (Ultra-Performance Indices)
 CREATE INDEX IF NOT EXISTS idx_orders_driver_delivered ON public.orders (driver_id, status) WHERE status = 'delivered';
