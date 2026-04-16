@@ -243,9 +243,14 @@ function StoreContent() {
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
 
-  // useSync hook for real-time updates
-  useSync(vendorId || undefined, () => {
+  // V0.9.95: Unified single-stream sync
+  useSync(vendorId || undefined, (payload) => {
     if (vendorId) {
+      // Skip refreshes for location-only broadcast updates to save resources
+      if (payload?.source === 'broadcast' || payload?.table === 'profiles') {
+        const newData = payload.new || payload.payload?.new;
+        if (newData?.location && !newData.status_updated_at) return;
+      }
       updateData(vendorId);
     }
   });
@@ -389,12 +394,14 @@ function StoreContent() {
             vendor_commission: (profile as any).commission_type === 'percentage' ? ((profile as any).commission_value || 20) : prev.vendor_commission
           }));
           
+          // V0.9.95: Unified single-stream fetch
           console.log("StorePage: Fetching dashboard data...");
+          setLoading(true);
           await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
+          setLoading(false);
 
-          // Fetch config
-          try {
-            const { data: configData } = await supabase.from('app_config').select('*').maybeSingle();
+          // Fetch config in background
+          supabase.from('app_config').select('*').maybeSingle().then(({ data: configData }) => {
             if (configData && isMounted) {
               setAppConfig(prev => ({
                 ...prev,
@@ -406,9 +413,7 @@ function StoreContent() {
                 surge_pricing_multiplier: configData.surge_pricing_multiplier || 1.0
               }));
             }
-          } catch (configErr) {
-            console.error("Fetch config failed", configErr);
-          }
+          }).catch(err => console.error("Fetch config failed", err));
         } else {
           console.error("StorePage: No profile found for user", currentUser.id);
           // Don't hang forever if profile missing

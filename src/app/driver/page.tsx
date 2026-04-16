@@ -288,19 +288,20 @@ export default function DriverApp() {
         password: ""
       });
 
-      await Promise.allSettled([
-        fetchOrders(currentDriverId),
-        fetchStats(currentDriverId),
-        fetchActiveDebtOrders(currentDriverId),
-        fetchTodayHistory(currentDriverId)
-      ]);
-
-      // Ensure Online status is synced with DB if isActive is true
-      if (isActive) {
-        supabase.from('profiles').update({ is_online: true }).eq('id', currentDriverId).catch(() => {});
+      try {
+        setLoading(true);
+        // V0.9.95: Single clean initialization
+        await Promise.allSettled([
+          fetchOrders(currentDriverId),
+          fetchStats(currentDriverId),
+          fetchActiveDebtOrders(currentDriverId),
+          fetchTodayHistory(currentDriverId)
+        ]);
+      } catch (e) {
+        console.error("Driver initialization failed", e);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     setup();
@@ -612,6 +613,10 @@ export default function DriverApp() {
   const isRefreshingRef = useRef(false);
   const manualSync = async (payload?: any) => {
     if (!driverId || isRefreshingRef.current) return;
+    
+    // V0.9.95: Skip full refresh for self-location broadcast to prevent UI stutter
+    if (payload?.source === 'broadcast' && payload?.new?.id === driverId) return;
+
     isRefreshingRef.current = true;
     
     // V0.9.74: Background Session Refresh

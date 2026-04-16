@@ -1160,7 +1160,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.93-ULTIMATE-STABILITY
+                V0.9.95-FULL-SYNC-UNIFIED
               </p>
             </div>
           </div>

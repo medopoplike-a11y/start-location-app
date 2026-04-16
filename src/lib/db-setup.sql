@@ -889,7 +889,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- د. تحديث رقم النسخة في الإعدادات
-UPDATE public.app_config SET latest_version = '0.9.93-ULTIMATE-STABILITY', updated_at = NOW() WHERE id = 1;
+UPDATE public.app_config SET latest_version = '0.9.95-FULL-SYNC-UNIFIED', updated_at = NOW() WHERE id = 1;
 
 -- ضمان وجود كافة المحافظ مرة أخرى كإجراء احترازي
 SELECT fix_missing_wallets();

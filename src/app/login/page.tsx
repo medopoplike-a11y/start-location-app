@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V0.9.94-SINGLE-STREAM";
+  const VERSION = "V0.9.95-FULL-SYNC-UNIFIED";
 
   const router = useRouter();
   const { user, profile } = useAuth();
