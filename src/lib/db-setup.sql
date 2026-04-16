@@ -521,7 +521,7 @@ BEGIN
         SET 
             balance = wallets.balance + EXCLUDED.balance,
             system_balance = wallets.system_balance + EXCLUDED.system_balance,
-            created_at = NOW();
+            updated_at = NOW();
 
         -- التأكد من وجود محفظة للمحل قبل التحديث
         INSERT INTO public.wallets (user_id, balance, debt, system_balance)
@@ -529,7 +529,7 @@ BEGIN
         ON CONFLICT (user_id) DO UPDATE
         SET
             system_balance = wallets.system_balance + EXCLUDED.system_balance,
-            created_at = NOW();
+            updated_at = NOW();
     END IF;
 
     -- 2. جديد: عند استلام الطلب من المحل (In Transit) - تسجيل المديونية على الطيار للمحل
@@ -539,13 +539,15 @@ BEGIN
         ON CONFLICT (user_id) DO UPDATE
         SET 
             debt = wallets.debt + EXCLUDED.debt,
-            created_at = NOW();
+            updated_at = NOW();
     END IF;
 
     -- 3. عند تحصيل المحل للمبلغ من الطيار (Vendor Collected): خصم قيمة الطلب فقط من مديونية الطيار
     IF (new.vendor_collected_at IS NOT NULL AND old.vendor_collected_at IS NULL) THEN
         UPDATE public.wallets 
-        SET debt = debt - order_val
+        SET 
+            debt = debt - order_val,
+            updated_at = NOW()
         WHERE user_id = new.driver_id;
     END IF;
 
@@ -887,7 +889,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- د. تحديث رقم النسخة في الإعدادات
-UPDATE public.app_config SET latest_version = '0.9.92-LIVE-TRACKING-FIX', updated_at = NOW() WHERE id = 1;
+UPDATE public.app_config SET latest_version = '0.9.93-ULTIMATE-STABILITY', updated_at = NOW() WHERE id = 1;
 
 -- ضمان وجود كافة المحافظ مرة أخرى كإجراء احترازي
 SELECT fix_missing_wallets();

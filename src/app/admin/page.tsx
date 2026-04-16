@@ -597,17 +597,22 @@ function AdminContent() {
     if (mounted && !authLoading && user) {
       let shouldFetchFull = true;
 
-      // V0.9.92: High-Precision Tracking Handler (Broadcast + Postgres)
-      if (payload?.source === 'broadcast' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
-        const newData = payload.new;
-        if (newData?.location) {
+      // V0.9.93: Ultra-Precise Tracking & Status Handler
+      if (payload?.source === 'broadcast' || payload?.source === 'profiles' || (payload?.source === 'postgres' && payload?.table === 'profiles')) {
+        const newData = payload.new || payload.payload?.new;
+        if (newData?.location || newData?.is_online !== undefined) {
           updateDriverRegistry({
             id: newData.id,
-            lat: newData.location.lat,
-            lng: newData.location.lng,
+            lat: newData.location?.lat,
+            lng: newData.location?.lng,
             is_online: newData.is_online,
-            lastSeenTimestamp: newData.location.ts || Date.now()
+            lastSeenTimestamp: newData.location?.ts || Date.now()
           }, 'realtime'); 
+          
+          // If it was a status change, we might need a full refresh for dispatch lists
+          if (newData.is_online !== undefined) {
+            fetchProfiles();
+          }
           shouldFetchFull = false;
         }
       }
@@ -624,53 +629,6 @@ function AdminContent() {
         shouldFetchFull = false;
       }
 
-      // 2. Profile Real-time (Fallback/Status)
-      if (payload && payload.table === 'profiles' && payload.new && !payload.source) {
-        const p = payload.new;
-        const old = payload.old;
-        
-        // Find if this is a driver (either from payload or from our existing state)
-        const existingProfile = allUsers.find(u => u.id === p.id);
-        const existingDriver = onlineDrivers.find(d => d.id === p.id);
-        const existingVendor = vendors.find(v => v.id_full === p.id);
-        
-        const role = (p.role || existingProfile?.role || (existingDriver ? 'driver' : '') || (existingVendor ? 'vendor' : '') || '').toLowerCase();
-        
-        // V0.9.30: If status changed (online/locked), force a profile refresh to update dispatch lists
-        const statusChanged = old && (p.is_online !== old.is_online || p.is_locked !== old.is_locked);
-        if (statusChanged) {
-          fetchProfiles();
-        }
-
-        if (role === 'driver') {
-          let loc = p.location;
-          if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-          const payloadLoc = loc && typeof loc === 'object' && (loc as any).lat != null ? loc : null;
-          
-          if (payloadLoc) {
-            updateDriverRegistry({
-              id: p.id,
-              name: p.full_name || existingProfile?.full_name,
-              lat: (payloadLoc as any).lat,
-              lng: (payloadLoc as any).lng,
-              is_online: p.is_online,
-              status: (payloadLoc as any).speed > 0 ? 'busy' : undefined,
-              rating: p.rating,
-              lastSeenTimestamp: (payloadLoc as any).ts || Date.now()
-            }, 'realtime');
-            shouldFetchFull = false;
-          }
-        } else if (role === 'vendor') {
-          setVendors(prev => {
-            let loc = p.location;
-            if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-            if (loc) return prev.map(v => v.id_full === p.id ? { ...v, location: loc } : v);
-            return prev;
-          });
-          shouldFetchFull = false; 
-        }
-      }
-      
       if (shouldFetchFull) fetchData();
     }
   }, true);
@@ -1208,7 +1166,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.92-LIVE-TRACKING-FIX
+                V0.9.93-ULTIMATE-STABILITY
               </p>
             </div>
           </div>

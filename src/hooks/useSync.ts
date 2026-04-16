@@ -81,13 +81,13 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     });
     newChannels.push(settlementChannel);
 
-    // 4. Admin Only: Profiles Channel
-    if (isAdmin) {
-      const profileChannel = subscribeToProfiles((payload) => {
-        triggerUpdate({ source: 'profiles', event: payload.eventType });
-      });
-      newChannels.push(profileChannel);
-    }
+    // 4. Profiles Channel (Global for Admin, Self for Driver)
+    const profileChannel = subscribeToProfiles((payload) => {
+      // V0.9.93: Improved profile sync filtering
+      if (!isAdmin && payload.new?.id !== userId) return;
+      triggerUpdate({ source: 'profiles', event: payload.eventType, payload });
+    });
+    newChannels.push(profileChannel);
 
     channelsRef.current = newChannels;
     triggerUpdate({ source: 'initial_subscribe' });
