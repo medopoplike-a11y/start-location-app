@@ -200,42 +200,45 @@ function AdminContent() {
 
       // V0.9.70: Unified Sync - Update BOTH registries to prevent "jumping"
       // This ensures the map markers (from drivers list) and lists stay in sync
-      setDrivers(current => current.map(d => {
-        if (d.id_full === payload.id) {
-          // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
-          if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp) {
-            return {
-              ...d,
-              isOnline: payload.is_online !== undefined ? payload.is_online : d.isOnline,
-              status: d.isShiftLocked ? "محظور" : (payload.is_online !== undefined ? (payload.is_online ? "متصل" : "غير متصل") : d.status),
+      setDrivers(current => {
+        const updated = current.map(d => {
+          if (d.id_full === payload.id) {
+            // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
+            if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp) {
+              return {
+                ...d,
+                isOnline: payload.is_online !== undefined ? payload.is_online : d.isOnline,
+                status: d.isShiftLocked ? "محظور" : (payload.is_online !== undefined ? (payload.is_online ? "متصل" : "غير متصل") : d.status),
+              };
+            }
+
+            const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
+            
+            // Calculate relative time for the card
+            let relativeTime = d.lastSeen;
+            if (source === 'realtime') {
+              relativeTime = "الآن";
+            } else if (payload.lastSeenTimestamp) {
+              const mins = Math.floor((Date.now() - payload.lastSeenTimestamp) / 60000);
+              if (mins < 1) relativeTime = "الآن";
+              else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
+              else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
+              else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
+            }
+
+            return { 
+              ...d, 
+              isOnline: isOnlineStatus, 
+              status: d.isShiftLocked ? "محظور" : (isOnlineStatus ? "متصل" : "غير متصل"),
+              location: { lat, lng, ts: payloadTs },
+              lastSeen: relativeTime,
+              lastSeenTimestamp: payloadTs
             };
           }
-
-          const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
-          
-          // Calculate relative time for the card
-          let relativeTime = d.lastSeen;
-          if (source === 'realtime') {
-            relativeTime = "الآن";
-          } else if (payload.lastSeenTimestamp) {
-            const mins = Math.floor((Date.now() - payload.lastSeenTimestamp) / 60000);
-            if (mins < 1) relativeTime = "الآن";
-            else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
-            else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
-            else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
-          }
-
-          return { 
-            ...d, 
-            isOnline: isOnlineStatus, 
-            status: d.isShiftLocked ? "محظور" : (isOnlineStatus ? "متصل" : "غير متصل"),
-            location: { lat, lng, ts: payloadTs },
-            lastSeen: relativeTime,
-            lastSeenTimestamp: payloadTs
-          };
-        }
-        return d;
-      }));
+          return d;
+        });
+        return [...updated];
+      });
 
       if (existing) {
         const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;

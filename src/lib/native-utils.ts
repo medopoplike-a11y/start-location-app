@@ -327,11 +327,15 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           // V0.9.92: DUAL BROADCAST (Real-time + Persistence)
           // 1. Send immediate real-time broadcast (Ultra-fast, doesn't wait for DB)
           const profileChannel = supabase.channel('global:profiles');
-          profileChannel.send({
-            type: 'broadcast',
-            event: 'location_update',
-            payload: { id: userId, location: loc }
-          }).catch(() => {});
+          profileChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              profileChannel.send({
+                type: 'broadcast',
+                event: 'location_update',
+                payload: { id: userId, location: loc }
+              }).catch(() => {});
+            }
+          });
 
           const now = Date.now();
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;

@@ -168,7 +168,9 @@ BEGIN
   CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (true);
   
   -- السماح للمستخدمين بتحديث ملفاتهم الشخصية فقط
-  CREATE POLICY "Users can update their own profiles" ON profiles FOR UPDATE USING (auth.uid() = id);
+  -- V1.0.2: Enhanced policy to explicitly allow updating location and online status
+  CREATE POLICY "Users can update their own profiles" ON profiles FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
   -- السماح للأدمن بإدارة جميع الملفات الشخصية
   CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (

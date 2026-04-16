@@ -329,11 +329,15 @@ export default function DriverApp() {
 
         // V0.9.92: DUAL BROADCAST (Real-time + Persistence)
         const profileChannel = supabase.channel('global:profiles');
-        profileChannel.send({
-          type: 'broadcast',
-          event: 'location_update',
-          payload: { id: driverId, location: newLocation }
-        }).catch(() => {});
+        profileChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            profileChannel.send({
+              type: 'broadcast',
+              event: 'location_update',
+              payload: { id: driverId, location: newLocation }
+            }).catch(() => {});
+          }
+        });
 
         await supabase.from('profiles').update({ 
           location: { ...newLocation, ts: now },
