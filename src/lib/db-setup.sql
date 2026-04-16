@@ -291,6 +291,24 @@ BEGIN
   ALTER TABLE wallets ALTER COLUMN system_balance SET NOT NULL;
 END $$;
 
+-- V1.1.5: ROOT-CAUSE FIX - Safety Trigger on Wallets Table
+-- This trigger runs BEFORE any insert or update on wallets to guarantee no NULLs ever reach the storage
+CREATE OR REPLACE FUNCTION public.ensure_wallet_sanity()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.balance := COALESCE(NEW.balance, 0);
+    NEW.debt := COALESCE(NEW.debt, 0);
+    NEW.system_balance := COALESCE(NEW.system_balance, 0);
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_ensure_wallet_sanity ON public.wallets;
+CREATE TRIGGER trg_ensure_wallet_sanity
+    BEFORE INSERT OR UPDATE ON public.wallets
+    FOR EACH ROW EXECUTE PROCEDURE public.ensure_wallet_sanity();
+
 -- 6. إنشاء جدول الطلبات (Orders) إذا لم يكن موجوداً
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
