@@ -35,7 +35,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       // Artificial delay for visual feedback, but doesn't block UI
       setTimeout(() => {
         if (isMountedRef.current) setIsSyncing(false);
-      }, 800);\ 
+      }, 800); 
       syncTimeoutRef.current = null;
     }, 400); 
   }, []);

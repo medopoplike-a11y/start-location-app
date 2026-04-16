@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V0.9.88-PRO-SUPER-APP";
+  const VERSION = "V0.9.89-PRO-SUPER-APP-FIX";
 
   const router = useRouter();
   const { user, profile } = useAuth();
