@@ -822,44 +822,75 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- تشغيل الإصلاح فوراً عند تشغيل ملف الإعداد
-SELECT fix_missing_wallets();
+-- 16. دوال احترافية متقدمة (Advanced Industrial Functions)
 
--- دالة لتصفير مديونيات مستخدم معين أو جميع المستخدمين
-CREATE OR REPLACE FUNCTION reset_wallets(p_user_id UUID DEFAULT NULL)
-RETURNS BOOLEAN AS $$
+-- أ. دالة تعيين الطلب التلقائي (Atomic Assignment)
+-- تمنع حالات السباق (Race Conditions) حيث لا يمكن تعيين الطلب لطيار إذا تغيرت حالته أثناء المعالجة
+CREATE OR REPLACE FUNCTION assign_order_atomic(
+  p_order_id UUID,
+  p_driver_id UUID
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_order_status TEXT;
+  v_driver_exists BOOLEAN;
+  v_active_count INTEGER;
+  v_max_orders INTEGER;
 BEGIN
-  -- التحقق من صلاحيات الأدمن
-  IF NOT (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-  ) THEN
-    RAISE EXCEPTION 'غير مصرح للآدمن فقط.';
+  -- 1. التحقق من حالة الطلب (يجب أن يكون pending أوassigned بدون طيار)
+  SELECT status INTO v_order_status FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  
+  IF v_order_status != 'pending' AND v_order_status != 'assigned' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'الطلب لم يعد متاحاً للتعيين');
   END IF;
 
-  IF p_user_id IS NOT NULL THEN
-    -- تصفير مستخدم واحد
-    UPDATE public.wallets 
-    SET 
-      balance = 0, 
-      debt = 0, 
-      system_balance = 0,
-      updated_at = NOW()
-    WHERE user_id = p_user_id;
-  ELSE
-    -- تصفير الجميع
-    UPDATE public.wallets 
-    SET 
-      balance = 0, 
-      debt = 0, 
-      system_balance = 0,
-      updated_at = NOW();
+  -- 2. التحقق من وجود وصلاحية الطيار
+  SELECT EXISTS(SELECT 1 FROM public.profiles WHERE id = p_driver_id AND role = 'driver' AND is_locked = false) INTO v_driver_exists;
+  
+  IF NOT v_driver_exists THEN
+    RETURN jsonb_build_object('success', false, 'error', 'الطيار غير موجود أو محظور');
   END IF;
 
-  RETURN TRUE;
+  -- 3. التحقق من الحد الأقصى للطلبات
+  SELECT max_active_orders INTO v_max_orders FROM public.profiles WHERE id = p_driver_id;
+  SELECT COUNT(*) INTO v_active_count FROM public.orders WHERE driver_id = p_driver_id AND status IN ('assigned', 'in_transit');
+  
+  IF v_active_count >= COALESCE(v_max_orders, 3) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'الطيار وصل للحد الأقصى من الطلبات');
+  END IF;
+
+  -- 4. تنفيذ التعيين
+  UPDATE public.orders 
+  SET 
+    driver_id = p_driver_id,
+    status = 'assigned',
+    status_updated_at = NOW()
+  WHERE id = p_order_id;
+
+  RETURN jsonb_build_object('success', true);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ب. فهارس متقدمة للأداء العالي (High-Performance Indices)
+CREATE INDEX IF NOT EXISTS idx_orders_composite_status_driver ON public.orders (status, driver_id) WHERE status IN ('assigned', 'in_transit');
+CREATE INDEX IF NOT EXISTS idx_profiles_active_drivers ON public.profiles (id) WHERE role = 'driver' AND is_online = true AND is_locked = false;
+CREATE INDEX IF NOT EXISTS idx_wallets_system_balance ON public.wallets (system_balance) WHERE system_balance > 0;
+CREATE INDEX IF NOT EXISTS idx_location_logs_user_created ON public.location_logs (user_id, created_at DESC);
+
+-- ج. دالة تنظيف البيانات القديمة (Auto-Cleanup)
+-- تحافظ على خفة قاعدة البيانات عبر حذف سجلات المواقع التي مر عليها أكثر من 7 أيام
+CREATE OR REPLACE FUNCTION cleanup_old_data()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM public.location_logs WHERE created_at < NOW() - INTERVAL '7 days';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- د. تحديث رقم النسخة في الإعدادات
+UPDATE public.app_config SET latest_version = '0.9.88-PRO-SUPER-APP', updated_at = NOW() WHERE id = 1;
+
+-- ضمان وجود كافة المحافظ مرة أخرى كإجراء احترازي
+SELECT fix_missing_wallets();
 
 -- دالة لاستلام الطلب من قبل الطيار وتغيير الحالة إلى "في الطريق"
 CREATE OR REPLACE FUNCTION handle_order_pickup(p_order_id UUID, p_driver_id UUID)

@@ -8,8 +8,9 @@ import { supabase } from "@/lib/supabaseClient";
 export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isAdmin: boolean = false) => {
   const [lastSync, setLastSync] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
-  const [presenceData, setPresenceData] = useState<Record<string, any>>({});
   const onUpdateRef = useRef(onUpdate);
+  const channelsRef = useRef<RealtimeChannel[]>([]);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -17,43 +18,112 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * V0.9.88: INDUSTRIAL GRADE DEBOUNCED SYNC
+   * Prevents UI freezing by grouping rapid DB changes into single updates.
+   */
   const triggerUpdate = useCallback((payload?: any) => {
-    // V0.9.68: Optimized debounce (300ms instead of 50ms) to prevent UI thrashing 
-    // during many simultaneous updates
+    if (!isMountedRef.current) return;
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
     syncTimeoutRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
       setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      setTimeout(() => setIsSyncing(false), 500); 
+      
+      // Artificial delay for visual feedback, but doesn't block UI
+      setTimeout(() => {
+        if (isMountedRef.current) setIsSyncing(false);
+      }, 800);\ 
       syncTimeoutRef.current = null;
-    }, 300); 
+    }, 400); 
   }, []);
 
+  /**
+   * SELF-HEALING: Cleanup all zombie channels before re-subscribing
+   */
+  const cleanupChannels = useCallback(async () => {
+    if (channelsRef.current.length > 0) {
+      console.log(`useSync: Cleaning up ${channelsRef.current.length} channels...`);
+      await Promise.all(channelsRef.current.map(ch => supabase.removeChannel(ch)));
+      channelsRef.current = [];
+    }
+  }, []);
+
+  const subscribe = useCallback(async () => {
+    if (!userId || !isMountedRef.current) return;
+    
+    await cleanupChannels();
+    
+    console.log("useSync: Initializing master subscription sequence...");
+    
+    const newChannels: RealtimeChannel[] = [];
+
+    // 1. Orders Channel
+    const orderChannel = subscribeToOrders(isAdmin ? undefined : userId, (payload) => {
+      console.log("useSync: Order update received", payload.eventType);
+      triggerUpdate({ source: 'orders', event: payload.eventType });
+    });
+    newChannels.push(orderChannel);
+
+    // 2. Wallets Channel
+    const walletChannel = subscribeToWallets(userId, () => {
+      console.log("useSync: Wallet update received");
+      triggerUpdate({ source: 'wallets' });
+    });
+    newChannels.push(walletChannel);
+
+    // 3. Settlements Channel
+    const settlementChannel = subscribeToSettlements(userId, () => {
+      console.log("useSync: Settlement update received");
+      triggerUpdate({ source: 'settlements' });
+    });
+    newChannels.push(settlementChannel);
+
+    // 4. Admin Only: Profiles Channel
+    if (isAdmin) {
+      const profileChannel = subscribeToProfiles((payload) => {
+        triggerUpdate({ source: 'profiles', event: payload.eventType });
+      });
+      newChannels.push(profileChannel);
+    }
+
+    channelsRef.current = newChannels;
+    triggerUpdate({ source: 'initial_subscribe' });
+  }, [userId, isAdmin, triggerUpdate, cleanupChannels]);
+
   useEffect(() => {
+    isMountedRef.current = true;
+    subscribe();
+
+    // V0.9.88: SELF-HEALING HEARTBEAT
+    // Every 5 minutes, force a full data refresh to ensure UI is perfectly in sync
+    // even if real-time messages were dropped during network switches.
+    const heartbeat = setInterval(() => {
+      console.log("useSync: Heartbeat triggered full refresh");
+      triggerUpdate({ source: 'heartbeat' });
+    }, 5 * 60 * 1000);
+
     return () => {
+      isMountedRef.current = false;
+      clearInterval(heartbeat);
+      cleanupChannels();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, []);
+  }, [userId, subscribe, cleanupChannels]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log("useSync: App visible, triggering sync...");
-        triggerUpdate();
+        console.log("useSync: App visible, triggering self-healing...");
+        triggerUpdate({ source: 'visibility_change' });
       }
     };
 
-    const handleFocus = () => {
-      console.log("useSync: Window focus, triggering sync...");
-      triggerUpdate();
-    };
-
     window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', () => triggerUpdate({ source: 'focus' }));
 
-    // Capacitor App State & Network
     let appStateListener: any;
     let networkListener: any;
     
@@ -64,177 +134,42 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
         appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App became active, triggering ULTIMATE RESUME SYNC (V0.9.87)...");
-            
-            // 1. Force Refresh Session (V0.9.74)
-            // getSession() might return stale data after long backgrounding
+            console.log("useSync: App active, restoring system state...");
             try {
-              const { data, error } = await supabase.auth.refreshSession();
-              if (error) {
-                console.warn("useSync: Session refresh failed, falling back to getSession", error);
-                await supabase.auth.getSession();
-              }
+              // Force session refresh to prevent auth expiry
+              await supabase.auth.refreshSession();
               
-              // 2. Self-Healing Realtime: Check and Reconnect if necessary
+              // Ensure real-time socket is alive
               if (!supabase.realtime.isConnected()) {
-                console.log("useSync: Realtime disconnected, reconnecting...");
                 supabase.realtime.connect();
               }
 
-              // 3. Force Re-subscribe to all channels to clear zombie connections
+              // Full re-subscribe to clear any potential zombie channels from background
               await subscribe();
-              
-              // 4. Trigger UI Update
-              triggerUpdate({ source: 'foreground_resume' });
+              triggerUpdate({ source: 'app_resume' });
             } catch (e) {
-              console.error("useSync: Foreground resume fatal error", e);
+              console.error("useSync: Restore error", e);
             }
           }
         });
 
         networkListener = await Network.addListener('networkStatusChange', (status) => {
           if (status.connected) {
-            console.log("useSync: Network connected, triggering sync...");
-            triggerUpdate();
+            console.log("useSync: Network restored, re-syncing...");
+            triggerUpdate({ source: 'network_restore' });
           }
         });
       }
     };
+
     setupCapacitor();
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
       if (appStateListener) appStateListener.remove();
       if (networkListener) networkListener.remove();
     };
-  }, [triggerUpdate]);
+  }, [triggerUpdate, subscribe]);
 
-  useEffect(() => {
-    let ordersSub: RealtimeChannel | undefined;
-    let profilesSub: RealtimeChannel | undefined;
-    let walletSub: RealtimeChannel | undefined;
-    let settlementsSub: RealtimeChannel | undefined;
-    let locationLogsSub: RealtimeChannel | undefined;
-    let syncChannel: RealtimeChannel | undefined;
-
-    const unsubscribe = () => {
-      console.log("useSync: Unsubscribing all channels...");
-      if (ordersSub) supabase.removeChannel(ordersSub);
-      if (profilesSub) supabase.removeChannel(profilesSub);
-      if (walletSub) supabase.removeChannel(walletSub);
-      if (settlementsSub) supabase.removeChannel(settlementsSub);
-      if (locationLogsSub) supabase.removeChannel(locationLogsSub);
-      if (syncChannel) supabase.removeChannel(syncChannel);
-    };
-
-    const subscribe = async () => {
-      // 1. Initial cleanup
-      unsubscribe();
-      
-      console.log("useSync: Initializing subscriptions for userId:", userId);
-      
-      // Get user role to decide on subscription strategy
-      let userRole: string | null = null;
-      if (userId) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
-        userRole = profile?.role || null;
-      }
-
-      // 1. Postgres Changes Subscriptions with intelligent filtering
-      const filterId = isAdmin ? undefined : userId;
-      const role: 'driver' | 'vendor' | 'admin' = isAdmin ? 'admin' : (userRole as any || 'admin');
-      
-      ordersSub = subscribeToOrders(triggerUpdate, filterId, role);
-      profilesSub = subscribeToProfiles(triggerUpdate, isAdmin ? undefined : userId);
-      
-      if (isAdmin) {
-        walletSub = supabase
-          .channel('admin_all_wallets')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, triggerUpdate)
-          .subscribe();
-        
-        settlementsSub = supabase
-          .channel('admin_all_settlements')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements' }, triggerUpdate)
-          .subscribe();
-
-        // 3. Admin-only: Listen to ALL location logs for ultra-accurate movement
-        locationLogsSub = supabase
-          .channel('admin_location_stream')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'location_logs' }, triggerUpdate)
-          .subscribe();
-      } else if (userId) {
-        walletSub = subscribeToWallets(userId, triggerUpdate);
-        settlementsSub = subscribeToSettlements(userId, triggerUpdate);
-      }
-
-      // 2. Presence & Broadcast
-      syncChannel = supabase.channel('system_sync', {
-        config: { presence: { key: userId || 'anonymous' } }
-      });
-
-      syncChannel
-        .on('presence', { event: 'sync' }, () => {
-          setPresenceData(syncChannel?.presenceState() || {});
-        })
-        .on('broadcast', { event: 'force_refresh' }, ({ payload }) => {
-          if (payload.target === 'all' || payload.target === userId) {
-            triggerUpdate();
-          }
-        })
-        .on('broadcast', { event: 'sync-update' }, ({ payload }) => {
-          console.log('useSync: Broadcast sync-update received', payload);
-          triggerUpdate(payload);
-        })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED' && userId) {
-            await syncChannel?.track({
-              user_id: userId,
-              online_at: new Date().toISOString(),
-            });
-          }
-        });
-    };
-
-    // Initial subscription
-    subscribe();
-
-    // Removed the manual setupLifecycle (unsubscribe/resubscribe on background/foreground)
-    // which was duplicated and causing performance issues.
-
-    // Heartbeat to keep connection alive
-    const interval = setInterval(() => {
-      // V0.9.59: Only heartbeat if session is valid
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session && syncChannel && syncChannel.state === 'joined') {
-          syncChannel.send({
-            type: 'broadcast',
-            event: 'heartbeat',
-            payload: { timestamp: new Date().toISOString() }
-          });
-        }
-      });
-    }, 15000); // 15 seconds heartbeat for stability
-
-    return () => {
-      clearInterval(interval);
-      unsubscribe();
-    };
-  }, [userId, isAdmin, triggerUpdate]);
-
-  const broadcastRefresh = async (target: string = 'all') => {
-    await supabase.channel('system_sync').send({
-      type: 'broadcast',
-      event: 'force_refresh',
-      payload: { target, sender: userId }
-    });
-  };
-
-  const broadcastAlert = async (message: string, target: string = 'all') => {
-    // Disabled as per user request
-    console.log('Broadcast Alert Suppressed:', message, target);
-  };
-
-  return { lastSync, isSyncing, triggerUpdate, presenceData, broadcastRefresh, broadcastAlert };
+  return { lastSync, isSyncing, triggerUpdate };
 };

@@ -42,7 +42,7 @@ export default function RootLayout({
                   });
                 }
                 // Force reload if we find a version mismatch in localStorage
-                const currentVersion = "V0.9.87-ULTIMATE-BEAST";
+                const currentVersion = "V0.9.88-PRO-SUPER-APP";
                 const storedVersion = localStorage.getItem('app_version');
                 if (storedVersion && storedVersion !== currentVersion) {
                   localStorage.setItem('app_version', currentVersion);

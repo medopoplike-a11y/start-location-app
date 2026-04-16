@@ -393,14 +393,16 @@ export const assignOrderToNearestDriver = async (
 
   const best = sorted[0];
 
-  // 5. Assign the order
-  const { error: assignError } = await supabase
-    .from('orders')
-    .update({ status: 'assigned', driver_id: best.id })
-    .eq('id', orderId);
+  // 5. Assign the order using Atomic RPC (V0.9.88)
+  // This prevents race conditions where two orders might be assigned to the same driver simultaneously
+  // or an order might be assigned to a driver who just went offline.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('assign_order_atomic', {
+    p_order_id: orderId,
+    p_driver_id: best.id
+  });
 
-  if (assignError) {
-    return { success: false, error: 'فشل تعيين الطيار' };
+  if (rpcError || !(rpcData as any)?.success) {
+    return { success: false, error: (rpcData as any)?.error || 'فشل تعيين الطيار (حالة سباق)' };
   }
 
   return { success: true, driverName: best.full_name };

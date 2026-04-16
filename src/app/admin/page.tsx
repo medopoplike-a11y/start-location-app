@@ -919,18 +919,32 @@ function AdminContent() {
   }, [appConfig, addActivity]);
 
   const handleAssignOrder = useCallback(async (orderId: string, driverId: string, driverName: string) => {
-    // Optimistic Update
+    // V0.9.88: Optimized Atomic Manual Assignment
     const originalLiveOrders = [...liveOrders];
+    
+    // Optimistic Update
     setLiveOrders(prev => prev.map(o =>
       o.id_full === orderId ? { ...o, status: "تم التعيين", driver: driverName, driver_id: driverId } : o
     ));
 
     try {
-      const { error } = await updateOrderStatus(orderId, 'assigned', driverId);
-      if (error) {
-        throw new Error(error.message || "فشل تعيين الطلب");
+      // Use the new atomic RPC to prevent race conditions even in manual mode
+      const { data: rpcData, error: rpcError } = await supabase.rpc('assign_order_atomic', {
+        p_order_id: orderId,
+        p_driver_id: driverId
+      });
+
+      if (rpcError || !(rpcData as any)?.success) {
+        throw new Error((rpcData as any)?.error || "فشل تعيين الطلب (حالة سباق)");
       }
+      
       addActivity(`تم تعيين الطلب #${orderId.slice(0,8)} للطيار ${driverName}`);
+      
+      // Haptic feedback for Admin
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      }
     } catch (err: any) {
       setLiveOrders(originalLiveOrders);
       alert(err.message || "فشل تعيين الطلب");
@@ -1178,7 +1192,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.87-ULTIMATE-BEAST
+                V0.9.88-PRO-SUPER-APP
               </p>
             </div>
           </div>
