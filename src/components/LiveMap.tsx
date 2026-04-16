@@ -123,6 +123,58 @@ function ChangeView({ center, zoom, force }: { center: [number, number]; zoom: n
   return null;
 }
 
+// Smooth Animated Marker Component (v0.9.91)
+function SmoothMarker({ point, icon }: { point: MapPoint, icon: L.DivIcon | L.Icon }) {
+  const [position, setPosition] = useState<[number, number]>([point.lat, point.lng]);
+  const markerRef = useRef<L.Marker | null>(null);
+  const prevPointRef = useRef(point);
+
+  useEffect(() => {
+    if (prevPointRef.current.lat !== point.lat || prevPointRef.current.lng !== point.lng) {
+      // Use CSS transition for smoothness if possible, or just update state
+      // For real professional feel, we could use requestAnimationFrame but state is enough for 1s updates
+      setPosition([point.lat, point.lng]);
+      prevPointRef.current = point;
+    }
+  }, [point.lat, point.lng]);
+
+  return (
+    <Marker 
+      ref={markerRef}
+      position={position} 
+      icon={icon}
+      zIndexOffset={point.type === 'driver' ? 1000 : 100}
+    >
+      <Popup className="custom-popup">
+        <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col">
+              <p className="font-black text-slate-900 leading-none">{point.name}</p>
+              {point.isOnline === false && (
+                <span className="text-[8px] text-red-500 font-bold mt-1">غير متصل حالياً</span>
+              )}
+            </div>
+            {point.type === 'driver' && (
+              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                point.status === 'busy' ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+              }`}>
+                {point.status === 'busy' ? "في طلب" : "متاح"}
+              </span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] text-slate-500 flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-slate-300" />
+              آخر ظهور: <span className="font-bold text-slate-700">{getRelativeTime(point.lastSeenTimestamp)}</span>
+            </p>
+            {point.details && <p className="text-[9px] text-slate-400 mt-1">{point.details}</p>}
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
 export default function LiveMap({ 
   drivers = [], 
   vendors = [],
@@ -169,52 +221,36 @@ export default function LiveMap({
           onInteraction={() => setIsFollowing(false)} 
         />
 
+        {/* عرض المسارات للمناديب (v0.9.91) */}
+        {drivers.map(driver => (
+          driver.path && driver.path.length > 1 && (
+            <Polyline 
+              key={`path-${driver.id}`}
+              positions={driver.path.map(p => [p.lat, p.lng])}
+              color={driver.status === 'busy' ? '#f59e0b' : '#10b981'}
+              weight={3}
+              opacity={0.4}
+              dashArray="5, 10"
+            />
+          )
+        ))}
+
         {/* عرض المحلات */}
         {vendors.filter(v => v.lat && v.lng).map((vendor) => (
-          <Marker 
+          <SmoothMarker 
             key={`vendor-${vendor.id}`} 
-            position={[vendor.lat, vendor.lng]} 
+            point={{ ...vendor, type: 'vendor' }}
             icon={vendorIcon || defaultIcon!}
-            zIndexOffset={100}
-          >
-            <Popup className="custom-popup">
-              <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                <p className="font-black text-indigo-600 mb-1">{vendor.name}</p>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mb-2">محل شريك</p>
-                {vendor.details && (
-                  <p className="text-[10px] text-slate-600 bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100">
-                    {vendor.details}
-                  </p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
+          />
         ))}
 
         {/* عرض الطلبات النشطة */}
         {orders.filter(o => o.lat && o.lng).map((order) => (
-          <div key={`order-group-${order.id}`}>
-            <Marker 
-              position={[order.lat, order.lng]} 
-              icon={orderIcon || defaultIcon!}
-              zIndexOffset={200}
-            >
-              <Popup className="custom-popup">
-                <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full bg-rose-500" />
-                    <p className="font-black text-rose-600">طلب: {order.name}</p>
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-500 mb-2">{order.status}</p>
-                  {order.details && (
-                    <p className="text-[10px] text-slate-600 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
-                      {order.details}
-                    </p>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          </div>
+          <SmoothMarker 
+            key={`order-${order.id}`}
+            point={{ ...order, type: 'order' }}
+            icon={orderIcon || defaultIcon!}
+          />
         ))}
 
         {/* عرض المناديب - Rendered last to be on top */}
@@ -222,36 +258,11 @@ export default function LiveMap({
           let icon = driver.isOnline !== false ? (driver.status === 'busy' ? driverBusyIcon : driverIcon) : driverOfflineIcon;
           
           return (
-            <Marker 
+            <SmoothMarker 
               key={`driver-${driver.id}`}
-              position={[driver.lat, driver.lng]} 
+              point={{ ...driver, type: 'driver' }}
               icon={icon || defaultIcon!}
-              zIndexOffset={1000}
-            >
-              <Popup className="custom-popup">
-                <div className="p-2 font-sans text-right min-w-[150px]" dir="rtl">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex flex-col">
-                      <p className="font-black text-slate-900 leading-none">{driver.name}</p>
-                      {driver.isOnline === false && (
-                        <span className="text-[8px] text-red-500 font-bold mt-1">غير متصل حالياً</span>
-                      )}
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
-                      driver.status === 'busy' ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
-                    }`}>
-                      {driver.status === 'busy' ? "في طلب" : "متاح"}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-slate-300" />
-                      آخر ظهور: <span className="font-bold text-slate-700">{getRelativeTime(driver.lastSeenTimestamp)}</span>
-                    </p>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
+            />
           );
         })}
       </MapContainer>

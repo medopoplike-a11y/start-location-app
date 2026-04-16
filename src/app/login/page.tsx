@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V0.9.90-ULTIMATE-FIX";
+  const VERSION = "V0.9.91-MAP-ACCURACY";
 
   const router = useRouter();
   const { user, profile } = useAuth();

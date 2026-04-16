@@ -194,15 +194,15 @@ export default function OperationsCenter({
               {/* 1. Main Map Area (Integrated) */}
               <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                 <LiveMap
-                  drivers={drivers.filter(d => d.location?.lat != null && d.location?.lng != null).map(d => ({
-                    id: d.id_full,
-                    name: d.name,
-                    lat: d.location!.lat,
-                    lng: d.location!.lng,
-                    isOnline: d.isOnline,
-                    status: allOrders.some(o => o.driver_id === d.id_full && (o.status === 'assigned' || o.status === 'in_transit')) ? 'busy' : 'available',
-                    details: d.name,
-                    lastSeenTimestamp: d.lastSeenTimestamp || (d.location?.ts) || (d.lastSeen === "الآن" ? Date.now() : undefined)
+                  drivers={onlineDrivers.map(d => ({
+                    id: d.id,
+                    name: d.name || "كابتن",
+                    lat: d.lat,
+                    lng: d.lng,
+                    isOnline: d.is_online,
+                    status: d.status,
+                    path: d.path,
+                    lastSeenTimestamp: d.lastSeenTimestamp
                   }))}
                   vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
                   orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
@@ -265,7 +265,7 @@ export default function OperationsCenter({
                     <div>
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع والتحكم</h3>
                       <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات النشطة ({pendingOrders.length})</p>
-                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.90-ULTIMATE-FIX</span>
+                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.91-MAP-ACCURACY</span>
                     </div>
                   </div>
                   <button onClick={() => setShowSidePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
