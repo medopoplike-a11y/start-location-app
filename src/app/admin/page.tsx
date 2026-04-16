@@ -511,8 +511,15 @@ function AdminContent() {
       if (profiles) {
         const typedProfiles = profiles as ProfileRow[];
         setCache('admin_profiles', typedProfiles);
-        const { data: walletsData, error: walletsError } = await supabase.from('wallets').select('*');
+        
+        // V1.3.8: CRITICAL - Fetch wallets with a clean select to avoid any caching issues
+        const { data: walletsData, error: walletsError } = await supabase
+          .from('wallets')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
         if (walletsError) throw walletsError;
+        
         processProfiles(typedProfiles, (walletsData as WalletRow[]) || []);
       }
     } catch (err) { console.error("Admin: Error fetching profiles:", err); }
@@ -1367,6 +1374,7 @@ function AdminContent() {
                 users={allUsers} 
                 wallets={wallets} 
                 onResetUser={handleResetUser}
+                onRefresh={fetchProfiles}
               />
             )}
 

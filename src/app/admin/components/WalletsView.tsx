@@ -1,16 +1,27 @@
 "use client";
 
 import React from "react";
-import { Wallet, User, ArrowUpRight, ArrowDownRight, Banknote, Trash2 } from "lucide-react";
+import { Wallet, User, ArrowUpRight, ArrowDownRight, Banknote, Trash2, RefreshCcw } from "lucide-react";
 import type { AppUser, WalletRow } from "../types";
 
 interface WalletsViewProps {
   users: AppUser[];
   wallets: WalletRow[];
   onResetUser: (userId: string, userName: string) => void;
+  onRefresh?: () => void;
 }
 
-export default function WalletsView({ users = [], wallets = [], onResetUser }: WalletsViewProps) {
+export default function WalletsView({ users = [], wallets = [], onResetUser, onRefresh }: WalletsViewProps) {
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      await onRefresh();
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
   const mergedData = (users || [])
     .filter(u => u && u.id) 
     .map(user => {
@@ -74,7 +85,17 @@ export default function WalletsView({ users = [], wallets = [], onResetUser }: W
       {/* Wallets Table */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-          <h3 className="font-black text-slate-900 dark:text-white">تفاصيل كافة المحافظ</h3>
+          <div className="flex items-center gap-4">
+            <h3 className="font-black text-slate-900 dark:text-white">تفاصيل كافة المحافظ</h3>
+            <button 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-blue-600 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+              title="تحديث البيانات"
+            >
+              <RefreshCcw size={16} />
+            </button>
+          </div>
           <div className="flex gap-2">
             <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-500">الكل: {(mergedData || []).length}</span>
           </div>
