@@ -278,10 +278,10 @@ function AdminContent() {
     }));
     setAllUsers(users);
 
-    // Use internal wallets state if walletsData not provided (e.g. from cache load)
-    const activeWallets = walletsData || wallets;
+    const activeWallets = walletsData || wallets || [];
 
-    const driverCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver').map((p) => {
+    const driversFromProfiles = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver');
+    const driverCards = driversFromProfiles.map((p) => {
       const w = activeWallets.find((wal) => wal.user_id === p.id);
       const lastSeenStr = p.last_location_update || p.updated_at;
       const lastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
@@ -344,7 +344,8 @@ function AdminContent() {
     });
     setDrivers(driverCards);
 
-    const vendorCards = profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor').map((p) => {
+    const vendorsFromProfiles = profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor');
+    const vendorCards = vendorsFromProfiles.map((p) => {
       const w = activeWallets.find((wal) => wal.user_id === p.id);
       let loc = p.location;
       if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
@@ -1192,7 +1193,7 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V0.9.89-PRO-SUPER-APP-FIX
+                V0.9.90-ULTIMATE-FIX
               </p>
             </div>
           </div>

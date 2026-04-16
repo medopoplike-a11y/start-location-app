@@ -113,9 +113,24 @@ export default function OperationsCenter({
     setAssigning(true);
     try {
       if (onUpdateStatus) {
-        await onUpdateStatus(orderId, 'pending');
+        // V0.9.90: Fixed unassign logic to clear driver_id explicitly
+        const { error } = await supabase
+          .from('orders')
+          .update({ 
+            status: 'pending', 
+            driver_id: null,
+            status_updated_at: new Date().toISOString()
+          })
+          .eq('id', orderId);
+          
+        if (error) throw error;
+        
         setSelectedOrderId(null);
+        if (onRefresh) onRefresh();
       }
+    } catch (err: any) {
+      console.error("Unassign failed:", err);
+      alert("فشل إلغاء التعيين: " + (err.message || "خطأ في الاتصال"));
     } finally {
       setAssigning(false);
     }
@@ -250,7 +265,7 @@ export default function OperationsCenter({
                     <div>
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع والتحكم</h3>
                       <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات النشطة ({pendingOrders.length})</p>
-                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.89-PRO-SUPER-APP-FIX</span>
+                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.90-ULTIMATE-FIX</span>
                     </div>
                   </div>
                   <button onClick={() => setShowSidePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
