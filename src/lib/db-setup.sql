@@ -272,6 +272,25 @@ BEGIN
   END IF;
 END $$;
 
+-- V1.1.2: Ensure all wallet columns have correct constraints and defaults
+DO $$ 
+BEGIN 
+  -- Fix balance column
+  ALTER TABLE wallets ALTER COLUMN balance SET DEFAULT 0;
+  UPDATE wallets SET balance = 0 WHERE balance IS NULL;
+  ALTER TABLE wallets ALTER COLUMN balance SET NOT NULL;
+
+  -- Fix debt column
+  ALTER TABLE wallets ALTER COLUMN debt SET DEFAULT 0;
+  UPDATE wallets SET debt = 0 WHERE debt IS NULL;
+  ALTER TABLE wallets ALTER COLUMN debt SET NOT NULL;
+
+  -- Fix system_balance column
+  ALTER TABLE wallets ALTER COLUMN system_balance SET DEFAULT 0;
+  UPDATE wallets SET system_balance = 0 WHERE system_balance IS NULL;
+  ALTER TABLE wallets ALTER COLUMN system_balance SET NOT NULL;
+END $$;
+
 -- 6. إنشاء جدول الطلبات (Orders) إذا لم يكن موجوداً
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

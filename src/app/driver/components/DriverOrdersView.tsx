@@ -100,15 +100,22 @@ export default function DriverOrdersView({
   const handlePickup = async (orderId: string) => {
     if (actionLoading) return;
     setActionLoading(true);
-    // Optimistic Update
-    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit' } : o));
+    // Optimistic Update: Change status immediately in UI
+    const previousOrders = [...localOrders];
+    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true } : o));
+    
     try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      }
+      
       await onPickupOrder(orderId);
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: 'in_transit' } : null);
       }
     } catch (err) {
-      setLocalOrders(orders); // Rollback
+      setLocalOrders(previousOrders); // Rollback
     } finally {
       setActionLoading(false);
     }
@@ -117,15 +124,22 @@ export default function DriverOrdersView({
   const handleDeliver = async (orderId: string) => {
     if (actionLoading) return;
     setActionLoading(true);
-    // Optimistic Update
+    // Optimistic Update: Remove from active immediately
+    const previousOrders = [...localOrders];
     setLocalOrders(prev => prev.filter(o => o.id !== orderId));
+    
     try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        const { Haptics, NotificationType } = await import("@capacitor/haptics");
+        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+      }
+      
       await onDeliverOrder(orderId);
       setRatingOrder(selectedOrder);
       setSelectedOrder(null);
       setIsNavigating(false);
     } catch (err) {
-      setLocalOrders(orders); // Rollback
+      setLocalOrders(previousOrders); // Rollback
     } finally {
       setActionLoading(false);
     }

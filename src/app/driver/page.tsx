@@ -609,47 +609,51 @@ export default function DriverApp() {
   };
 
   const isRefreshingRef = useRef(false);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const manualSync = async (payload?: any) => {
     if (!driverId || isRefreshingRef.current) return;
     
-    // V0.9.95: Skip full refresh for self-location broadcast to prevent UI stutter
-    if (payload?.source === 'broadcast' && payload?.new?.id === driverId) return;
-
-    isRefreshingRef.current = true;
+    // V1.1.2: Debounce manualSync to prevent rapid consecutive fetches
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     
-    // V0.9.74: Background Session Refresh
-    // Long backgrounding often invalidates the Supabase session token
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        console.log("manualSync: No active session found, refreshing...");
-        await supabase.auth.refreshSession();
-      }
-    } catch (e) {
-      console.warn("manualSync: Session check failed", e);
-    }
-
-    // Granular sync to prevent fetching everything on every tiny update
-    const table = payload?.table;
-    const isOrderUpdate = table === 'orders' || !table;
-    const isProfileUpdate = table === 'profiles' || !table;
-    const isWalletUpdate = table === 'wallets' || !table;
-    
-    try {
-      const tasks: Promise<any>[] = [];
-      if (isOrderUpdate) {
-        tasks.push(withTimeout('sync.fetchOrders', fetchOrders(driverId), 15000));
-        tasks.push(withTimeout('sync.fetchHistory', fetchTodayHistory(driverId), 15000));
-      }
-      if (isProfileUpdate || isWalletUpdate) {
-        tasks.push(withTimeout('sync.fetchStats', fetchStats(driverId), 15000));
-        tasks.push(withTimeout('sync.fetchActiveDebt', fetchActiveDebtOrders(driverId), 15000));
-      }
+    syncTimeoutRef.current = setTimeout(async () => {
+      if (!driverId || isRefreshingRef.current) return;
       
-      await Promise.allSettled(tasks);
-    } finally {
-      isRefreshingRef.current = false;
-    }
+      // V0.9.95: Skip full refresh for self-location broadcast to prevent UI stutter
+      if (payload?.source === 'broadcast' && payload?.new?.id === driverId) return;
+
+      isRefreshingRef.current = true;
+      
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          await supabase.auth.refreshSession();
+        }
+      } catch (e) {
+        console.warn("manualSync: Session check failed", e);
+      }
+
+      const table = payload?.table;
+      const isOrderUpdate = table === 'orders' || !table;
+      const isProfileUpdate = table === 'profiles' || !table;
+      const isWalletUpdate = table === 'wallets' || !table;
+      
+      try {
+        const tasks: Promise<any>[] = [];
+        if (isOrderUpdate) {
+          tasks.push(withTimeout('sync.fetchOrders', fetchOrders(driverId), 10000));
+        }
+        if (isProfileUpdate || isWalletUpdate) {
+          tasks.push(withTimeout('sync.fetchStats', fetchStats(driverId), 10000));
+        }
+        
+        await Promise.allSettled(tasks);
+      } finally {
+        isRefreshingRef.current = false;
+        syncTimeoutRef.current = null;
+      }
+    }, 1000); // 1 second debounce
   };
 
   // Sync with useSync hook
