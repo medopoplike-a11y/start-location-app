@@ -493,8 +493,8 @@ END $$;
 
 -- 9. إنشاء تريجرات لتحديث المحافظ تلقائياً (نظام المحاسبة المالي)
 
--- أ. تحديث المحفظة عند توصيل الطلب أو تحصيل المديونية
--- V1.0.6: Fixed debt timing (moved to in_transit) and added safety checks for NULL values
+-- دالة معالجة العمليات المالية للطلبات
+-- V1.0.8: Ultimate financial robustness - Fixes NULL balance error and debt timing
 CREATE OR REPLACE FUNCTION public.handle_order_financials()
 RETURNS trigger AS $$
 DECLARE
@@ -506,7 +506,7 @@ DECLARE
     drv_ins FLOAT;
     vnd_ins FLOAT;
 BEGIN
-    -- استخراج القيم المالية من الـ JSONB مع التحويل الآمن
+    -- 1. استخراج القيم المالية مع حماية مطلقة ضد القيم الفارغة
     order_val := COALESCE((new.financials->>'order_value')::FLOAT, 0);
     drv_earnings := COALESCE((new.financials->>'driver_earnings')::FLOAT, 0);
     sys_comm := COALESCE((new.financials->>'system_commission')::FLOAT, 0);
@@ -515,43 +515,51 @@ BEGIN
     drv_ins := COALESCE((new.financials->>'driver_insurance')::FLOAT, ins_fee / 2);
     vnd_ins := COALESCE((new.financials->>'vendor_insurance')::FLOAT, ins_fee / 2);
 
-    -- 1. عند توصيل الطلب (Delivered)
+    -- 2. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
-        -- التأكد من وجود محفظة للطيار قبل التحديث (إضافة الأرباح الصافية وعمولة الشركة)
-        INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-        VALUES (new.driver_id, COALESCE(drv_earnings, 0), 0, COALESCE(sys_comm + drv_ins, 0))
-        ON CONFLICT (user_id) DO UPDATE 
-        SET 
-            balance = COALESCE(wallets.balance, 0) + EXCLUDED.balance,
-            system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
-            updated_at = NOW();
+        -- تحديث محفظة الطيار (إضافة الأرباح)
+        IF new.driver_id IS NOT NULL THEN
+            INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+            VALUES (new.driver_id, drv_earnings, 0, sys_comm + drv_ins)
+            ON CONFLICT (user_id) DO UPDATE 
+            SET 
+                balance = COALESCE(wallets.balance, 0) + EXCLUDED.balance,
+                system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
+                updated_at = NOW();
+        END IF;
 
-        -- التأكد من وجود محفظة للمحل قبل التحديث (إضافة عمولة الشركة المستحقة على المحل)
-        INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-        VALUES (new.vendor_id, 0, 0, COALESCE(vnd_comm + vnd_ins, 0))
-        ON CONFLICT (user_id) DO UPDATE
-        SET
-            system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
-            updated_at = NOW();
+        -- تحديث محفظة المحل (إضافة عمولة الشركة)
+        IF new.vendor_id IS NOT NULL THEN
+            INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+            VALUES (new.vendor_id, 0, 0, vnd_comm + vnd_ins)
+            ON CONFLICT (user_id) DO UPDATE
+            SET
+                system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
+                updated_at = NOW();
+        END IF;
     END IF;
 
-    -- 2. جديد: عند استلام الطلب من المحل (In Transit) - تسجيل المديونية على الطيار للمحل (طلب المستخدم)
+    -- 3. عند استلام الطلب من المحل (In Transit) - تسجيل المديونية فقط الآن
     IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
-        INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-        VALUES (new.driver_id, 0, COALESCE(order_val, 0), 0)
-        ON CONFLICT (user_id) DO UPDATE
-        SET 
-            debt = COALESCE(wallets.debt, 0) + EXCLUDED.debt,
-            updated_at = NOW();
+        IF new.driver_id IS NOT NULL THEN
+            INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+            VALUES (new.driver_id, 0, order_val, 0)
+            ON CONFLICT (user_id) DO UPDATE
+            SET 
+                debt = COALESCE(wallets.debt, 0) + EXCLUDED.debt,
+                updated_at = NOW();
+        END IF;
     END IF;
 
-    -- 3. عند تحصيل المحل للمبلغ من الطيار (Vendor Collected): خصم قيمة الطلب فقط من مديونية الطيار
+    -- 4. عند تحصيل المحل للمبلغ من الطيار
     IF (new.vendor_collected_at IS NOT NULL AND old.vendor_collected_at IS NULL) THEN
-        UPDATE public.wallets 
-        SET 
-            debt = debt - order_val,
-            updated_at = NOW()
-        WHERE user_id = new.driver_id;
+        IF new.driver_id IS NOT NULL THEN
+            UPDATE public.wallets 
+            SET 
+                debt = COALESCE(debt, 0) - order_val,
+                updated_at = NOW()
+            WHERE user_id = new.driver_id;
+        END IF;
     END IF;
 
     RETURN new;
