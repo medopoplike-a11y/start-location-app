@@ -22,6 +22,7 @@ import DriverHeader from "./components/DriverHeader";
 import DriverOrdersView from "./components/DriverOrdersView";
 import DriverDrawer from "./components/DriverDrawer";
 import DriverWalletView from "./components/DriverWalletView";
+import DriverHistoryView from "./components/DriverHistoryView";
 import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { Wallet, X, Loader2, Settings } from "lucide-react";
@@ -40,7 +41,7 @@ export default function DriverApp() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "settings">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "wallet" | "history" | "settings">("orders");
   const [todayDeliveryFees, setTodayDeliveryFees] = useState(0);
   const [vendorDebt, setVendorDebt] = useState<number>(0);
   const [systemBalance, setSystemBalance] = useState<number>(0);
@@ -1105,6 +1106,13 @@ export default function DriverApp() {
                         onOpenSettlementModal={() => setShowSettlementModal(true)}
                       />
                     </div>
+                  ) : activeTab === "history" ? (
+                    <div className="p-4 md:p-6 pb-24">
+                      <DriverHistoryView 
+                        history={todayHistory} 
+                        onPreviewImage={setPreviewUrl}
+                      />
+                    </div>
                   ) : activeTab === "settings" ? (
                     <div className="p-4 md:p-6 space-y-6">
                       <DriverSettingsView
@@ -1135,12 +1143,13 @@ export default function DriverApp() {
           showDrawer={showDrawer}
           onClose={() => setShowDrawer(false)}
           onSelectOrders={() => { setActiveTab("orders"); setShowDrawer(false); }}
-          onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
-          onSelectSettings={() => { setActiveTab("settings"); setShowDrawer(false); }}
-          onSignOut={handleSignOut}
-          driverName={driverName}
-          activeView={activeTab}
-        />
+            onSelectWallet={() => { setActiveTab("wallet"); setShowDrawer(false); }}
+            onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
+            onSelectSettings={() => { setActiveTab("settings"); setShowDrawer(false); }}
+            onSignOut={handleSignOut}
+            driverName={driverName}
+            activeView={activeTab}
+          />
 
         <ImagePreviewModal
           url={previewUrl}

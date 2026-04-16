@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Truck, Wallet, LogOut, Settings } from "lucide-react";
+import { X, Truck, Wallet, LogOut, Settings, History } from "lucide-react";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 interface DriverDrawerProps {
@@ -9,6 +9,7 @@ interface DriverDrawerProps {
   onClose: () => void;
   onSelectOrders: () => void;
   onSelectWallet: () => void;
+  onSelectHistory: () => void;
   onSelectSettings: () => void;
   onSignOut: () => void;
   driverName?: string;
@@ -20,6 +21,7 @@ export default function DriverDrawer({
   onClose,
   onSelectOrders,
   onSelectWallet,
+  onSelectHistory,
   onSelectSettings,
   onSignOut,
   driverName = "قائمة السائق",
@@ -37,6 +39,7 @@ export default function DriverDrawer({
     triggerHaptic();
     if (view === "orders") onSelectOrders();
     if (view === "wallet") onSelectWallet();
+    if (view === "history") onSelectHistory();
     if (view === "settings") onSelectSettings();
   };
 
@@ -82,6 +85,15 @@ export default function DriverDrawer({
               >
                 <Wallet className="w-5 h-5" />
                 <span className="text-sm font-black">المحفظة والأرباح</span>
+              </button>
+              <button 
+                onClick={() => handleNavClick("history")} 
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
+                  activeView === "history" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                <History className="w-5 h-5" />
+                <span className="text-sm font-black">سجل التوصيلات</span>
               </button>
               <button 
                 onClick={() => handleNavClick("settings")} 

@@ -549,6 +549,14 @@ BEGIN
     sys_comm := COALESCE((new.financials->>'system_commission')::FLOAT, 0);
     vnd_comm := COALESCE((new.financials->>'vendor_commission')::FLOAT, 0);
     ins_fee := COALESCE((new.financials->>'insurance_fee')::FLOAT, 0);
+
+    -- V1.2.0: Fallback for missing financials (e.g. older orders)
+    IF drv_earnings = 0 AND sys_comm = 0 AND (new.financials->>'delivery_fee')::FLOAT > 0 THEN
+       -- Simple fallback: 85% for driver, 15% for system (excluding insurance)
+       drv_earnings := (new.financials->>'delivery_fee')::FLOAT * 0.85;
+       sys_comm := (new.financials->>'delivery_fee')::FLOAT * 0.15;
+    END IF;
+
     -- V1.0.9: Ensuring insurance fees are never NULL even if ins_fee is 0
     drv_ins := COALESCE((new.financials->>'driver_insurance')::FLOAT, COALESCE(ins_fee, 0) / 2);
     vnd_ins := COALESCE((new.financials->>'vendor_insurance')::FLOAT, COALESCE(ins_fee, 0) / 2);
@@ -594,7 +602,7 @@ BEGIN
         IF new.driver_id IS NOT NULL THEN
             UPDATE public.wallets 
             SET 
-                debt = COALESCE(debt, 0) - COALESCE(order_val, 0),
+                debt = GREATEST(0, COALESCE(debt, 0) - COALESCE(order_val, 0)),
                 updated_at = NOW()
             WHERE user_id = new.driver_id;
         END IF;
@@ -603,6 +611,22 @@ BEGIN
     RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- V1.2.0: New View for Driver Completed Orders with Details
+CREATE OR REPLACE VIEW public.driver_completed_orders_details AS
+SELECT 
+    o.id,
+    o.driver_id,
+    o.vendor_id,
+    o.created_at,
+    o.status,
+    o.financials,
+    o.customer_details,
+    p.full_name as vendor_name,
+    p.phone as vendor_phone
+FROM public.orders o
+JOIN public.profiles p ON o.vendor_id = p.id
+WHERE o.status = 'delivered';
 
 -- ربط الدالة بتريجر على جدول الطلبات
 DROP TRIGGER IF EXISTS on_order_financial_update ON public.orders;
@@ -1025,12 +1049,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- هـ. وظائف تنظيف السجلات وتصفير الحسابات (جديد V0.9.92)
 
--- 1. تصفير محفظة مستخدم محدد
+-- 1. تصفير محفظة مستخدم محدد (بشكل كامل وجذري)
 CREATE OR REPLACE FUNCTION reset_wallet_balance(p_user_id UUID)
 RETURNS void AS $$
 BEGIN
+  -- V1.2.0: Also cleanup orders when resetting wallet to maintain synchronization
+  DELETE FROM orders WHERE (vendor_id = p_user_id OR driver_id = p_user_id) AND status IN ('delivered', 'cancelled');
+  
   UPDATE wallets 
-  SET balance = 0, debt = 0, system_balance = 0
+  SET balance = 0, debt = 0, system_balance = 0, updated_at = NOW()
   WHERE user_id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
