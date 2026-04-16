@@ -494,6 +494,7 @@ END $$;
 -- 9. إنشاء تريجرات لتحديث المحافظ تلقائياً (نظام المحاسبة المالي)
 
 -- أ. تحديث المحفظة عند توصيل الطلب أو تحصيل المديونية
+-- V1.0.6: Fixed debt timing (moved to in_transit) and added safety checks for NULL values
 CREATE OR REPLACE FUNCTION public.handle_order_financials()
 RETURNS trigger AS $$
 DECLARE
@@ -516,31 +517,31 @@ BEGIN
 
     -- 1. عند توصيل الطلب (Delivered)
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
-        -- التأكد من وجود محفظة للطيار قبل التحديث
+        -- التأكد من وجود محفظة للطيار قبل التحديث (إضافة الأرباح الصافية وعمولة الشركة)
         INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-        VALUES (new.driver_id, drv_earnings, 0, sys_comm + drv_ins)
+        VALUES (new.driver_id, COALESCE(drv_earnings, 0), 0, COALESCE(sys_comm + drv_ins, 0))
         ON CONFLICT (user_id) DO UPDATE 
         SET 
-            balance = wallets.balance + EXCLUDED.balance,
-            system_balance = wallets.system_balance + EXCLUDED.system_balance,
+            balance = COALESCE(wallets.balance, 0) + EXCLUDED.balance,
+            system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
             updated_at = NOW();
 
-        -- التأكد من وجود محفظة للمحل قبل التحديث
+        -- التأكد من وجود محفظة للمحل قبل التحديث (إضافة عمولة الشركة المستحقة على المحل)
         INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-        VALUES (new.vendor_id, 0, 0, vnd_comm + vnd_ins)
+        VALUES (new.vendor_id, 0, 0, COALESCE(vnd_comm + vnd_ins, 0))
         ON CONFLICT (user_id) DO UPDATE
         SET
-            system_balance = wallets.system_balance + EXCLUDED.system_balance,
+            system_balance = COALESCE(wallets.system_balance, 0) + EXCLUDED.system_balance,
             updated_at = NOW();
     END IF;
 
-    -- 2. جديد: عند استلام الطلب من المحل (In Transit) - تسجيل المديونية على الطيار للمحل
+    -- 2. جديد: عند استلام الطلب من المحل (In Transit) - تسجيل المديونية على الطيار للمحل (طلب المستخدم)
     IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
         INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-        VALUES (new.driver_id, 0, order_val, 0)
+        VALUES (new.driver_id, 0, COALESCE(order_val, 0), 0)
         ON CONFLICT (user_id) DO UPDATE
         SET 
-            debt = wallets.debt + EXCLUDED.debt,
+            debt = COALESCE(wallets.debt, 0) + EXCLUDED.debt,
             updated_at = NOW();
     END IF;
 
