@@ -491,7 +491,17 @@ function AdminContent() {
   }, [translateStatus]);
 
   const fetchSettlements = useCallback(async () => {
-    const { data } = await supabase.from('settlements').select('*, profiles!user_id(full_name, role)').eq('status', 'pending').order('created_at', { ascending: true });
+    // V1.3.0: Fetching settlements with detailed profile information
+    const { data, error } = await supabase
+      .from('settlements')
+      .select('*, profiles!user_id(full_name, role, phone)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+      
+    if (error) {
+      console.error("Admin: Error fetching settlements:", error);
+      return;
+    }
     if (data) setSettlements(data);
   }, []);
 

@@ -1,6 +1,21 @@
 -- 0. تفعيل الإضافات المطلوبة
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- V1.3.0: Settlements with User Profiles View for easier querying
+CREATE OR REPLACE VIEW public.settlements_with_profiles AS
+SELECT 
+    s.id,
+    s.user_id,
+    s.amount,
+    s.status,
+    s.method,
+    s.created_at,
+    p.full_name,
+    p.role,
+    p.phone
+FROM public.settlements s
+LEFT JOIN public.profiles p ON s.user_id = p.id;
+
 -- 1. إنشاء جدول الملفات الشخصية (Profiles) إذا لم يكن موجوداً
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
@@ -565,7 +580,6 @@ BEGIN
     IF (new.status = 'delivered' AND (old.status IS NULL OR old.status != 'delivered')) THEN
         -- تحديث محفظة الطيار (إضافة الأرباح)
         IF new.driver_id IS NOT NULL THEN
-            -- V1.2.6: Using atomic arithmetic to prevent balance overwrite
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
             VALUES (new.driver_id, COALESCE(drv_earnings, 0), 0, COALESCE(sys_comm, 0) + COALESCE(drv_ins, 0))
             ON CONFLICT (user_id) DO UPDATE 
@@ -589,7 +603,6 @@ BEGIN
     -- 3. عند استلام الطلب من المحل (In Transit) - تسجيل المديونية فقط الآن
     IF (new.status = 'in_transit' AND (old.status IS NULL OR old.status != 'in_transit')) THEN
         IF new.driver_id IS NOT NULL THEN
-            -- V1.2.6: Atomic addition for debt
             INSERT INTO public.wallets (user_id, balance, debt, system_balance)
             VALUES (new.driver_id, 0, COALESCE(order_val, 0), 0)
             ON CONFLICT (user_id) DO UPDATE

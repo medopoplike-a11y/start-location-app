@@ -13,7 +13,7 @@ interface RichSettlement extends SettlementItem {
   amount?: number;
   status?: string;
   created_at?: string;
-  profiles?: { full_name?: string; role?: string } | null;
+  profiles?: { full_name?: string; role?: string; phone?: string } | null;
   user_id?: string;
 }
 
@@ -58,6 +58,9 @@ export default function SettlementsView({ settlements, onSettlementAction }: Set
                     <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">
                       {s.profiles?.role === 'driver' ? 'طيار' : 'محل'}
                     </span>
+                    {s.profiles?.phone && (
+                      <span className="text-[10px] font-bold text-sky-600">{s.profiles.phone}</span>
+                    )}
                     <span className="text-[10px] font-black text-slate-400">#{s.id.slice(0, 8)}</span>
                     {s.amount != null && (
                       <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100">{s.amount.toLocaleString()} ج.م</span>

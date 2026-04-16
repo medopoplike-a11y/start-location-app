@@ -28,6 +28,7 @@ import { formatVendorTime } from "./utils";
 import StoreHeader from "./components/StoreHeader";
 import StoreOrdersHub from "./components/StoreOrdersHub";
 import WalletView from "./components/WalletView";
+import SettlementsHistoryView from "./components/SettlementsHistoryView";
 import StoreSettingsView from "./components/SettingsView";
 import StoreDrawer from "./components/StoreDrawer";
 import OrderFormView from "./components/OrderFormView";
@@ -59,7 +60,7 @@ function StoreContent() {
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form">("store");
+  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form" | "settlements">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -1149,6 +1150,8 @@ function StoreContent() {
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />
+        ) : activeView === "settlements" ? (
+          <SettlementsHistoryView settlements={settlementHistory} />
         ) : activeView === "settings" ? (
           <StoreSettingsView
             settingsData={settingsData}

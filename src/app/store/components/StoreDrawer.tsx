@@ -8,9 +8,9 @@ import { useBackButton } from "@/hooks/useBackButton";
 interface StoreDrawerProps {
   showDrawer: boolean;
   vendorName: string;
-  activeView: "store" | "wallet" | "settings";
+  activeView: "store" | "wallet" | "settings" | "settlements";
   onClose: () => void;
-  onChangeView: (view: "store" | "wallet" | "settings") => void;
+  onChangeView: (view: "store" | "wallet" | "settings" | "settlements") => void;
   onUpdateLocation: () => void;
   onSignOut: () => void;
 }
@@ -33,7 +33,7 @@ export default function StoreDrawer({
     } catch (e) {}
   };
 
-  const handleNavClick = async (view: "store" | "wallet" | "settings") => {
+  const handleNavClick = async (view: "store" | "wallet" | "settings" | "settlements") => {
     triggerHaptic();
     onChangeView(view);
     onClose();
@@ -81,6 +81,15 @@ export default function StoreDrawer({
               >
                 <Wallet className="w-5 h-5" />
                 <span className="text-sm font-black">المحفظة المالية</span>
+              </button>
+              <button 
+                onClick={() => handleNavClick("settlements")} 
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
+                  activeView === "settlements" ? "bg-brand-orange text-white shadow-lg shadow-brand-orange/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                <History className="w-5 h-5" />
+                <span className="text-sm font-black">سجل التسويات</span>
               </button>
               <button 
                 onClick={() => handleNavClick("settings")} 
