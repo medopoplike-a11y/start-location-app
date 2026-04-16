@@ -983,14 +983,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 SELECT fix_missing_wallets();
 
 -- دالة لاستلام الطلب من قبل الطيار وتغيير الحالة إلى "في الطريق"
+-- V1.0.3: Improved robustness - checks current status and driver ownership
 CREATE OR REPLACE FUNCTION handle_order_pickup(p_order_id UUID, p_driver_id UUID)
 RETURNS BOOLEAN AS $$
+DECLARE
+  v_rows_affected INTEGER;
 BEGIN
   UPDATE public.orders
   SET 
     status = 'in_transit',
     status_updated_at = NOW()
-  WHERE id = p_order_id AND driver_id = p_driver_id;
+  WHERE id = p_order_id 
+    AND driver_id = p_driver_id
+    AND status = 'assigned'; -- Ensure it's assigned before pickup
+  
+  GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+  
+  IF v_rows_affected = 0 THEN
+    -- Check if it was already picked up or not assigned to this driver
+    IF EXISTS (SELECT 1 FROM public.orders WHERE id = p_order_id AND status = 'in_transit') THEN
+      RETURN TRUE; -- Already picked up, idempotent success
+    END IF;
+    RAISE EXCEPTION 'فشل الاستلام: الطلب لم يعد مسنداً إليك أو تم تحديث حالته بالفعل.';
+  END IF;
   
   RETURN TRUE;
 END;

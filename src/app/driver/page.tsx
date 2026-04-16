@@ -708,8 +708,10 @@ export default function DriverApp() {
   };
 
   const toggleAutoAccept = async () => {
+    const newAuto = !autoAccept;
+    
     // If turning on, check if already at limit
-    if (!autoAccept) {
+    if (newAuto) {
       const currentCustomersCount = orders
         .filter(o => o.status === 'assigned' || o.status === 'in_transit')
         .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
@@ -718,17 +720,26 @@ export default function DriverApp() {
         toastError("لا يمكنك تفعيل القبول التلقائي لأنك وصلت للحد الأقصى (3 عملاء).");
         return;
       }
+      
+      // V1.0.3: Force an immediate fetch when turning on to catch any pending orders
+      fetchOrders(driverId || undefined);
     }
 
-    const newAuto = !autoAccept;
     setAutoAccept(newAuto);
     if (Capacitor.isNativePlatform()) {
       Preferences.set({ key: 'driver_auto_accept', value: newAuto.toString() }).catch(() => {});
     } else {
       localStorage.setItem('driver_auto_accept', newAuto.toString());
     }
+    
     if (driverId) {
-      await supabase.from('profiles').update({ auto_accept: newAuto }).eq('id', driverId);
+      try {
+        const { error } = await supabase.from('profiles').update({ auto_accept: newAuto }).eq('id', driverId);
+        if (error) throw error;
+      } catch (err) {
+        console.warn("Auto-accept: DB sync failed", err);
+        // We keep local state updated anyway for better UX
+      }
     }
   };
 
@@ -736,58 +747,52 @@ export default function DriverApp() {
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
+    // V1.0.3: Improved auto-accept polling - more robust and faster (3s)
     if (isActive && autoAccept && driverId) {
-      console.log("Starting auto-accept poll...");
+      console.log("Auto-accept: Poll active");
       interval = setInterval(async () => {
         try {
-          // Use ordersRef to get the latest orders instead of captured state
+          // 1. Double check session validity before acting
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData.session) return;
+
+          // 2. Customer count check (Limit to 3)
           const currentCustomersCount = ordersRef.current
             .filter(o => o.status === 'assigned' || o.status === 'in_transit')
             .reduce((acc, o) => acc + (Array.isArray(o.customers) ? o.customers.length : 1), 0);
 
-          if (currentCustomersCount >= 3) {
-            console.log("Auto-accept: Max customers reached (3)");
-            return;
-          }
+          if (currentCustomersCount >= 3) return;
 
-          // V0.9.68: Use cached orders from real-time instead of polling DB every 5s
+          // 3. Find available orders from current memory
           const availableOrders = ordersRef.current.filter(o => o.status === 'pending' && !o.driverId);
           
           if (availableOrders.length > 0) {
             const firstOrder = availableOrders[0];
             
-            // Check if the order we are about to accept would put us over the limit
+            // Limit check per specific order
             const orderCustomers = Array.isArray(firstOrder.customers) ? firstOrder.customers.length : 1;
-            if (currentCustomersCount + orderCustomers > 3) {
-              console.log("Auto-accept: Accepting this order would exceed the 3-customer limit");
-              return;
-            }
+            if (currentCustomersCount + orderCustomers > 3) return;
 
-            const { error } = await supabase
-              .from('orders')
-              .update({ 
-                status: 'assigned', 
-                driver_id: driverId,
-                status_updated_at: new Date().toISOString()
-              })
-              .eq('id', firstOrder.id)
-              .eq('status', 'pending');
+            console.log(`Auto-accept: Attempting to accept #${firstOrder.id.slice(0,8)}`);
+            
+            // Use updateOrderStatus for consistent logic
+            const { error } = await updateOrderStatus(firstOrder.id, 'assigned', driverId);
 
             if (!error) {
               toastSuccess('تم القبول التلقائي للطلب #' + firstOrder.id.slice(0,8));
-              // No need to manually fetchOrders here as the Realtime subscription 
-              // will trigger a refresh via useSync
+              // Trigger a sync to update UI immediately
+              manualSync({ source: 'auto_accept' });
             }
           }
         } catch (err) {
-          console.error("Auto-accept poll error:", err);
+          console.warn("Auto-accept poll failed", err);
         }
-      }, 5000);
+      }, 3000); // 3 seconds for better responsiveness
     }
 
     return () => {
       if (interval) {
-        console.log("Stopping auto-accept poll...");
+        console.log("Auto-accept: Poll stopped");
         clearInterval(interval);
       }
     };
@@ -845,13 +850,16 @@ export default function DriverApp() {
     try {
       console.log("DriverPage: Updating order status to in_transit for", orderId);
       
-      // V0.9.77: Improved performance by not awaiting background stats/sync
+      // V1.0.3: Using robust RPC with error checking
       const { data, error: dbError } = await supabase.rpc('handle_order_pickup', {
         p_order_id: orderId,
         p_driver_id: driverId
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("DriverPage: RPC Error", dbError);
+        throw dbError;
+      }
       
       toastSuccess("تم استلام الطلب وتسجيله مالياً! في الطريق...");
       
@@ -861,10 +869,11 @@ export default function DriverApp() {
         fetchStats(driverId),
         fetchActiveDebtOrders(driverId)
       ]);
-    } catch (err) {
+    } catch (err: any) {
       console.error("DriverPage: handlePickupOrder failed", err);
       setOrders(originalOrders);
-      toastError("فشل تحديث الحالة. حاول مرة أخرى.");
+      // V1.0.3: More descriptive error message from DB if available
+      toastError(err.message || "فشل تحديث الحالة. حاول مرة أخرى.");
     }
   };
 
