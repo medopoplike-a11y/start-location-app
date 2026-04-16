@@ -46,6 +46,8 @@ import { fetchAdminOrders, fetchLiveOrders, fetchAdminProfiles, resetUserDataAdm
 import { updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
@@ -120,6 +122,7 @@ export default function AdminPanel() {
 function AdminContent() {
   // 1. Core State
   const { user, loading: authLoading } = useAuth();
+  const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -514,6 +517,18 @@ function AdminContent() {
         const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 10000));
         return Promise.race([promise, timeout]);
       };
+
+      // V1.2.5: Auto-unassign stale orders (> 15 mins) on every data refresh
+      try {
+        const { data: staleData, error: staleError } = await supabase.rpc('auto_unassign_stale_orders');
+        if (!staleError && staleData?.unassigned_count > 0) {
+          addActivity(`تم سحب ${staleData.unassigned_count} طلب متأخر وإعادة توزيعه`);
+          toastSuccess(`تنبيه: تم سحب ${staleData.unassigned_count} طلب متأخر من الطيارين`);
+        }
+      } catch (e) {
+        console.warn("Admin: Auto-unassign failed", e);
+      }
+
       await Promise.allSettled([
         fetchWithTimeout(fetchProfiles(), "بيانات المستخدمين"),
         fetchWithTimeout(fetchOrders(fullHistory), "بيانات الطلبات"),
@@ -524,7 +539,7 @@ function AdminContent() {
       console.error("Admin: Global fetch error:", err);
       setError(getErrorMessage(err));
     } finally { isDataFetchingRef.current = false; }
-  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage]);
+  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage, addActivity]);
 
   const manualSync = useCallback(async (payload?: any) => {
     if (!mounted) return;
@@ -1395,6 +1410,8 @@ function AdminContent() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

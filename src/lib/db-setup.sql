@@ -1106,6 +1106,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- V1.2.5: AUTO-REDISTRIBUTION - سحب الطلبات المتأخرة (أكثر من 15 دقيقة) من الطيارين
+-- This function can be called by a cron job or by the Admin UI on refresh
+CREATE OR REPLACE FUNCTION auto_unassign_stale_orders()
+RETURNS JSONB AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  UPDATE public.orders
+  SET 
+    driver_id = NULL,
+    status = 'pending',
+    status_updated_at = NOW()
+  WHERE status = 'assigned' 
+    AND (status_updated_at < NOW() - INTERVAL '15 minutes' OR (status_updated_at IS NULL AND created_at < NOW() - INTERVAL '15 minutes'));
+    
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  
+  IF v_count > 0 THEN
+    RETURN jsonb_build_object('success', true, 'unassigned_count', v_count, 'message', 'تم سحب وإعادة توزيع ' || v_count || ' طلب متأخر');
+  ELSE
+    RETURN jsonb_build_object('success', true, 'unassigned_count', 0, 'message', 'لا توجد طلبات متأخرة حالياً');
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- ضمان وجود كافة المحافظ مرة أخرى كإجراء احترازي
 SELECT fix_missing_wallets();
 
