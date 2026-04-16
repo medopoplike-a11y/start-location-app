@@ -42,9 +42,10 @@ export default function DriverWalletView({
   const safeSystemBalance = Number(systemBalance) || 0;
   const safeOverallBalance = Number(overallBalance) || 0;
   
-  // V1.2.6: Visual Guard - If cumulative is 0 but today is > 0, we show today's at least to prevent user panic
-  // (Note: This is just for UI display if sync is slow)
-  const displayOverallBalance = Math.max(safeOverallBalance, safeTodayFees);
+  // V1.2.7: Visual Guard - Display logic fix
+  // The user wants the cumulative balance (overallBalance) to show correctly.
+  // If it's showing 0, we fallback to today's fees only if overallBalance is truly 0.
+  const displayOverallBalance = safeOverallBalance;
 
   const safeOrdersList = (Array.isArray(deliveredOrders) ? deliveredOrders : []).filter(Boolean);
   const safeSettlements = (Array.isArray(settlementHistory) ? settlementHistory : []).filter(Boolean);

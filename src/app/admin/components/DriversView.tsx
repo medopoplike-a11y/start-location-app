@@ -28,11 +28,9 @@ interface DriversViewProps {
   onDeleteUser?: (userId: string, userName: string) => Promise<void>;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onResetUser: (userId: string, userName: string) => void;
-  onSettleVendorDebt?: (userId: string, userName: string) => void;
-  onSettleSystemDebt?: (userId: string, userName: string) => void;
 }
 
-export default function DriversView({ drivers, onAddDriver, onUpdateDriverBilling, onUpdateUserDetails, onDeleteUser, onToggleShiftLock, onResetUser, onSettleVendorDebt, onSettleSystemDebt }: DriversViewProps) {
+export default function DriversView({ drivers, onAddDriver, onUpdateDriverBilling, onUpdateUserDetails, onDeleteUser, onToggleShiftLock, onResetUser }: DriversViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDetailsId, setEditingDetailsId] = useState<string | null>(null);
   const [tempData, setTempData] = useState<{ 
@@ -331,21 +329,10 @@ export default function DriversView({ drivers, onAddDriver, onUpdateDriverBillin
                   {d.isShiftLocked ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
                   {d.isShiftLocked ? "فتح الحساب" : "حظر الحساب"}
                 </button>
-                <div className="flex gap-1">
-                  {onSettleVendorDebt && (
-                    <button onClick={() => onSettleVendorDebt(d.id_full, d.name)} className="flex items-center justify-center gap-1 px-3 py-2.5 rounded-2xl text-[10px] font-black bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-100 transition-all" title="سداد مديونية المحلات">
-                      <Banknote className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {onSettleSystemDebt && (
-                    <button onClick={() => onSettleSystemDebt(d.id_full, d.name)} className="flex items-center justify-center gap-1 px-3 py-2.5 rounded-2xl text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all" title="سداد عمولة الشركة">
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button onClick={() => onResetUser(d.id_full, d.name)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl text-[10px] font-black bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all" title="تصفير شامل">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <button onClick={() => onResetUser(d.id_full, d.name)} className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all" title="تصفير بيانات الطيار">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  تصفير
+                </button>
               </div>
             </motion.div>
           ))}

@@ -1,18 +1,16 @@
 "use client";
 
 import React from "react";
-import { Wallet, User, ArrowUpRight, ArrowDownRight, Banknote, RotateCcw, Trash2 } from "lucide-react";
+import { Wallet, User, ArrowUpRight, ArrowDownRight, Banknote, Trash2 } from "lucide-react";
 import type { AppUser, WalletRow } from "../types";
 
 interface WalletsViewProps {
   users: AppUser[];
   wallets: WalletRow[];
   onResetUser: (userId: string, userName: string) => void;
-  onSettleVendorDebt?: (userId: string, userName: string) => void;
-  onSettleSystemDebt?: (userId: string, userName: string) => void;
 }
 
-export default function WalletsView({ users = [], wallets = [], onResetUser, onSettleVendorDebt, onSettleSystemDebt }: WalletsViewProps) {
+export default function WalletsView({ users = [], wallets = [], onResetUser }: WalletsViewProps) {
   const mergedData = (users || [])
     .filter(u => u && u.id) 
     .map(user => {
@@ -143,16 +141,6 @@ export default function WalletsView({ users = [], wallets = [], onResetUser, onS
                   </td>
                   <td className="py-5 pr-8">
                     <div className="flex items-center justify-center gap-2">
-                      {user.role === 'driver' && (user.debt || 0) > 0 && onSettleVendorDebt && (
-                        <button onClick={() => onSettleVendorDebt(user.id, user.full_name)} className="p-2 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-100 transition-colors" title="سداد مديونية المحلات">
-                          <Banknote size={16} />
-                        </button>
-                      )}
-                      {(user.system_balance || 0) > 0 && onSettleSystemDebt && (
-                        <button onClick={() => onSettleSystemDebt(user.id, user.full_name)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="سداد عمولة الشركة">
-                          <RotateCcw size={16} />
-                        </button>
-                      )}
                       <button onClick={() => onResetUser(user.id, user.full_name)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" title="تصفير شامل">
                         <Trash2 size={16} />
                       </button>

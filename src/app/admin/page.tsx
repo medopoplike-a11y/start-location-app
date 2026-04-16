@@ -837,13 +837,9 @@ function AdminContent() {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟ سيتم حذف الطلبات المكتملة وتصفير المحفظة.`)) return;
     setActionLoading(true);
     try {
-      // 1. Reset Wallet
+      // 1. Reset Wallet (Original V1.2.0 logic includes order cleanup)
       const { error: walletError } = await supabase.rpc('reset_wallet_balance', { p_user_id: userId });
       if (walletError) throw walletError;
-
-      // 2. Cleanup History
-      const { error: cleanupError } = await supabase.rpc('cleanup_user_orders', { p_user_id: userId });
-      if (cleanupError) throw cleanupError;
 
       toastSuccess(`تم تصفير بيانات ${userName} بالكامل`);
       addActivity(`تم تصفير حساب ${userName}`);
@@ -852,31 +848,11 @@ function AdminContent() {
     setActionLoading(false);
   }, [addActivity, fetchData, getErrorMessage, toastSuccess, toastError]);
 
-  const handleSettleVendorDebt = useCallback(async (userId: string, userName: string) => {
-    if (!confirm(`هل أنت متأكد من سداد مديونية المحلات لـ ${userName}؟`)) return;
-    setActionLoading(true);
-    try {
-      const { error } = await supabase.rpc('settle_vendor_debt', { p_user_id: userId });
-      if (error) throw error;
-      toastSuccess(`تم سداد مديونية المحلات لـ ${userName} بنجاح`);
-      addActivity(`سداد مديونية محلات لـ ${userName}`);
-      fetchData();
-    } catch (error) { toastError(`خطأ: ${getErrorMessage(error)}`); }
-    setActionLoading(false);
-  }, [addActivity, fetchData, getErrorMessage, toastSuccess, toastError]);
-
-  const handleSettleSystemDebt = useCallback(async (userId: string, userName: string) => {
-    if (!confirm(`هل أنت متأكد من سداد عمولة الشركة لـ ${userName}؟`)) return;
-    setActionLoading(true);
-    try {
-      const { error } = await supabase.rpc('settle_system_debt', { p_user_id: userId });
-      if (error) throw error;
-      toastSuccess(`تم سداد عمولة الشركة لـ ${userName} بنجاح`);
-      addActivity(`سداد عمولة شركة لـ ${userName}`);
-      fetchData();
-    } catch (error) { toastError(`خطأ: ${getErrorMessage(error)}`); }
-    setActionLoading(false);
-  }, [addActivity, fetchData, getErrorMessage, toastSuccess, toastError]);
+  // V1.2.7: Reverting granular settlement handlers - returning to single stable reset
+  /*
+  const handleSettleVendorDebt = ...
+  const handleSettleSystemDebt = ...
+  */
 
   const handleGlobalReset = useCallback(async () => {
     if (!confirm("تحذير: هل أنت متأكد من تصفير كافة حسابات النظام وتنظيف جميع السجلات؟")) return;
@@ -1381,8 +1357,6 @@ function AdminContent() {
                 users={allUsers} 
                 wallets={wallets} 
                 onResetUser={handleResetUser}
-                onSettleVendorDebt={handleSettleVendorDebt}
-                onSettleSystemDebt={handleSettleSystemDebt}
               />
             )}
 

@@ -1051,31 +1051,13 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- هـ. وظائف تنظيف السجلات وتصفير الحسابات (جديد V0.9.92)
 
--- 1. تصفير مديونية المحلات فقط (سداد مديونية المطعم)
-CREATE OR REPLACE FUNCTION settle_vendor_debt(p_user_id UUID)
-RETURNS void AS $$
-BEGIN
-  UPDATE wallets 
-  SET debt = 0, updated_at = NOW()
-  WHERE user_id = p_user_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 2. تصفير مديونية الشركة فقط (سداد عمولة الشركة)
-CREATE OR REPLACE FUNCTION settle_system_debt(p_user_id UUID)
-RETURNS void AS $$
-BEGIN
-  UPDATE wallets 
-  SET system_balance = 0, updated_at = NOW()
-  WHERE user_id = p_user_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 3. تصفير محفظة مستخدم محدد (بشكل كامل وجذري - للأدمن فقط)
+-- 1. تصفير محفظة مستخدم محدد (بشكل كامل وجذري)
 CREATE OR REPLACE FUNCTION reset_wallet_balance(p_user_id UUID)
 RETURNS void AS $$
 BEGIN
-  -- V1.2.6: Safety - This clears EVERYTHING (Earnings, Debt, Commission)
+  -- V1.2.0: Also cleanup orders when resetting wallet to maintain synchronization
+  DELETE FROM orders WHERE (vendor_id = p_user_id OR driver_id = p_user_id) AND status IN ('delivered', 'cancelled');
+  
   UPDATE wallets 
   SET balance = 0, debt = 0, system_balance = 0, updated_at = NOW()
   WHERE user_id = p_user_id;
