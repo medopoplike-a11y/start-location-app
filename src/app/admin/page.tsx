@@ -198,18 +198,17 @@ function AdminContent() {
         rating: payload.rating ?? existing?.rating ?? 0
       };
 
-      // V0.9.70: Unified Sync - Update BOTH registries to prevent "jumping"
-      // This ensures the map markers (from drivers list) and lists stay in sync
+      // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
       setDrivers(current => {
         const updated = current.map(d => {
           if (d.id_full === payload.id) {
-            // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
+            // PROTECTION: If current driver in list has a newer timestamp, don't overwrite its location
             if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp) {
-              return {
-                ...d,
-                isOnline: payload.is_online !== undefined ? payload.is_online : d.isOnline,
-                status: d.isShiftLocked ? "محظور" : (payload.is_online !== undefined ? (payload.is_online ? "متصل" : "غير متصل") : d.status),
-              };
+               return {
+                 ...d,
+                 isOnline: payload.is_online !== undefined ? payload.is_online : d.isOnline,
+                 status: d.isShiftLocked ? "محظور" : (payload.is_online !== undefined ? (payload.is_online ? "متصل" : "غير متصل") : d.status),
+               };
             }
 
             const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
@@ -237,6 +236,8 @@ function AdminContent() {
           }
           return d;
         });
+        
+        // V1.0.4: Ensure new reference for immediate React state update
         return [...updated];
       });
 
@@ -434,7 +435,9 @@ function AdminContent() {
         }
 
         setCache('admin_orders', typedData); // Cache latest fetch
-        const live = typedData.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').map((o) => {
+        
+        // V1.0.4: Corrected filter to include assigned/in_transit for distribution management
+        const live = typedData.filter((o) => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').map((o) => {
           // Handle both array and object responses from Supabase joins
           const rawProfiles = (o as any).profiles;
           const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
@@ -509,6 +512,26 @@ function AdminContent() {
   }, []);
 
   const isDataFetchingRef = useRef(false);
+  
+  // V1.0.4: Specialized light refresh for location updates to keep map reactive
+  const manualSync = useCallback(async (payload?: any) => {
+    if (!mounted) return;
+    
+    if (payload?.source === 'location_update') {
+      fetchProfiles();
+      return;
+    }
+
+    if (isDataFetchingRef.current) return;
+    isDataFetchingRef.current = true;
+    
+    try {
+      await fetchData();
+    } finally {
+      isDataFetchingRef.current = false;
+    }
+  }, [mounted, fetchProfiles, fetchData]);
+
   const fetchData = useCallback(async (fullHistory = false) => {
     if (isDataFetchingRef.current) return;
     try {
@@ -626,8 +649,12 @@ function AdminContent() {
             lastSeenTimestamp: newData.location?.ts || (payload.source === 'broadcast' ? Date.now() : (newData.last_location_update ? new Date(newData.last_location_update).getTime() : Date.now()))
           }, payload.source === 'broadcast' ? 'realtime' : 'db'); 
           
+          // V1.0.4: If location changed, trigger a re-render of the map by updating state
+          if (newData.location) {
+             manualSync({ source: 'location_update', id: newData.id });
+          }
+
           // Only stop here if it's a pure location update (to avoid heavy fetch)
-          // If other important fields changed, we might still want to fetchData()
           if (newData.location && !newData.full_name && !newData.role) return;
         }
       }
