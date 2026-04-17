@@ -329,6 +329,13 @@ export default function StoreView({
                           <img 
                             src={order.invoiceUrl} 
                             alt="Main Invoice" 
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (!target.src.includes('retry=1')) {
+                                target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                              }
+                            }}
                             className="w-full h-full object-contain"
                           />
                           <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
@@ -353,6 +360,13 @@ export default function StoreView({
                           <img 
                             src={cust.invoice_url} 
                             alt={`Invoice ${idx}`} 
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (!target.src.includes('retry=1')) {
+                                target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                              }
+                            }}
                             className="w-full h-full object-contain"
                           />
                           <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">

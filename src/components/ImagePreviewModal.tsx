@@ -71,12 +71,19 @@ export default function ImagePreviewModal({ url, show, onClose }: ImagePreviewMo
               <img
                 src={url}
                 alt="Invoice Preview"
+                crossOrigin="anonymous"
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
                 style={{ 
                   maxHeight: 'calc(100vh - 180px)',
                   maxWidth: '100vw',
                   display: 'block',
                   margin: 'auto'
+                }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (!target.src.includes('retry=1')) {
+                    target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                  }
                 }}
                 onClick={(e) => e.stopPropagation()}
               />

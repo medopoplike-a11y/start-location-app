@@ -175,6 +175,13 @@ export default function OrderFormModal({ hasVendorLocation = true,
                         src={invoiceUrl} 
                         className="w-full h-full object-cover cursor-pointer" 
                         alt="Preview" 
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (!target.src.includes('retry=1')) {
+                            target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                          }
+                        }}
                         onClick={() => window.open(invoiceUrl, '_blank')}
                       />
                     </div>

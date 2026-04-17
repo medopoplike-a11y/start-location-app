@@ -996,6 +996,8 @@ function StoreContent() {
         if (uploadError) throw new Error(uploadError.message);
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        // V1.2.7: Add cache-buster to force fresh image load
+        const finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
         
         if (activeCaptureIndex !== null) {
           setFormData(prev => {
@@ -1003,14 +1005,14 @@ function StoreContent() {
             if (newCustomers[activeCaptureIndex]) {
               newCustomers[activeCaptureIndex] = { 
                 ...newCustomers[activeCaptureIndex], 
-                invoiceUrl: publicUrl,
+                invoiceUrl: finalUrl,
                 isUploading: false 
               };
             }
             return { ...prev, customers: newCustomers };
           });
         } else {
-          setInvoiceUrl(publicUrl);
+          setInvoiceUrl(finalUrl);
         }
         success("تم التقاط ورفع الفاتورة بنجاح");
       } catch (err: any) {
@@ -1053,10 +1055,12 @@ function StoreContent() {
         }
         
         const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-        const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: publicUrl });
+        // V1.2.7: Add cache-buster to force fresh image load
+        const finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
+        const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: finalUrl });
         if (updateError) throw updateError;
         
-        setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: publicUrl } : o));
+        setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: finalUrl } : o));
         success("تم تحديث الطلب بالفاتورة بنجاح");
       } catch (err: any) {
         console.error("Quick in-app upload error details:", err);

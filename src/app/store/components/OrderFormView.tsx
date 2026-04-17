@@ -317,6 +317,13 @@ export default function OrderFormView({
                                 src={cust.invoiceUrl} 
                                 className="w-full h-full object-contain cursor-pointer" 
                                 alt="Invoice Preview" 
+                                crossOrigin="anonymous"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  if (!target.src.includes('retry=1')) {
+                                    target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                                  }
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onPreviewImage?.(cust.invoiceUrl!);
