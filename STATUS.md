@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v1.0.3-RADICAL-TRACKING)
+## ✅ Project Status: Production Live (v1.0.4-WAKE-UP-STABLE)
 
 **Last Deployment**: April 17, 2026 - 🎉 Full CI/CD Pipeline Active (GitHub -> Vercel Sync)
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v1.0.3]
+- **Mobile (Android)**: APK Build Status ✅ [v1.0.4]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
 
@@ -19,6 +19,8 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 ```
 
 ### 📊 **Features Implemented**
+- ✅ App Wake-up & Auto-Refresh (Background Recovery)
+- ✅ Session Persistence & Auto-Reconnection (Zero-Freeze)
 - ✅ Radical Continuous Tracking (Native HTTP & 2s Precision)
 - ✅ Foreground Service Integration (Background Stability)
 - ✅ Battery Optimization Guard (User Awareness)

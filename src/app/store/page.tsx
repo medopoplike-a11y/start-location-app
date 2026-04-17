@@ -18,7 +18,7 @@ import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache } from "@/lib/native-utils";
+import { getCache, onAppResume } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -74,6 +74,19 @@ function StoreContent() {
   const [loading, setLoading] = useState(true);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // V1.6.0: Radical Wake-up logic for Background persistence
+  useEffect(() => {
+    if (!vendorId) return;
+    
+    console.log("App: Initializing Wake-up listener for Store...");
+    const cleanup = onAppResume(() => {
+      console.log("App: Store resumed, force refreshing data...");
+      updateData(vendorId);
+    });
+
+    return () => cleanup();
+  }, [vendorId]);
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {

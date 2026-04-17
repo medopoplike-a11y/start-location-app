@@ -10,7 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel } from "@/lib/native-utils";
+import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, onAppResume } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -59,6 +59,19 @@ export default function DriverApp() {
   const ordersRef = useRef<Order[]>([]);
 
   const [showBatteryAlert, setShowBatteryAlert] = useState(false);
+
+  // V1.6.0: Radical Wake-up logic for Background persistence
+  useEffect(() => {
+    if (!driverId) return;
+    
+    console.log("App: Initializing Wake-up listener for Driver...");
+    const cleanup = onAppResume(() => {
+      console.log("App: Driver resumed, force refreshing data...");
+      manualSync();
+    });
+
+    return () => cleanup();
+  }, [driverId]);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {

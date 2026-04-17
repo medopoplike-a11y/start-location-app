@@ -3,12 +3,56 @@ import { supabase, supabaseLock } from './supabaseClient';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Toast } from '@capacitor/toast';
 import { Preferences } from '@capacitor/preferences';
+import { App } from '@capacitor/app';
 import { config } from './config';
 
 // Constants for direct native API calls (V0.9.52)
 const SUPABASE_URL = config.supabase.url;
 const SUPABASE_KEY = config.supabase.anonKey;
 const SESSION_KEY = 'start-location-v1-session';
+
+/**
+ * دالة للاستيقاظ وإعادة مزامنة الجلسة والقنوات الحية (V1.6.0)
+ * يتم استدعاؤها عند عودة التطبيق من الخلفية لضمان عدم تجمد البيانات
+ */
+export const refreshAppSession = async () => {
+  try {
+    console.log("App: Refreshing session and wake-up...");
+    
+    // 1. Force refresh supabase session natively
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) console.warn("Session Refresh Error:", error);
+
+    // 2. Re-establish broadcast channel if dead
+    await getBroadcastChannel();
+
+    // 3. Clear any frozen JS timers or states if needed (handled by callers)
+    return session;
+  } catch (e) {
+    console.warn("App Wake-up failed:", e);
+    return null;
+  }
+};
+
+/**
+ * مستمع لحدث عودة التطبيق للواجهة (Resume)
+ */
+export const onAppResume = (callback: () => void) => {
+  if (!isNative()) return () => {};
+  
+  const listener = App.addListener('appStateChange', ({ isActive }) => {
+    if (isActive) {
+      console.log("App: Resumed from background, triggering refresh...");
+      refreshAppSession().then(() => {
+        callback();
+      });
+    }
+  });
+
+  return () => {
+    listener.then(l => l.remove());
+  };
+};
 
 /**
  * دالة للاهتزاز البسيط عند النقر أو حدوث إجراء
