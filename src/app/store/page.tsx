@@ -257,11 +257,12 @@ function StoreContent() {
           abortControllerRef.current = null;
         }
       }
-      // Skip refreshes for location-only broadcast updates to save resources
-      if (payload?.source === 'broadcast' || payload?.table === 'profiles') {
-        const newData = payload.new || payload.payload?.new;
-        if (newData?.location && !newData.status_updated_at) return;
-      }
+      // Skip system alert broadcasts that are not related to data changes
+      if (payload?.source === 'broadcast' && payload?.payload?.type === 'system_alert') return;
+
+      // useSync already filters high-frequency driver location pings — any profile
+      // update that reaches here is meaningful (is_online / is_locked change) and
+      // should trigger a full data refresh so the driver list stays current.
       updateData(vendorId);
     }
   });

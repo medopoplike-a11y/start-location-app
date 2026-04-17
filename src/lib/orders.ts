@@ -165,12 +165,20 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
     return { data: null, error: { message: msg, code: 'NOT_FOUND' } };
   }
 
-  // Broadcast sync event for real-time consistency
-  const channel = supabase.channel('system_sync');
-  channel.send({
-    type: 'broadcast',
-    event: 'sync-update',
-    payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
+  // Broadcast sync event for instant cross-interface update.
+  // Must subscribe before send — Supabase requires channel membership to broadcast.
+  const broadcastCh = supabase.channel('system_sync');
+  broadcastCh.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      broadcastCh.send({
+        type: 'broadcast',
+        event: 'sync-update',
+        payload: { orderId, status: updates.status, updatedAt: updates.status_updated_at }
+      }).then(() => {
+        // Clean up the temporary channel after sending
+        setTimeout(() => supabase.removeChannel(broadcastCh), 1000);
+      });
+    }
   });
 
   return { data: data[0], error: null };

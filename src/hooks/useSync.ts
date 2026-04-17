@@ -20,37 +20,31 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
-   * V0.9.88: INDUSTRIAL GRADE DEBOUNCED SYNC
-   * Prevents UI freezing by grouping rapid DB changes into single updates.
+   * DEBOUNCED SYNC — 100ms debounce for snappy real-time feel while still
+   * grouping burst updates (e.g. driver location flood) into a single render.
    */
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-    
+
     syncTimeoutRef.current = setTimeout(() => {
       if (!isMountedRef.current) return;
       setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      
-      // Artificial delay for visual feedback, but doesn't block UI
-      setTimeout(() => {
-        if (isMountedRef.current) setIsSyncing(false);
-      }, 800); 
+      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 500);
       syncTimeoutRef.current = null;
-    }, 400); 
+    }, 100);
   }, []);
 
   /**
-   * SELF-HEALING: Cleanup all zombie channels before re-subscribing
-   * V0.9.94: Enhanced singleton channel management
+   * SELF-HEALING: Cleanup all zombie channels before re-subscribing.
+   * Only removes channels owned by this hook — never destroys the singleton
+   * driver broadcast channel managed by native-utils.ts.
    */
   const cleanupChannels = useCallback(async () => {
     if (channelsRef.current.length > 0) {
       console.log(`useSync: Terminating ${channelsRef.current.length} active channels...`);
-      // Only remove channels owned by this hook — do NOT use removeAllChannels() as it
-      // destroys the singleton driver broadcast channel in native-utils.ts, leaving a dead
-      // reference that breaks location broadcasts until the app fully restarts.
       for (const ch of channelsRef.current) {
         try { await supabase.removeChannel(ch); } catch (_) {}
       }
@@ -60,73 +54,97 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
   const subscribe = useCallback(async () => {
     if (!userId || !isMountedRef.current) return;
-    
-    // Ensure absolute clean state before subscribing
+
     await cleanupChannels();
-    
-    console.log("useSync: Establishing singleton data stream...");
-    
+
+    console.log("useSync: Establishing real-time streams...");
+
     const newChannels: RealtimeChannel[] = [];
 
-    // 1. Unified Orders Channel
-    const orderChannel = subscribeToOrders(isAdmin ? undefined : userId, (payload) => {
-      triggerUpdate({ source: 'orders', event: payload.eventType });
-    });
-    
-    // V1.0.0: Enhanced error handling for channel connectivity
-    orderChannel.subscribe(async (status) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.warn("useSync: Order channel failed, retrying in 5s...");
-        setTimeout(() => isMountedRef.current && subscribe(), 5000);
-      }
-    });
+    // ─── 1. Orders channel ────────────────────────────────────────────────────
+    // FIX: subscribeToOrders(callback, filterId?) — callback MUST be the first arg.
+    // Previous code had arguments swapped which silently broke all real-time order
+    // updates for vendors, drivers, and admins.
+    const orderChannel = subscribeToOrders(
+      (payload: any) => {
+        triggerUpdate({ source: 'orders', event: payload?.eventType, payload });
+      },
+      isAdmin ? undefined : userId   // filterId: undefined = all orders (admin), userId = own orders
+    );
+    // NOTE: subscribeToOrders already calls .subscribe() internally.
+    // Do NOT call .subscribe() again — that would cause a duplicate subscription.
     newChannels.push(orderChannel);
 
-    // 2. Unified Profiles Channel
+    // ─── 2. Profiles channel ──────────────────────────────────────────────────
     const profileChannel = subscribeToProfiles((payload) => {
-      if (!isAdmin && payload.new?.id !== userId) return;
-      
-      // V1.4.0: Special handling for location updates in Admin view
-      if (isAdmin && payload.eventType === 'UPDATE' && payload.new?.location) {
-        triggerUpdate({ 
-          source: 'location_update', 
+      const changedProfile = payload.new || payload.payload?.new;
+      const changedId = changedProfile?.id;
+
+      // Admin: route driver location broadcasts separately for the live map
+      if (isAdmin && payload.eventType === 'UPDATE' && changedProfile?.location) {
+        triggerUpdate({
+          source: 'location_update',
           payload: {
-            id: payload.new.id,
-            location: payload.new.location,
-            is_online: payload.new.is_online,
-            full_name: payload.new.full_name,
-            last_location_update: payload.new.last_location_update || new Date().toISOString()
-          } 
+            id: changedId,
+            location: changedProfile.location,
+            is_online: changedProfile.is_online,
+            full_name: changedProfile.full_name,
+            last_location_update: changedProfile.last_location_update || new Date().toISOString()
+          }
         });
-      } else {
-        triggerUpdate({ source: 'profiles', event: payload.eventType, payload });
+        return;
       }
+
+      // Non-admin driver: only care about their own profile
+      // Non-admin vendor: care about own profile AND all driver profiles
+      //   so that is_online / is_locked changes trigger a data refresh.
+      const isOwnProfile = changedId === userId;
+      const isDriverProfile = payload.source === 'broadcast'
+        ? true // broadcast already filtered by subscribeToProfiles
+        : changedProfile?.role === 'driver' || isOwnProfile;
+
+      if (!isAdmin && !isOwnProfile && !isDriverProfile) return;
+
+      // Skip pure high-frequency location pings from drivers (no is_online change)
+      // to avoid flooding the vendor/driver UI with unnecessary re-renders.
+      const oldProfile = payload.old;
+      const isLocationOnlyUpdate =
+        changedProfile?.location &&
+        oldProfile?.is_online === changedProfile?.is_online &&
+        oldProfile?.is_locked === changedProfile?.is_locked;
+      if (!isAdmin && !isOwnProfile && isLocationOnlyUpdate) return;
+
+      triggerUpdate({ source: 'profiles', event: payload.eventType, table: 'profiles', payload });
     });
     newChannels.push(profileChannel);
 
-    // 3. User-specific channels (Wallets & Settlements)
-    if (userId) {
-      const walletChannel = subscribeToWallets(userId, () => {
-        triggerUpdate({ source: 'wallets' });
+    // ─── 3. Wallet & Settlements ──────────────────────────────────────────────
+    const walletChannel = subscribeToWallets(userId, () => {
+      triggerUpdate({ source: 'wallets' });
+    });
+    newChannels.push(walletChannel);
+
+    const settlementChannel = subscribeToSettlements(userId, () => {
+      triggerUpdate({ source: 'settlements' });
+    });
+    newChannels.push(settlementChannel);
+
+    // ─── 4. System broadcast — instant cross-interface sync ───────────────────
+    // updateOrderStatus() broadcasts to 'system_sync' whenever an order status
+    // changes. All interfaces listen here for zero-lag cross-device sync.
+    const systemSyncChannel = supabase.channel('system_sync');
+    systemSyncChannel
+      .on('broadcast', { event: 'sync-update' }, (msg) => {
+        triggerUpdate({ source: 'system_sync', payload: msg.payload });
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn("useSync: system_sync channel error, will retry via heartbeat");
+        }
       });
-      newChannels.push(walletChannel);
+    newChannels.push(systemSyncChannel);
 
-      const settlementChannel = subscribeToSettlements(userId, () => {
-        triggerUpdate({ source: 'settlements' });
-      });
-      newChannels.push(settlementChannel);
-    }
-
-    // 4. V1.0.0: Global Broadcast Channel for ultra-low latency updates (e.g., direct messages or SOS)
-    const broadcastChannel = supabase.channel(`broadcast:global:${userId}`);
-    broadcastChannel.on('broadcast', { event: 'system_alert' }, (payload) => {
-      console.log("useSync: Received system broadcast", payload);
-      triggerUpdate({ source: 'broadcast', payload });
-    }).subscribe();
-    newChannels.push(broadcastChannel);
-
-    // 5. Admin-only: Subscribe to real-time driver location broadcasts
-    // Drivers publish here via the singleton broadcast channel in native-utils.ts
+    // ─── 5. Admin-only: driver location broadcasts ────────────────────────────
     if (isAdmin) {
       const driverLocChannel = supabase.channel('global:driver-locations');
       driverLocChannel
@@ -144,7 +162,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
           });
         })
         .subscribe((status) => {
-          console.log(`useSync: Admin driver-locations channel → ${status}`);
+          console.log(`useSync: driver-locations → ${status}`);
         });
       newChannels.push(driverLocChannel);
     }
@@ -153,17 +171,17 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     triggerUpdate({ source: 'initial_subscribe' });
   }, [userId, isAdmin, triggerUpdate, cleanupChannels]);
 
+  // ─── Initial subscription + heartbeat ─────────────────────────────────────
   useEffect(() => {
     isMountedRef.current = true;
     subscribe();
 
-    // V0.9.88: SELF-HEALING HEARTBEAT
-    // Every 5 minutes, force a full data refresh to ensure UI is perfectly in sync
-    // even if real-time messages were dropped during network switches.
+    // Heartbeat every 90 seconds — forces a data refresh to recover from any
+    // dropped real-time messages (network switch, background throttle, etc.)
     const heartbeat = setInterval(() => {
-      console.log("useSync: Heartbeat triggered full refresh");
+      console.log("useSync: Heartbeat — forcing full refresh");
       triggerUpdate({ source: 'heartbeat' });
-    }, 5 * 60 * 1000);
+    }, 90 * 1000);
 
     return () => {
       isMountedRef.current = false;
@@ -173,23 +191,25 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     };
   }, [userId, subscribe, cleanupChannels]);
 
+  // ─── Visibility / App-state listeners ─────────────────────────────────────
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log("useSync: App visible, triggering self-healing...");
-        // Reconnect the broadcast channel in case the socket dropped while hidden
+        console.log("useSync: Tab visible — self-healing...");
         await cleanupBroadcastChannel();
         await subscribe();
         triggerUpdate({ source: 'visibility_change' });
       }
     };
 
+    const handleFocus = () => triggerUpdate({ source: 'focus' });
+
     window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', () => triggerUpdate({ source: 'focus' }));
+    window.addEventListener('focus', handleFocus);
 
     let appStateListener: any;
     let networkListener: any;
-    
+
     const setupCapacitor = async () => {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         const { App } = await import("@capacitor/app");
@@ -197,37 +217,34 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
         appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App active, restoring system state...");
+            console.log("useSync: App foregrounded — restoring state...");
 
-            // FIX: Trigger an immediate UI update first so the user sees fresh data
-            // without waiting for reconnection. Then restore connections in parallel.
+            // 1. Immediate UI refresh so user sees content instantly
             triggerUpdate({ source: 'app_resume' });
 
             try {
-              // Run all reconnection tasks in parallel to minimise delay
+              // 2. Reconnect everything in parallel for speed
               await Promise.all([
                 supabase.auth.refreshSession().catch(e => console.warn("useSync: Session refresh failed", e)),
                 cleanupBroadcastChannel(),
                 (async () => {
-                  if (!supabase.realtime.isConnected()) {
-                    supabase.realtime.connect();
-                  }
+                  if (!supabase.realtime.isConnected()) supabase.realtime.connect();
                 })(),
               ]);
 
-              // Re-subscribe after connections are ready
+              // 3. Re-subscribe with fresh channels
               await subscribe();
-              // Trigger a second update now that channels are live
-              triggerUpdate({ source: 'app_resume_channels_restored' });
+              triggerUpdate({ source: 'app_resume_complete' });
             } catch (e) {
               console.error("useSync: Restore error", e);
             }
           }
         });
 
-        networkListener = await Network.addListener('networkStatusChange', (status) => {
+        networkListener = await Network.addListener('networkStatusChange', async (status) => {
           if (status.connected) {
-            console.log("useSync: Network restored, re-syncing...");
+            console.log("useSync: Network restored — re-syncing...");
+            await subscribe();
             triggerUpdate({ source: 'network_restore' });
           }
         });
@@ -238,10 +255,11 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
       if (appStateListener) appStateListener.remove();
       if (networkListener) networkListener.remove();
     };
-  }, [triggerUpdate, subscribe]);
+  }, [triggerUpdate, subscribe, cleanupChannels]);
 
   return { lastSync, isSyncing, triggerUpdate };
 };
