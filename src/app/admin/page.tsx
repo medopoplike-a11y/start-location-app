@@ -567,6 +567,12 @@ function AdminContent() {
 
   const manualSync = useCallback(async (payload?: any) => {
     if (!mounted) return;
+
+    // On app resume or tab-focus, reset the fetching lock in case it got stuck
+    // while the app was backgrounded (fetch interrupted on native platforms).
+    if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+      isDataFetchingRef.current = false;
+    }
     
     // V1.4.0: Optimized real-time location and status updates
     if (payload?.source === 'location_update' || (payload?.source === 'profiles' && payload?.event === 'UPDATE')) {

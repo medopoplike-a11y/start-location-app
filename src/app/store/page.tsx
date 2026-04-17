@@ -247,6 +247,16 @@ function StoreContent() {
   // V0.9.95: Unified single-stream sync
   useSync(vendorId || undefined, (payload) => {
     if (vendorId) {
+      // On app resume or tab-focus, reset the isSyncing lock in case it got stuck
+      // in the background (fetch interrupted, finally block didn't run on native).
+      if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+        isSyncingRef.current = false; // synchronous reset – must happen before updateData reads it
+        setIsSyncing(false);
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+      }
       // Skip refreshes for location-only broadcast updates to save resources
       if (payload?.source === 'broadcast' || payload?.table === 'profiles') {
         const newData = payload.new || payload.payload?.new;
@@ -450,9 +460,12 @@ function StoreContent() {
   }, [orders]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Use a ref as the authoritative lock so resets take effect synchronously
+  // (React state updates are async and can't unblock a guard in the same call).
+  const isSyncingRef = useRef(false);
 
   const updateData = async (uid: string) => {
-    if (!uid || isSyncing) return;
+    if (!uid || isSyncingRef.current) return;
     
     // Abort previous request if any
     if (abortControllerRef.current) {
@@ -460,10 +473,12 @@ function StoreContent() {
     }
     abortControllerRef.current = new AbortController();
 
+    isSyncingRef.current = true;
     setIsSyncing(true);
     setLastSync(new Date());
 
     const safetyTimeout = setTimeout(() => {
+      isSyncingRef.current = false;
       setIsSyncing(false);
       abortControllerRef.current = null;
     }, 12000);
@@ -526,6 +541,7 @@ function StoreContent() {
       console.error("VendorPage: Update error", err);
     } finally {
       clearTimeout(safetyTimeout);
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
   };

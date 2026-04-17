@@ -656,6 +656,15 @@ export default function DriverApp() {
 
   // Sync with useSync hook
   useSync(driverId || undefined, (payload) => {
+    // On app resume or tab-focus, reset the refresh lock in case it got stuck
+    // while the app was in the background (fetch interrupted, finally block not reached).
+    if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+      isRefreshingRef.current = false;
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+    }
     if (driverId && !isRefreshingRef.current) {
       manualSync(payload);
     }
