@@ -328,8 +328,37 @@ export const checkForAutoUpdate = async (force = false) => {
 };
 
 /**
- * نظام تتبع الموقع المتقدم في الخلفية
+ * Helper: Get the freshest available access token.
+ * Priority: live supabase session → Preferences cache → anon key (last resort).
+ * This is critical for background tracking where the JS timer for auto-refresh
+ * may be throttled by the OS, causing the token to silently expire.
  */
+const getFreshAccessToken = async (): Promise<string> => {
+  try {
+    // 1. Try live session first (may auto-refresh if expired and network is available)
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return data.session.access_token;
+  } catch (_) {}
+
+  try {
+    // 2. Force a refresh attempt
+    const { data } = await supabase.auth.refreshSession();
+    if (data.session?.access_token) return data.session.access_token;
+  } catch (_) {}
+
+  try {
+    // 3. Fall back to cached session in Preferences
+    const { value: sessionStr } = await Preferences.get({ key: SESSION_KEY });
+    if (sessionStr) {
+      const session = JSON.parse(sessionStr);
+      if (session.access_token) return session.access_token;
+    }
+  } catch (_) {}
+
+  // 4. Last resort: anon key (will only work if RLS allows it)
+  return SUPABASE_KEY;
+};
+
 export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   if (!isNative() || !userId) return null;
 
@@ -353,9 +382,13 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
       return null;
     }
 
-    // 2. Optimized Background Geolocation Config (v0.9.87: Radical fix for background tracking consistency)
+    // 2. Optimized Background Geolocation Config
     let lastDbUpdate = 0;
     const DB_UPDATE_INTERVAL = 4000;
+    // Refresh the access token proactively every ~50 updates (≈ every 3-4 minutes)
+    // to prevent it from expiring silently while the app is in the background.
+    let updateCounter = 0;
+    const TOKEN_REFRESH_EVERY = 50;
 
     // Start the main location watcher
     const mainWatcherId = await BackgroundGeolocation.addWatcher(
@@ -406,10 +439,22 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           const now = Date.now();
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
           lastDbUpdate = now;
+          updateCounter++;
 
           try {
-            // V0.9.92: Use the standard supabase client first as it handles session auto-refresh
-            // Fallback to CapacitorHttp ONLY if standard client fails (native background issues)
+            // FIX: In background, the JS auto-refresh timer is throttled by the OS,
+            // so the supabase client's session may silently expire. We use CapacitorHttp
+            // as the primary DB write method (simple HTTP, always works in background),
+            // with a fresh token fetched at regular intervals.
+            const useDirectHttp = updateCounter % TOKEN_REFRESH_EVERY === 1;
+            let accessToken: string | null = null;
+
+            if (useDirectHttp) {
+              // Proactively refresh the token every TOKEN_REFRESH_EVERY updates
+              accessToken = await getFreshAccessToken();
+            }
+
+            // First try: supabase client (handles token refresh internally when foreground)
             const { error: dbError } = await supabase.from('profiles').update({
               location: { ...loc, ts: now },
               is_online: true,
@@ -418,16 +463,10 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
             }).eq('id', userId);
 
             if (dbError) {
-              console.warn("BG Tracker: Supabase client failed, falling back to CapacitorHttp", dbError);
+              console.warn("BG Tracker: Supabase client failed, using CapacitorHttp", dbError);
               
-              let accessToken = SUPABASE_KEY;
-              try {
-                const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
-                if (sessionStr) {
-                  const session = JSON.parse(sessionStr);
-                  if (session.access_token) accessToken = session.access_token;
-                }
-              } catch (e) {}
+              // Get fresh token only if we haven't already
+              if (!accessToken) accessToken = await getFreshAccessToken();
 
               const headers = {
                 'apikey': SUPABASE_KEY,

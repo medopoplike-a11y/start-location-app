@@ -198,22 +198,27 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
           if (isActive) {
             console.log("useSync: App active, restoring system state...");
+
+            // FIX: Trigger an immediate UI update first so the user sees fresh data
+            // without waiting for reconnection. Then restore connections in parallel.
+            triggerUpdate({ source: 'app_resume' });
+
             try {
-              // Force session refresh to prevent auth expiry
-              await supabase.auth.refreshSession();
-              
-              // Ensure real-time socket is alive
-              if (!supabase.realtime.isConnected()) {
-                supabase.realtime.connect();
-              }
+              // Run all reconnection tasks in parallel to minimise delay
+              await Promise.all([
+                supabase.auth.refreshSession().catch(e => console.warn("useSync: Session refresh failed", e)),
+                cleanupBroadcastChannel(),
+                (async () => {
+                  if (!supabase.realtime.isConnected()) {
+                    supabase.realtime.connect();
+                  }
+                })(),
+              ]);
 
-              // Reset the singleton broadcast channel so it reconnects cleanly
-              // (the socket drop in background can leave it in a dead state).
-              await cleanupBroadcastChannel();
-
-              // Full re-subscribe to clear any potential zombie channels from background
+              // Re-subscribe after connections are ready
               await subscribe();
-              triggerUpdate({ source: 'app_resume' });
+              // Trigger a second update now that channels are live
+              triggerUpdate({ source: 'app_resume_channels_restored' });
             } catch (e) {
               console.error("useSync: Restore error", e);
             }

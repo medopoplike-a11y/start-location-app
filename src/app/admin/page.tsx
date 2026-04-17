@@ -324,16 +324,22 @@ function AdminContent() {
         // Skip locations that are stale (older than 12 h) unless the driver is currently online.
         // This prevents the admin map from showing drivers at positions from days ago on login.
         const locationIsFresh = lastUpdateTs > 0 && (Date.now() - lastUpdateTs) < LOCATION_STALE_MS;
+
+        // FIX: A driver is "actually online" only if is_online=true AND the location was updated
+        // recently (within 30 minutes). This prevents showing drivers who closed the app days ago
+        // but still have is_online=true in the DB (because the app was killed without a clean logout).
+        const ONLINE_STALE_MS = 30 * 60 * 1000; // 30 minutes
+        const isActuallyOnline = p.is_online && lastUpdateTs > 0 && (Date.now() - lastUpdateTs) < ONLINE_STALE_MS;
         
-        if (hasCoords && (p.is_online || locationIsFresh)) {
+        if (hasCoords && (isActuallyOnline || locationIsFresh)) {
           updateDriverRegistry({
             id: p.id,
             name: p.full_name || "غير معروف",
             lat: normalizedLoc!.lat!,
             lng: normalizedLoc!.lng!,
             lastSeenTimestamp: lastUpdateTs,
-            is_online: p.is_online,
-            status: p.is_online ? 'available' : undefined,
+            is_online: isActuallyOnline,
+            status: isActuallyOnline ? 'available' : undefined,
             rating: p.rating || 0
           }, 'db');
         }
@@ -528,6 +534,20 @@ function AdminContent() {
         if (walletsError) throw walletsError;
         
         processProfiles(typedProfiles, (walletsData as WalletRow[]) || []);
+
+        // FIX: Clean up stale is_online=true flags in the DB for drivers who haven't
+        // sent a location update in over 30 minutes. This happens when a driver's app
+        // is killed by the OS without a clean logout (is_online stays true forever).
+        const staleThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        supabase
+          .from('profiles')
+          .update({ is_online: false })
+          .eq('is_online', true)
+          .eq('role', 'driver')
+          .lt('last_location_update', staleThreshold)
+          .then(({ error: cleanupErr }) => {
+            if (cleanupErr) console.warn("Admin: Stale online cleanup failed (non-blocking):", cleanupErr);
+          });
       }
     } catch (err) { console.error("Admin: Error fetching profiles:", err); }
   }, [processProfiles]);
