@@ -239,16 +239,22 @@ const getBroadcastChannel = async (): Promise<ReturnType<typeof supabase.channel
     _broadcastReady = false;
   }
 
-  _broadcastChannel = supabase.channel('global:driver-locations');
-  _broadcastChannel.subscribe((status) => {
-    _broadcastReady = status === 'SUBSCRIBED';
-    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-      // Mark as not ready so the next send triggers a reconnect.
-      _broadcastReady = false;
-      _broadcastChannel = null;
+  _broadcastChannel = supabase.channel('global:driver-locations', {
+    config: {
+      broadcast: { self: true },
+      presence: { key: 'online' }
     }
-    _broadcastReconnecting = false;
   });
+  
+  _broadcastChannel.subscribe((status) => {
+      _broadcastReady = status === 'SUBSCRIBED';
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn(`Broadcast Channel Status: ${status}, rebuilding...`);
+        _broadcastReady = false;
+        _broadcastChannel = null;
+      }
+      _broadcastReconnecting = false;
+    });
 
   return _broadcastChannel;
 };
@@ -427,7 +433,7 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
       return null;
     }
 
-    // 2. RADICAL Background Geolocation Config (V1.5.0)
+    // 2. RADICAL Background Geolocation Config (V1.7.0)
     let lastDbUpdate = 0;
     const DB_UPDATE_INTERVAL = 5000; // 5 seconds interval for DB updates in background
     
@@ -487,7 +493,6 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
           // Rate limit DB updates
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
           lastDbUpdate = now;
-          updateCounter++;
         } else if (isHeartbeat) {
           // Heartbeat logic: refresh is_online status even if stationary
           if (now - lastHeartbeatUpdate < HEARTBEAT_DB_INTERVAL) return;
@@ -518,6 +523,7 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
           }
 
           // Use NATIVE Http to ensure the update goes through even if JS is frozen
+          // This bypasses any JavaScript engine throttling by the OS
           await Promise.allSettled([
             CapacitorHttp.patch({
               url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
