@@ -250,8 +250,6 @@ export default function DriverOrdersView({
               name: "أنا", 
               ...driverLocation, 
               isOnline: true,
-              targetLat: navigationTarget?.lat,
-              targetLng: navigationTarget?.lng,
               status: activeOrders.length > 0 ? 'busy' : 'available'
             }]}
             vendors={vendorMarkers}
@@ -259,8 +257,7 @@ export default function DriverOrdersView({
             center={mapCenter}
             zoom={16}
             className="h-full w-full"
-            autoCenterOnDrivers={false}
-            isNavigating={isNavigating}
+            driverMode={true}
           />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-400 p-8 text-center">
