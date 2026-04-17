@@ -453,7 +453,7 @@ const getFreshAccessToken = async (): Promise<string> => {
   return SUPABASE_KEY;
 };
 
-export const startBackgroundTracking = async (userId: string, name?: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
+export const startBackgroundTracking = async (userId: string, name?: string, role: 'driver' | 'vendor' | 'admin' = 'driver', onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   if (!isNative() || !userId) return null;
 
   try {
@@ -465,8 +465,9 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
       return null;
     }
 
-    // 1. Request all necessary permissions first (Including Background for Android 10+)
+    // 1. Request necessary permissions
     const { Geolocation } = await import('@capacitor/geolocation');
+    // For vendors/admins, we might not need high accuracy, but we need the background process
     const perm = await Geolocation.requestPermissions({ 
       permissions: ['location', 'coarseLocation', 'backgroundLocation'] 
     });
@@ -476,42 +477,48 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
       return null;
     }
 
-    // 2. RADICAL Background Geolocation Config (V1.8.0 - UNKILLABLE MODE)
+    // 2. RADICAL Background Config (V1.8.0 - UNKILLABLE MODE)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 3000; // 3 seconds interval for DB updates (Snappier)
+    const DB_UPDATE_INTERVAL = role === 'driver' ? 3000 : 15000; 
     
-    // Proactive Heartbeat: Ensure online status is refreshed every 1 minute for radical stability
     let lastHeartbeatUpdate = 0;
-    const HEARTBEAT_DB_INTERVAL = 1 * 60 * 1000; 
+    const HEARTBEAT_DB_INTERVAL = 60 * 1000; 
 
-    // Start the main location watcher
+    const bgMessage = role === 'driver' 
+      ? "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق"
+      : "مزامنة البيانات نشطة في الخلفية لضمان استقبال التنبيهات";
+
+    const bgTitle = role === 'driver'
+      ? "ستارت: تتبع الموقع (وضع الاستمرارية)"
+      : "ستارت: مزامنة البيانات (وضع الاستمرارية)";
+
+    // Start the main watcher
     const mainWatcherId = await BackgroundGeolocation.addWatcher(
       {
-        backgroundMessage: "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق لضمان استمرارية الخدمة",
-        backgroundTitle: "ستارت: تتبع الموقع (وضع الاستمرارية النشط)",
+        backgroundMessage: bgMessage,
+        backgroundTitle: bgTitle,
         requestPermissions: true,
         staleLocationInterval: 3000,
-        distanceFilter: 1, // 1 meter filter for maximum precision
+        distanceFilter: role === 'driver' ? 1 : 10, 
         persist: true,
-        forceAccuracy: true,
-        stationaryRadius: 1,
-        notificationTitle: "تطبيق ستارت يعمل في الخلفية (وضع الاستمرارية)",
-        notificationText: "تتبع الموقع والنبض نشط لضمان جودة الخدمة واستقبال الطلبات",
-        notificationIconColor: "#f97316", // Orange-500
-        notificationImportance: 5, // Max importance (Foreground Service - Priority High)
-        priority: 2, // Maximum priority (V1.8.0)
-        interval: 1000, // 1 second update interval
-        fastestInterval: 500, // 0.5 second fastest interval
+        forceAccuracy: role === 'driver',
+        stationaryRadius: role === 'driver' ? 1 : 20,
+        notificationTitle: bgTitle,
+        notificationText: bgMessage,
+        notificationIconColor: "#f97316",
+        notificationImportance: 5,
+        priority: 2,
+        interval: role === 'driver' ? 1000 : 10000,
+        fastestInterval: 500,
         activitiesInterval: 3000,
-        stopOnTerminate: false, // Critical: don't stop if app is swiped away
-        startOnBoot: true, // Auto-start on phone reboot
-        heartbeatInterval: 20, // Plugin heartbeat every 20s (More aggressive)
-        enableHeadless: true // Allow running JS logic even if UI is killed
+        stopOnTerminate: false,
+        startOnBoot: true,
+        heartbeatInterval: 20,
+        enableHeadless: true
       },
       async (location: any, error: any) => {
         if (error) {
           console.warn("BG Watcher Error:", error);
-          // Auto-recovery: If watcher errors out, we don't stop, we wait for next heartbeat
           return;
         }
 
@@ -519,8 +526,7 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
         const isHeartbeat = !location || !location.latitude;
 
         if (!isHeartbeat && location.latitude && location.longitude) {
-          // في الخلفية تتراجع دقة GPS طبيعياً — نقبل حتى 300م لضمان استمرار التتبع
-          if (location.accuracy && location.accuracy > 300) return;
+          if (role === 'driver' && location.accuracy && location.accuracy > 300) return;
 
           const loc = { 
             lat: location.latitude, 
@@ -531,24 +537,22 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
           };
           if (onUpdate) onUpdate(loc);
 
-          // Broadcast via persistent singleton channel (fixes channel-leak bug)
-          sendLocationBroadcast(userId, loc, name);
+          // Only drivers broadcast location
+          if (role === 'driver') {
+            sendLocationBroadcast(userId, loc, name);
+          }
 
-          // Rate limit DB updates to avoid network flooding but keep it snappy
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
           lastDbUpdate = now;
         } else if (isHeartbeat) {
-          // Heartbeat logic: refresh is_online status even if stationary
           if (now - lastHeartbeatUpdate < HEARTBEAT_DB_INTERVAL) return;
           lastHeartbeatUpdate = now;
-          console.log("BG Tracker: Sending stationary heartbeat (UNKILLABLE MODE)...");
+          console.log(`BG Tracker: Sending ${role} heartbeat...`);
         } else {
           return;
         }
 
         try {
-          // RADICAL FIX: In background, JS clients are paused. CapacitorHttp is NATIVE and bypasses JS pausing.
-          // We fetch a fresh token natively and update via REST API directly.
           const accessToken = await getFreshAccessToken();
           const headers = {
             'apikey': SUPABASE_KEY,
@@ -567,38 +571,59 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
             updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
           }
 
-          // Use NATIVE Http to ensure the update goes through even if JS is frozen
-          // This bypasses any JavaScript engine throttling by the OS
-          const [profileUpdate, orderCheck] = await Promise.allSettled([
+          // Native update bypasses JS suspension
+          const requests = [
             CapacitorHttp.patch({
               url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
               headers,
               data: updateData
-            }),
-            // RADICAL BG: Check for any assigned/pending orders to keep the driver alert
-            CapacitorHttp.get({
-              url: `${SUPABASE_URL}/rest/v1/orders?driver_id=eq.${userId}&status=in.("assigned","in_transit")&select=id,status`,
-              headers
-            }),
-            location?.latitude ? CapacitorHttp.post({
-              url: `${SUPABASE_URL}/rest/v1/location_logs`,
-              headers,
-              data: {
-                user_id: userId,
-                lat: location.latitude,
-                lng: location.longitude,
-                speed: location.speed || 0,
-                heading: location.bearing || 0,
-                accuracy: location.accuracy || 0,
-                created_at: new Date().toISOString()
-              }
-            }) : Promise.resolve()
-          ]);
+            })
+          ];
 
-          // If we found orders and the app is in background, we trigger a haptic pulse if possible
-          if (orderCheck.status === 'fulfilled' && Array.isArray((orderCheck.value as any).data) && (orderCheck.value as any).data.length > 0) {
-             // We can trigger haptics or toast to keep the OS process alive
-             await triggerHaptic(ImpactStyle.Heavy);
+          if (role === 'driver') {
+            // Drivers check for orders
+            requests.push(
+              CapacitorHttp.get({
+                url: `${SUPABASE_URL}/rest/v1/orders?driver_id=eq.${userId}&status=in.("assigned","in_transit")&select=id,status`,
+                headers
+              })
+            );
+            
+            if (location?.latitude) {
+              requests.push(
+                CapacitorHttp.post({
+                  url: `${SUPABASE_URL}/rest/v1/location_logs`,
+                  headers,
+                  data: {
+                    user_id: userId,
+                    lat: location.latitude,
+                    lng: location.longitude,
+                    speed: location.speed || 0,
+                    heading: location.bearing || 0,
+                    accuracy: location.accuracy || 0,
+                    created_at: new Date().toISOString()
+                  }
+                })
+              );
+            }
+          } else if (role === 'vendor') {
+            // Vendors check for new pending orders
+            requests.push(
+              CapacitorHttp.get({
+                url: `${SUPABASE_URL}/rest/v1/orders?vendor_id=eq.${userId}&status=eq.pending&select=id`,
+                headers
+              })
+            );
+          }
+
+          const results = await Promise.allSettled(requests);
+
+          // Alert if something new found in background
+          if (role === 'driver' || role === 'vendor') {
+            const checkRes = results[1]; // Order check is usually second
+            if (checkRes.status === 'fulfilled' && Array.isArray((checkRes.value as any).data) && (checkRes.value as any).data.length > 0) {
+              await triggerHaptic(ImpactStyle.Heavy);
+            }
           }
         } catch (e) {
           console.warn("BG Native Update Exception", e);

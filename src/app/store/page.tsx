@@ -18,7 +18,7 @@ import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, onAppResume } from "@/lib/native-utils";
+import { getCache, onAppResume, startBackgroundTracking, stopBackgroundTracking } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -115,6 +115,33 @@ function StoreContent() {
   const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
   const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
   const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
+  const backgroundWatcherRef = useRef<string | null>(null);
+
+  // V1.8.0: Radical Background Sync for Store
+  useEffect(() => {
+    let isMounted = true;
+    const startSync = async () => {
+      if (!vendorId || !Capacitor.isNativePlatform() || !isMounted) return;
+      
+      if (!backgroundWatcherRef.current) {
+        const bId = await startBackgroundTracking(vendorId, vendorName, 'vendor');
+        if (isMounted && bId) {
+          backgroundWatcherRef.current = bId;
+          console.log("Store: Background sync started", bId);
+        }
+      }
+    };
+    
+    startSync();
+    
+    return () => {
+      isMounted = false;
+      if (backgroundWatcherRef.current) {
+        stopBackgroundTracking(backgroundWatcherRef.current);
+        backgroundWatcherRef.current = null;
+      }
+    };
+  }, [vendorId]);
 
   const [formData, setFormData] = useState({
     customer: "",

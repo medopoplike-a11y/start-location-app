@@ -178,7 +178,7 @@ export default function DriverApp() {
 
         // 2. Background Tracking (Plugin-based - Handles both FG/BG)
         if (!backgroundWatcherRef.current) {
-          const bId = await startBackgroundTracking(driverId, driverName, (loc) => {
+          const bId = await startBackgroundTracking(driverId, driverName, 'driver', (loc) => {
             if (isMounted) setDriverLocation(loc);
           });
           if (isMounted && bId) {
