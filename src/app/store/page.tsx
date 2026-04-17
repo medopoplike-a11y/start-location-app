@@ -971,12 +971,17 @@ function StoreContent() {
         setFormData(prev => {
           const newCustomers = [...prev.customers];
           if (newCustomers[activeCaptureIndex]) {
-            newCustomers[activeCaptureIndex] = { ...newCustomers[activeCaptureIndex], isUploading: true };
+            newCustomers[activeCaptureIndex] = { 
+              ...newCustomers[activeCaptureIndex], 
+              isUploading: true,
+              localPreview: `data:image/jpeg;base64,${base64Data}` 
+            };
           }
           return { ...prev, customers: newCustomers };
         });
       } else {
         setUploadingInvoice(true);
+        setInvoiceUrl(`data:image/jpeg;base64,${base64Data}`); // Immediate local preview for main invoice
       }
 
       try {

@@ -170,11 +170,11 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 </button>
                 <div className="flex-1 flex flex-col gap-2">
                   {invoiceUrl && (
-                    <div className="relative rounded-xl overflow-hidden border border-gray-100 aspect-square h-12 w-12 mx-auto bg-white shadow-sm">
+                    <div className="relative rounded-xl overflow-hidden border border-gray-100 aspect-square h-12 w-12 mx-auto bg-gray-50 shadow-sm flex items-center justify-center">
                       <img 
                         src={invoiceUrl} 
-                        className="w-full h-full object-cover cursor-pointer" 
-                        alt="Preview" 
+                        className="w-full h-full object-cover cursor-pointer relative z-10" 
+                        alt="" 
                         crossOrigin="anonymous"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -184,6 +184,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
                         }}
                         onClick={() => window.open(invoiceUrl, '_blank')}
                       />
+                      <Camera size={12} className="absolute inset-0 m-auto text-gray-300 opacity-20 z-0" />
                     </div>
                   )}
                   <button 

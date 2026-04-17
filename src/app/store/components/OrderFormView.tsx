@@ -16,6 +16,7 @@ interface CustomerData {
   deliveryFee: string;
   prepTime: string;
   invoiceUrl?: string;
+  localPreview?: string;
   isUploading?: boolean;
 }
 
@@ -311,12 +312,12 @@ export default function OrderFormView({
                         </div>
 
                         <div className="pt-2">
-                          {cust.invoiceUrl && (
-                            <div className="mb-2 relative rounded-xl overflow-hidden border border-gray-100 aspect-[3/4] max-h-48 bg-white shadow-sm group/preview mx-auto w-32">
+                          {(cust.invoiceUrl || cust.localPreview) && (
+                            <div className="mb-2 relative rounded-xl overflow-hidden border border-gray-100 aspect-[3/4] max-h-48 bg-gray-50 shadow-sm group/preview mx-auto w-32 flex items-center justify-center">
                               <img 
-                                src={cust.invoiceUrl} 
-                                className="w-full h-full object-contain cursor-pointer" 
-                                alt="Invoice Preview" 
+                                src={cust.localPreview || cust.invoiceUrl} 
+                                className="w-full h-full object-contain cursor-pointer relative z-10" 
+                                alt="" 
                                 crossOrigin="anonymous"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
@@ -326,9 +327,13 @@ export default function OrderFormView({
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onPreviewImage?.(cust.invoiceUrl!);
+                                  onPreviewImage?.(cust.localPreview || cust.invoiceUrl!);
                                 }}
                               />
+                              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300 z-0">
+                                <Camera size={24} className="opacity-20" />
+                                <span className="text-[8px] mt-1 font-bold">صورة الفاتورة</span>
+                              </div>
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                 <Eye size={16} className="text-white" />
                               </div>

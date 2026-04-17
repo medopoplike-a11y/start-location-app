@@ -328,7 +328,7 @@ export default function StoreView({
                         >
                           <img 
                             src={order.invoiceUrl} 
-                            alt="Main Invoice" 
+                            alt="" 
                             crossOrigin="anonymous"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
@@ -336,8 +336,9 @@ export default function StoreView({
                                 target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
                               }
                             }}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain relative z-10"
                           />
+                          <Camera size={14} className="absolute inset-0 m-auto text-gray-300 opacity-20 z-0" />
                           <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
                             <Eye className="text-white w-3 h-3" />
                           </div>
@@ -359,7 +360,7 @@ export default function StoreView({
                         >
                           <img 
                             src={cust.invoice_url} 
-                            alt={`Invoice ${idx}`} 
+                            alt="" 
                             crossOrigin="anonymous"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
@@ -367,8 +368,9 @@ export default function StoreView({
                                 target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
                               }
                             }}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain relative z-10"
                           />
+                          <Camera size={14} className="absolute inset-0 m-auto text-gray-300 opacity-20 z-0" />
                           <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
                             <Eye className="text-white w-3 h-3" />
                           </div>
