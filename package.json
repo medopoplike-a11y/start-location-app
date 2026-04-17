@@ -36,7 +36,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@capacitor/toast": "^8.0.1",
     "@capgo/capacitor-navigation-bar": "^8.0.25",
-    "@capgo/capacitor-updater": "^8.45.3",
+    "@capgo/capacitor-updater": "^8.45.9",
     "@supabase/supabase-js": "^2.101.1",
     "@tsparticles/engine": "^3.9.1",
     "@tsparticles/slim": "^3.9.1",
