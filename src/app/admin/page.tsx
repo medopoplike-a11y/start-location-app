@@ -305,6 +305,9 @@ function AdminContent() {
     });
   }, []);
 
+  // Locations older than this are not rendered on the live map (they may be days old).
+  const LOCATION_STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
+
   const processProfiles = useCallback((profiles: ProfileRow[], walletsData?: WalletRow[]) => {
     // Process ALL profiles for registry first
     profiles.forEach(p => {
@@ -317,8 +320,12 @@ function AdminContent() {
         const lastUpdateTs = lastUpdateStr ? new Date(lastUpdateStr).getTime() : 0;
         
         const hasCoords = normalizedLoc && normalizedLoc.lat != null && normalizedLoc.lng != null;
+
+        // Skip locations that are stale (older than 12 h) unless the driver is currently online.
+        // This prevents the admin map from showing drivers at positions from days ago on login.
+        const locationIsFresh = lastUpdateTs > 0 && (Date.now() - lastUpdateTs) < LOCATION_STALE_MS;
         
-        if (hasCoords) {
+        if (hasCoords && (p.is_online || locationIsFresh)) {
           updateDriverRegistry({
             id: p.id,
             name: p.full_name || "غير معروف",

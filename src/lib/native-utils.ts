@@ -166,14 +166,46 @@ const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown
 // channel was created every 3-4 seconds, leaving hundreds of zombie connections.
 let _broadcastChannel: ReturnType<typeof supabase.channel> | null = null;
 let _broadcastReady = false;
+let _broadcastReconnecting = false;
 
-const getBroadcastChannel = () => {
-  if (!_broadcastChannel) {
-    _broadcastChannel = supabase.channel('global:driver-locations');
-    _broadcastChannel.subscribe((status) => {
-      _broadcastReady = status === 'SUBSCRIBED';
-    });
+/**
+ * Returns a live, SUBSCRIBED broadcast channel. If the existing channel is dead
+ * (e.g. after a network drop or the socket disconnected in background) it is
+ * torn down and rebuilt before returning, so callers always get a usable handle.
+ */
+const getBroadcastChannel = async (): Promise<ReturnType<typeof supabase.channel>> => {
+  // If we have a channel that is already subscribed, return it immediately.
+  if (_broadcastChannel && _broadcastReady) {
+    return _broadcastChannel;
   }
+
+  // Avoid concurrent reconnection attempts.
+  if (_broadcastReconnecting) {
+    // Wait briefly then return whatever we have.
+    await new Promise(r => setTimeout(r, 500));
+    return _broadcastChannel ?? supabase.channel('global:driver-locations');
+  }
+
+  _broadcastReconnecting = true;
+
+  // Tear down the dead channel before creating a new one.
+  if (_broadcastChannel) {
+    try { await supabase.removeChannel(_broadcastChannel); } catch (_) {}
+    _broadcastChannel = null;
+    _broadcastReady = false;
+  }
+
+  _broadcastChannel = supabase.channel('global:driver-locations');
+  _broadcastChannel.subscribe((status) => {
+    _broadcastReady = status === 'SUBSCRIBED';
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      // Mark as not ready so the next send triggers a reconnect.
+      _broadcastReady = false;
+      _broadcastChannel = null;
+    }
+    _broadcastReconnecting = false;
+  });
+
   return _broadcastChannel;
 };
 
@@ -182,7 +214,7 @@ export const sendLocationBroadcast = async (
   loc: { lat: number; lng: number; heading?: number; speed?: number; accuracy?: number }
 ) => {
   try {
-    const ch = getBroadcastChannel();
+    const ch = await getBroadcastChannel();
     if (_broadcastReady) {
       await ch.send({
         type: 'broadcast',
@@ -200,6 +232,7 @@ export const cleanupBroadcastChannel = async () => {
     try { await supabase.removeChannel(_broadcastChannel); } catch (_) {}
     _broadcastChannel = null;
     _broadcastReady = false;
+    _broadcastReconnecting = false;
   }
 };
 

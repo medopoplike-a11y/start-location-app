@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
+import { cleanupBroadcastChannel } from "@/lib/native-utils";
 
 export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isAdmin: boolean = false) => {
   const [lastSync, setLastSync] = useState(new Date());
@@ -47,8 +48,12 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const cleanupChannels = useCallback(async () => {
     if (channelsRef.current.length > 0) {
       console.log(`useSync: Terminating ${channelsRef.current.length} active channels...`);
-      // Use removeAllChannels for absolute certainty
-      await supabase.removeAllChannels();
+      // Only remove channels owned by this hook — do NOT use removeAllChannels() as it
+      // destroys the singleton driver broadcast channel in native-utils.ts, leaving a dead
+      // reference that breaks location broadcasts until the app fully restarts.
+      for (const ch of channelsRef.current) {
+        try { await supabase.removeChannel(ch); } catch (_) {}
+      }
       channelsRef.current = [];
     }
   }, []);
@@ -169,9 +174,12 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   }, [userId, subscribe, cleanupChannels]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         console.log("useSync: App visible, triggering self-healing...");
+        // Reconnect the broadcast channel in case the socket dropped while hidden
+        await cleanupBroadcastChannel();
+        await subscribe();
         triggerUpdate({ source: 'visibility_change' });
       }
     };
@@ -198,6 +206,10 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
               if (!supabase.realtime.isConnected()) {
                 supabase.realtime.connect();
               }
+
+              // Reset the singleton broadcast channel so it reconnects cleanly
+              // (the socket drop in background can leave it in a dead state).
+              await cleanupBroadcastChannel();
 
               // Full re-subscribe to clear any potential zombie channels from background
               await subscribe();
