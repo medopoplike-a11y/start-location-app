@@ -97,6 +97,11 @@ export default function DriverHeader({
           {autoAccept ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
         </motion.button>
 
+        {/* Sync Indicator */}
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-1 rounded-xl border border-white/20 dark:border-slate-800 shadow-xl">
+          <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
+        </div>
+
         {/* Sync Button */}
         <motion.button
           whileTap={{ scale: 0.9, rotate: 180 }}

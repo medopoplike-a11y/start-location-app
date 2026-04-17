@@ -234,7 +234,7 @@ function AdminContent() {
         ...existing,
         ...payload,
         id: payload.id,
-        name: payload.name || existing?.name || "كابتن",
+        name: payload.name || existing?.name || payload.full_name || "كابتن",
         lat,
         lng,
         path: updatedPath,
@@ -710,6 +710,7 @@ function AdminContent() {
         if (d?.id && d?.location?.lat != null && d?.location?.lng != null) {
           updateDriverRegistry({
             id: d.id,
+            name: d.name,
             lat: d.location.lat,
             lng: d.location.lng,
             is_online: d.is_online !== undefined ? d.is_online : true,
@@ -725,6 +726,7 @@ function AdminContent() {
         if (newData) {
           updateDriverRegistry({
             id: newData.id,
+            name: newData.full_name, // V1.2.6: Pass name on profile update
             lat: newData.location?.lat,
             lng: newData.location?.lng,
             is_online: newData.is_online,

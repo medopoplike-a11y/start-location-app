@@ -408,9 +408,9 @@ export default function OrderFormView({
           className="w-full max-w-md mx-auto bg-orange-500 text-white py-5 rounded-[32px] font-black text-lg shadow-2xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 border-4 border-white"
         >
           {isSaving ? (
-            <><Loader2 className="w-6 h-6 animate-spin" /> جاري الإرسال...</>
+            <><Loader2 className="w-5 h-5 animate-spin" /> جاري الحفظ والإرسال...</>
           ) : (
-            editingOrder ? "حفظ التعديلات" : "إرسال السكة للطيارين"
+            "تأكيد وحفظ السكة"
           )}
         </button>
       </div>

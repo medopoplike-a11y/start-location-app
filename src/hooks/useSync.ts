@@ -86,6 +86,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
           source: 'location_update',
           payload: {
             id: changedId,
+            name: changedProfile.full_name, // V1.2.6: Pass name on profile update
             location: changedProfile.location,
             is_online: changedProfile.is_online,
             full_name: changedProfile.full_name,
@@ -154,6 +155,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
             source: 'location_update',
             payload: {
               id: msg.payload.id,
+              name: msg.payload.name, // V1.2.6: Pass name to registry
               location: msg.payload.location,
               is_online: true,
               last_location_update: new Date().toISOString(),

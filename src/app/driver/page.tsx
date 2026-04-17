@@ -150,7 +150,7 @@ export default function DriverApp() {
 
         // 2. Background Tracking (Plugin-based - Handles both FG/BG)
         if (!backgroundWatcherRef.current) {
-          const bId = await startBackgroundTracking(driverId, (loc) => {
+          const bId = await startBackgroundTracking(driverId, driverName, (loc) => {
             if (isMounted) setDriverLocation(loc);
           });
           if (isMounted && bId) {
@@ -334,7 +334,7 @@ export default function DriverApp() {
         setLastLocationUpdate(now);
 
         // 1. Broadcast immediately via persistent singleton (no channel-leak)
-        sendLocationBroadcast(driverId, newLocation);
+        sendLocationBroadcast(driverId, newLocation, driverName);
 
         // 2. Persist to DB
         await supabase.from('profiles').update({ 
@@ -442,6 +442,20 @@ export default function DriverApp() {
       });
       if (!dbError) {
         setDriverName(settingsData.name);
+        // Refresh local data from DB to ensure UI reflects the latest saved changes
+        if (driverId) {
+          fetchStats(driverId);
+          // Also fetch the profile specifically to update the settingsData
+          const profile = await getUserProfile(driverId);
+          if (profile) {
+            setSettingsData({
+              name: profile.full_name || "",
+              phone: profile.phone || "",
+              email: profile.email || "",
+              password: ""
+            });
+          }
+        }
         toastSuccess("تم تحديث الملف الشخصي بنجاح!");
         setActiveTab("orders");
       } else {

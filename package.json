@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "0.9.95-FULL-SYNC-UNIFIED",
+  "version": "1.0.0-STABLE-SYNC",
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",
@@ -58,7 +58,7 @@
     "@types/node": "^20",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19",
-    "archiver": "^5.3.1",
+    "archiver": "^5.3.2",
     "cross-env": "^7.0.3",
     "eslint": "^9.16.0",
     "eslint-config-next": "16.2.4",

@@ -211,7 +211,8 @@ const getBroadcastChannel = async (): Promise<ReturnType<typeof supabase.channel
 
 export const sendLocationBroadcast = async (
   userId: string,
-  loc: { lat: number; lng: number; heading?: number; speed?: number; accuracy?: number }
+  loc: { lat: number; lng: number; heading?: number; speed?: number; accuracy?: number },
+  name?: string
 ) => {
   try {
     const ch = await getBroadcastChannel();
@@ -219,7 +220,7 @@ export const sendLocationBroadcast = async (
       await ch.send({
         type: 'broadcast',
         event: 'location_update',
-        payload: { id: userId, location: loc, ts: Date.now() }
+        payload: { id: userId, location: loc, name, ts: Date.now() }
       });
     }
   } catch (e) {
@@ -359,7 +360,7 @@ const getFreshAccessToken = async (): Promise<string> => {
   return SUPABASE_KEY;
 };
 
-export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
+export const startBackgroundTracking = async (userId: string, name?: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   if (!isNative() || !userId) return null;
 
   try {
@@ -384,11 +385,16 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
 
     // 2. Optimized Background Geolocation Config
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 4000;
-    // Refresh the access token proactively every ~50 updates (≈ every 3-4 minutes)
+    const DB_UPDATE_INTERVAL = 10000; // Increase to 10s in background to save battery and avoid throttling
+    
+    // Proactive Heartbeat (V1.2.0): Ensure online status is refreshed every 5 minutes even if stationary
+    let lastHeartbeatUpdate = 0;
+    const HEARTBEAT_DB_INTERVAL = 5 * 60 * 1000; 
+
+    // Refresh the access token proactively every ~20 updates (≈ every 3-4 minutes)
     // to prevent it from expiring silently while the app is in the background.
     let updateCounter = 0;
-    const TOKEN_REFRESH_EVERY = 50;
+    const TOKEN_REFRESH_EVERY = 20;
 
     // Start the main location watcher
     const mainWatcherId = await BackgroundGeolocation.addWatcher(
@@ -396,22 +402,22 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
         backgroundMessage: "تطبيق ستارت يعمل لتحديث موقعك لضمان جودة الخدمة...",
         backgroundTitle: "تتبع الموقع في الخلفية نشط",
         requestPermissions: true,
-        staleLocationInterval: 5000,
-        distanceFilter: 2,
+        staleLocationInterval: 10000,
+        distanceFilter: 5, // 5 meters filter for background to avoid GPS noise
         persist: true,
         forceAccuracy: true,
-        stationaryRadius: 2,
+        stationaryRadius: 5,
         notificationTitle: "تطبيق ستارت يعمل",
         notificationText: "جاري تتبع موقعك في الخلفية لضمان دقة الطلبات",
         notificationIconColor: "#3b82f6",
         notificationImportance: 5,
         priority: 1,
-        interval: 3000,
-        fastestInterval: 1000,
-        activitiesInterval: 10000,
+        interval: 5000,
+        fastestInterval: 3000,
+        activitiesInterval: 15000,
         stopOnTerminate: false,
         startOnBoot: true,
-        heartbeatInterval: 60,
+        heartbeatInterval: 60, // Plugin heartbeat every 60s
         enableHeadless: true
       },
       async (location: any, error: any) => {
@@ -420,7 +426,10 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           return;
         }
 
-        if (location && location.latitude && location.longitude) {
+        const now = Date.now();
+        const isHeartbeat = !location || !location.latitude;
+
+        if (!isHeartbeat && location.latitude && location.longitude) {
           // في الخلفية تتراجع دقة GPS طبيعياً — نقبل حتى 200م لضمان استمرار التتبع
           if (location.accuracy && location.accuracy > 200) return;
 
@@ -434,76 +443,84 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
           if (onUpdate) onUpdate(loc);
 
           // Broadcast via persistent singleton channel (fixes channel-leak bug)
-          sendLocationBroadcast(userId, loc);
+          sendLocationBroadcast(userId, loc, name);
 
-          const now = Date.now();
+          // Rate limit DB updates
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
           lastDbUpdate = now;
           updateCounter++;
+        } else if (isHeartbeat) {
+          // Heartbeat logic: refresh is_online status even if stationary
+          if (now - lastHeartbeatUpdate < HEARTBEAT_DB_INTERVAL) return;
+          lastHeartbeatUpdate = now;
+          console.log("BG Tracker: Sending stationary heartbeat...");
+        } else {
+          return;
+        }
 
-          try {
-            // FIX: In background, the JS auto-refresh timer is throttled by the OS,
-            // so the supabase client's session may silently expire. We use CapacitorHttp
-            // as the primary DB write method (simple HTTP, always works in background),
-            // with a fresh token fetched at regular intervals.
-            const useDirectHttp = updateCounter % TOKEN_REFRESH_EVERY === 1;
-            let accessToken: string | null = null;
+        try {
+          // FIX: In background, the JS auto-refresh timer is throttled by the OS,
+          // so the supabase client's session may silently expire. We use CapacitorHttp
+          // as the primary DB write method (simple HTTP, always works in background),
+          // with a fresh token fetched at regular intervals.
+          const useDirectHttp = updateCounter % TOKEN_REFRESH_EVERY === 1 || isHeartbeat;
+          let accessToken: string | null = null;
 
-            if (useDirectHttp) {
-              // Proactively refresh the token every TOKEN_REFRESH_EVERY updates
-              accessToken = await getFreshAccessToken();
-            }
+          if (useDirectHttp) {
+            accessToken = await getFreshAccessToken();
+          }
 
-            // First try: supabase client (handles token refresh internally when foreground)
-            const { error: dbError } = await supabase.from('profiles').update({
-              location: { ...loc, ts: now },
+          // First try: supabase client (handles token refresh internally when foreground)
+          // We always update is_online to true during both movement and heartbeat
+          const { error: dbError } = await supabase.from('profiles').update({
+            ...(location?.latitude ? { location: { lat: location.latitude, lng: location.longitude, ts: now } } : {}),
+            is_online: true,
+            last_location_update: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }).eq('id', userId);
+
+          if (dbError || useDirectHttp) {
+            if (!accessToken) accessToken = await getFreshAccessToken();
+
+            const headers = {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            };
+
+            const updateData: any = {
               is_online: true,
               last_location_update: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            }).eq('id', userId);
-
-            if (dbError) {
-              console.warn("BG Tracker: Supabase client failed, using CapacitorHttp", dbError);
-              
-              // Get fresh token only if we haven't already
-              if (!accessToken) accessToken = await getFreshAccessToken();
-
-              const headers = {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal'
-              };
-
-              await Promise.allSettled([
-                CapacitorHttp.patch({
-                  url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-                  headers,
-                  data: {
-                    location: { ...loc, ts: now },
-                    is_online: true,
-                    last_location_update: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  }
-                }),
-                CapacitorHttp.post({
-                  url: `${SUPABASE_URL}/rest/v1/location_logs`,
-                  headers,
-                  data: {
-                    user_id: userId,
-                    lat: location.latitude,
-                    lng: location.longitude,
-                    speed: location.speed || 0,
-                    heading: location.bearing || 0,
-                    accuracy: location.accuracy || 0,
-                    created_at: new Date().toISOString()
-                  }
-                })
-              ]);
+            };
+            if (location?.latitude) {
+              updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
             }
-          } catch (e) {
-            console.warn("BG Native Update Exception", e);
+
+            await Promise.allSettled([
+              CapacitorHttp.patch({
+                url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+                headers,
+                data: updateData
+              }),
+              location?.latitude ? CapacitorHttp.post({
+                url: `${SUPABASE_URL}/rest/v1/location_logs`,
+                headers,
+                data: {
+                  user_id: userId,
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  speed: location.speed || 0,
+                  heading: location.bearing || 0,
+                  accuracy: location.accuracy || 0,
+                  created_at: new Date().toISOString()
+                }
+              }) : Promise.resolve()
+            ]);
           }
+        } catch (e) {
+          console.warn("BG Native Update Exception", e);
         }
       }
     );
@@ -538,7 +555,7 @@ export const stopBackgroundTracking = async (watcherId: string) => {
  * تتبع الموقع اللحظي في الواجهة (Foreground)
  * يستخدم Geolocation.watchPosition لتحديثات سريعة جداً عند فتح التطبيق
  */
-export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
+export const startForegroundTracking = async (userId: string, name?: string, onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   try {
     const { Geolocation } = await import('@capacitor/geolocation');
     
@@ -572,7 +589,7 @@ export const startForegroundTracking = async (userId: string, onUpdate?: (loc: {
         lastSentTs = now;
 
         // 1. Broadcast immediately via persistent singleton channel
-        sendLocationBroadcast(userId, loc);
+        sendLocationBroadcast(userId, loc, name);
 
         // 2. Persist to DB
         await supabase.from('profiles').update({

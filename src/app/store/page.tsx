@@ -61,6 +61,8 @@ function StoreContent() {
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form" | "settlements">("store");
+  const activeViewRef = useRef(activeView);
+  useEffect(() => { activeViewRef.current = activeView; }, [activeView]);
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -485,12 +487,33 @@ function StoreContent() {
     }, 12000);
 
     try {
-      const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.allSettled([
+      const [dbOrders, walletRes, settlementsRes, driversRes, profileRes] = await Promise.allSettled([
         getVendorOrders(uid),
         supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
         supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true)
+        supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
+        supabase.from('profiles').select('*').eq('id', uid).single()
       ]);
+
+      if (profileRes.status === 'fulfilled' && profileRes.value.data) {
+        const p = profileRes.value.data;
+        setVendorName(p.full_name || "محل");
+        
+        let loc = p.location;
+        if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+        setVendorLocation((loc as VendorLocation | undefined) || null);
+        
+        // V1.2.5: Only update settingsData if NOT currently in settings view to avoid overwriting user input
+        if (activeViewRef.current !== 'settings') {
+          setSettingsData(prev => ({ 
+            ...prev,
+            name: p.full_name || "", 
+            phone: p.phone || "",
+            area: p.area || "",
+            email: p.email || ""
+          }));
+        }
+      }
 
       if (dbOrders.status === 'fulfilled' && dbOrders.value) {
         setOrders(dbOrders.value.map(mapDBOrderToUI));
@@ -632,6 +655,8 @@ function StoreContent() {
       });
       if (!dbError) {
         setVendorName(settingsData.name);
+        // Ensure local data is refreshed to update all UI components (like the "incomplete data" alert)
+        if (vendorId) await updateData(vendorId);
         success("تم تحديث الملف الشخصي بنجاح!");
         setActiveView("store");
       } else {
@@ -714,6 +739,11 @@ function StoreContent() {
     setActiveView("order-form");
   };
 
+  const normalizeArabicNumerals = (str: string) => {
+    return str.replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+              .replace(/[۰-۹]/g, (d) => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
+  };
+
   const handleSaveOrder = async () => {
     if (!vendorId) return;
     setIsSavingOrder(true);
@@ -724,7 +754,7 @@ function StoreContent() {
       }
 
       // Use the new multi-stop pricing calculation
-      const manualDeliveryFees = formData.customers.map(c => Number(c.deliveryFee) || 0);
+      const manualDeliveryFees = formData.customers.map(c => Number(normalizeArabicNumerals(String(c.deliveryFee))) || 0);
       const calculated = calculateOrderFinancials(
         formData.customers.length,
         manualDeliveryFees,
@@ -741,9 +771,10 @@ function StoreContent() {
         }
       );
 
-      const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0);
-      const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0);
-      const maxPrepTime = formData.customers.reduce((max, c) => Math.max(max, Number(c.prepTime) || 0), 0) || Number(formData.prepTime) || 15;
+      const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(normalizeArabicNumerals(String(c.orderValue))) || 0), 0);
+      const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(normalizeArabicNumerals(String(c.deliveryFee))) || 0), 0);
+      const maxPrepTime = formData.customers.reduce((max, c) => Math.max(max, Number(normalizeArabicNumerals(String(c.prepTime))) || 0), 0) || Number(normalizeArabicNumerals(String(formData.prepTime))) || 15;
+
 
       const orderData = {
         vendor_id: vendorId,

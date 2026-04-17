@@ -69,12 +69,13 @@ function makeDriverIcon(opts: {
       box-shadow:0 1px 4px rgba(0,0,0,.2);">
       ${Math.round(speed * 3.6)} km/h</div>` : '';
 
-  const shortName = (name || '').split(' ')[0];
-  const nameLabel = shortName ? `
+  const shortName = (name || '').split(' ')[0] || (name || '').slice(0, 8);
+  const nameLabel = name ? `
     <div style="position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);
-      background:rgba(15,23,42,.85);color:white;font-size:9px;font-weight:800;
-      padding:2px 7px;border-radius:20px;white-space:nowrap;
-      box-shadow:0 2px 6px rgba(0,0,0,.25);">${shortName}</div>` : '';
+      background:rgba(15,23,42,.92);color:white;font-size:10px;font-weight:900;
+      padding:2px 8px;border-radius:12px;white-space:nowrap;
+      box-shadow:0 2px 8px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);
+      z-index:100;">${name.length > 12 ? shortName : name}</div>` : '';
 
   return L.divIcon({
     html: `

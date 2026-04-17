@@ -85,8 +85,16 @@ export default function StoreView({
   });
 
   const filteredOrders = orders.filter((o) => {
-    const search = searchQuery.toLowerCase();
-    const match = o.customer.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
+    const search = searchQuery.trim().toLowerCase();
+    if (!search) return true;
+    
+    // V1.1.2: Support Arabic search correctly
+    const match = 
+      o.customer?.toLowerCase().includes(search) || 
+      o.id?.toLowerCase().includes(search) ||
+      o.phone?.includes(search) ||
+      o.address?.toLowerCase().includes(search);
+    
     if (!match) return false;
     if (activeTab === "نشط" || activeTab === "active") return o.status !== "delivered" && o.status !== "cancelled";
     return activeTab === "مكتمل" ? o.status === "delivered" : o.status === "cancelled";

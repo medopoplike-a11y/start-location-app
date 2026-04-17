@@ -1295,14 +1295,22 @@ CREATE OR REPLACE FUNCTION update_user_details(
   new_vehicle_type TEXT DEFAULT NULL
 )
 RETURNS BOOLEAN AS $$
+DECLARE
+  current_uid UUID;
 BEGIN
+  current_uid := auth.uid();
+  
+  IF current_uid IS NULL THEN
+    RAISE EXCEPTION 'User not authenticated';
+  END IF;
+
   UPDATE public.profiles
   SET 
     full_name = COALESCE(new_full_name, full_name),
     phone = COALESCE(new_phone, phone),
     area = COALESCE(new_area, area),
     vehicle_type = COALESCE(new_vehicle_type, vehicle_type)
-  WHERE id = auth.uid();
+  WHERE id = current_uid;
   
   RETURN TRUE;
 END;

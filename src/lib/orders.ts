@@ -261,6 +261,7 @@ export const subscribeToProfiles = (callback: (payload: any) => void) => {
         eventType: 'UPDATE',
         new: {
           id: payload.id,
+          name: payload.name, // V1.2.6: Include name in broadcast callback
           location: payload.location,
           is_online: true,
           last_location_update: new Date().toISOString()
