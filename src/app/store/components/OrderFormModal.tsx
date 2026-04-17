@@ -99,7 +99,12 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   inputMode="decimal"
                   disabled={isSaving} 
                   value={formData.orderValue} 
-                  onChange={(e) => onFormDataChange({ ...formData, orderValue: e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString()).replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷٨۹".indexOf(d).toString()) })} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+                                              .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷٨۹".indexOf(d).toString())
+                                              .replace(/[^0-9.]/g, '');
+                    onFormDataChange({ ...formData, orderValue: val });
+                  }} 
                   className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60" 
                   placeholder="قيمة الأوردر" 
                 />
@@ -108,7 +113,12 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   inputMode="decimal"
                   disabled={isSaving} 
                   value={formData.deliveryFee} 
-                  onChange={(e) => onFormDataChange({ ...formData, deliveryFee: e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString()).replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶٧٨۹".indexOf(d).toString()) })} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+                                              .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶٧٨۹".indexOf(d).toString())
+                                              .replace(/[^0-9.]/g, '');
+                    onFormDataChange({ ...formData, deliveryFee: val });
+                  }} 
                   className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60" 
                   placeholder="سعر التوصيل" 
                 />
@@ -116,11 +126,32 @@ export default function OrderFormModal({ hasVendorLocation = true,
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-500 mb-1 block">وقت التحضير (دقيقة)</label>
-                  <input type="number" disabled={isSaving} value={formData.prepTime} onChange={(e) => onFormDataChange({ ...formData, prepTime: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold disabled:opacity-60" placeholder="15" min="1" />
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    disabled={isSaving} 
+                    value={formData.prepTime} 
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+                                                .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷٨۹".indexOf(d).toString())
+                                                .replace(/[^0-9]/g, '');
+                      onFormDataChange({ ...formData, prepTime: val });
+                    }} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold disabled:opacity-60" 
+                    placeholder="15" 
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-500 mb-1 block">ملاحظات</label>
-                  <input type="text" disabled={isSaving} value={formData.notes} onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold disabled:opacity-60" placeholder="ملاحظات إضافية..." />
+                  <input 
+                    type="text" 
+                    dir="rtl"
+                    disabled={isSaving} 
+                    value={formData.notes} 
+                    onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold disabled:opacity-60 text-right" 
+                    placeholder="ملاحظات إضافية..." 
+                  />
                 </div>
               </div>
               <div className="flex gap-4">
@@ -152,7 +183,13 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   </span>
                 </button>
               </div>
-              <button onClick={onSave} disabled={!formData.customer || !formData.orderValue || uploadingInvoice || isSaving} className="w-full bg-orange-500 text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{isSaving ? <><Loader2 className="w-5 h-5 animate-spin" /> {editingOrder ? "جاري الحفظ..." : "جاري الإرسال..."}</> : (editingOrder ? "حفظ التعديلات" : "إرسال الطلب الآن")}</button>
+              <button 
+                onClick={onSave} 
+                disabled={formData.customer.trim().length === 0 || formData.orderValue.trim().length === 0 || uploadingInvoice || isSaving} 
+                className="w-full bg-orange-500 text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSaving ? <><Loader2 className="w-5 h-5 animate-spin" /> {editingOrder ? "جاري الحفظ..." : "جاري الإرسال..."}</> : (editingOrder ? "حفظ التعديلات" : "إرسال الطلب الآن")}
+              </button>
             </div>
           </motion.div>
         </motion.div>

@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "1.0.1-STABLE-ARABIC",
+  "version": "1.0.2-FINAL-RADICAL",
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",

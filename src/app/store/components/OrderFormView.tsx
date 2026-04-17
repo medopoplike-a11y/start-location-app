@@ -102,24 +102,36 @@ export default function OrderFormView({
     }
   };
 
-  const normalizeNumerals = (val: string) => {
-    return val.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-              .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
+  const radicalNormalize = (val: string, numericOnly = false) => {
+    if (!val) return "";
+    // 1. Convert all Arabic/Persian digits to English digits
+    let result = val.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+                    .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
+    
+    if (numericOnly) {
+      // 2. Keep only digits and one period
+      result = result.replace(/[^0-9.]/g, '');
+      const parts = result.split('.');
+      if (parts.length > 2) result = parts[0] + '.' + parts.slice(1).join('');
+    }
+    return result;
   };
 
   const updateCustomer = (index: number, field: keyof CustomerData, value: any) => {
     const newCustomers = [...formData.customers];
     let processedValue = value;
+    
     if (field === 'orderValue' || field === 'deliveryFee' || field === 'prepTime' || field === 'phone') {
-      processedValue = normalizeNumerals(String(value));
+      processedValue = radicalNormalize(String(value), field !== 'phone');
     }
+    
     newCustomers[index] = { ...newCustomers[index], [field]: processedValue };
     onFormDataChange({ ...formData, customers: newCustomers });
   };
 
   const activeCustomers = formData.customers;
-  const totalOrderValue = activeCustomers.reduce((acc, c) => acc + (Number(normalizeNumerals(String(c.orderValue))) || 0), 0);
-  const totalDeliveryFee = activeCustomers.reduce((acc, c) => acc + (Number(normalizeNumerals(String(c.deliveryFee))) || 0), 0);
+  const totalOrderValue = activeCustomers.reduce((acc, c) => acc + (Number(radicalNormalize(String(c.orderValue), true)) || 0), 0);
+  const totalDeliveryFee = activeCustomers.reduce((acc, c) => acc + (Number(radicalNormalize(String(c.deliveryFee), true)) || 0), 0);
   const totalInsurance = activeCustomers.length * 1;
 
 
@@ -155,7 +167,7 @@ export default function OrderFormView({
         <div className="space-y-4">
           {activeCustomers.map((cust, idx) => {
             const isExpanded = expandedIndex === idx;
-            const isFilled = cust.name && cust.orderValue && cust.address;
+            const isFilled = cust.name.trim().length > 0 && cust.orderValue.trim().length > 0 && cust.address.trim().length > 0;
 
             return (
               <motion.div 
@@ -424,7 +436,7 @@ export default function OrderFormView({
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#f3f4f6] via-[#f3f4f6] to-transparent z-30">
         <button 
           onClick={onSave} 
-          disabled={activeCustomers.some(c => !c.name || !c.orderValue) || uploadingInvoice || isSaving || activeCustomers.length === 0} 
+          disabled={activeCustomers.some(c => c.name.trim().length === 0 || c.orderValue.trim().length === 0) || uploadingInvoice || isSaving || activeCustomers.length === 0} 
           className="w-full max-w-md mx-auto bg-orange-500 text-white py-5 rounded-[32px] font-black text-lg shadow-2xl shadow-orange-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 border-4 border-white"
         >
           {isSaving ? (

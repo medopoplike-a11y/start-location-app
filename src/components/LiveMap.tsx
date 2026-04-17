@@ -164,8 +164,52 @@ interface LiveMapProps {
   className?: string;
   autoCenterOnDrivers?: boolean;
   isNavigating?: boolean;
+  navigationTarget?: { lat: number; lng: number } | null;
   /** وضع الطيار: خريطة نظيفة بدون مظاهر زائدة */
   driverMode?: boolean;
+}
+
+// ─── Routing Component ────────────────────────────────────────────────────────
+function RoutingMachine({ target, userLoc }: { target: { lat: number; lng: number }, userLoc: [number, number] }) {
+  const [route, setRoute] = useState<[number, number][]>([]);
+  const map = useMap();
+
+  useEffect(() => {
+    if (!target || !userLoc) return;
+
+    const fetchRoute = async () => {
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${userLoc[1]},${userLoc[0]};${target.lng},${target.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.routes && data.routes[0]) {
+          const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
+          setRoute(coords);
+          
+          // Fit map to show both points if not already following closely
+          const bounds = L.latLngBounds([userLoc, [target.lat, target.lng]]);
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+        }
+      } catch (e) {
+        console.error("Routing error:", e);
+      }
+    };
+
+    fetchRoute();
+  }, [target, userLoc, map]);
+
+  if (route.length === 0) return null;
+
+  return (
+    <Polyline 
+      positions={route} 
+      color="#4f46e5" 
+      weight={6} 
+      opacity={0.8} 
+      lineCap="round" 
+      lineJoin="round"
+    />
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -505,6 +549,8 @@ export default function LiveMap({
   center = [30.1450, 31.6350],
   zoom = 13,
   className = 'h-[400px] w-full rounded-2xl overflow-hidden shadow-inner',
+  isNavigating = false,
+  navigationTarget = null,
   driverMode = false,
 }: LiveMapProps) {
   const isMounted = typeof window !== 'undefined';
@@ -580,6 +626,11 @@ export default function LiveMap({
           url={TILES[theme]}
           maxZoom={21}
         />
+
+        {/* ── Routing Path (Driver Mode) ── */}
+        {driverMode && isNavigating && navigationTarget && myLocation && (
+          <RoutingMachine target={navigationTarget} userLoc={myLocation} />
+        )}
 
         {/* Paths (admin only) */}
         {!driverMode && drivers.map(d =>

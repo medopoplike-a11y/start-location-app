@@ -258,6 +258,8 @@ export default function DriverOrdersView({
             zoom={16}
             className="h-full w-full"
             driverMode={true}
+            isNavigating={isNavigating}
+            navigationTarget={navigationTarget}
           />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-400 p-8 text-center">

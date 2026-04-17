@@ -637,6 +637,14 @@ function AdminContent() {
     if (!autoRetryEnabled || activeView !== "operations") return;
 
     const retryAutoDispatch = async () => {
+      // V1.4.1: Run stale order cleanup before new dispatching
+      try {
+        const { data: staleData } = await supabase.rpc('auto_unassign_stale_orders');
+        if (staleData?.unassigned_count > 0) {
+          addActivity(`تم سحب ${staleData.unassigned_count} طلب متأخر وإعادة توزيعه تلقائياً`);
+        }
+      } catch (e) {}
+
       const pendingOrders = liveOrders.filter(o => o.status === "جاري البحث" || o.status === "pending");
       if (pendingOrders.length === 0) return;
 
