@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, Circle, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+// leaflet-rotate: يضيف دعم التدوير بإصبعين (مثل Google Maps) عن طريق تعديل L.Map
+import 'leaflet-rotate';
 import { vendorIcon, orderIcon, defaultIcon } from '@/lib/map-icons';
 
 // ─── Tile Sources ─────────────────────────────────────────────────────────────
@@ -392,6 +394,108 @@ function AdminControls({
   );
 }
 
+// ─── Auto-Rotate Button (driver mode) ────────────────────────────────────────
+function AutoRotateBtn({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        position: 'absolute', bottom: '148px', right: '12px', zIndex: 1000,
+        width: '40px', height: '40px',
+        background: active ? '#3b82f6' : 'rgba(255,255,255,.95)',
+        border: active ? '2px solid #1d4ed8' : '1px solid rgba(0,0,0,.1)',
+        borderRadius: '10px',
+        boxShadow: active ? '0 3px 12px rgba(59,130,246,.4)' : '0 2px 8px rgba(0,0,0,.15)',
+        cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      title={active ? 'إيقاف التدوير التلقائي' : 'تدوير تلقائي حسب الاتجاه'}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke={active ? 'white' : '#475569'} strokeWidth="2.5"
+        strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L8 6h3v4a5 5 0 0 0 5 5h1"/>
+        <path d="M16 18l4-4-4-4"/>
+        <circle cx="12" cy="12" r="2" fill={active ? 'white' : '#475569'} stroke="none"/>
+      </svg>
+    </button>
+  );
+}
+
+// ─── Bearing / Compass Controls ──────────────────────────────────────────────
+
+/** يطبّق الزاوية (bearing) على الخريطة ويعيّنها عند التغيير */
+function BearingSync({ bearing }: { bearing: number }) {
+  const map = useMap();
+  const prev = useRef<number | null>(null);
+  useEffect(() => {
+    const m = map as any;
+    if (m.setBearing && prev.current !== bearing) {
+      m.setBearing(bearing);
+      prev.current = bearing;
+    }
+  }, [map, bearing]);
+  return null;
+}
+
+/** زر البوصلة: يعرض اتجاه الشمال الحالي ويسمح بإعادة الضبط بالضغط */
+function CompassBtn({ bearing, onReset }: { bearing: number; onReset: () => void }) {
+  const map = useMap();
+  const [currentBearing, setCurrentBearing] = useState(bearing);
+
+  useEffect(() => {
+    const m = map as any;
+    const handler = () => {
+      if (m.getBearing) setCurrentBearing(m.getBearing());
+    };
+    map.on('rotate', handler);
+    return () => { map.off('rotate', handler); };
+  }, [map]);
+
+  // Only show when map is rotated
+  if (Math.abs(currentBearing) < 2) return null;
+
+  return (
+    <button
+      onClick={() => { onReset(); setCurrentBearing(0); }}
+      style={{
+        position: 'absolute', top: '12px', left: '12px', zIndex: 1000,
+        width: '42px', height: '42px',
+        background: 'rgba(255,255,255,.95)',
+        border: '1px solid rgba(0,0,0,.1)',
+        borderRadius: '50%',
+        boxShadow: '0 2px 10px rgba(0,0,0,.18)',
+        cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 0,
+      }}
+      title="إعادة ضبط الاتجاه للشمال"
+    >
+      {/* Compass needle rotates to always point north */}
+      <svg width="24" height="24" viewBox="0 0 24 24"
+        style={{ transform: `rotate(${-currentBearing}deg)`, transition: 'transform .2s' }}>
+        <polygon points="12,3 15,12 12,10 9,12" fill="#ef4444" />
+        <polygon points="12,21 15,12 12,14 9,12" fill="#94a3b8" />
+      </svg>
+    </button>
+  );
+}
+
+/** في وضع الطيار: يتابع اتجاه حركته ويدوّر الخريطة تلقائياً عند التنقل */
+function HeadingFollower({ heading, autoRotate }: { heading: number; autoRotate: boolean }) {
+  const map = useMap();
+  const prev = useRef<number | null>(null);
+  useEffect(() => {
+    if (!autoRotate) return;
+    const m = map as any;
+    if (m.setBearing && Math.abs((prev.current ?? heading) - heading) > 3) {
+      m.setBearing(heading, { animate: true, duration: 0.5 });
+      prev.current = heading;
+    }
+  }, [map, heading, autoRotate]);
+  return null;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function LiveMap({
   drivers = [],
@@ -406,6 +510,8 @@ export default function LiveMap({
   const [theme, setTheme] = useState<keyof typeof TILES>('standard');
   const [following, setFollowing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bearing, setBearing] = useState(0);
+  const [autoRotate, setAutoRotate] = useState(false);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -438,6 +544,9 @@ export default function LiveMap({
   const myLocation: [number, number] | null = driverMode && drivers[0]?.lat
     ? [drivers[0].lat, drivers[0].lng] : null;
 
+  // Driver heading for auto-rotate
+  const driverHeading = drivers[0]?.heading ?? 0;
+
   // Simple vendor/order icons for driver mode
   const simpleVendorIcon = driverMode ? (makeSimpleVendorIcon() ?? defaultIcon!) : null;
   const simpleOrderIcon  = driverMode ? (makeSimpleOrderIcon()  ?? defaultIcon!) : null;
@@ -453,9 +562,16 @@ export default function LiveMap({
         dragging={true}
         touchZoom={true}
         doubleClickZoom={true}
+        {...({ rotate: true, touchRotate: true } as any)}
       >
         <SetView center={mapCenter} zoom={driverMode ? zoom : (following ? 17 : zoom)} animate={following} />
-        <MapWatcher onInteract={() => setFollowing(false)} />
+        <MapWatcher onInteract={() => { setFollowing(false); if (autoRotate) setAutoRotate(false); }} />
+        {/* تطبيق التدوير يدوياً عند تغيير bearing */}
+        <BearingSync bearing={bearing} />
+        {/* متابعة اتجاه الطيار في وضع التنقل */}
+        {driverMode && <HeadingFollower heading={driverHeading} autoRotate={autoRotate} />}
+        {/* زر البوصلة — يظهر فقط عند التدوير */}
+        <CompassBtn bearing={bearing} onReset={() => setBearing(0)} />
 
         <TileLayer
           key={theme}
@@ -525,11 +641,13 @@ export default function LiveMap({
           );
         })}
 
-        {/* ── Driver mode HUD: zoom + recenter ── */}
+        {/* ── Driver mode HUD: zoom + recenter + auto-rotate ── */}
         {driverMode && (
           <>
             <ZoomBtn />
             {myLocation && <RecenterBtn target={myLocation} zoom={zoom} />}
+            {/* زر التدوير التلقائي حسب اتجاه الحركة */}
+            <AutoRotateBtn active={autoRotate} onToggle={() => setAutoRotate(v => !v)} />
           </>
         )}
 

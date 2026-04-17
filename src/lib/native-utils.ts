@@ -355,7 +355,8 @@ export const startBackgroundTracking = async (userId: string, onUpdate?: (loc: {
         }
 
         if (location && location.latitude && location.longitude) {
-          if (location.accuracy && location.accuracy > 50) return;
+          // في الخلفية تتراجع دقة GPS طبيعياً — نقبل حتى 200م لضمان استمرار التتبع
+          if (location.accuracy && location.accuracy > 200) return;
 
           const loc = { 
             lat: location.latitude, 
