@@ -58,6 +58,21 @@ export default function DriverApp() {
   const foregroundWatcherRef = useRef<string | null>(null);
   const ordersRef = useRef<Order[]>([]);
 
+  const [showBatteryAlert, setShowBatteryAlert] = useState(false);
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      Preferences.get({ key: 'battery_alert_dismissed' }).then(({ value }) => {
+        if (value !== 'true') setShowBatteryAlert(true);
+      });
+    }
+  }, []);
+
+  const dismissBatteryAlert = async () => {
+    setShowBatteryAlert(false);
+    await Preferences.set({ key: 'battery_alert_dismissed', value: 'true' });
+  };
+
   // Keep ordersRef in sync with orders state
   useEffect(() => {
     ordersRef.current = orders;
@@ -1054,6 +1069,24 @@ export default function DriverApp() {
             >
               <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
               أنت الآن خارج التغطية - يتم عرض البيانات المخزنة محلياً
+            </motion.div>
+          )}
+          {showBatteryAlert && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-amber-500 text-white p-3 px-4 flex items-center justify-between gap-3 sticky top-0 z-[100] border-b border-amber-400/50 shadow-lg"
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4 animate-spin-slow" />
+                <p className="text-[10px] font-black leading-tight">
+                  لضمان استمرار التتبع في الخلفية: يرجى تعطيل "تحسين البطارية" (Battery Optimization) لتطبيق ستارت من إعدادات الهاتف.
+                </p>
+              </div>
+              <button onClick={dismissBatteryAlert} className="bg-white/20 p-1.5 rounded-lg">
+                <X className="w-3 h-3" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

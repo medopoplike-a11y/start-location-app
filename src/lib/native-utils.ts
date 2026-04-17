@@ -383,42 +383,37 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
       return null;
     }
 
-    // 2. Optimized Background Geolocation Config
+    // 2. RADICAL Background Geolocation Config (V1.5.0)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 10000; // Increase to 10s in background to save battery and avoid throttling
+    const DB_UPDATE_INTERVAL = 5000; // 5 seconds interval for DB updates in background
     
-    // Proactive Heartbeat (V1.2.0): Ensure online status is refreshed every 5 minutes even if stationary
+    // Proactive Heartbeat: Ensure online status is refreshed every 2 minutes for radical stability
     let lastHeartbeatUpdate = 0;
-    const HEARTBEAT_DB_INTERVAL = 5 * 60 * 1000; 
-
-    // Refresh the access token proactively every ~20 updates (≈ every 3-4 minutes)
-    // to prevent it from expiring silently while the app is in the background.
-    let updateCounter = 0;
-    const TOKEN_REFRESH_EVERY = 20;
+    const HEARTBEAT_DB_INTERVAL = 2 * 60 * 1000; 
 
     // Start the main location watcher
     const mainWatcherId = await BackgroundGeolocation.addWatcher(
       {
-        backgroundMessage: "تطبيق ستارت يعمل لتحديث موقعك لضمان جودة الخدمة...",
-        backgroundTitle: "تتبع الموقع في الخلفية نشط",
+        backgroundMessage: "تتبع الموقع نشط لضمان وصول الطلبات بدقة...",
+        backgroundTitle: "ستارت: تتبع الموقع قيد التشغيل",
         requestPermissions: true,
-        staleLocationInterval: 10000,
-        distanceFilter: 5, // 5 meters filter for background to avoid GPS noise
+        staleLocationInterval: 5000,
+        distanceFilter: 2, // 2 meters filter for radical precision
         persist: true,
         forceAccuracy: true,
-        stationaryRadius: 5,
-        notificationTitle: "تطبيق ستارت يعمل",
-        notificationText: "جاري تتبع موقعك في الخلفية لضمان دقة الطلبات",
-        notificationIconColor: "#3b82f6",
-        notificationImportance: 5,
-        priority: 1,
-        interval: 5000,
-        fastestInterval: 3000,
-        activitiesInterval: 15000,
-        stopOnTerminate: false,
-        startOnBoot: true,
-        heartbeatInterval: 60, // Plugin heartbeat every 60s
-        enableHeadless: true
+        stationaryRadius: 2,
+        notificationTitle: "تطبيق ستارت يعمل في الخلفية",
+        notificationText: "تتبع الموقع نشط لضمان جودة الخدمة",
+        notificationIconColor: "#f97316", // Orange-500
+        notificationImportance: 5, // Max importance (Foreground Service)
+        priority: 1, // High priority
+        interval: 2000, // 2 seconds update interval
+        fastestInterval: 1000, // 1 second fastest interval
+        activitiesInterval: 5000,
+        stopOnTerminate: false, // Critical: don't stop if app is swiped away
+        startOnBoot: true, // Auto-start on phone reboot
+        heartbeatInterval: 30, // Plugin heartbeat every 30s
+        enableHeadless: true // Allow running JS logic even if UI is killed
       },
       async (location: any, error: any) => {
         if (error) {
@@ -459,66 +454,46 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
         }
 
         try {
-          // FIX: In background, the JS auto-refresh timer is throttled by the OS,
-          // so the supabase client's session may silently expire. We use CapacitorHttp
-          // as the primary DB write method (simple HTTP, always works in background),
-          // with a fresh token fetched at regular intervals.
-          const useDirectHttp = updateCounter % TOKEN_REFRESH_EVERY === 1 || isHeartbeat;
-          let accessToken: string | null = null;
+          // RADICAL FIX: In background, JS clients are paused. CapacitorHttp is NATIVE and bypasses JS pausing.
+          // We fetch a fresh token natively and update via REST API directly.
+          const accessToken = await getFreshAccessToken();
+          const headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          };
 
-          if (useDirectHttp) {
-            accessToken = await getFreshAccessToken();
-          }
-
-          // First try: supabase client (handles token refresh internally when foreground)
-          // We always update is_online to true during both movement and heartbeat
-          const { error: dbError } = await supabase.from('profiles').update({
-            ...(location?.latitude ? { location: { lat: location.latitude, lng: location.longitude, ts: now } } : {}),
+          const updateData: any = {
             is_online: true,
             last_location_update: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          }).eq('id', userId);
-
-          if (dbError || useDirectHttp) {
-            if (!accessToken) accessToken = await getFreshAccessToken();
-
-            const headers = {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=minimal'
-            };
-
-            const updateData: any = {
-              is_online: true,
-              last_location_update: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-            if (location?.latitude) {
-              updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
-            }
-
-            await Promise.allSettled([
-              CapacitorHttp.patch({
-                url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-                headers,
-                data: updateData
-              }),
-              location?.latitude ? CapacitorHttp.post({
-                url: `${SUPABASE_URL}/rest/v1/location_logs`,
-                headers,
-                data: {
-                  user_id: userId,
-                  lat: location.latitude,
-                  lng: location.longitude,
-                  speed: location.speed || 0,
-                  heading: location.bearing || 0,
-                  accuracy: location.accuracy || 0,
-                  created_at: new Date().toISOString()
-                }
-              }) : Promise.resolve()
-            ]);
+          };
+          if (location?.latitude) {
+            updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
           }
+
+          // Use NATIVE Http to ensure the update goes through even if JS is frozen
+          await Promise.allSettled([
+            CapacitorHttp.patch({
+              url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+              headers,
+              data: updateData
+            }),
+            location?.latitude ? CapacitorHttp.post({
+              url: `${SUPABASE_URL}/rest/v1/location_logs`,
+              headers,
+              data: {
+                user_id: userId,
+                lat: location.latitude,
+                lng: location.longitude,
+                speed: location.speed || 0,
+                heading: location.bearing || 0,
+                accuracy: location.accuracy || 0,
+                created_at: new Date().toISOString()
+              }
+            }) : Promise.resolve()
+          ]);
         } catch (e) {
           console.warn("BG Native Update Exception", e);
         }
