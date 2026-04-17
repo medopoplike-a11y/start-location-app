@@ -270,10 +270,10 @@ export default function OrderDetailsModal({
                 )}
               </div>
 
-              {/* Invoice Preview - Secondary Action */}
-              {(order as any).invoiceUrl && (
+              {/* Invoice Preview - Unified Action (v1.0.3) */}
+              {((order as any).invoiceUrl || (order as any).invoice_url) && (
                 <button 
-                  onClick={() => onPreviewImage?.((order as any).invoiceUrl)}
+                  onClick={() => onPreviewImage?.((order as any).invoiceUrl || (order as any).invoice_url)}
                   className="w-full bg-orange-500 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
                 >
                   <Camera className="w-4 h-4" />

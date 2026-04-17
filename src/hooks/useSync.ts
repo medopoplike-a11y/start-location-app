@@ -138,6 +138,11 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       .on('broadcast', { event: 'sync-update' }, (msg) => {
         triggerUpdate({ source: 'system_sync', payload: msg.payload });
       })
+      .on('broadcast', { event: 'app_wake_up' }, () => {
+        // V1.8.0: Radical wake-up detected. Force full re-subscribe to all channels.
+        console.log("useSync: RADICAL WAKE-UP event received. Re-subscribing...");
+        subscribe(); 
+      })
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
           console.warn("useSync: system_sync channel error, will retry via heartbeat");
@@ -197,10 +202,20 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log("useSync: Tab visible — self-healing...");
-        await cleanupBroadcastChannel();
-        await subscribe();
-        triggerUpdate({ source: 'visibility_change' });
+        console.log("useSync: App visible — Radical self-healing...");
+        setIsSyncing(true);
+        try {
+          // 1. Re-authenticate session
+          await supabase.auth.refreshSession();
+          // 2. Re-subscribe to all channels
+          await subscribe();
+          // 3. Force update UI
+          triggerUpdate({ source: 'app_resume' });
+        } catch (e) {
+          console.error("useSync: Visibility healing failed", e);
+        } finally {
+          setIsSyncing(false);
+        }
       }
     };
 

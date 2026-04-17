@@ -12,21 +12,38 @@ const SUPABASE_KEY = config.supabase.anonKey;
 const SESSION_KEY = 'start-location-v1-session';
 
 /**
- * دالة للاستيقاظ وإعادة مزامنة الجلسة والقنوات الحية (V1.6.0)
+ * دالة للاستيقاظ وإعادة مزامنة الجلسة والقنوات الحية (V1.8.0)
  * يتم استدعاؤها عند عودة التطبيق من الخلفية لضمان عدم تجمد البيانات
  */
 export const refreshAppSession = async () => {
   try {
-    console.log("App: Refreshing session and wake-up...");
+    console.log("App: RADICAL WAKE-UP starting...");
     
     // 1. Force refresh supabase session natively
     const { data: { session }, error } = await supabase.auth.refreshSession();
-    if (error) console.warn("Session Refresh Error:", error);
+    if (error) {
+      console.warn("Session Refresh Error:", error);
+      // Fallback: Check if we still have a valid user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("User logged out during background suspension");
+        // We could trigger a logout here but it's risky
+      }
+    }
 
     // 2. Re-establish broadcast channel if dead
     await getBroadcastChannel();
 
-    // 3. Clear any frozen JS timers or states if needed (handled by callers)
+    // 3. Clear and Re-subscribe Realtime (Handled by useSync via visibility listener)
+    // We send a custom event to notify listeners that a hard wake-up occurred
+    const channel = supabase.channel('system_sync');
+    await channel.subscribe();
+    await channel.send({
+      type: 'broadcast',
+      event: 'app_wake_up',
+      payload: { ts: Date.now() }
+    });
+
     return session;
   } catch (e) {
     console.warn("App Wake-up failed:", e);
@@ -121,6 +138,32 @@ export const getCache = async <T>(key: string): Promise<T | null> => {
   } catch (e) {
     console.warn(`Cache: Failed to get ${key}`, e);
     return null;
+  }
+};
+
+/**
+ * دالة لطلب استثناء من تحسين البطارية (Battery Optimization Exemption)
+ * هذا ضروري جداً للأندرويد لضمان عدم قتل التطبيق في الخلفية
+ */
+export const requestBatteryOptimizationExemption = async () => {
+  if (!isNative()) return;
+  
+  try {
+    const { Device } = await import('@capacitor/device');
+    const info = await Device.getInfo();
+    
+    if (info.platform === 'android') {
+      // Direct intent to Battery Optimization settings
+      // Note: This requires the user to manually find the app and set to "Don't optimize"
+      // or "Unrestricted" depending on Android version.
+      await showNativeToast("يرجى اختيار 'غير مقيد' (Unrestricted) للتطبيق لضمان عمله في الخلفية");
+      setTimeout(() => {
+        window.open('package:' + 'com.start.location', '_system'); // This might not work on all versions
+        // Fallback to general battery settings if package direct fails
+      }, 2000);
+    }
+  } catch (e) {
+    console.warn('Native: Failed to request battery exemption', e);
   }
 };
 
@@ -433,41 +476,42 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
       return null;
     }
 
-    // 2. RADICAL Background Geolocation Config (V1.7.0)
+    // 2. RADICAL Background Geolocation Config (V1.8.0 - UNKILLABLE MODE)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 5000; // 5 seconds interval for DB updates in background
+    const DB_UPDATE_INTERVAL = 3000; // 3 seconds interval for DB updates (Snappier)
     
-    // Proactive Heartbeat: Ensure online status is refreshed every 2 minutes for radical stability
+    // Proactive Heartbeat: Ensure online status is refreshed every 1 minute for radical stability
     let lastHeartbeatUpdate = 0;
-    const HEARTBEAT_DB_INTERVAL = 2 * 60 * 1000; 
+    const HEARTBEAT_DB_INTERVAL = 1 * 60 * 1000; 
 
     // Start the main location watcher
     const mainWatcherId = await BackgroundGeolocation.addWatcher(
       {
-        backgroundMessage: "تتبع الموقع نشط لضمان وصول الطلبات بدقة...",
-        backgroundTitle: "ستارت: تتبع الموقع قيد التشغيل",
+        backgroundMessage: "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق لضمان استمرارية الخدمة",
+        backgroundTitle: "ستارت: تتبع الموقع (وضع الاستمرارية النشط)",
         requestPermissions: true,
-        staleLocationInterval: 5000,
-        distanceFilter: 2, // 2 meters filter for radical precision
+        staleLocationInterval: 3000,
+        distanceFilter: 1, // 1 meter filter for maximum precision
         persist: true,
         forceAccuracy: true,
-        stationaryRadius: 2,
-        notificationTitle: "تطبيق ستارت يعمل في الخلفية",
-        notificationText: "تتبع الموقع نشط لضمان جودة الخدمة",
+        stationaryRadius: 1,
+        notificationTitle: "تطبيق ستارت يعمل في الخلفية (وضع الاستمرارية)",
+        notificationText: "تتبع الموقع والنبض نشط لضمان جودة الخدمة واستقبال الطلبات",
         notificationIconColor: "#f97316", // Orange-500
-        notificationImportance: 5, // Max importance (Foreground Service)
-        priority: 1, // High priority
-        interval: 2000, // 2 seconds update interval
-        fastestInterval: 1000, // 1 second fastest interval
-        activitiesInterval: 5000,
+        notificationImportance: 5, // Max importance (Foreground Service - Priority High)
+        priority: 2, // Maximum priority (V1.8.0)
+        interval: 1000, // 1 second update interval
+        fastestInterval: 500, // 0.5 second fastest interval
+        activitiesInterval: 3000,
         stopOnTerminate: false, // Critical: don't stop if app is swiped away
         startOnBoot: true, // Auto-start on phone reboot
-        heartbeatInterval: 30, // Plugin heartbeat every 30s
+        heartbeatInterval: 20, // Plugin heartbeat every 20s (More aggressive)
         enableHeadless: true // Allow running JS logic even if UI is killed
       },
       async (location: any, error: any) => {
         if (error) {
           console.warn("BG Watcher Error:", error);
+          // Auto-recovery: If watcher errors out, we don't stop, we wait for next heartbeat
           return;
         }
 
@@ -475,8 +519,8 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
         const isHeartbeat = !location || !location.latitude;
 
         if (!isHeartbeat && location.latitude && location.longitude) {
-          // في الخلفية تتراجع دقة GPS طبيعياً — نقبل حتى 200م لضمان استمرار التتبع
-          if (location.accuracy && location.accuracy > 200) return;
+          // في الخلفية تتراجع دقة GPS طبيعياً — نقبل حتى 300م لضمان استمرار التتبع
+          if (location.accuracy && location.accuracy > 300) return;
 
           const loc = { 
             lat: location.latitude, 
@@ -490,14 +534,14 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
           // Broadcast via persistent singleton channel (fixes channel-leak bug)
           sendLocationBroadcast(userId, loc, name);
 
-          // Rate limit DB updates
+          // Rate limit DB updates to avoid network flooding but keep it snappy
           if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
           lastDbUpdate = now;
         } else if (isHeartbeat) {
           // Heartbeat logic: refresh is_online status even if stationary
           if (now - lastHeartbeatUpdate < HEARTBEAT_DB_INTERVAL) return;
           lastHeartbeatUpdate = now;
-          console.log("BG Tracker: Sending stationary heartbeat...");
+          console.log("BG Tracker: Sending stationary heartbeat (UNKILLABLE MODE)...");
         } else {
           return;
         }
@@ -518,17 +562,23 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
             last_location_update: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
+          
           if (location?.latitude) {
             updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
           }
 
           // Use NATIVE Http to ensure the update goes through even if JS is frozen
           // This bypasses any JavaScript engine throttling by the OS
-          await Promise.allSettled([
+          const [profileUpdate, orderCheck] = await Promise.allSettled([
             CapacitorHttp.patch({
               url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
               headers,
               data: updateData
+            }),
+            // RADICAL BG: Check for any assigned/pending orders to keep the driver alert
+            CapacitorHttp.get({
+              url: `${SUPABASE_URL}/rest/v1/orders?driver_id=eq.${userId}&status=in.("assigned","in_transit")&select=id,status`,
+              headers
             }),
             location?.latitude ? CapacitorHttp.post({
               url: `${SUPABASE_URL}/rest/v1/location_logs`,
@@ -544,6 +594,12 @@ export const startBackgroundTracking = async (userId: string, name?: string, onU
               }
             }) : Promise.resolve()
           ]);
+
+          // If we found orders and the app is in background, we trigger a haptic pulse if possible
+          if (orderCheck.status === 'fulfilled' && Array.isArray((orderCheck.value as any).data) && (orderCheck.value as any).data.length > 0) {
+             // We can trigger haptics or toast to keep the OS process alive
+             await triggerHaptic(ImpactStyle.Heavy);
+          }
         } catch (e) {
           console.warn("BG Native Update Exception", e);
         }

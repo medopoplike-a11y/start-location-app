@@ -104,8 +104,8 @@ export default function OrderFormView({
 
   const radicalNormalize = (val: string, numericOnly = false) => {
     if (!val) return "";
-    // 1. Convert all Arabic/Persian digits to English digits
-    let result = val.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+    // 1. Convert all Arabic/Persian digits to English digits for INTERNAL logic
+    let result = String(val).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
                     .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
     
     if (numericOnly) {
@@ -119,10 +119,18 @@ export default function OrderFormView({
 
   const updateCustomer = (index: number, field: keyof CustomerData, value: any) => {
     const newCustomers = [...formData.customers];
+    // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols for numeric fields
     let processedValue = value;
     
-    if (field === 'orderValue' || field === 'deliveryFee' || field === 'prepTime' || field === 'phone') {
-      processedValue = radicalNormalize(String(value), field !== 'phone');
+    if (field === 'orderValue' || field === 'deliveryFee' || field === 'prepTime') {
+      // Keep Arabic digits as typed, but remove non-numeric characters (except period)
+      // This ensures the user sees exactly what they type (Arabic or English)
+      processedValue = String(value).replace(/[^0-9.٠-٩۰-۹]/g, '');
+      const parts = processedValue.split('.');
+      if (parts.length > 2) processedValue = parts[0] + '.' + parts.slice(1).join('');
+    } else if (field === 'phone') {
+      // For phone, keep only digits (Arabic or English)
+      processedValue = String(value).replace(/[^0-9٠-٩۰-۹]/g, '');
     }
     
     newCustomers[index] = { ...newCustomers[index], [field]: processedValue };
@@ -270,10 +278,11 @@ export default function OrderFormView({
                             <input 
                               type="text" 
                               inputMode="decimal"
+                              dir="rtl"
                               value={cust.orderValue} 
                               onChange={(e) => updateCustomer(idx, 'orderValue', e.target.value)} 
-                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm" 
-                              placeholder="0.00" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm text-right" 
+                              placeholder="٠.٠٠" 
                             />
                           </div>
                           <div className="space-y-1">
@@ -281,10 +290,11 @@ export default function OrderFormView({
                             <input 
                               type="text" 
                               inputMode="decimal"
+                              dir="rtl"
                               value={cust.deliveryFee} 
                               onChange={(e) => updateCustomer(idx, 'deliveryFee', e.target.value)} 
-                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm" 
-                              placeholder="30" 
+                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm text-right" 
+                              placeholder="٣٠" 
                             />
                           </div>
                           <div className="space-y-1">

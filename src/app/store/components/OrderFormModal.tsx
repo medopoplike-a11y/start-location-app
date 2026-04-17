@@ -97,29 +97,33 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 <input 
                   type="text" 
                   inputMode="decimal"
+                  dir="rtl"
                   disabled={isSaving} 
                   value={formData.orderValue} 
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-                                              .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷٨۹".indexOf(d).toString())
-                                              .replace(/[^0-9.]/g, '');
-                    onFormDataChange({ ...formData, orderValue: val });
+                    // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
+                    const val = e.target.value.replace(/[^0-9.٠-٩۰-۹]/g, '');
+                    const parts = val.split('.');
+                    const processed = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val;
+                    onFormDataChange({ ...formData, orderValue: processed });
                   }} 
-                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60" 
+                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60 text-right" 
                   placeholder="قيمة الأوردر" 
                 />
                 <input 
                   type="text" 
                   inputMode="decimal"
+                  dir="rtl"
                   disabled={isSaving} 
                   value={formData.deliveryFee} 
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-                                              .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶٧٨۹".indexOf(d).toString())
-                                              .replace(/[^0-9.]/g, '');
-                    onFormDataChange({ ...formData, deliveryFee: val });
+                    // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
+                    const val = e.target.value.replace(/[^0-9.٠-٩۰-۹]/g, '');
+                    const parts = val.split('.');
+                    const processed = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val;
+                    onFormDataChange({ ...formData, deliveryFee: processed });
                   }} 
-                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60" 
+                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60 text-right" 
                   placeholder="سعر التوصيل" 
                 />
               </div>
@@ -132,13 +136,12 @@ export default function OrderFormModal({ hasVendorLocation = true,
                     disabled={isSaving} 
                     value={formData.prepTime} 
                     onChange={(e) => {
-                      const val = e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-                                                .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷٨۹".indexOf(d).toString())
-                                                .replace(/[^0-9]/g, '');
+                      // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
+                      const val = e.target.value.replace(/[^0-9٠-٩۰-۹]/g, '');
                       onFormDataChange({ ...formData, prepTime: val });
                     }} 
-                    className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold disabled:opacity-60" 
-                    placeholder="15" 
+                    className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-300 font-bold disabled:opacity-60 text-right" 
+                    placeholder="١٥" 
                   />
                 </div>
                 <div>
@@ -165,23 +168,35 @@ export default function OrderFormModal({ hasVendorLocation = true,
                 >
                   <MapPin size={20} />{formData.customerCoords ? "✓ موقع العميل محدد" : "تحديد موقع العميل"}
                 </button>
-                <button 
-                  onClick={() => {
-                    triggerHaptic();
-                    onCameraCapture();
-                  }}
-                  disabled={isSaving || uploadingInvoice}
-                  className={`flex-1 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold border-2 border-dashed transition-all active:scale-95 ${
-                    isSaving || uploadingInvoice ? "opacity-60 cursor-not-allowed" : ""
-                  } ${
-                    invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"
-                  }`}
-                >
-                  <Camera className="w-6 h-6" />
-                  <span className="text-xs">
-                    {uploadingInvoice ? "جاري الرفع..." : invoiceUrl ? "تحديث الفاتورة" : "تصوير الفاتورة"}
-                  </span>
-                </button>
+                <div className="flex-1 flex flex-col gap-2">
+                  {invoiceUrl && (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-100 aspect-square h-12 w-12 mx-auto bg-white shadow-sm">
+                      <img 
+                        src={invoiceUrl} 
+                        className="w-full h-full object-cover cursor-pointer" 
+                        alt="Preview" 
+                        onClick={() => window.open(invoiceUrl, '_blank')}
+                      />
+                    </div>
+                  )}
+                  <button 
+                    onClick={() => {
+                      triggerHaptic();
+                      onCameraCapture();
+                    }}
+                    disabled={isSaving || uploadingInvoice}
+                    className={`w-full p-4 rounded-2xl flex flex-col items-center justify-center gap-1 font-bold border-2 border-dashed transition-all active:scale-95 ${
+                      isSaving || uploadingInvoice ? "opacity-60 cursor-not-allowed" : ""
+                    } ${
+                      invoiceUrl ? "bg-green-50 text-green-600 border-green-200" : "bg-gray-50 text-gray-400 border-gray-200"
+                    }`}
+                  >
+                    <Camera className="w-5 h-5" />
+                    <span className="text-[10px]">
+                      {uploadingInvoice ? "جاري..." : invoiceUrl ? "تحديث" : "تصوير"}
+                    </span>
+                  </button>
+                </div>
               </div>
               <button 
                 onClick={onSave} 

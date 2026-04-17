@@ -88,12 +88,18 @@ export default function StoreView({
     const search = searchQuery.trim().toLowerCase();
     if (!search) return true;
     
-    // V1.1.2: Support Arabic search correctly
+    // V1.2.6: Radical Normalization for Search - Support both Arabic and English numerals
+    const normalize = (str: string) => 
+      str.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+         .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString())
+         .toLowerCase();
+
+    const normalizedSearch = normalize(search);
     const match = 
-      o.customer?.toLowerCase().includes(search) || 
-      o.id?.toLowerCase().includes(search) ||
-      o.phone?.includes(search) ||
-      o.address?.toLowerCase().includes(search);
+      normalize(o.customer || "").includes(normalizedSearch) || 
+      normalize(o.id || "").includes(normalizedSearch) ||
+      normalize(o.phone || "").includes(normalizedSearch) ||
+      normalize(o.address || "").includes(normalizedSearch);
     
     if (!match) return false;
     if (activeTab === "نشط" || activeTab === "active") return o.status !== "delivered" && o.status !== "cancelled";
@@ -280,9 +286,14 @@ export default function StoreView({
                         </div>
                       </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-xs font-black text-slate-900 dark:text-slate-100">{order.amount}</p>
-                      <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">الإجمالي</p>
+                    <div className="text-left shrink-0">
+                      <div className="flex flex-col items-end">
+                        <p className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-slate-400">ج.م</span>
+                          {order.amount.replace(" ج.م", "")}
+                        </p>
+                        <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">الإجمالي</p>
+                      </div>
                     </div>
                   </div>
 
@@ -303,10 +314,34 @@ export default function StoreView({
                     </div>
                   </div>
 
-                  {/* Multi-Invoice Preview for Sikka */}
-                  {order.customers && order.customers.length > 0 && order.customers.some(c => c.invoice_url) && (
+                  {/* Unified Invoice Preview (Multi-stop + Legacy) */}
+                  {((order.customers && order.customers.some(c => c.invoice_url)) || order.invoiceUrl) && (
                     <div className="mb-4 flex flex-wrap gap-2">
-                      {order.customers.map((cust, idx) => cust.invoice_url && (
+                      {/* Legacy/Quick Single Invoice */}
+                      {order.invoiceUrl && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPreviewImage?.(order.invoiceUrl!);
+                          }}
+                          className="relative w-14 h-14 rounded-xl overflow-hidden border border-sky-100 shadow-sm group/mini bg-white/50 active:scale-95 transition-transform"
+                        >
+                          <img 
+                            src={order.invoiceUrl} 
+                            alt="Main Invoice" 
+                            className="w-full h-full object-contain"
+                          />
+                          <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/mini:opacity-100 transition-opacity">
+                            <Eye className="text-white w-3 h-3" />
+                          </div>
+                          <div className="absolute top-0.5 right-0.5 bg-sky-500 text-white text-[6px] px-1 py-0.5 rounded-md font-black">
+                            عام
+                          </div>
+                        </button>
+                      )}
+                      
+                      {/* Customer-specific Invoices */}
+                      {order.customers?.map((cust, idx) => cust.invoice_url && (
                         <button 
                           key={idx} 
                           onClick={(e) => {

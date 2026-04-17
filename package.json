@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "1.1.0-ULTRA-PERSISTENT",
+  "version": "1.1.1-HYPER-BACKGROUND-RADICAL",
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",

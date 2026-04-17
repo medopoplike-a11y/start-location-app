@@ -10,7 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, onAppResume } from "@/lib/native-utils";
+import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, onAppResume, requestBatteryOptimizationExemption } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -1089,16 +1089,27 @@ export default function DriverApp() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="bg-amber-500 text-white p-3 px-4 flex items-center justify-between gap-3 sticky top-0 z-[100] border-b border-amber-400/50 shadow-lg"
+              className="bg-amber-500 text-white p-3 px-4 flex flex-col gap-2 sticky top-0 z-[100] border-b border-amber-400/50 shadow-lg"
             >
-              <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4 animate-spin-slow" />
-                <p className="text-[10px] font-black leading-tight">
-                  لضمان استمرار التتبع في الخلفية: يرجى تعطيل "تحسين البطارية" (Battery Optimization) لتطبيق ستارت من إعدادات الهاتف.
-                </p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Settings className="w-4 h-4 animate-spin-slow" />
+                  <p className="text-[10px] font-black leading-tight">
+                    لضمان استمرار التتبع في الخلفية: يرجى تعطيل "تحسين البطارية" (Battery Optimization) لتطبيق ستارت من إعدادات الهاتف.
+                  </p>
+                </div>
+                <button onClick={dismissBatteryAlert} className="bg-white/20 p-1.5 rounded-lg">
+                  <X className="w-3 h-3" />
+                </button>
               </div>
-              <button onClick={dismissBatteryAlert} className="bg-white/20 p-1.5 rounded-lg">
-                <X className="w-3 h-3" />
+              <button 
+                onClick={() => {
+                  try { Haptics.impact({ style: ImpactStyle.Medium }); } catch(e) {}
+                  requestBatteryOptimizationExemption();
+                }}
+                className="w-full bg-white text-amber-600 py-2 rounded-xl text-[10px] font-black shadow-inner active:scale-95 transition-all"
+              >
+                فتح الإعدادات الآن لإصلاح المشكلة
               </button>
             </motion.div>
           )}
