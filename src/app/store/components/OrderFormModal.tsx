@@ -101,7 +101,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   disabled={isSaving} 
                   value={formData.orderValue} 
                   onChange={(e) => {
-                    // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
+                    // V1.3.1: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
                     const val = e.target.value.replace(/[^0-9.٠-٩۰-۹]/g, '');
                     const parts = val.split('.');
                     const processed = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val;
@@ -117,7 +117,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   disabled={isSaving} 
                   value={formData.deliveryFee} 
                   onChange={(e) => {
-                    // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
+                    // V1.3.1: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
                     const val = e.target.value.replace(/[^0-9.٠-٩۰-۹]/g, '');
                     const parts = val.split('.');
                     const processed = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val;
@@ -136,7 +136,7 @@ export default function OrderFormModal({ hasVendorLocation = true,
                     disabled={isSaving} 
                     value={formData.prepTime} 
                     onChange={(e) => {
-                      // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
+                      // V1.3.1: Radical Normalization - Allow typing Arabic numbers, only clean up symbols
                       const val = e.target.value.replace(/[^0-9٠-٩۰-۹]/g, '');
                       onFormDataChange({ ...formData, prepTime: val });
                     }} 

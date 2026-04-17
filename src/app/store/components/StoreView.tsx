@@ -88,10 +88,10 @@ export default function StoreView({
     const search = searchQuery.trim().toLowerCase();
     if (!search) return true;
     
-    // V1.2.6: Radical Normalization for Search - Support both Arabic and English numerals
+    // V1.3.1: Radical Normalization for Search - Support both Arabic and English numerals
     const normalize = (str: string) => 
       str.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-         .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString())
+         .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸٩".indexOf(d).toString())
          .toLowerCase();
 
     const normalizedSearch = normalize(search);

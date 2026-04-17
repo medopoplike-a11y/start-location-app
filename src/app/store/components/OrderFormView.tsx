@@ -105,6 +105,7 @@ export default function OrderFormView({
 
   const radicalNormalize = (val: string, numericOnly = false) => {
     if (!val) return "";
+    // V1.3.1: Radical Normalization (The "Safe" Way)
     // 1. Convert all Arabic/Persian digits to English digits for INTERNAL logic
     let result = String(val).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
                     .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
@@ -120,21 +121,19 @@ export default function OrderFormView({
 
   const updateCustomer = (index: number, field: keyof CustomerData, value: any) => {
     const newCustomers = [...formData.customers];
-    // V1.2.6: Radical Normalization - Allow typing Arabic numbers, only clean up symbols for numeric fields
-    let processedValue = value;
+    // V1.3.1: Universal Acceptance - Display exactly what the user types (Arabic or English)
+    // but the system will normalize it "behind the scenes" when saving.
+    let displayValue = value;
     
     if (field === 'orderValue' || field === 'deliveryFee' || field === 'prepTime') {
-      // Keep Arabic digits as typed, but remove non-numeric characters (except period)
-      // This ensures the user sees exactly what they type (Arabic or English)
-      processedValue = String(value).replace(/[^0-9.٠-٩۰-۹]/g, '');
-      const parts = processedValue.split('.');
-      if (parts.length > 2) processedValue = parts[0] + '.' + parts.slice(1).join('');
+      displayValue = String(value).replace(/[^0-9.٠-٩۰-۹]/g, '');
+      const parts = displayValue.split('.');
+      if (parts.length > 2) displayValue = parts[0] + '.' + parts.slice(1).join('');
     } else if (field === 'phone') {
-      // For phone, keep only digits (Arabic or English)
-      processedValue = String(value).replace(/[^0-9٠-٩۰-۹]/g, '');
+      displayValue = String(value).replace(/[^0-9٠-٩۰-۹]/g, '');
     }
     
-    newCustomers[index] = { ...newCustomers[index], [field]: processedValue };
+    newCustomers[index] = { ...newCustomers[index], [field]: displayValue };
     onFormDataChange({ ...formData, customers: newCustomers });
   };
 
