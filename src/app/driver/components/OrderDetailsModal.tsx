@@ -348,7 +348,19 @@ export default function OrderDetailsModal({
                               className="w-12 h-12 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden"
                               title="عرض الفاتورة"
                             >
-                              <img src={cust.invoice_url} className="w-full h-full object-cover" alt="Invoice" />
+                              <img 
+                                src={cust.invoice_url} 
+                                className="w-full h-full object-cover relative z-10" 
+                                alt="" 
+                                crossOrigin="anonymous"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  if (!target.src.includes('retry=1')) {
+                                    target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                                  }
+                                }}
+                              />
+                              <Camera size={14} className="absolute inset-0 m-auto text-orange-200 opacity-20 z-0" />
                             </button>
                           ) : (
                             <div className="w-12 h-12 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl flex items-center justify-center text-gray-300 dark:text-gray-600 italic text-[8px] text-center p-1">

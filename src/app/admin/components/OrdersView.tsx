@@ -195,9 +195,19 @@ export default function OrdersView({ liveOrders = [], activities = [], onCancelO
                         <div className="relative group/admin-invoice cursor-pointer overflow-hidden rounded-xl border border-white/20 dark:border-white/5 aspect-[21/9] bg-white dark:bg-slate-900 shadow-inner">
                           <img 
                             src={order.invoice_url} 
-                            alt="Order Invoice" 
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover/admin-invoice:scale-110 opacity-90 group-hover/admin-invoice:opacity-100"
+                            alt="" 
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (!target.src.includes('retry=1')) {
+                                target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                              }
+                            }}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover/admin-invoice:scale-110 opacity-90 group-hover/admin-invoice:opacity-100 relative z-10"
                           />
+                          <div className="absolute inset-0 flex items-center justify-center text-slate-300 dark:text-slate-700 z-0">
+                            <Camera size={32} className="opacity-20" />
+                          </div>
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity" />
                           <button 
                             onClick={() => setPreviewUrl(order.invoice_url!)}
