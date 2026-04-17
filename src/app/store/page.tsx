@@ -995,24 +995,36 @@ function StoreContent() {
         
         if (uploadError) throw new Error(uploadError.message);
         
-        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-        // V1.2.7: Add cache-buster to force fresh image load
-        const finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
+        // V1.2.8: Force use of Signed URL instead of Public URL to bypass Storage RLS issues
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('invoices')
+          .createSignedUrl(fileName, 60 * 60 * 24 * 7); // Valid for 7 days
         
-        if (activeCaptureIndex !== null) {
-          setFormData(prev => {
-            const newCustomers = [...prev.customers];
-            if (newCustomers[activeCaptureIndex]) {
-              newCustomers[activeCaptureIndex] = { 
-                ...newCustomers[activeCaptureIndex], 
-                invoiceUrl: finalUrl,
-                isUploading: false 
-              };
-            }
-            return { ...prev, customers: newCustomers };
-          });
+        if (signedError) {
+          console.warn("Failed to create signed URL, falling back to public URL", signedError);
+          const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+          const finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
+          updateFinalUrl(finalUrl);
         } else {
-          setInvoiceUrl(finalUrl);
+          updateFinalUrl(signedData.signedUrl);
+        }
+
+        function updateFinalUrl(finalUrl: string) {
+          if (activeCaptureIndex !== null) {
+            setFormData(prev => {
+              const newCustomers = [...prev.customers];
+              if (newCustomers[activeCaptureIndex]) {
+                newCustomers[activeCaptureIndex] = { 
+                  ...newCustomers[activeCaptureIndex], 
+                  invoiceUrl: finalUrl,
+                  isUploading: false 
+                };
+              }
+              return { ...prev, customers: newCustomers };
+            });
+          } else {
+            setInvoiceUrl(finalUrl);
+          }
         }
         success("تم التقاط ورفع الفاتورة بنجاح");
       } catch (err: any) {
@@ -1054,9 +1066,20 @@ function StoreContent() {
           throw new Error(uploadError.message || "خطأ في تخزين الصورة");
         }
         
-        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-        // V1.2.7: Add cache-buster to force fresh image load
-        const finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
+        // V1.2.8: Force use of Signed URL instead of Public URL to bypass Storage RLS issues
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('invoices')
+          .createSignedUrl(fileName, 60 * 60 * 24 * 7); // Valid for 7 days
+        
+        let finalUrl;
+        if (signedError) {
+          console.warn("Failed to create signed URL for quick upload", signedError);
+          const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+          finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
+        } else {
+          finalUrl = signedData.signedUrl;
+        }
+
         const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: finalUrl });
         if (updateError) throw updateError;
         
