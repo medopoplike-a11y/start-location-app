@@ -102,13 +102,26 @@ export default function OrderFormView({
     }
   };
 
+  const normalizeNumerals = (val: string) => {
+    return val.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+              .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
+  };
+
   const updateCustomer = (index: number, field: keyof CustomerData, value: any) => {
     const newCustomers = [...formData.customers];
-    newCustomers[index] = { ...newCustomers[index], [field]: value };
+    let processedValue = value;
+    if (field === 'orderValue' || field === 'deliveryFee' || field === 'prepTime' || field === 'phone') {
+      processedValue = normalizeNumerals(String(value));
+    }
+    newCustomers[index] = { ...newCustomers[index], [field]: processedValue };
     onFormDataChange({ ...formData, customers: newCustomers });
   };
 
   const activeCustomers = formData.customers;
+  const totalOrderValue = activeCustomers.reduce((acc, c) => acc + (Number(normalizeNumerals(String(c.orderValue))) || 0), 0);
+  const totalDeliveryFee = activeCustomers.reduce((acc, c) => acc + (Number(normalizeNumerals(String(c.deliveryFee))) || 0), 0);
+  const totalInsurance = activeCustomers.length * 1;
+
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f3f4f6] dark:bg-slate-950" dir="rtl">
@@ -206,9 +219,10 @@ export default function OrderFormView({
                           <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">اسم العميل بالكامل</label>
                           <input 
                             type="text" 
+                            dir="rtl"
                             value={cust.name} 
                             onChange={(e) => updateCustomer(idx, 'name', e.target.value)} 
-                            className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
+                            className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-bold text-sm transition-all text-right" 
                             placeholder="مثال: محمد أحمد" 
                           />
                         </div>
@@ -218,9 +232,10 @@ export default function OrderFormView({
                             <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">رقم الهاتف</label>
                             <input 
                               type="tel" 
+                              dir="ltr"
                               value={cust.phone} 
                               onChange={(e) => updateCustomer(idx, 'phone', e.target.value)} 
-                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-bold text-sm transition-all text-left" 
                               placeholder="01xxxxxxxxx" 
                             />
                           </div>
@@ -228,9 +243,10 @@ export default function OrderFormView({
                             <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">العنوان التفصيلي</label>
                             <input 
                               type="text" 
+                              dir="rtl"
                               value={cust.address} 
                               onChange={(e) => updateCustomer(idx, 'address', e.target.value)} 
-                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-bold text-sm transition-all" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-bold text-sm transition-all text-right" 
                               placeholder="الشارع، الدور، الشقة" 
                             />
                           </div>
@@ -240,27 +256,30 @@ export default function OrderFormView({
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-gray-400 dark:text-slate-500 mr-1 uppercase tracking-tighter">قيمة الأوردر</label>
                             <input 
-                              type="number" 
+                              type="text" 
+                              inputMode="decimal"
                               value={cust.orderValue} 
                               onChange={(e) => updateCustomer(idx, 'orderValue', e.target.value)} 
-                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-brand-orange font-black text-sm shadow-sm" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm" 
                               placeholder="0.00" 
                             />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-gray-400 mr-1 uppercase tracking-tighter">سعر التوصيل</label>
                             <input 
-                              type="number" 
+                              type="text" 
+                              inputMode="decimal"
                               value={cust.deliveryFee} 
                               onChange={(e) => updateCustomer(idx, 'deliveryFee', e.target.value)} 
-                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-black text-sm shadow-sm" 
+                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm" 
                               placeholder="30" 
                             />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-orange-600 mr-1 uppercase tracking-tighter">وقت التحضير</label>
                             <input 
-                              type="number" 
+                              type="text" 
+                              inputMode="numeric"
                               value={cust.prepTime} 
                               onChange={(e) => updateCustomer(idx, 'prepTime', e.target.value)} 
                               className="w-full bg-orange-50/50 p-4 rounded-2xl border border-orange-100 text-orange-700 outline-none focus:ring-2 ring-orange-300 font-black text-sm shadow-sm" 
@@ -341,10 +360,11 @@ export default function OrderFormView({
               <label className="text-[10px] font-black text-gray-400 mr-2 mb-1 block uppercase">ملاحظات عامة للطيار</label>
               <input 
                 type="text" 
+                dir="rtl"
                 disabled={isSaving} 
                 value={formData.notes} 
                 onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} 
-                className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-indigo-300 font-bold text-sm" 
+                className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-indigo-300 font-bold text-sm text-right" 
                 placeholder="مثال: يرجى الاتصال عند الوصول" 
               />
             </div>
@@ -378,14 +398,14 @@ export default function OrderFormView({
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">قيمة الأوردرات</p>
               <p className="text-2xl font-black text-white">
-                {activeCustomers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0)}
+                {totalOrderValue}
                 <span className="text-xs font-bold opacity-40 mr-1">ج.م</span>
               </p>
             </div>
             <div className="space-y-1 text-left">
               <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">إجمالي التوصيل</p>
               <p className="text-2xl font-black text-orange-500">
-                {activeCustomers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0)}
+                {totalDeliveryFee}
                 <span className="text-xs font-bold opacity-40 mr-1">ج.م</span>
               </p>
             </div>
@@ -395,7 +415,7 @@ export default function OrderFormView({
 
           <div className="flex justify-between items-center relative z-10">
             <p className="text-[10px] font-bold text-slate-400">إجمالي رسوم التأمين المستحقة:</p>
-            <p className="text-sm font-black text-white">{activeCustomers.length * 1} ج.م</p>
+            <p className="text-sm font-black text-white">{totalInsurance} ج.م</p>
           </div>
         </div>
       </div>

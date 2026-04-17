@@ -48,10 +48,10 @@ export default function StoreAccountModals({
                 <button onClick={onClosePasswordModal} className="absolute top-6 left-6 text-gray-400 hover:text-gray-900 text-2xl">×</button>
                 <h2 className="text-xl font-black mb-6 text-gray-900 text-right">تغيير كلمة السر</h2>
                 <div className="space-y-4">
-                  <input type="password" disabled={changingPassword} value={newPassword} onChange={(e) => onNewPasswordChange(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-right disabled:opacity-60" />
-                  <input type="password" disabled={changingPassword} value={confirmPassword} onChange={(e) => onConfirmPasswordChange(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-right disabled:opacity-60" />
+                  <input type="password" disabled={changingPassword} value={newPassword} onChange={(e) => onNewPasswordChange(e.target.value)} placeholder="كلمة السر الجديدة" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold text-right disabled:opacity-60" />
+                  <input type="password" disabled={changingPassword} value={confirmPassword} onChange={(e) => onConfirmPasswordChange(e.target.value)} placeholder="تأكيد كلمة السر" className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold text-right disabled:opacity-60" />
                   {passwordError && <p className="text-red-500 text-xs font-bold text-right">{passwordError}</p>}
-                  <button onClick={onChangePassword} disabled={changingPassword || !newPassword || !confirmPassword} className="w-full bg-brand-orange text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">{changingPassword ? <><Loader2 className="w-5 h-5 animate-spin" /> جاري التغيير...</> : "حفظ التغييرات"}</button>
+                  <button onClick={onChangePassword} disabled={changingPassword || !newPassword || !confirmPassword} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">{changingPassword ? <><Loader2 className="w-5 h-5 animate-spin" /> جاري التغيير...</> : "حفظ التغييرات"}</button>
                 </div>
               </>
             )}
@@ -62,9 +62,9 @@ export default function StoreAccountModals({
                 <div className="space-y-4">
                   <div className="text-right">
                     <label className="text-xs font-bold text-gray-400 block mb-2">المبلغ المراد سداده</label>
-                    <input type="number" disabled={requestingSettlement} value={settlementAmount} onChange={(e) => onSettlementAmountChange(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold text-right disabled:opacity-60" placeholder="0.00" />
+                    <input type="number" disabled={requestingSettlement} value={settlementAmount} onChange={(e) => onSettlementAmountChange(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold text-right disabled:opacity-60" placeholder="0.00" />
                   </div>
-                  <button onClick={onRequestSettlement} disabled={requestingSettlement || !settlementAmount} className="w-full bg-brand-orange text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">{requestingSettlement ? <><Loader2 className="w-5 h-5 animate-spin" /> جاري الإرسال...</> : "إرسال الطلب"}</button>
+                  <button onClick={onRequestSettlement} disabled={requestingSettlement || !settlementAmount} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">{requestingSettlement ? <><Loader2 className="w-5 h-5 animate-spin" /> جاري الإرسال...</> : "إرسال الطلب"}</button>
                 </div>
               </>
             )}

@@ -93,13 +93,13 @@ export default function StoreHeader({
         </motion.button>
 
         <div className="relative group hidden sm:block">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-orange transition-colors" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
           <input
             type="text"
             placeholder="بحث..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-gray-100 dark:bg-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs border-none outline-none focus:ring-2 ring-brand-orange/20 w-32 transition-all dark:text-slate-100"
+            className="bg-gray-100 dark:bg-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs border-none outline-none focus:ring-2 ring-orange-500/20 w-32 transition-all dark:text-slate-100"
           />
         </div>
       </div>

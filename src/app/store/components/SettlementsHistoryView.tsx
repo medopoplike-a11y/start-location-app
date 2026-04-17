@@ -77,7 +77,7 @@ export default function SettlementsHistoryView({ settlements }: SettlementsHisto
       ) : (
         <div className="space-y-3 pb-24">
           {filtered.map((s) => (
-            <div key={s.id} className="bg-white p-5 rounded-[24px] border border-gray-100 flex items-center justify-between shadow-sm hover:border-brand-orange/20 transition-all group">
+            <div key={s.id} className="bg-white p-5 rounded-[24px] border border-gray-100 flex items-center justify-between shadow-sm hover:border-orange-500/20 transition-all group">
               <div className="flex items-center gap-4">
                 <div
                   className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-colors ${

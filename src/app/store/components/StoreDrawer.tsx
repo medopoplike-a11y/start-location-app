@@ -52,7 +52,7 @@ export default function StoreDrawer({
           >
             <div className="p-6 border-b border-white/10 dark:border-slate-800/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-brand-orange/10 rounded-xl flex items-center justify-center text-brand-orange">
+                <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-500">
                   <Store className="w-6 h-6" />
                 </div>
                 <div>
@@ -67,7 +67,7 @@ export default function StoreDrawer({
               <button 
                 onClick={() => handleNavClick("store")} 
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
-                  activeView === "store" ? "bg-brand-orange text-white shadow-lg shadow-brand-orange/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
+                  activeView === "store" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
                 }`}
               >
                 <Store className="w-5 h-5" />
@@ -76,29 +76,29 @@ export default function StoreDrawer({
               <button 
                 onClick={() => handleNavClick("wallet")} 
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
-                  activeView === "wallet" ? "bg-brand-orange text-white shadow-lg shadow-brand-orange/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
+                  activeView === "wallet" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
                 }`}
               >
                 <Wallet className="w-5 h-5" />
-                <span className="text-sm font-black">المحفظة المالية</span>
+                <span className="text-sm font-bold">المحفظة المالية</span>
               </button>
               <button 
                 onClick={() => handleNavClick("settlements")} 
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
-                  activeView === "settlements" ? "bg-brand-orange text-white shadow-lg shadow-brand-orange/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
+                  activeView === "settlements" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
                 }`}
               >
                 <History className="w-5 h-5" />
-                <span className="text-sm font-black">سجل التسويات</span>
+                <span className="text-sm font-bold">سجل التسويات</span>
               </button>
               <button 
                 onClick={() => handleNavClick("settings")} 
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
-                  activeView === "settings" ? "bg-brand-orange text-white shadow-lg shadow-brand-orange/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
+                  activeView === "settings" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400"
                 }`}
               >
                 <Settings className="w-5 h-5" />
-                <span className="text-sm font-black">إعدادات الحساب</span>
+                <span className="text-sm font-bold">إعدادات الحساب</span>
               </button>
               <div className="h-px bg-white/10 dark:bg-slate-800/50 my-4" />
               <button 

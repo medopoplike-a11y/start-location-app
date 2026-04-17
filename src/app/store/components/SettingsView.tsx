@@ -45,7 +45,7 @@ export default function StoreSettingsView({
       {/* Location Section */}
       <div className="bg-white p-6 rounded-[32px] border border-gray-100 space-y-4 shadow-sm">
         <h3 className="text-sm font-black text-gray-700 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-brand-orange" />
+          <MapPin className="w-4 h-4 text-orange-500" />
           موقع المحل
         </h3>
 
@@ -76,7 +76,7 @@ export default function StoreSettingsView({
           <button
             onClick={onUpdateLocation}
             disabled={updatingLocation || savingSettings}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm border-2 border-dashed border-brand-orange/40 text-brand-orange hover:bg-brand-orange/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm border-2 border-dashed border-orange-500/40 text-orange-500 hover:bg-orange-500/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {updatingLocation ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> جاري تحديد الموقع...</>
@@ -97,7 +97,7 @@ export default function StoreSettingsView({
             disabled={savingSettings}
             value={settingsData.name}
             onChange={(e) => onSettingsDataChange({ ...settingsData, name: e.target.value })}
-            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-orange-500 font-bold text-gray-800 disabled:opacity-60"
           />
         </div>
         <div>
@@ -107,7 +107,7 @@ export default function StoreSettingsView({
             disabled={savingSettings}
             value={settingsData.phone}
             onChange={(e) => onSettingsDataChange({ ...settingsData, phone: e.target.value })}
-            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-orange-500 font-bold text-gray-800 disabled:opacity-60"
           />
         </div>
         <div>
@@ -117,7 +117,7 @@ export default function StoreSettingsView({
             disabled={savingSettings}
             value={settingsData.email || ""}
             onChange={(e) => onSettingsDataChange({ ...settingsData, email: e.target.value })}
-            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-orange-500 font-bold text-gray-800 disabled:opacity-60"
           />
         </div>
         <div>
@@ -127,7 +127,7 @@ export default function StoreSettingsView({
             disabled={savingSettings}
             value={settingsData.password || ""}
             onChange={(e) => onSettingsDataChange({ ...settingsData, password: e.target.value })}
-            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-orange-500 font-bold text-gray-800 disabled:opacity-60"
           />
         </div>
         <div>
@@ -137,13 +137,13 @@ export default function StoreSettingsView({
             disabled={savingSettings}
             value={settingsData.area}
             onChange={(e) => onSettingsDataChange({ ...settingsData, area: e.target.value })}
-            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-brand-orange font-bold text-gray-800 disabled:opacity-60"
+            className="w-full bg-gray-50 p-4 rounded-2xl border-none outline-none focus:ring-2 ring-orange-500 font-bold text-gray-800 disabled:opacity-60"
           />
         </div>
         <button
           onClick={onSave}
           disabled={savingSettings || !settingsData.name}
-          className="w-full bg-brand-orange text-white py-5 rounded-2xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          className="w-full bg-orange-500 text-white py-5 rounded-2xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
         >
           {savingSettings ? (
             <><Loader2 className="w-5 h-5 animate-spin" /> جاري الحفظ...</>

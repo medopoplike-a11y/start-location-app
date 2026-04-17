@@ -15,7 +15,7 @@ import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials } from "@/lib/pricing";
-import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
+import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache } from "@/lib/native-utils";
@@ -1113,7 +1113,7 @@ function StoreContent() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-orange/10 transition-colors duration-500 relative" dir="rtl">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-orange-500/10 transition-colors duration-500 relative" dir="rtl">
       {/* Background Gradients for Glass Effect */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 dark:bg-blue-600/5 blur-[120px] animate-pulse" />

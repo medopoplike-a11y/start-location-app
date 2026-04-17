@@ -66,12 +66,52 @@ export default function OrderFormModal({ hasVendorLocation = true,
                   <p className="text-xs font-bold text-amber-700">لم يتم تحديد موقع المحل بعد. يُرجى تحديث الموقع من إعدادات المحل قبل إنشاء الطلبات.</p>
                 </div>
               )}
-              <input type="text" disabled={isSaving} value={formData.customer} onChange={(e) => onFormDataChange({ ...formData, customer: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold disabled:opacity-60" placeholder="اسم العميل" />
-              <input type="tel" disabled={isSaving} value={formData.phone} onChange={(e) => onFormDataChange({ ...formData, phone: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold disabled:opacity-60" placeholder="رقم الهاتف" />
-              <input type="text" disabled={isSaving} value={formData.address} onChange={(e) => onFormDataChange({ ...formData, address: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold disabled:opacity-60" placeholder="العنوان بالتفصيل" />
+              <input 
+                type="text" 
+                dir="rtl"
+                disabled={isSaving} 
+                value={formData.customer} 
+                onChange={(e) => onFormDataChange({ ...formData, customer: e.target.value })} 
+                className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60 text-right" 
+                placeholder="اسم العميل" 
+              />
+              <input 
+                type="tel" 
+                dir="ltr"
+                disabled={isSaving} 
+                value={formData.phone} 
+                onChange={(e) => onFormDataChange({ ...formData, phone: e.target.value })} 
+                className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60 text-left" 
+                placeholder="رقم الهاتف" 
+              />
+              <input 
+                type="text" 
+                dir="rtl"
+                disabled={isSaving} 
+                value={formData.address} 
+                onChange={(e) => onFormDataChange({ ...formData, address: e.target.value })} 
+                className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60 text-right" 
+                placeholder="العنوان بالتفصيل" 
+              />
               <div className="grid grid-cols-2 gap-4">
-                <input type="number" disabled={isSaving} value={formData.orderValue} onChange={(e) => onFormDataChange({ ...formData, orderValue: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold disabled:opacity-60" placeholder="قيمة الأوردر" />
-                <input type="number" disabled={isSaving} value={formData.deliveryFee} onChange={(e) => onFormDataChange({ ...formData, deliveryFee: e.target.value })} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-brand-orange font-bold disabled:opacity-60" placeholder="سعر التوصيل" />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  disabled={isSaving} 
+                  value={formData.orderValue} 
+                  onChange={(e) => onFormDataChange({ ...formData, orderValue: e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString()).replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷٨۹".indexOf(d).toString()) })} 
+                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60" 
+                  placeholder="قيمة الأوردر" 
+                />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  disabled={isSaving} 
+                  value={formData.deliveryFee} 
+                  onChange={(e) => onFormDataChange({ ...formData, deliveryFee: e.target.value.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString()).replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶٧٨۹".indexOf(d).toString()) })} 
+                  className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-bold disabled:opacity-60" 
+                  placeholder="سعر التوصيل" 
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

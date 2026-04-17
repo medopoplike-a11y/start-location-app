@@ -64,17 +64,17 @@ export default function DriverHeader({
           <Menu className="w-5 h-5" />
         </motion.button>
         
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-2 px-3 rounded-2xl border border-white/20 dark:border-slate-800 shadow-xl flex items-center gap-3">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-1.5 px-2.5 rounded-2xl border border-white/20 dark:border-slate-800 shadow-xl flex items-center gap-2">
           <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-[10px] font-black text-slate-900 dark:text-slate-100 leading-none tracking-tight uppercase">Start</h1>
-              <span className="text-[7px] font-black text-blue-500/60 dark:text-blue-400/60">V1.0.0</span>
+            <div className="flex items-center gap-1">
+              <h1 className="text-[9px] font-black text-slate-900 dark:text-slate-100 leading-none tracking-tight uppercase">Start</h1>
+              <span className="text-[6px] font-black text-blue-500/60 dark:text-blue-400/60">V1.0</span>
               {isSurgeActive && (
-                <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                <div className="w-1 h-1 bg-orange-500 rounded-full animate-pulse" />
               )}
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[70px] leading-none">{driverName}</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[60px] leading-none">{driverName}</p>
               <RatingBadge rating={rating} count={ratingCount} size="xs" />
             </div>
           </div>
@@ -82,48 +82,47 @@ export default function DriverHeader({
       </div>
 
       {/* Right side: Controls (Floating Card) */}
-      <div className="flex items-center gap-2 pointer-events-auto">
+      <div className="flex items-center gap-1.5 pointer-events-auto">
         {/* Auto Accept Toggle */}
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={onToggleAutoAccept}
-          className={`p-3 rounded-2xl backdrop-blur-xl border shadow-xl transition-all ${
+          className={`p-2.5 rounded-xl backdrop-blur-xl border shadow-lg transition-all ${
             autoAccept 
             ? "bg-amber-500 text-white border-amber-400" 
             : "bg-white/90 dark:bg-slate-900/90 text-slate-400 border-white/20 dark:border-slate-800"
           }`}
-          title={autoAccept ? "القبول التلقائي نشط" : "القبول التلقائي معطل"}
         >
-          {autoAccept ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
+          {autoAccept ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
         </motion.button>
 
-        {/* Sync Indicator */}
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-1 rounded-xl border border-white/20 dark:border-slate-800 shadow-xl">
-          <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
+        {/* Combined Sync Controls */}
+        <div className="flex items-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl border border-white/20 dark:border-slate-800 shadow-lg overflow-hidden">
+          <div className="px-1.5 py-1 border-l border-white/10 dark:border-slate-800">
+            <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.9, rotate: 180 }}
+            onClick={onSync}
+            disabled={isRefreshing}
+            className="p-2.5 text-sky-600 dark:text-sky-400 disabled:opacity-40 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </motion.button>
         </div>
-
-        {/* Sync Button */}
-        <motion.button
-          whileTap={{ scale: 0.9, rotate: 180 }}
-          onClick={onSync}
-          disabled={isRefreshing}
-          className="p-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl hover:bg-white dark:hover:bg-slate-800 rounded-2xl transition-all border border-white/20 dark:border-slate-800 shadow-xl text-sky-600 dark:text-sky-400 disabled:opacity-40"
-        >
-          <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
-        </motion.button>
 
         {/* Online/Offline Toggle */}
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={onToggleActive}
-          className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all shadow-xl backdrop-blur-xl ${
+          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all shadow-lg backdrop-blur-xl ${
             isActive
               ? "bg-green-500 text-white border-green-400"
               : "bg-white/90 dark:bg-slate-900/90 text-slate-400 dark:text-slate-500 border-white/20 dark:border-slate-800"
           }`}
         >
-          <Power className={`w-4 h-4 ${isActive ? "animate-pulse" : ""}`} />
-          <span className="font-black text-[11px] uppercase tracking-wider">{isActive ? "On" : "Off"}</span>
+          <Power className={`w-3.5 h-3.5 ${isActive ? "animate-pulse" : ""}`} />
+          <span className="font-black text-[10px] uppercase tracking-wider">{isActive ? "On" : "Off"}</span>
         </motion.button>
       </div>
     </header>
