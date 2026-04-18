@@ -56,9 +56,13 @@ export const applyAIFix = async (insightId: string, fixData: any) => {
  * Works on both web and mobile (Capacitor) since it calls relative URLs
  */
 export const requestAIAnalysis = async (type: string, data: any, role: 'admin' | 'driver' | 'vendor' = 'admin') => {
-  const baseUrl = typeof window !== 'undefined'
-    ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL || '');
+  const isNativePlatform = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.() === true;
+
+  const baseUrl = isNativePlatform
+    ? (process.env.NEXT_PUBLIC_APP_URL || '')
+    : typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL || '');
 
   const response = await fetch(`${baseUrl}/api/ai`, {
     method: 'POST',

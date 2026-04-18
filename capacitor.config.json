@@ -7,7 +7,9 @@
     "androidScheme": "https",
     "hostname": "localhost",
     "allowNavigation": [
-      "sdpjvorettivpdviytqo.supabase.co"
+      "sdpjvorettivpdviytqo.supabase.co",
+      "*.replit.dev",
+      "*.replit.app"
     ]
   },
   "android": {
