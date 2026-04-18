@@ -496,12 +496,22 @@ ALTER TABLE ai_insights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 
 -- Only Admins can see AI Insights
-CREATE POLICY "Admins can view ai_insights" ON ai_insights 
-FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can view ai_insights' AND tablename = 'ai_insights') THEN
+    CREATE POLICY "Admins can view ai_insights" ON ai_insights 
+    FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+  END IF;
+END $$;
 
 -- Admins can view logs, system can insert
-CREATE POLICY "Admins can view system_logs" ON system_logs 
-FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can view system_logs' AND tablename = 'system_logs') THEN
+    CREATE POLICY "Admins can view system_logs" ON system_logs 
+    FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+  END IF;
+END $$;
 
 -- Indexing for AI performance
 CREATE INDEX IF NOT EXISTS idx_ai_insights_is_applied ON ai_insights(is_applied) WHERE is_applied = false;
