@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.6.3-ULTRA-STABLE";
+  const VERSION = "V1.6.4-HYPER-STABLE";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -122,10 +122,10 @@ const LoginPage = () => {
       const isTransitioning = sessionStorage.getItem('is_transitioning') === 'true';
       if (isTransitioning) return;
 
-      // Only redirect if we have the profile role, otherwise wait
-      if (!profile?.role) return;
+      // V1.6.4: Use metadata role if profile role is not yet available to speed up redirect
+      const role = profile?.role || user.user_metadata?.role;
+      if (!role) return;
 
-      const role = profile.role;
       const path = getRedirectPath(role);
       if (window.location.pathname !== path) {
         router.replace(path);

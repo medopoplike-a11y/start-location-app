@@ -36,23 +36,24 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       if (loading) {
         console.warn("AuthGuard: Auth state loading stuck, forcing redirect to login...");
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
-        if (!user) { // Only redirect if user is actually null
+        
+        // V1.6.4: ONLY redirect if we are SURE there is no user session
+        if (!user && !loading) { 
           if (isNative) window.location.assign("/login");
           else window.location.assign("/login");
         }
       }
-    }, 20000); // Increased to 20s for slow networks
+    }, 25000); // Increased to 25s for slow mobile networks
     return () => clearTimeout(safetyTimeout);
   }, [loading, user]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
-    const timer = setTimeout(() => {
-      if (loading) {
-        console.log("AuthGuard: Still loading auth state...");
-        return;
-      }
+    
+    // Don't do anything while loading
+    if (loading) return;
 
+    const timer = setTimeout(() => {
       const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
       console.log("AuthGuard: State Check", { user: !!user, userRole, authorized, pathname });
 
@@ -60,20 +61,21 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
         console.log("AuthGuard: No user session, redirecting to login");
         const loginUrl = "/login";
         if (isNative) window.location.assign(loginUrl);
-        else if (router) router.replace(loginUrl);
-        else window.location.assign(loginUrl);
+        else router.replace(loginUrl);
       } else if (userRole && !authorized) {
         console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
-        const loginUrl = "/login";
-        if (isNative) window.location.assign(loginUrl);
-        else if (router) router.replace(loginUrl);
-        else window.location.assign(loginUrl);
+        // V1.6.4: If user has a different role, redirect them to THEIR correct dashboard instead of login
+        const dashboard = userRole === 'admin' ? '/admin' : userRole === 'vendor' ? '/store' : '/driver';
+        if (pathname !== dashboard) {
+          if (isNative) window.location.assign(dashboard);
+          else router.replace(dashboard);
+        }
       } else if (!userRole) {
         console.log("AuthGuard: User logged in but role not found yet, waiting for profile...");
-        // Don't redirect yet! Just wait for profile to load.
-        // The safety timeout above will handle the case where it's truly stuck.
+        // Still waiting... The safety timeout will handle it if it never loads.
       }
-    }, 0);
+    }, 500); // Small delay to let states settle
+    
     return () => {
       clearTimeout(timer);
       if (timeoutId) clearTimeout(timeoutId);

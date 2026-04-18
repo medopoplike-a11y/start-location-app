@@ -34,6 +34,22 @@ export default function RootLayout({
                   }
                 });
               }
+
+                // Force reload if we find a version mismatch in localStorage
+                const currentVersion = "V1.6.4-HYPER-STABLE";
+                const storedVersion = localStorage.getItem('app_version');
+                if (storedVersion && storedVersion !== currentVersion) {
+                  localStorage.setItem('app_version', currentVersion);
+                  console.log('Version mismatch detected, clearing storage and reloading...');
+                  if (typeof window !== 'undefined') {
+                    // Only clear essential items, don't clear everything to avoid login loops
+                    localStorage.removeItem('auth_profile');
+                    sessionStorage.clear();
+                    window.location.reload();
+                  }
+                } else {
+                  localStorage.setItem('app_version', currentVersion);
+                }
             } catch (e) {
               console.warn('SW Cleanup failed:', e);
             }

@@ -13,12 +13,20 @@ const isNative = typeof window !== 'undefined' &&
 const appStorage: SupportedStorage = {
   getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(key);
+    
+    const localValue = localStorage.getItem(key);
+    if (localValue) return localValue;
+
+    // V1.6.4: Fallback to Preferences on Native if localStorage is empty
+    if (isNative) {
+      return Preferences.get({ key }).then(res => res.value);
+    }
+    
+    return null;
   },
   setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(key, value);
-    // Mirror to Preferences for native persistence (handled by Capacitor automatically in many cases, but we do it manually to be sure)
     if (isNative) {
       Preferences.set({ key, value }).catch(() => {});
     }
