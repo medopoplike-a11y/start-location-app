@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.6.5-FINAL-STABLE-OTA";
+  const VERSION = "V1.6.6-UI-STABILITY-PRO";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -44,6 +44,7 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false); // V1.6.6
 
   useEffect(() => {
     const fetchAppConfig = async () => {
@@ -117,21 +118,18 @@ const LoginPage = () => {
   }, []);
 
   useEffect(() => {
-    if (user && mounted && !isLoggedOut) {
-      // V1.6.2: Check if we are already in a transition to /welcome to avoid infinite redirect loops
-      const isTransitioning = sessionStorage.getItem('is_transitioning') === 'true';
-      if (isTransitioning) return;
-
-      // V1.6.4: Use metadata role if profile role is not yet available to speed up redirect
+    if (user && mounted && !isLoggedOut && !isRedirecting) {
+      // V1.6.6: Use metadata role if profile role is not yet available to speed up redirect
       const role = profile?.role || user.user_metadata?.role;
       if (!role) return;
 
+      setIsRedirecting(true);
       const path = getRedirectPath(role);
       if (window.location.pathname !== path) {
         router.replace(path);
       }
     }
-  }, [user, profile, router, mounted, isLoggedOut]);
+  }, [user, profile, router, mounted, isLoggedOut, isRedirecting]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -212,6 +210,7 @@ const LoginPage = () => {
       }
 
       setStatus("تم الدخول بنجاح! جاري التوجيه...");
+      setIsRedirecting(true); // V1.6.6
       
       if (typeof window !== 'undefined' && rememberMe) {
         localStorage.setItem('remembered_email', email.trim());
@@ -219,23 +218,11 @@ const LoginPage = () => {
         localStorage.removeItem('remembered_email');
       }
 
-      const redirectDelay = (window as any).Capacitor?.isNativePlatform?.() ? 800 : 100;
+      const redirectDelay = (window as any).Capacitor?.isNativePlatform?.() ? 500 : 100;
 
       setTimeout(async () => {
         try {
-          // V1.6.2: Set a manual flag to prevent the login page useEffect from triggering a redirect 
-          // while we are already transitioning to /welcome
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('is_transitioning', 'true');
-          }
-          
-          const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
-          if (isNative) {
-            // For native apps, a direct location change is often more stable than the router
-            window.location.href = "/welcome";
-          } else {
-            router.push("/welcome");
-          }
+          router.replace("/welcome");
         } catch (redirErr) {
           window.location.assign("/welcome"); 
         }
@@ -246,6 +233,10 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
+
+  if (isRedirecting) {
+    return <AppLoader />;
+  }
 
   return (
     <div className="h-screen bg-[#020617] relative overflow-hidden font-sans flex flex-col items-center justify-center p-6" dir="rtl">

@@ -67,16 +67,15 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
         console.log("AuthGuard: No user session");
         if (!isLoginPath) {
           const loginUrl = "/login";
-          if (isNative) window.location.href = loginUrl;
-          else router.replace(loginUrl);
+          // V1.6.6: Use router.replace instead of window.location.href to avoid full app reloads
+          router.replace(loginUrl);
         }
       } else if (userRole && !authorized) {
         console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
         // V1.6.5: Redirect to correct dashboard instead of login to stop the loop
         const correctDashboard = userRole === 'admin' ? '/admin' : userRole === 'vendor' ? '/store' : '/driver';
         if (currentPath !== correctDashboard) {
-          if (isNative) window.location.href = correctDashboard;
-          else router.replace(correctDashboard);
+          router.replace(correctDashboard);
         }
       }
     }, 100); 

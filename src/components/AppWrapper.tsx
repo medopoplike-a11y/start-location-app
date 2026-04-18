@@ -21,13 +21,18 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   const lastUpdateRef = React.useRef<string>("");
 
   const runUpdateCheck = React.useCallback(async (isManual = false) => {
+    if (!isNative()) return;
+    
     try {
       const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
       
       const updateInfo = await checkForAutoUpdate(isManual);
 
       if (updateInfo?.available) {
-        // Add listener for download progress only when update is found
+        // V1.6.6: Avoid multiple parallel downloads
+        if (updateStatus === "downloading") return;
+
+        // Add listener for download progress
         const downloadListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
           const percent = data.percent ?? 0;
           setUpdateStatus("downloading");
@@ -38,30 +43,19 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
         if (updateInfo.bundleId) {
           setBundleId(updateInfo.bundleId);
         }
+        
         if (updateInfo.downloaded) {
           setUpdateStatus("ready");
           setProgress(100);
           
-          // Give system time to finalize the bundle set
+          // Give system time to finalize
           setTimeout(async () => {
             try {
-              const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-              
-              // Reset rollback check for the new bundle
-              // This ensures the update is treated as successful and persistent
-              console.log('Native OTA: Finalizing update and marking as successful...');
-              
-              // Crucial: We need to inform Capgo that this bundle is working perfectly
-              try {
-                if ((CapacitorUpdater as any).notifyAppReady) {
-                  await (CapacitorUpdater as any).notifyAppReady();
-                }
-              } catch (err) {
-                console.warn('Native OTA: notifyAppReady failed', err);
+              const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
+              if ((updater as any).notifyAppReady) {
+                await (updater as any).notifyAppReady();
               }
-              
-              // 2. Reload to apply
-              await CapacitorUpdater.reload();
+              await updater.reload();
             } catch (e) {
               window.location.reload();
             }
@@ -71,15 +65,16 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
         }
         
         return () => downloadListener.remove();
-      } else {
-        setUpdateStatus("idle");
       }
     } catch (e: any) {
       console.error("OTA Update Check Failed:", e);
-      setUpdateStatus("error");
-      setErrorMessage(e.message || "حدث خطأ غير متوقع");
+      // Silently fail unless manual
+      if (isManual) {
+        setUpdateStatus("error");
+        setErrorMessage(e.message || "حدث خطأ");
+      }
     }
-  }, []);
+  }, [updateStatus]);
 
   React.useEffect(() => {
     // Wrap initial state changes in a small delay to avoid cascading renders
