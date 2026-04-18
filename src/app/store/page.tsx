@@ -17,6 +17,7 @@ import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus } from "@/lib/api/orders";
+import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, onAppResume, startBackgroundTracking, stopBackgroundTracking } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
@@ -1114,6 +1115,16 @@ function StoreContent() {
         
         setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: finalUrl } : o));
         success("تم تحديث الطلب بالفاتورة بنجاح");
+
+        // V1.5.2: Trigger AI Invoice Audit for Admin in background
+        requestAIAnalysis('invoice_audit', { 
+          image: finalUrl, 
+          manualData: { 
+            orderId: quickUploadOrderId, 
+            amount: orders.find(o => o.id === quickUploadOrderId)?.amount 
+          } 
+        }, 'vendor').catch(e => console.warn("AI Audit failed", e));
+
       } catch (err: any) {
         console.error("Quick in-app upload error details:", err);
         const errorMsg = err.message || JSON.stringify(err);

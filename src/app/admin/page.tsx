@@ -50,6 +50,7 @@ import { fetchOrders as fetchAdminOrders, updateOrderStatus, deleteAdminOrder } 
 import { fetchProfiles as fetchAdminProfiles, toggleLock as toggleDriverLock, updateProfile as updateProfileBilling, deleteUserByAdmin } from "@/lib/api/profiles";
 import { fetchWallets as fetchAdminWallets, updateWallet as updateAdminWallet } from "@/lib/api/wallets";
 import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, broadcastAlert } from "@/lib/api/admin";
+import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
 import { useToast } from "@/hooks/useToast";
@@ -978,6 +979,29 @@ function AdminContent() {
     }
   }, [appConfig, addActivity]);
 
+  const handleHeatmapAnalysis = useCallback(async () => {
+    if (allOrders.length === 0) return;
+    try {
+      setActionLoading(true);
+      const res = await requestAIAnalysis('heatmap_analysis', {
+        historicalOrders: allOrders.map(o => ({
+          lat: o.customer_details?.coords?.lat,
+          lng: o.customer_details?.coords?.lng,
+          time: o.created_at
+        }))
+      }, 'admin');
+      
+      if (res.analysis) {
+        toastSuccess("تم تحديث خريطة التوقعات الذكية");
+        addActivity(`AI: ${res.analysis.content}`);
+      }
+    } catch (e) {
+      console.error("Heatmap analysis failed", e);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [allOrders, toastSuccess, addActivity]);
+
   const handleAssignOrder = useCallback(async (orderId: string, driverId: string, driverName: string) => {
     // V0.9.88: Optimized Atomic Manual Assignment
     const originalLiveOrders = [...liveOrders];
@@ -1334,6 +1358,8 @@ function AdminContent() {
                 vendors={vendors} 
                 allOrders={allOrders}
                 systemHealth={systemHealth}
+                onHeatmapAnalysis={handleHeatmapAnalysis}
+                actionLoading={actionLoading}
               />
             )}
             {activeView === "order-history" && (

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
-import { Bell, Map as MapIcon, Activity, Truck, Star, Store } from "lucide-react";
+import { Bell, Map as MapIcon, Activity, Truck, Star, Store, Zap, Loader2 } from "lucide-react";
 import type { ActivityLogItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
@@ -34,9 +34,11 @@ interface DashboardViewProps {
     ratio: number;
     status: "optimal" | "busy" | "congested";
   };
+  onHeatmapAnalysis?: () => void;
+  actionLoading?: boolean;
 }
 
-export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, allOrders, systemHealth }: DashboardViewProps) {
+export default function DashboardView({ activityLog, stats, onlineDrivers, vendors, allOrders, systemHealth, onHeatmapAnalysis, actionLoading }: DashboardViewProps) {
   return (
     <div className="space-y-8">
       {/* Upper Section: Stats & Activity */}
@@ -56,6 +58,19 @@ export default function DashboardView({ activityLog, stats, onlineDrivers, vendo
           
           <div className="flex-1 drawer-glass rounded-[32px] p-5 shadow-sm overflow-hidden relative min-h-[350px] border-none">
             <div className="absolute top-0 right-0 bottom-0 w-1 bg-blue-500/30" />
+            
+            {/* V1.5.3: AI Heatmap Trigger in Sidebar */}
+            {onHeatmapAnalysis && (
+              <button 
+                onClick={onHeatmapAnalysis}
+                disabled={actionLoading}
+                className="w-full mb-4 py-3 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 rounded-2xl border border-indigo-600/20 transition-all flex items-center justify-center gap-2 group"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+                <span className="text-[10px] font-black uppercase">خريطة التوقعات الذكية</span>
+              </button>
+            )}
+
             <div className="space-y-4">
               <AnimatePresence mode="popLayout">
                 {activityLog.length > 0 ? (

@@ -14,7 +14,16 @@ serve(async (req) => {
     // 1. Prepare Specialized Prompts based on User Role
     let systemPrompt = `You are an AI Co-pilot for the "Start Location" logistics app. Role: ${role}.`;
     
-    if (role === 'driver') {
+    if (type === 'invoice_audit') {
+      systemPrompt += ` Task: Audit an invoice image against manual data.
+      Manual Data: ${JSON.stringify(data.manualData)}
+      Invoice Image (Base64 or URL): ${data.image}
+      Analyze the image and compare with manual data. If there is a mismatch in order value or delivery fee, flag it as 'warning' or 'critical'. Provide a detailed explanation in Arabic.`;
+    } else if (type === 'heatmap_analysis') {
+      systemPrompt += ` Task: Analyze historical order density to suggest driver distribution.
+      Data: ${JSON.stringify(data.historicalOrders)}
+      Identify clusters of orders and provide a recommendation in Arabic on where drivers should position themselves.`;
+    } else if (role === 'driver') {
       systemPrompt += ` Task: Help the driver with location clarity or navigation.
       Input is an order with potential address issues: ${JSON.stringify(data)}
       Analyze the address and provide:
@@ -42,30 +51,47 @@ serve(async (req) => {
         "suggested_fix": { "action": "...", "data": "..." } | null,
         "ai_meta": { ... }
       }
+      IMPORTANT: Ensure "content" is always in Arabic.
     `
 
     // 2. Call Google Gemini API
+    const contents = [{ parts: [{ text: prompt }] }];
+    
+    // V1.5.0: Support for multi-modal input (image + text) if available
+    if (type === 'invoice_audit' && data.image && data.image.startsWith('data:image')) {
+      const base64Data = data.image.split(',')[1];
+      const mimeType = data.image.split(';')[0].split(':')[1];
+      contents[0].parts.push({
+        inline_data: {
+          mime_type: mimeType,
+          data: base64Data
+        }
+      });
+    }
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
+      body: JSON.stringify({ contents })
     })
 
     const result = await response.json()
-    const aiResponse = JSON.parse(result.candidates[0].content.parts[0].text)
+    
+    // V1.5.1: Safer parsing with regex to handle potential markdown in AI response
+    let rawText = result.candidates[0].content.parts[0].text;
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const aiResponse = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
 
     // 3. Store the Insight in Database
     await supabase.from('ai_insights').insert([{
-      type: 'error_analysis',
-      severity: aiResponse.severity,
+      type: type || 'error_analysis',
+      severity: aiResponse.severity || 'info',
       content: aiResponse.content,
       raw_data: data,
       suggested_fix: aiResponse.suggested_fix
     }])
 
-    return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ success: true, analysis: aiResponse }), { headers: { 'Content-Type': 'application/json' } })
 
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
