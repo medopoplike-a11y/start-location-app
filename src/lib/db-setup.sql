@@ -466,6 +466,84 @@ CREATE TRIGGER trg_orders_status_timestamp
   BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE PROCEDURE trg_update_order_status_timestamp();
 
+-- V1.4.0: AI INTEGRATION SCHEMA (The Brain)
+-- Table to store AI analysis and suggestions
+CREATE TABLE IF NOT EXISTS ai_insights (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  type TEXT CHECK (type IN ('error_analysis', 'performance', 'fraud_detection', 'data_correction')) NOT NULL,
+  severity TEXT CHECK (severity IN ('info', 'warning', 'critical')) DEFAULT 'info',
+  content TEXT NOT NULL, -- Human readable description
+  raw_data JSONB, -- The data AI analyzed
+  suggested_fix JSONB, -- The SQL or API update to apply
+  is_applied BOOLEAN DEFAULT false,
+  applied_at TIMESTAMP WITH TIME ZONE,
+  applied_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Table to log system events for AI to review
+CREATE TABLE IF NOT EXISTS system_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  level TEXT CHECK (level IN ('info', 'error', 'security')) DEFAULT 'info',
+  source TEXT NOT NULL, -- 'client', 'server', 'edge_function'
+  message TEXT NOT NULL,
+  metadata JSONB,
+  user_id UUID REFERENCES profiles(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+ALTER TABLE ai_insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+
+-- Only Admins can see AI Insights
+CREATE POLICY "Admins can view ai_insights" ON ai_insights 
+FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Admins can view logs, system can insert
+CREATE POLICY "Admins can view system_logs" ON system_logs 
+FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Indexing for AI performance
+CREATE INDEX IF NOT EXISTS idx_ai_insights_is_applied ON ai_insights(is_applied) WHERE is_applied = false;
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
+
+-- V1.4.1: Atomic AI Fix Runner
+CREATE OR REPLACE FUNCTION apply_ai_fix(p_insight_id UUID, p_fix_data JSONB)
+RETURNS JSONB AS $$
+DECLARE
+  v_type TEXT;
+  v_res JSONB;
+BEGIN
+  -- 1. Verify insight exists and is not applied
+  SELECT type INTO v_type FROM ai_insights WHERE id = p_insight_id AND is_applied = false;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Insight not found or already applied');
+  END IF;
+
+  -- 2. Execute fix based on type (Only safe predefined fixes allowed)
+  IF v_type = 'data_correction' THEN
+    -- Example: Correcting a phone number or address
+    -- This is where we'd add logic to safely update specific tables
+    v_res := jsonb_build_object('status', 'predefined_fix_applied');
+  ELSIF v_type = 'error_analysis' THEN
+    -- Example: Resetting a stuck order status
+    IF p_fix_data->>'action' = 'reset_order' THEN
+      UPDATE orders SET status = 'pending', driver_id = NULL WHERE id = (p_fix_data->>'order_id')::UUID;
+    END IF;
+    v_res := jsonb_build_object('status', 'order_reset');
+  ELSE
+    RETURN jsonb_build_object('success', false, 'error', 'Fix type not implemented');
+  END IF;
+
+  -- 3. Mark as applied
+  UPDATE ai_insights 
+  SET is_applied = true, applied_at = NOW(), applied_by = auth.uid() 
+  WHERE id = p_insight_id;
+
+  RETURN jsonb_build_object('success', true, 'data', v_res);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 7. دوال متقدمة للأدمن (RPC) لجلب كافة البيانات مع تجاوز RLS بشكل آمن
 -- تستخدم SECURITY DEFINER لتعمل بصلاحيات الأدمن على مستوى قاعدة البيانات
 

@@ -116,6 +116,30 @@ function StoreContent() {
   const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
   const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
   const backgroundWatcherRef = useRef<string | null>(null);
+  
+  // V1.4.2: Store AI States
+  const [showStoreAI, setShowStoreAI] = useState(false);
+  const [storeAIAnalysis, setStoreAIAnalysis] = useState<any>(null);
+  const [analyzingStore, setAnalyzingStore] = useState(false);
+
+  const handleRequestStoreAI = async () => {
+    if (!vendorId) return;
+    try {
+      setAnalyzingStore(true);
+      setShowStoreAI(true);
+      setStoreAIAnalysis(null);
+      
+      const { requestAIAnalysis } = await import("@/lib/api/ai");
+      // Analyze current orders for peak times and efficiency
+      const res = await requestAIAnalysis('store_performance', orders, 'vendor');
+      setStoreAIAnalysis(res);
+    } catch (e) {
+      console.error("AI: Store help request failed", e);
+      setStoreAIAnalysis({ content: "عذراً، لم أتمكن من تحليل البيانات حالياً. حاول مجدداً." });
+    } finally {
+      setAnalyzingStore(null);
+    }
+  };
 
   // V1.8.0: Radical Background Sync for Store
   useEffect(() => {
@@ -1348,6 +1372,83 @@ function StoreContent() {
         onChangePassword={handleChangePassword}
         onRequestSettlement={handleRequestSettlement}
       />
+
+      {/* V1.4.2: Store AI Helper Modal */}
+      <AnimatePresence>
+        {showStoreAI && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowStoreAI(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl overflow-hidden"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600">
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">محلل المبيعات الذكي</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">AI Performance</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowStoreAI(false)} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {!storeAIAnalysis ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-center">
+                    <motion.div 
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="w-12 h-12 border-4 border-purple-500/20 border-t-purple-600 rounded-full mb-4"
+                    />
+                    <p className="text-sm font-black text-slate-600 dark:text-slate-400">جاري تحليل الطلبات واستخراج النتائج...</p>
+                  </div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="space-y-6"
+                  >
+                    <div className="bg-purple-50 dark:bg-purple-900/10 p-6 rounded-[24px] border border-purple-100 dark:border-purple-900/30">
+                      <p className="text-sm font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
+                        {storeAIAnalysis.content}
+                      </p>
+                    </div>
+
+                    {storeAIAnalysis.suggested_fix && (
+                      <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex items-start gap-3">
+                        <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300 leading-relaxed">
+                          نصيحة ذكية: {storeAIAnalysis.suggested_fix.data}
+                        </p>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => setShowStoreAI(false)}
+                      className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-slate-200 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                      شكراً للنصيحة
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {activeView !== "order-form" && (
         <StoreDrawer

@@ -38,6 +38,10 @@ const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), 
 const OrderHistoryView = dynamic(() => import("./components/OrderHistoryView"), { ssr: false });
 const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
 const WalletsView = dynamic(() => import('./components/WalletsView'), { ssr: false });
+const AIMonitorView = dynamic(() => import('./components/AIMonitorView'), { 
+  ssr: false,
+  loading: () => <AppLoader />
+});
 
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";

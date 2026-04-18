@@ -268,6 +268,15 @@ export default function OrderDetailsModal({
                     الموقع غير متاح — اتصل بالمحل
                   </div>
                 )}
+                
+                {/* V1.4.2: AI Helper Button for Location */}
+                <button 
+                  onClick={() => (window as any).requestAIHelp?.(order)}
+                  className="w-full bg-purple-600 text-white px-4 py-3 rounded-2xl text-[11px] font-black shadow-lg shadow-purple-100 active:scale-95 transition-all flex items-center justify-center gap-2 mt-2"
+                >
+                  <Bot className="w-4 h-4" />
+                  مساعد العنوان الذكي (AI)
+                </button>
               </div>
 
               {/* Invoice Preview - Unified Action (v1.0.3) */}

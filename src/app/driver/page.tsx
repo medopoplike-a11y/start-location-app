@@ -48,6 +48,26 @@ export default function DriverApp() {
   const [balance, setBalance] = useState<number>(0); // Overall Earnings
   const [autoAccept, setAutoAccept] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [showAIHelper, setShowAIHelper] = useState(false);
+  const [aiAnalysis, setAIAnalysis] = useState<any>(null);
+  const [analyzingOrder, setAnalyzingOrder] = useState<string | null>(null);
+
+  const handleRequestAIHelp = async (order: Order) => {
+    try {
+      setAnalyzingOrder(order.id);
+      setShowAIHelper(true);
+      setAIAnalysis(null);
+      
+      const { requestAIAnalysis } = await import("@/lib/api/ai");
+      const res = await requestAIAnalysis('location_help', order, 'driver');
+      setAIAnalysis(res);
+    } catch (e) {
+      console.error("AI: Help request failed", e);
+      setAIAnalysis({ content: "عذراً، لم أتمكن من تحليل العنوان حالياً. حاول مجدداً." });
+    } finally {
+      setAnalyzingOrder(null);
+    }
+  };
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -532,6 +552,12 @@ export default function DriverApp() {
        .gte('status_updated_at', today.toISOString()); // Use status_updated_at
      return data || [];
    }
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).requestAIHelp = handleRequestAIHelp;
+    }
+  }, [handleRequestAIHelp]);
 
   const [isOnline, setIsOnline] = useState(true);
 
@@ -1234,6 +1260,83 @@ export default function DriverApp() {
           show={!!previewUrl}
           onClose={() => setPreviewUrl(null)}
         />
+
+        {/* V1.4.2: AI Helper Modal */}
+        <AnimatePresence>
+          {showAIHelper && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowAIHelper(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl overflow-hidden"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600">
+                      <Bot className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white">مساعد العنوان الذكي</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">AI Co-pilot</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowAIHelper(false)} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {!aiAnalysis ? (
+                    <div className="py-12 flex flex-col items-center justify-center text-center">
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-12 h-12 border-4 border-purple-500/20 border-t-purple-600 rounded-full mb-4"
+                      />
+                      <p className="text-sm font-black text-slate-600 dark:text-slate-400">جاري تحليل العنوان وتحديد المسار...</p>
+                    </div>
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="space-y-6"
+                    >
+                      <div className="bg-purple-50 dark:bg-purple-900/10 p-6 rounded-[24px] border border-purple-100 dark:border-purple-900/30">
+                        <p className="text-sm font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
+                          {aiAnalysis.content}
+                        </p>
+                      </div>
+
+                      {aiAnalysis.ai_meta?.navigation_tips && (
+                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30 flex items-start gap-3">
+                          <MapPin className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                          <p className="text-[11px] font-bold text-blue-700 dark:text-blue-300 leading-relaxed">
+                            {aiAnalysis.ai_meta.navigation_tips}
+                          </p>
+                        </div>
+                      )}
+
+                      <button 
+                        onClick={() => setShowAIHelper(false)}
+                        className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-slate-200 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        فهمت، شكراً لك
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Settlement Modal */}
         <AnimatePresence>

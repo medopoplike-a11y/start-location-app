@@ -16,6 +16,7 @@ export const menuGroups = [
       { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
       { id: "order-history", label: "سجل الطلبات والفواتير", icon: FileText },
       { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
+      { id: "ai-monitor", label: "المراقب الذكي (AI)", icon: Zap, color: "text-purple-500", bg: "bg-purple-50" },
     ]
   },
   {
