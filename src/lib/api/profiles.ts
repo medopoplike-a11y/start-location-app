@@ -22,6 +22,19 @@ export const updateProfile = async (id: string, updates: any) => {
   return data;
 };
 
+export const toggleLock = async (id: string, isLocked: boolean) => {
+  const { data, error } = await supabase.from('profiles').update({ is_locked: isLocked }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteUserByAdmin = async (id: string) => {
+  // Use RPC for safe deletion of user and related data
+  const { error } = await supabase.rpc('delete_user_by_admin', { p_user_id: id });
+  if (error) throw error;
+  return true;
+};
+
 export const subscribeToProfiles = (callback: (payload: any) => void) => {
   const channel = supabase.channel('global:profiles');
 

@@ -80,8 +80,27 @@ export const createOrder = async (orderData: any) => {
   return data;
 };
 
+export const updateOrder = async (orderId: string, orderData: any) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .update(orderData)
+    .eq('id', orderId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
 export const deleteOrder = async (orderId: string) => {
   const { error } = await supabase.from('orders').delete().eq('id', orderId);
+  if (error) throw error;
+  return true;
+};
+
+export const deleteAdminOrder = async (orderId: string) => {
+  // Use RPC for safe deletion of order by admin (logs, financials, etc.)
+  const { error } = await supabase.rpc('delete_order_by_admin', { p_order_id: orderId });
   if (error) throw error;
   return true;
 };

@@ -46,10 +46,10 @@ const AIMonitorView = dynamic(() => import('./components/AIMonitorView'), {
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { fetchOrders as fetchAdminOrders, updateOrderStatus } from "@/lib/api/orders";
-import { fetchProfiles as fetchAdminProfiles, toggleLock as toggleDriverLock, updateProfile as updateProfileBilling } from "@/lib/api/profiles";
+import { fetchOrders as fetchAdminOrders, updateOrderStatus, deleteAdminOrder } from "@/lib/api/orders";
+import { fetchProfiles as fetchAdminProfiles, toggleLock as toggleDriverLock, updateProfile as updateProfileBilling, deleteUserByAdmin } from "@/lib/api/profiles";
 import { fetchWallets as fetchAdminWallets, updateWallet as updateAdminWallet } from "@/lib/api/wallets";
-import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, deleteUserByAdmin, deleteAdminOrder } from "@/lib/adminApi"; // Still need some RPCs from adminApi for now
+import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, broadcastAlert } from "@/lib/api/admin";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
 import { useToast } from "@/hooks/useToast";
@@ -610,7 +610,7 @@ function AdminContent() {
           const vendor = vendors.find(v => v.name === order.vendor || v.id_full === (order as any).vendor_id);
           const vLoc = vendor?.location ? { lat: vendor.location.lat!, lng: vendor.location.lng! } : undefined;
           
-          const { assignOrderToNearestDriver } = await import("@/lib/orders");
+          const { assignOrderToNearestDriver } = await import("@/lib/api/orders");
           const result = await assignOrderToNearestDriver(order.id_full, vLoc);
           if (result.success) {
             addActivity(`توزيع تلقائي: تم تعيين الطلب #${order.id} للطيار ${result.driverName}`);
@@ -1252,7 +1252,9 @@ function AdminContent() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
                 Admin Control Center
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V1.0.0-STABLE-RELEASE
+                V1.4.4-STABLE-OTA-FIX
+                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                RELEASE-READY
               </p>
             </div>
           </div>
