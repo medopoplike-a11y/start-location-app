@@ -196,17 +196,6 @@ export default function StoreView({
           className="mt-2"
           delay={0.3}
         />
-
-        {/* V1.4.2: Store AI Helper Button */}
-        <button 
-          onClick={onRequestAIInsights}
-          className="w-full mt-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-5 rounded-[28px] font-black text-xs shadow-lg shadow-purple-200 active:scale-95 transition-all flex items-center justify-center gap-3 border border-white/20"
-        >
-          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
-            <Bot className="w-5 h-5" />
-          </div>
-          مساعد الأداء الذكي (AI)
-        </button>
       </div>
 
       <AnimatePresence>

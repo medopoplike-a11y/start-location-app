@@ -10,6 +10,7 @@ import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { fetchOrders, updateOrderStatus } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabaseClient";
+import { requestAIAnalysis } from "@/lib/api/ai";
 import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, onAppResume, requestBatteryOptimizationExemption } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
@@ -25,7 +26,7 @@ import DriverWalletView from "./components/DriverWalletView";
 import DriverHistoryView from "./components/DriverHistoryView";
 import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
-import { Wallet, X, Loader2, Settings, Bot, MapPin } from "lucide-react";
+import { Wallet, X, Loader2, Settings, Bot, MapPin, Send, Mic, MessageSquare } from "lucide-react";
 
 export default function DriverApp() {
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
@@ -50,6 +51,90 @@ export default function DriverApp() {
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showAIHelper, setShowAIHelper] = useState(false);
   const [aiAnalysis, setAIAnalysis] = useState<any>(null);
+  
+  // V1.7.5: AI Chat States
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'ai', content: string}>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isAISending, setIsAISending] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isAISending]);
+
+  const handleSendAIChat = async (text?: string) => {
+    const msg = text || chatInput;
+    if (!msg.trim() || isAISending) return;
+
+    const userMsg = msg.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setIsAISending(true);
+
+    try {
+      const res = await requestAIAnalysis('chat', { 
+        message: userMsg,
+        orderContext: orders.length > 0 ? orders[0] : null
+      }, 'driver');
+
+      if (res.analysis) {
+        setChatMessages(prev => [...prev, { role: 'ai', content: res.analysis.content }]);
+        // Optional: Speak the response
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(res.analysis.content);
+          utterance.lang = 'ar-SA';
+          window.speechSynthesis.speak(utterance);
+        }
+      }
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'ai', content: "عذراً، واجهت مشكلة في الرد. حاول مرة أخرى." }]);
+    } finally {
+      setIsAISending(false);
+    }
+  };
+
+  const startVoiceInput = () => {
+    if (typeof window === 'undefined') return;
+    
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toastError("المتصفح لا يدعم التعرف على الصوت");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ar-SA';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        triggerHaptic(ImpactStyle.Medium);
+      };
+
+      recognition.onresult = (event: any) => {
+        const speechToText = event.results[0][0].transcript;
+        handleSendAIChat(speechToText);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        toastError("فشل التعرف على الصوت");
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+    }
+  };
   const [analyzingOrder, setAnalyzingOrder] = useState<string | null>(null);
 
   const handleRequestAIHelp = async (order: Order) => {
@@ -1287,62 +1372,112 @@ export default function DriverApp() {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl overflow-hidden"
+                className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] p-0 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
               >
-                <div className="flex justify-between items-center mb-6">
+                {/* Modal Header */}
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-purple-600 text-white">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600">
-                      <Bot className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                      <Bot className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white">مساعد العنوان الذكي</h3>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">AI Co-pilot</p>
+                      <h3 className="text-lg font-black leading-tight">مساعد الملاحة الذكي</h3>
+                      <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">AI Co-pilot Chat</p>
                     </div>
                   </div>
-                  <button onClick={() => setShowAIHelper(false)} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400">
+                  <button onClick={() => setShowAIHelper(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  {!aiAnalysis ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-center">
-                      <motion.div 
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="w-12 h-12 border-4 border-purple-500/20 border-t-purple-600 rounded-full mb-4"
-                      />
-                      <p className="text-sm font-black text-slate-600 dark:text-slate-400">جاري تحليل العنوان وتحديد المسار...</p>
-                    </div>
-                  ) : (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="space-y-6"
-                    >
-                      <div className="bg-purple-50 dark:bg-purple-900/10 p-6 rounded-[24px] border border-purple-100 dark:border-purple-900/30">
-                        <p className="text-sm font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
+                {/* Chat Messages Area */}
+                <div 
+                  ref={chatScrollRef}
+                  className="flex-1 overflow-y-auto p-6 space-y-4 min-h-[300px] bg-slate-50 dark:bg-slate-950"
+                >
+                  {/* Initial Analysis Result (if exists) */}
+                  {aiAnalysis && (
+                    <div className="flex flex-col gap-2">
+                      <div className="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-2xl rounded-tr-none self-start max-w-[85%]">
+                        <p className="text-xs font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
                           {aiAnalysis.content}
                         </p>
                       </div>
-
                       {aiAnalysis.ai_meta?.navigation_tips && (
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30 flex items-start gap-3">
-                          <MapPin className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                          <p className="text-[11px] font-bold text-blue-700 dark:text-blue-300 leading-relaxed">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-start gap-2 max-w-[85%] self-start">
+                          <MapPin className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                          <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 leading-relaxed">
                             {aiAnalysis.ai_meta.navigation_tips}
                           </p>
                         </div>
                       )}
-
-                      <button 
-                        onClick={() => setShowAIHelper(false)}
-                        className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-slate-200 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-3"
-                      >
-                        فهمت، شكراً لك
-                      </button>
-                    </motion.div>
+                    </div>
                   )}
+
+                  {/* Chat History */}
+                  {chatMessages.map((msg, idx) => (
+                    <motion.div 
+                      key={idx}
+                      initial={{ opacity: 0, x: msg.role === 'user' ? -10 : 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`p-4 rounded-2xl max-w-[85%] text-xs font-bold leading-relaxed shadow-sm ${
+                        msg.role === 'user' 
+                          ? 'bg-blue-600 text-white rounded-tl-none' 
+                          : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tr-none'
+                      }`}>
+                        {msg.content}
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {/* Typing Indicator */}
+                  {isAISending && (
+                    <div className="flex justify-start">
+                      <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tr-none border border-slate-100 dark:border-slate-700 shadow-sm flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" />
+                        <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                        <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Input Area */}
+                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={startVoiceInput}
+                      disabled={isAISending}
+                      className={`p-4 rounded-2xl transition-all ${
+                        isListening 
+                          ? 'bg-red-500 text-white animate-pulse' 
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <Mic className="w-5 h-5" />
+                    </button>
+                    
+                    <div className="flex-1 relative">
+                      <input 
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendAIChat()}
+                        placeholder="اسألني أي شيء..."
+                        disabled={isAISending}
+                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-2xl py-4 pr-4 pl-12 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 ring-purple-500/50 transition-all"
+                      />
+                      <button 
+                        onClick={() => handleSendAIChat()}
+                        disabled={!chatInput.trim() || isAISending}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 text-white rounded-xl disabled:opacity-50 disabled:grayscale transition-all"
+                      >
+                        {isAISending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </div>

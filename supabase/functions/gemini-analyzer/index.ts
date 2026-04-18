@@ -35,22 +35,35 @@ serve(async (req) => {
       Data: ${JSON.stringify(data.historicalOrders)}
       Identify clusters of orders and provide a recommendation in Arabic on where drivers should position themselves.`;
     } else if (type === 'chat') {
-      systemPrompt += ` Task: Answer user questions about the "Start Location" system.
-      Context: This is an admin user. You have access to system stats and technical logs through the provided data.
-      System Data: ${JSON.stringify(data.systemContext)}
-      Technical Logs: ${JSON.stringify(data.techLogs || [])}
-      User Message: ${data.message}
-      
-      Instructions:
-      1. If the user asks about technical health, analyze the 'techLogs' for errors or performance issues.
-      2. Explain how data flows (Realtime -> Supabase -> App) if asked.
-      3. Identify potential bottlenecks or crashes based on logs.
-      4. If a fix is possible, include a 'suggested_fix' object in your JSON response with one of these actions:
-         - { "action": "reset_order", "order_id": "UUID" }
-         - { "action": "toggle_maintenance", "maintenance_mode": boolean }
-         - { "action": "update_profile", "user_id": "UUID", "full_name": "...", "phone": "..." }
-         - { "action": "fix_wallet", "user_id": "UUID", "new_balance": number }
-      5. Provide a helpful, professional response in Arabic.`;
+      if (role === 'admin') {
+        systemPrompt += ` Task: Answer user questions about the "Start Location" system.
+        Context: This is an admin user. You have access to system stats and technical logs.
+        System Data: ${JSON.stringify(data.systemContext)}
+        Technical Logs: ${JSON.stringify(data.techLogs || [])}
+        User Message: ${data.message}
+        Instructions:
+        1. Analyze tech logs for errors/performance.
+        2. Explain data flows if asked.
+        3. Provide technical fixes if needed.`;
+      } else if (role === 'driver') {
+        systemPrompt += ` Task: Chat with the driver as a friendly Navigation Assistant.
+        Context: Driver orders and status: ${JSON.stringify(data.orderContext || {})}
+        User Message: ${data.message}
+        Instructions:
+        1. Be helpful, encouraging, and focused on delivery/navigation.
+        2. Help with address clarification or route advice.
+        3. NEVER give technical advice or mention database/system internals.
+        4. Provide a professional response in Arabic.`;
+      } else if (role === 'vendor') {
+        systemPrompt += ` Task: Chat with the store owner as a Business Growth Consultant.
+        Context: Store performance data: ${JSON.stringify(data.storeContext || {})}
+        User Message: ${data.message}
+        Instructions:
+        1. Provide tips on how to increase orders and efficiency.
+        2. Analyze store data if provided to suggest peak times.
+        3. NEVER give technical advice or mention database/system internals.
+        4. Provide a professional response in Arabic.`;
+      }
     } else if (role === 'driver') {
       systemPrompt += ` Task: Help the driver with location clarity or navigation.
       Input is an order with potential address issues: ${JSON.stringify(data)}

@@ -85,15 +85,6 @@ export default function DriverHeader({
 
       {/* Right side: Controls (Floating Card) */}
       <div className="flex items-center gap-1.5 pointer-events-auto">
-        {/* V1.5.9: AI Bot Trigger */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onOpenAIHelp}
-          className="p-2.5 bg-purple-600 text-white rounded-xl shadow-lg shadow-purple-500/20 border border-purple-500"
-        >
-          <Bot className="w-4 h-4" />
-        </motion.button>
-
         {/* Auto Accept Toggle */}
         <motion.button
           whileTap={{ scale: 0.9 }}
