@@ -42,13 +42,14 @@ export default function RootLayout({
                   });
                 }
                 // Force reload if we find a version mismatch in localStorage
-                const currentVersion = "V1.5.9-GLOBAL-STABLE-READY";
+                const currentVersion = "V1.6.2-FIX-LOGIN-STABLE";
                 const storedVersion = localStorage.getItem('app_version');
                 if (storedVersion && storedVersion !== currentVersion) {
                   localStorage.setItem('app_version', currentVersion);
                   console.log('Version mismatch detected, clearing storage and reloading...');
                   if (typeof window !== 'undefined') {
-                    localStorage.clear();
+                    // Only clear essential items, don't clear everything to avoid login loops
+                    localStorage.removeItem('auth_profile');
                     sessionStorage.clear();
                     window.location.reload();
                   }

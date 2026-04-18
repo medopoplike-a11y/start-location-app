@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.5.9-GLOBAL-STABLE-READY";
+  const VERSION = "V1.6.2-FIX-LOGIN-STABLE";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -118,6 +118,10 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (user && mounted && !isLoggedOut) {
+      // V1.6.2: Check if we are already in a transition to /welcome to avoid infinite redirect loops
+      const isTransitioning = sessionStorage.getItem('is_transitioning') === 'true';
+      if (isTransitioning) return;
+
       const role = user.user_metadata?.role || profile?.role || "driver";
       const path = getRedirectPath(role);
       if (window.location.pathname !== path) {
@@ -216,7 +220,12 @@ const LoginPage = () => {
 
       setTimeout(async () => {
         try {
-          router.replace("/welcome");
+          // V1.6.2: Set a manual flag to prevent the login page useEffect from triggering a redirect 
+          // while we are already transitioning to /welcome
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('is_transitioning', 'true');
+          }
+          router.push("/welcome");
         } catch (redirErr) {
           window.location.assign("/welcome"); 
         }

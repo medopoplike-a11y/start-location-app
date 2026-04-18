@@ -27,6 +27,11 @@ export default function WelcomePage() {
   };
 
   useEffect(() => {
+    // Clear transition flag
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('is_transitioning');
+    }
+
     // Sequence of artistic phases with professional timing
     const timers = [
       setTimeout(() => setPhase("greeting"), 1500),
