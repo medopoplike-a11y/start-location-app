@@ -416,7 +416,10 @@ function AdminContent() {
 
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
-      const data = fullHistory ? await fetchAdminOrders(200) : await fetchLiveOrders();
+      const data = await fetchAdminOrders({ 
+        limit: fullHistory ? 300 : 50,
+        role: 'admin'
+      });
       if (data) {
         const typedData = (data as AdminOrder[]).map(o => ({
           ...o,

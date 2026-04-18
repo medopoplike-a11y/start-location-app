@@ -25,7 +25,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.7.5-AI-CHAT-PRO";
+  const VERSION = "V1.7.6-ADMIN-FIX";
 
   const router = useRouter();
   const { user, profile } = useAuth();

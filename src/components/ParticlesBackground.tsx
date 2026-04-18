@@ -21,6 +21,9 @@ export default function ParticlesBackground({ theme = 'neon-blue' }: ParticlesBa
     if (engine && !engine.addColorManager) {
       engine.addColorManager = () => {};
     }
+    if (engine && !engine.init) {
+      engine.init = async () => {};
+    }
     await loadSlim(engine);
   }, []);
 

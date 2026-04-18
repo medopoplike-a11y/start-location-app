@@ -26,6 +26,9 @@ export default function WelcomePage() {
     if (!(engine as any).addColorManager) {
       (engine as any).addColorManager = () => {};
     }
+    if (!(engine as any).init) {
+      (engine as any).init = async () => {};
+    }
     await loadSlim(engine as any);
   }, []);
 

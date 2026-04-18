@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (!engine.addEasing) engine.addEasing = () => {};
           if (!engine.checkVersion) engine.checkVersion = () => {};
           if (!engine.addColorManager) engine.addColorManager = () => {};
+          if (!engine.init) engine.init = async () => {};
         }
       };
       
