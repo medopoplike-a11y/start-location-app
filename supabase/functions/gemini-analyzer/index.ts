@@ -23,6 +23,18 @@ serve(async (req) => {
       systemPrompt += ` Task: Analyze historical order density to suggest driver distribution.
       Data: ${JSON.stringify(data.historicalOrders)}
       Identify clusters of orders and provide a recommendation in Arabic on where drivers should position themselves.`;
+    } else if (type === 'chat') {
+      systemPrompt += ` Task: Answer user questions about the "Start Location" system.
+      Context: This is an admin user. You have access to system stats and technical logs through the provided data.
+      System Data: ${JSON.stringify(data.systemContext)}
+      Technical Logs: ${JSON.stringify(data.techLogs || [])}
+      User Message: ${data.message}
+      
+      Instructions:
+      1. If the user asks about technical health, analyze the 'techLogs' for errors or performance issues.
+      2. Explain how data flows (Realtime -> Supabase -> App) if asked.
+      3. Identify potential bottlenecks or crashes based on logs.
+      4. Provide a helpful, professional response in Arabic.`;
     } else if (role === 'driver') {
       systemPrompt += ` Task: Help the driver with location clarity or navigation.
       Input is an order with potential address issues: ${JSON.stringify(data)}

@@ -1363,6 +1363,13 @@ function AdminContent() {
                 actionLoading={actionLoading}
               />
             )}
+            {activeView === "ai-monitor" && (
+              <AIMonitorView 
+                stats={stats}
+                allOrders={allOrders}
+                onlineDrivers={onlineDrivers}
+              />
+            )}
             {activeView === "order-history" && (
               <OrderHistoryView
                 orders={allOrders}
