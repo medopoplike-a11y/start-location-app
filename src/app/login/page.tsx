@@ -25,7 +25,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.7.1-STABLE-FIX";
+  const VERSION = "V1.7.2-CORE-STABLE";
 
   const router = useRouter();
   const { user, profile } = useAuth();

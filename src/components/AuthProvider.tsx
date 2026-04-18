@@ -59,15 +59,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log(`AuthProvider: loadSession started (Native: ${isNative}, Retry: ${retryCount})`);
 
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 10000));
+        // V1.7.2: Reduced timeout for faster failure/retry cycle and better handling of locked states
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 5000));
         
         const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
         let session = result?.data?.session;
 
         // If no session on native, try a small retry because storage can be slow
         if (!session && isNative && active && retryCount < 2) {
-          console.log(`AuthProvider: No session found, retrying in 2000ms (Attempt ${retryCount + 1})...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          console.log(`AuthProvider: No session found, retrying in 1500ms (Attempt ${retryCount + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
           return loadSession(retryCount + 1);
         }
         
