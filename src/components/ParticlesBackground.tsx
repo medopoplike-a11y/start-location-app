@@ -18,6 +18,9 @@ export default function ParticlesBackground({ theme = 'neon-blue' }: ParticlesBa
     if (engine && !engine.addEasing) {
       engine.addEasing = () => {};
     }
+    if (engine && !engine.addColorManager) {
+      engine.addColorManager = () => {};
+    }
     await loadSlim(engine);
   }, []);
 

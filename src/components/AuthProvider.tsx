@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const engine = anyWindow.tsParticles;
           if (!engine.addEasing) engine.addEasing = () => {};
           if (!engine.checkVersion) engine.checkVersion = () => {};
+          if (!engine.addColorManager) engine.addColorManager = () => {};
         }
       };
       

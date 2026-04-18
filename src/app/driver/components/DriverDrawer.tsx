@@ -25,6 +25,7 @@ export default function DriverDrawer({
   onSelectHistory,
   onSelectSettings,
   onSignOut,
+  onOpenAI,
   driverName = "قائمة السائق",
   activeView = "orders",
 }: DriverDrawerProps) {

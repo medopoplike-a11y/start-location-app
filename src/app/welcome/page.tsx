@@ -23,6 +23,9 @@ export default function WelcomePage() {
     if (!(engine as any).addEasing) {
       (engine as any).addEasing = () => {};
     }
+    if (!(engine as any).addColorManager) {
+      (engine as any).addColorManager = () => {};
+    }
     await loadSlim(engine as any);
   }, []);
 
