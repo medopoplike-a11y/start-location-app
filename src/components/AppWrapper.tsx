@@ -45,8 +45,11 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
-  // فحص اتصال Supabase
+  // فحص اتصال Supabase - فقط للتطبيق المحلي (Native)
   const checkSupabaseHealth = React.useCallback(async () => {
+    // في المتصفح الإعدادات دائماً صحيحة من متغيرات البيئة
+    if (!isNative()) return true;
+
     try {
       const configuredUrl = config.supabase.url || "";
       const isCorrect = configuredUrl.includes(CORRECT_SUPABASE_HOST);
@@ -56,7 +59,7 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
         return false;
       }
 
-      // اختبر الاتصال الفعلي
+      // اختبر الاتصال الفعلي داخل التطبيق المحلي فقط
       const { error } = await supabase.from("app_config").select("id").limit(1).single();
       if (error && error.code !== "PGRST116") {
         setBannerMode("wrong-system");

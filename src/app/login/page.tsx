@@ -56,6 +56,12 @@ const LoginPage = () => {
 
   useEffect(() => {
     const fetchAppConfig = async () => {
+      // في المتصفح الإعدادات دائماً صحيحة من متغيرات البيئة
+      const isNativeApp = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+      if (!isNativeApp) {
+        setSupabaseStatus('ok');
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from('app_config')
@@ -65,7 +71,6 @@ const LoginPage = () => {
         if (data && !error) {
           setLatestVersion(data.latest_version);
           setDownloadUrl(data.download_url);
-          // تحقق أن التطبيق متصل بـ Supabase الصحيح
           const currentUrl = config.supabase.url || '';
           setSupabaseStatus(currentUrl.includes(CORRECT_SUPABASE) ? 'ok' : 'mismatch');
         } else {
@@ -456,8 +461,8 @@ const LoginPage = () => {
         </motion.div>
       </main>
 
-      {/* APK Download + Diagnostic Panel - يظهر دائماً على الأجهزة المحمولة */}
-      {(isMobileDevice || (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform())) && (
+      {/* APK Download + Diagnostic Panel - يظهر فقط داخل التطبيق المحلي (Native) */}
+      {(typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

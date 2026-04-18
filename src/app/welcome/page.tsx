@@ -317,7 +317,7 @@ export default function WelcomePage() {
           <div className="w-[1px] h-6 bg-white/10" />
           <div className="flex flex-col items-start">
             <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Version</span>
-            <span className="text-[11px] font-black text-amber-500/80 tracking-widest">0.6.0.PRO</span>
+            <span className="text-[11px] font-black text-amber-500/80 tracking-widest">V1.9.0</span>
           </div>
         </div>
       </motion.div>
