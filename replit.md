@@ -37,6 +37,7 @@ A Next.js 16 delivery tracking web app with Supabase backend, supporting admin, 
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon/public key
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (server-side only)
+- `GEMINI_API_KEY` — Google Gemini API key for the AI assistant feature
 - `NEXT_PUBLIC_ADMIN_EMAILS` — Comma-separated admin emails (optional)
 
 ## Environment Variables (non-sensitive)
