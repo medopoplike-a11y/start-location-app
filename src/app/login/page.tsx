@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, Download, RefreshCw, ShieldCheck, Globe } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
+import { AppLoader } from "@/components/AppLoader";
 
 const isSupabaseConfigured = config.isConfigured();
 
@@ -24,7 +25,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.6.6-UI-STABILITY-PRO";
+  const VERSION = "V1.6.7-RUNTIME-FIX-PRO";
 
   const router = useRouter();
   const { user, profile } = useAuth();
