@@ -2,7 +2,7 @@
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { AnimatePresence, motion } from "framer-motion";
-import { History, LogOut, MapPin, Settings, Store, Wallet, X } from "lucide-react";
+import { History, LogOut, MapPin, Settings, Store, Wallet, X, Bot } from "lucide-react";
 import { useBackButton } from "@/hooks/useBackButton";
 
 interface StoreDrawerProps {
@@ -13,6 +13,7 @@ interface StoreDrawerProps {
   onChangeView: (view: "store" | "wallet" | "settings" | "settlements") => void;
   onUpdateLocation: () => void;
   onSignOut: () => void;
+  onOpenAI?: () => void;
 }
 
 export default function StoreDrawer({
@@ -23,6 +24,7 @@ export default function StoreDrawer({
   onChangeView,
   onUpdateLocation,
   onSignOut,
+  onOpenAI,
 }: StoreDrawerProps) {
   useBackButton(onClose, showDrawer);
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
@@ -111,6 +113,26 @@ export default function StoreDrawer({
               >
                 <MapPin className="w-5 h-5 opacity-50" />
                 <span className="text-sm font-black">تحديث موقع المحل</span>
+              </button>
+
+              <div className="h-px bg-white/10 dark:bg-slate-800/50 my-2" />
+
+              {/* V1.7.0: Store AI Assistant in Sidebar */}
+              <button 
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenAI?.();
+                  onClose();
+                }} 
+                className="w-full flex items-center gap-3 p-4 rounded-2xl transition-all bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/20 shadow-sm shadow-purple-500/5"
+              >
+                <div className="w-8 h-8 bg-purple-500 rounded-xl flex items-center justify-center text-white">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-black">مستشار النمو (AI)</span>
+                  <span className="text-[9px] font-bold opacity-60">تحليل المبيعات والأداء</span>
+                </div>
               </button>
             </div>
             <div className="p-4 border-t border-white/10 dark:border-slate-800/50">

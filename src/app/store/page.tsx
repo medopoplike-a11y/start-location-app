@@ -1465,6 +1465,7 @@ function StoreContent() {
           onChangeView={(view) => setActiveView(view as any)}
           onUpdateLocation={handleUpdateLocation}
           onSignOut={handleSignOut}
+          onOpenAI={handleRequestStoreAI}
         />
       )}
     </div>

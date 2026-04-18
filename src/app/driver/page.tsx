@@ -1255,6 +1255,14 @@ export default function DriverApp() {
             onSelectHistory={() => { setActiveTab("history"); setShowDrawer(false); }}
             onSelectSettings={() => { setActiveTab("settings"); setShowDrawer(false); }}
             onSignOut={handleSignOut}
+            onOpenAI={() => {
+              if (orders.length > 0) {
+                handleRequestAIHelp(orders[0]);
+              } else {
+                setShowAIHelper(true);
+                setAIAnalysis({ content: "أهلاً بك يا كابتن! أنا مساعدك الذكي. حالياً لا توجد طلبات نشطة لتحليلها، ولكن يمكنني مساعدتك فور استلامك لأي طلب جديد." });
+              }
+            }}
             driverName={driverName}
             activeView={activeTab}
           />

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Truck, Wallet, LogOut, Settings, History } from "lucide-react";
+import { X, Truck, Wallet, LogOut, Settings, History, Bot } from "lucide-react";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 interface DriverDrawerProps {
@@ -12,6 +12,7 @@ interface DriverDrawerProps {
   onSelectHistory: () => void;
   onSelectSettings: () => void;
   onSignOut: () => void;
+  onOpenAI?: () => void;
   driverName?: string;
   activeView?: string;
 }
@@ -103,6 +104,26 @@ export default function DriverDrawer({
               >
                 <Settings className="w-5 h-5" />
                 <span className="text-sm font-black">إعدادات الحساب</span>
+              </button>
+
+              <div className="h-px bg-white/10 dark:bg-slate-800/50 my-2" />
+
+              {/* V1.7.0: Driver AI Assistant in Sidebar */}
+              <button 
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenAI?.();
+                  onClose();
+                }} 
+                className="w-full flex items-center gap-3 p-4 rounded-2xl transition-all bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/20 shadow-sm shadow-purple-500/5"
+              >
+                <div className="w-8 h-8 bg-purple-500 rounded-xl flex items-center justify-center text-white">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-black">مساعد الملاحة (AI)</span>
+                  <span className="text-[9px] font-bold opacity-60">تحليل العناوين والمسارات</span>
+                </div>
               </button>
             </div>
             <div className="p-4 border-t border-white/10 dark:border-slate-800/50">
