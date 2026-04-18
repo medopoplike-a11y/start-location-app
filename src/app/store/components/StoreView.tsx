@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText, Phone, Star } from "lucide-react";
+import { CheckCircle, Clock, MapPin, Truck, Wallet, ShieldCheck, Filter, Store, Eye, Edit2, Camera, FileText, Phone, Star, Bot } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { PremiumCard } from "@/components/PremiumCard";
@@ -43,6 +43,7 @@ interface StoreViewProps {
   onPreviewImage?: (url: string) => void;
   uploadingInvoice?: boolean;
   quickUploadOrderId?: string | null;
+  onRequestAIInsights?: () => void;
 }
 
 export default function StoreView({

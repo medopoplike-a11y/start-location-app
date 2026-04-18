@@ -26,6 +26,7 @@ interface StoreOrdersHubProps {
   onEditOrder: (order: Order | null) => void;
   onQuickInvoiceUpload?: (order: Order) => void;
   onPreviewImage?: (url: string) => void;
+  onRequestAIInsights?: () => void;
   uploadingInvoice?: boolean;
   quickUploadOrderId?: string | null;
 }
@@ -48,6 +49,7 @@ export default function StoreOrdersHub({
   onEditOrder,
   onQuickInvoiceUpload,
   onPreviewImage,
+  onRequestAIInsights,
   uploadingInvoice,
   quickUploadOrderId
 }: StoreOrdersHubProps) {
@@ -127,6 +129,7 @@ export default function StoreOrdersHub({
               uploadingInvoice={uploadingInvoice}
               quickUploadOrderId={quickUploadOrderId}
               onPreviewImage={onPreviewImage}
+              onRequestAIInsights={onRequestAIInsights}
             />
           ) : (
             <HistoryView 

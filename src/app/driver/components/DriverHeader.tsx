@@ -1,6 +1,6 @@
 "use client";
 
-import { Power, Menu, RefreshCw, Zap, ZapOff } from "lucide-react";
+import { Power, Menu, RefreshCw, Zap, ZapOff, Bot } from "lucide-react";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { motion } from "framer-motion";
 import RatingBadge from "@/components/RatingBadge";

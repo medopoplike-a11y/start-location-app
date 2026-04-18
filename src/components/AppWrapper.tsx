@@ -52,6 +52,9 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
           setTimeout(async () => {
             try {
               const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
+              if ((updater as any).checkVersion) {
+                await (updater as any).checkVersion();
+              }
               if ((updater as any).notifyAppReady) {
                 await (updater as any).notifyAppReady();
               }

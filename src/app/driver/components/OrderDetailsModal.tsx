@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Phone, MapPin, Store, User, Clock, Banknote,
-  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, Star
+  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, Star, Bot
 } from "lucide-react";
 import { useState } from "react";
 import { useBackButton } from "@/hooks/useBackButton";

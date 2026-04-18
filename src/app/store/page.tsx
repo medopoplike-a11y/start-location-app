@@ -138,7 +138,7 @@ function StoreContent() {
       console.error("AI: Store help request failed", e);
       setStoreAIAnalysis({ content: "عذراً، لم أتمكن من تحليل البيانات حالياً. حاول مجدداً." });
     } finally {
-      setAnalyzingStore(null);
+      setAnalyzingStore(false);
     }
   };
 
@@ -1290,6 +1290,7 @@ function StoreContent() {
             uploadingInvoice={uploadingInvoice}
             quickUploadOrderId={quickUploadOrderId}
             onPreviewImage={setPreviewUrl}
+            onRequestAIInsights={handleRequestStoreAI}
           />
         ) : activeView === "wallet" ? (
           <WalletView
