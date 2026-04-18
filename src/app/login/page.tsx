@@ -2,22 +2,18 @@
 
 import { signIn } from "@/lib/auth";
 import { config } from "@/lib/config";
-import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, Download, RefreshCw, ShieldCheck, Globe } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { AppLoader } from "@/components/AppLoader";
 
 const isSupabaseConfigured = config.isConfigured();
-
-// رابط تحميل APK ثابت - يعمل حتى لو الـ Supabase مختلف
-const HARDCODED_APK_URL = "https://sdpjvorettivpdviytqo.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
 
 const LoginPage = () => {
   const { toasts, removeToast } = useToast();
@@ -28,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.9.0-UNIFIED-SYSTEM";
+  const VERSION = "V1.9.0";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -38,95 +34,11 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
-  const [diagInfo, setDiagInfo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [otaStatus, setOtaStatus] = useState<string>("جاري فحص حالة النظام...");
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'ok' | 'mismatch' | 'error'>('checking');
-  const [showDiag, setShowDiag] = useState(false);
-
-  const CORRECT_SUPABASE = "sdpjvorettivpdviytqo.supabase.co";
-
-  useEffect(() => {
-    const fetchAppConfig = async () => {
-      // في المتصفح الإعدادات دائماً صحيحة من متغيرات البيئة
-      const isNativeApp = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-      if (!isNativeApp) {
-        setSupabaseStatus('ok');
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from('app_config')
-          .select('latest_version, download_url')
-          .eq('id', 1)
-          .single();
-        if (data && !error) {
-          setLatestVersion(data.latest_version);
-          setDownloadUrl(data.download_url);
-          const currentUrl = config.supabase.url || '';
-          setSupabaseStatus(currentUrl.includes(CORRECT_SUPABASE) ? 'ok' : 'mismatch');
-        } else {
-          setSupabaseStatus('error');
-        }
-      } catch (e) {
-        console.error("Failed to fetch app config:", e);
-        setSupabaseStatus('error');
-      }
-    };
-    fetchAppConfig();
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const ua = navigator.userAgent;
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-      setIsMobileDevice(isMobile);
-    }
-  }, []);
-
-  const handleUpdateCheck = async () => {
-    if (checkingUpdate) return;
-    setCheckingUpdate(true);
-    
-    const event = new CustomEvent('retryUpdate');
-    window.dispatchEvent(event);
-    
-    try {
-      const { data } = await supabase
-        .from('app_config')
-        .select('latest_version')
-        .eq('id', 1)
-        .single();
-      if (data) setLatestVersion(data.latest_version);
-    } catch (e) {}
-    
-    setTimeout(() => setCheckingUpdate(false), 2000);
-  };
-
-  const handleDownloadAPK = async () => {
-    const apkUrl = downloadUrl || HARDCODED_APK_URL;
-    try {
-      const isNativeApp = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-      if (isNativeApp) {
-        // داخل التطبيق المحمول: افتح في المتصفح الخارجي
-        const { Browser } = await import('@capacitor/browser');
-        await Browser.open({ url: apkUrl, presentationStyle: 'fullscreen' });
-      } else {
-        window.open(apkUrl, '_blank');
-      }
-    } catch (e) {
-      // fallback
-      window.open(apkUrl, '_blank');
-    }
-  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -143,8 +55,7 @@ const LoginPage = () => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('logged_out') === 'true') {
           setIsLoggedOut(true);
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
+          window.history.replaceState({}, '', window.location.pathname);
         }
       }
     }, 0);
@@ -153,10 +64,8 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (user && mounted && !isLoggedOut && !isRedirecting) {
-      // V1.6.6: Use metadata role if profile role is not yet available to speed up redirect
       const role = profile?.role || user.user_metadata?.role;
       if (!role) return;
-
       setIsRedirecting(true);
       const path = getRedirectPath(role);
       if (window.location.pathname !== path) {
@@ -175,47 +84,14 @@ const LoginPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
-        setOtaStatus("نظام التحديث الذكي نشط");
-      } else {
-        setOtaStatus("وضع الويب المباشر");
-      }
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const checkConnection = async () => {
-    setOtaStatus("جاري فحص الاتصال...");
-    try {
-      const start = Date.now();
-      const response = await fetch(`${config.supabase.url}/auth/v1/health`, {
-        headers: { apikey: config.supabase.anonKey }
-      });
-      const end = Date.now();
-      if (response.ok) {
-        setDiagInfo(`✅ تم الاتصال بنجاح (${end - start}ms)`);
-        setOtaStatus("النظام متصل بالسحابة");
-      } else {
-        setDiagInfo(`❌ فشل الاتصال: ${response.status}`);
-        setOtaStatus("فشل في الاتصال");
-      }
-    } catch (err) {
-      setDiagInfo(`❌ خطأ في الشبكة`);
-      setOtaStatus("خطأ في الشبكة");
-    }
-    setTimeout(() => setDiagInfo(null), 4000);
-  };
-
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (loading) return;
-    
+
     setLoading(true);
     setError("");
     setStatus("جاري تسجيل الدخول...");
-    
+
     try {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
@@ -226,7 +102,7 @@ const LoginPage = () => {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('start-location-v1-session');
       }
-      
+
       const { data, error: loginError } = await signIn(email.trim(), password);
 
       if (loginError) {
@@ -244,8 +120,8 @@ const LoginPage = () => {
       }
 
       setStatus("تم الدخول بنجاح! جاري التوجيه...");
-      setIsRedirecting(true); // V1.6.6
-      
+      setIsRedirecting(true);
+
       if (typeof window !== 'undefined' && rememberMe) {
         localStorage.setItem('remembered_email', email.trim());
       } else if (typeof window !== 'undefined') {
@@ -257,8 +133,8 @@ const LoginPage = () => {
       setTimeout(async () => {
         try {
           router.replace("/welcome");
-        } catch (redirErr) {
-          window.location.assign("/welcome"); 
+        } catch {
+          window.location.assign("/welcome");
         }
       }, redirectDelay);
     } catch (err: any) {
@@ -275,7 +151,7 @@ const LoginPage = () => {
   return (
     <div className="h-screen bg-[#020617] relative overflow-hidden font-sans flex flex-col items-center justify-center p-6" dir="rtl">
       <Toast toasts={toasts} onRemove={removeToast} />
-      
+
       {/* Premium Animated Background */}
       <div className="fixed inset-0 z-0">
         <div className="absolute top-0 left-0 w-full h-full bg-[#020617]" />
@@ -285,7 +161,7 @@ const LoginPage = () => {
       </div>
 
       <main className="relative z-10 w-full max-w-md">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
@@ -293,7 +169,7 @@ const LoginPage = () => {
         >
           <AnimatePresence>
             {!isKeyboardOpen && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -315,12 +191,6 @@ const LoginPage = () => {
               </motion.div>
             )}
           </AnimatePresence>
-
-          {diagInfo && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-[10px] font-black text-blue-400 text-center backdrop-blur-md shadow-lg">
-              {diagInfo}
-            </motion.div>
-          )}
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-3">
@@ -408,113 +278,19 @@ const LoginPage = () => {
           </form>
 
           {!isKeyboardOpen && (
-            <div className="mt-10 pt-8 border-t border-white/5 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-white tracking-tighter">{VERSION}</span>
-                    <span className="premium-badge text-[8px]">PRO</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em]">Active</span>
-                </div>
+            <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
+                <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
               </div>
-              
-              <button 
-                type="button"
-                onClick={handleUpdateCheck}
-                disabled={checkingUpdate}
-                className="w-full group/ota relative overflow-hidden disabled:opacity-50"
-              >
-                <div className="p-4 bg-white/5 rounded-[24px] border border-white/10 backdrop-blur-xl transition-all group-hover/ota:bg-white/10 group-hover/ota:border-blue-500/30 flex items-center justify-between shadow-lg">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 ${
-                      checkingUpdate ? "bg-blue-600 animate-spin text-white" : "bg-blue-600/10 text-blue-400 group-hover/ota:bg-blue-600 group-hover/ota:text-white"
-                    }`}>
-                      <RefreshCw className="w-5 h-5" />
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-0.5">تحديث النظام</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[11px] text-slate-300 font-black group-hover/ota:text-white transition-colors">
-                          {checkingUpdate ? "جاري الفحص..." : "جلب آخر إصدار متوفر"}
-                        </p>
-                        {latestVersion && latestVersion !== VERSION && (
-                          <span className="bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded-md animate-pulse">
-                            New {latestVersion}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-red-500 animate-pulse"}`} />
-                    <Download className={`w-3 h-3 text-slate-600 group-hover/ota:translate-y-0.5 transition-transform duration-300 ${checkingUpdate ? "animate-bounce" : ""}`} />
-                  </div>
-                </div>
-              </button>
+              <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em]">Active</span>
+              </div>
             </div>
           )}
         </motion.div>
       </main>
-
-      {/* APK Download Panel - يظهر للجميع (متصفح وتطبيق) لتسهيل التحميل */}
-      {mounted && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-6 left-4 right-4 z-50 space-y-2"
-        >
-          {/* تحذير: نظام مختلف — فقط داخل التطبيق المحلي */}
-          {(typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) && (supabaseStatus === 'mismatch' || supabaseStatus === 'error') && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-red-500/20 border border-red-500/40 backdrop-blur-2xl rounded-2xl p-4 text-center"
-            >
-              <p className="text-[11px] font-black text-red-400 mb-2">⚠️ التطبيق متصل بنظام مختلف</p>
-              <p className="text-[10px] text-red-300/80">يجب تثبيت النسخة الجديدة لاستعادة بياناتك</p>
-            </motion.div>
-          )}
-
-          {/* زر تحميل APK - يظهر للجميع */}
-          <button
-            onClick={handleDownloadAPK}
-            className="w-full flex items-center gap-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 backdrop-blur-2xl px-5 py-4 rounded-2xl shadow-2xl transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">
-              <Download className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex flex-col text-right flex-1">
-              <span className="text-xs font-black text-amber-300 leading-none mb-1">تحميل تطبيق الأندرويد</span>
-              <span className="text-[9px] text-amber-400/70 font-bold">اضغط هنا لتحميل وتثبيت التطبيق على هاتفك</span>
-            </div>
-            <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg uppercase">APK</span>
-          </button>
-
-          {/* رابط تشخيص — فقط داخل التطبيق المحلي */}
-          {(typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) && (
-            <>
-              <button
-                onClick={() => setShowDiag(!showDiag)}
-                className="w-full text-center text-[9px] text-slate-600 hover:text-slate-400 transition-colors py-1"
-              >
-                {showDiag ? 'إخفاء التشخيص' : 'معلومات تقنية'}
-              </button>
-              {showDiag && (
-                <div className="bg-black/60 border border-white/10 rounded-xl p-3 text-[9px] font-mono text-slate-400 break-all">
-                  <p>Supabase: {config.supabase.url || 'غير محدد'}</p>
-                  <p>Status: {supabaseStatus}</p>
-                  <p>Version: {VERSION}</p>
-                </div>
-              )}
-            </>
-          )}
-        </motion.div>
-      )}
 
       <style jsx global>{`
         @keyframes shimmer {
