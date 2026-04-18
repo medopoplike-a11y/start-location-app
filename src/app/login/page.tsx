@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V0.9.95-FULL-SYNC-UNIFIED";
+  const VERSION = "V1.5.9-GLOBAL-STABLE-READY";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -119,7 +119,10 @@ const LoginPage = () => {
   useEffect(() => {
     if (user && mounted && !isLoggedOut) {
       const role = user.user_metadata?.role || profile?.role || "driver";
-      router.replace(getRedirectPath(role));
+      const path = getRedirectPath(role);
+      if (window.location.pathname !== path) {
+        router.replace(path);
+      }
     }
   }, [user, profile, router, mounted, isLoggedOut]);
 

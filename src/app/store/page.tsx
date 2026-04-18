@@ -1241,6 +1241,9 @@ function StoreContent() {
             onSync={() => vendorId && updateData(vendorId)}
             onResetSync={() => setIsSyncing(false)}
             isSurgeActive={appConfig.surge_pricing_active}
+            onOpenAI={handleRequestStoreAI}
+            rating={authProfile?.rating || 0}
+            ratingCount={0}
           />
           
           {(!vendorLocation || !settingsData.phone || !settingsData.area) && activeView === "store" && (

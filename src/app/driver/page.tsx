@@ -1164,6 +1164,10 @@ export default function DriverApp() {
             autoAccept={autoAccept}
             onToggleAutoAccept={toggleAutoAccept}
             activeView={activeTab}
+            onOpenAIHelp={() => {
+              setShowAIHelper(true);
+              setAIAnalysis({ content: "أهلاً بك يا كابتن! أنا مساعدك الذكي جمناي. يمكنني مساعدتك في فهم العناوين، تحسين مسارك، أو الإجابة على استفساراتك حول النظام. كيف يمكنني مساعدتك؟" });
+            }}
           />
 
           <main className="flex-1 relative">

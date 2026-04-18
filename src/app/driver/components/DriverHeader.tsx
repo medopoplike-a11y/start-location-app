@@ -18,6 +18,7 @@ interface DriverHeaderProps {
   ratingCount?: number;
   autoAccept: boolean;
   onToggleAutoAccept: () => void;
+  onOpenAIHelp?: () => void; // V1.5.9: AI Help trigger
 }
 
 export default function DriverHeader({
@@ -33,6 +34,7 @@ export default function DriverHeader({
   ratingCount = 0,
   autoAccept,
   onToggleAutoAccept,
+  onOpenAIHelp,
   activeView = "orders", // V0.9.91: Hide controls in wallet view to prevent overlap
 }: DriverHeaderProps & { activeView?: string }) {
   // Only show floating controls in orders/map view to prevent overlapping with wallet/settings headers
@@ -83,6 +85,15 @@ export default function DriverHeader({
 
       {/* Right side: Controls (Floating Card) */}
       <div className="flex items-center gap-1.5 pointer-events-auto">
+        {/* V1.5.9: AI Bot Trigger */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={onOpenAIHelp}
+          className="p-2.5 bg-purple-600 text-white rounded-xl shadow-lg shadow-purple-500/20 border border-purple-500"
+        >
+          <Bot className="w-4 h-4" />
+        </motion.button>
+
         {/* Auto Accept Toggle */}
         <motion.button
           whileTap={{ scale: 0.9 }}

@@ -4,7 +4,7 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
-import { Menu, RefreshCw, Search } from "lucide-react";
+import { Menu, RefreshCw, Search, Bot } from "lucide-react";
 import RatingBadge from "@/components/RatingBadge";
 
 interface StoreHeaderProps {
@@ -19,6 +19,7 @@ interface StoreHeaderProps {
   isSurgeActive?: boolean;
   rating?: number;
   ratingCount?: number;
+  onOpenAI?: () => void; // V1.5.9: AI Help trigger
 }
 
 export default function StoreHeader({ 
@@ -32,7 +33,8 @@ export default function StoreHeader({
   onResetSync, 
   isSurgeActive = false,
   rating = 0,
-  ratingCount = 0
+  ratingCount = 0,
+  onOpenAI
 }: StoreHeaderProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
     try {
@@ -78,6 +80,18 @@ export default function StoreHeader({
         <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} onReset={onResetSync} />
 
         <ThemeToggle />
+
+        {/* V1.5.9: AI Helper for Store */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => {
+            triggerHaptic();
+            onOpenAI?.();
+          }}
+          className="p-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 rounded-xl transition-all border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400"
+        >
+          <Bot className="w-4 h-4" />
+        </motion.button>
 
         <motion.button
           whileTap={{ scale: 0.9, rotate: 180 }}
