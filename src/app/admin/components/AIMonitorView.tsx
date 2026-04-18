@@ -40,7 +40,7 @@ export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMon
   const [processingId, setProcessingId] = useState<string | null>(null);
   
   // Chat States
-  const [messages, setMessages] = useState<Array<{role: 'user' | 'ai', content: string}>>([
+  const [messages, setMessages] = useState<Array<{role: 'user' | 'ai', content: string, suggested_fix?: any}>>([
     { role: 'ai', content: "أهلاً بك يا مدير! أنا المراقب الذكي لنظام START. يمكنني الآن تحليل الأداء التقني، تتبع سريان البيانات، واكتشاف أي خلل في الواجهات. كيف يمكنني مساعدتك تقنياً اليوم؟" }
   ]);
   const [input, setInput] = useState("");
@@ -102,12 +102,44 @@ export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMon
       }, 'admin');
 
       if (res.analysis) {
-        setMessages(prev => [...prev, { role: 'ai', content: res.analysis.content }]);
+        setMessages(prev => [...prev, { 
+          role: 'ai', 
+          content: res.analysis.content,
+          suggested_fix: res.analysis.suggested_fix 
+        }]);
       } else {
         throw new Error("No response from AI");
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'ai', content: "عذراً، حدث خطأ أثناء محاولة الاتصال بالذكاء الاصطناعي. يرجى المحاولة لاحقاً." }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleChatFix = async (fix: any) => {
+    if (!confirm("هل تود من الذكاء الاصطناعي تنفيذ هذا الإصلاح التقني الآن؟")) return;
+    
+    try {
+      setIsTyping(true);
+      // Create a temporary insight record for the chat fix or call a direct fix RPC
+      // For simplicity, we'll use a special RPC or a virtual ID
+      const { data, error } = await supabase.rpc('apply_ai_fix_direct', { 
+        p_fix_data: fix,
+        p_type: 'chat'
+      });
+      
+      if (error) throw error;
+      
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: `✅ تم تنفيذ الإصلاح بنجاح: ${data.status || 'تمت العملية'}` 
+      }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: "❌ فشل تنفيذ الإصلاح التقني. يرجى مراجعة السجلات." 
+      }]);
     } finally {
       setIsTyping(false);
     }
@@ -238,6 +270,22 @@ export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMon
                       : 'bg-purple-600 text-white rounded-tl-none shadow-lg shadow-purple-500/10'
                   }`}>
                     {msg.content}
+                    
+                    {msg.suggested_fix && (
+                      <div className="mt-4 pt-4 border-t border-white/20">
+                        <p className="text-[10px] mb-2 opacity-80 flex items-center gap-1">
+                          <Zap size={10} />
+                          إصلاح تقني مقترح من جمناي
+                        </p>
+                        <button
+                          onClick={() => handleChatFix(msg.suggested_fix)}
+                          className="w-full py-2 bg-white text-purple-600 rounded-xl text-[10px] font-black hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <CloudLightning size={14} />
+                          تنفيذ الإصلاح الآن
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

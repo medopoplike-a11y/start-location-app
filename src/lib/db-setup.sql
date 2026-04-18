@@ -522,15 +522,27 @@ BEGIN
 
   -- 2. Execute fix based on type (Only safe predefined fixes allowed)
   IF v_type = 'data_correction' THEN
-    -- Example: Correcting a phone number or address
-    -- This is where we'd add logic to safely update specific tables
-    v_res := jsonb_build_object('status', 'predefined_fix_applied');
-  ELSIF v_type = 'error_analysis' THEN
+    IF p_fix_data->>'action' = 'update_profile' THEN
+      UPDATE profiles SET 
+        full_name = COALESCE(p_fix_data->>'full_name', full_name),
+        phone = COALESCE(p_fix_data->>'phone', phone)
+      WHERE id = (p_fix_data->>'user_id')::UUID;
+    END IF;
+    v_res := jsonb_build_object('status', 'data_updated');
+  ELSIF v_type = 'error_analysis' OR v_type = 'chat' THEN
     -- Example: Resetting a stuck order status
     IF p_fix_data->>'action' = 'reset_order' THEN
       UPDATE orders SET status = 'pending', driver_id = NULL WHERE id = (p_fix_data->>'order_id')::UUID;
+      v_res := jsonb_build_object('status', 'order_reset');
+    ELSIF p_fix_data->>'action' = 'toggle_maintenance' THEN
+      UPDATE app_config SET maintenance_mode = (p_fix_data->>'maintenance_mode')::BOOLEAN;
+      v_res := jsonb_build_object('status', 'maintenance_toggled');
+    ELSIF p_fix_data->>'action' = 'fix_wallet' THEN
+      UPDATE wallets SET balance = (p_fix_data->>'new_balance')::NUMERIC WHERE user_id = (p_fix_data->>'user_id')::UUID;
+      v_res := jsonb_build_object('status', 'wallet_fixed');
+    ELSE
+      RETURN jsonb_build_object('success', false, 'error', 'Action not recognized');
     END IF;
-    v_res := jsonb_build_object('status', 'order_reset');
   ELSE
     RETURN jsonb_build_object('success', false, 'error', 'Fix type not implemented');
   END IF;
@@ -539,6 +551,40 @@ BEGIN
   UPDATE ai_insights 
   SET is_applied = true, applied_at = NOW(), applied_by = auth.uid() 
   WHERE id = p_insight_id;
+
+  RETURN jsonb_build_object('success', true, 'data', v_res);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- V1.4.2: Direct AI Fix Runner (No insight ID required)
+CREATE OR REPLACE FUNCTION apply_ai_fix_direct(p_fix_data JSONB, p_type TEXT DEFAULT 'chat')
+RETURNS JSONB AS $$
+DECLARE
+  v_res JSONB;
+BEGIN
+  -- Execute fix based on type (Only safe predefined fixes allowed)
+  IF p_type = 'chat' OR p_type = 'error_analysis' THEN
+    IF p_fix_data->>'action' = 'reset_order' THEN
+      UPDATE orders SET status = 'pending', driver_id = NULL WHERE id = (p_fix_data->>'order_id')::UUID;
+      v_res := jsonb_build_object('status', 'order_reset');
+    ELSIF p_fix_data->>'action' = 'toggle_maintenance' THEN
+      UPDATE app_config SET maintenance_mode = (p_fix_data->>'maintenance_mode')::BOOLEAN;
+      v_res := jsonb_build_object('status', 'maintenance_toggled');
+    ELSIF p_fix_data->>'action' = 'update_profile' THEN
+      UPDATE profiles SET 
+        full_name = COALESCE(p_fix_data->>'full_name', full_name),
+        phone = COALESCE(p_fix_data->>'phone', phone)
+      WHERE id = (p_fix_data->>'user_id')::UUID;
+      v_res := jsonb_build_object('status', 'data_updated');
+    ELSIF p_fix_data->>'action' = 'fix_wallet' THEN
+      UPDATE wallets SET balance = (p_fix_data->>'new_balance')::NUMERIC WHERE user_id = (p_fix_data->>'user_id')::UUID;
+      v_res := jsonb_build_object('status', 'wallet_fixed');
+    ELSE
+      RETURN jsonb_build_object('success', false, 'error', 'Action not recognized');
+    END IF;
+  ELSE
+    RETURN jsonb_build_object('success', false, 'error', 'Fix type not implemented');
+  END IF;
 
   RETURN jsonb_build_object('success', true, 'data', v_res);
 END;

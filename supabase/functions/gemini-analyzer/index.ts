@@ -34,7 +34,12 @@ serve(async (req) => {
       1. If the user asks about technical health, analyze the 'techLogs' for errors or performance issues.
       2. Explain how data flows (Realtime -> Supabase -> App) if asked.
       3. Identify potential bottlenecks or crashes based on logs.
-      4. Provide a helpful, professional response in Arabic.`;
+      4. If a fix is possible, include a 'suggested_fix' object in your JSON response with one of these actions:
+         - { "action": "reset_order", "order_id": "UUID" }
+         - { "action": "toggle_maintenance", "maintenance_mode": boolean }
+         - { "action": "update_profile", "user_id": "UUID", "full_name": "...", "phone": "..." }
+         - { "action": "fix_wallet", "user_id": "UUID", "new_balance": number }
+      5. Provide a helpful, professional response in Arabic.`;
     } else if (role === 'driver') {
       systemPrompt += ` Task: Help the driver with location clarity or navigation.
       Input is an order with potential address issues: ${JSON.stringify(data)}
