@@ -16,7 +16,7 @@ import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
-import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
+import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, onAppResume, startBackgroundTracking, stopBackgroundTracking } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
@@ -24,7 +24,7 @@ import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
-import { formatVendorTime } from "./utils";
+import { formatTimeOnly } from "@/lib/utils/format";
 import StoreHeader from "./components/StoreHeader";
 import StoreOrdersHub from "./components/StoreOrdersHub";
 import WalletView from "./components/WalletView";
@@ -528,7 +528,7 @@ function StoreContent() {
 
     try {
       const [dbOrders, walletRes, settlementsRes, driversRes, profileRes] = await Promise.allSettled([
-        getVendorOrders(uid),
+        getVendorOrders({ role: 'vendor', userId: uid }),
         supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
         supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
@@ -653,7 +653,7 @@ function StoreContent() {
       driverPhone: db.driver?.phone || "",
       amount: `${financials.order_value || 0} ج.م`,
       deliveryFee: `${financials.delivery_fee || 0} ج.م`,
-      time: formatVendorTime(db.created_at || ""),
+      time: formatTimeOnly(db.created_at || ""),
       createdAt: db.created_at || new Date().toISOString(),
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
       notes: (customerDetails as any).notes || "",

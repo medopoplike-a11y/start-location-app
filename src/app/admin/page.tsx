@@ -42,8 +42,10 @@ const WalletsView = dynamic(() => import('./components/WalletsView'), { ssr: fal
 import { signOut, createUserByAdmin } from "@/lib/auth";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { fetchAdminOrders, fetchLiveOrders, fetchAdminProfiles, resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, toggleDriverLock, updateProfileBilling, updateUserAdmin, deleteUserByAdmin, deleteAdminOrder } from "@/lib/adminApi";
-import { updateOrderStatus } from "@/lib/orders";
+import { fetchOrders as fetchAdminOrders, updateOrderStatus } from "@/lib/api/orders";
+import { fetchProfiles as fetchAdminProfiles, toggleLock as toggleDriverLock, updateProfile as updateProfileBilling } from "@/lib/api/profiles";
+import { fetchWallets as fetchAdminWallets, updateWallet as updateAdminWallet } from "@/lib/api/wallets";
+import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, deleteUserByAdmin, deleteAdminOrder } from "@/lib/adminApi"; // Still need some RPCs from adminApi for now
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
 import { useToast } from "@/hooks/useToast";
@@ -56,60 +58,8 @@ import { useSync } from "@/hooks/useSync";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import { useRef } from "react";
 
-// --- Static Helpers (Outside component to avoid TDZ) ---
-const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return String((error as { message?: unknown }).message || "حدث خطأ");
-  }
-  return "حدث خطأ";
-};
-
-const translateStatus = (status: string) => {
-  const statuses: Record<string, string> = { 
-    pending: "جاري البحث", 
-    assigned: "تم التعيين", 
-    in_transit: "في الطريق", 
-    delivered: "تم التوصيل", 
-    cancelled: "ملغي" 
-  };
-  return statuses[status] || status;
-};
-
-const formatCurrency = (value: number) => {
-  try {
-    if (isNaN(value) || value === null || value === undefined) return "0";
-    return value.toLocaleString('ar-EG');
-  } catch (e) {
-    return String(value || 0);
-  }
-};
-
-const menuGroups = [
-  {
-    title: "التشغيل والعمليات",
-    items: [
-      { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
-      { id: "order-history", label: "سجل الطلبات والفواتير", icon: FileText },
-      { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
-    ]
-  },
-  {
-    title: "الإدارة والبيانات",
-    items: [
-      { id: "users", label: "المستخدمين", icon: Users },
-      { id: "wallets", label: "مراقبة المحافظ", icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
-      { id: "settlements", label: "التسويات المالية", icon: FileText },
-      { id: "reports", label: "التقارير المالية", icon: BarChart3 },
-    ]
-  },
-  {
-    title: "الإعدادات",
-    items: [
-      { id: "settings", label: "إعدادات النظام", icon: Settings },
-    ]
-  }
-];
+import { formatCurrency, translateStatus, getErrorMessage } from "@/lib/utils/format";
+import { menuGroups } from "./config/menu"; // Move static data to config
 
 export default function AdminPanel() {
   return (

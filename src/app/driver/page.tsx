@@ -8,7 +8,7 @@ import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
-import { getAvailableOrders, getDriverActiveOrders, updateOrderStatus } from "@/lib/orders";
+import { fetchOrders, updateOrderStatus } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, onAppResume, requestBatteryOptimizationExemption } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
@@ -499,9 +499,10 @@ export default function DriverApp() {
   async function fetchOrders(explicitDriverId?: string) {
     const activeDriverId = explicitDriverId ?? driverId;
     try {
+      const { fetchOrders: fetchUnifiedOrders } = await import("@/lib/api/orders");
       const [pending, active, completedToday] = await Promise.all([
-        getAvailableOrders(),
-        activeDriverId ? getDriverActiveOrders(activeDriverId) : Promise.resolve([]),
+        fetchUnifiedOrders({ role: 'driver', status: ['pending'] }),
+        activeDriverId ? fetchUnifiedOrders({ role: 'driver', userId: activeDriverId, status: ['assigned', 'in_transit'] }) : Promise.resolve([]),
         activeDriverId ? fetchTodayHistoryData(activeDriverId) : Promise.resolve([]),
       ]);
       

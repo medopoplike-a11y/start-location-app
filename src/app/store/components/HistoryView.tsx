@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { History, CheckCircle, XCircle, Phone, MapPin, Truck, Package, Calendar, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import type { Order } from "../types";
-import { translateVendorOrderStatus } from "../utils";
+import { translateStatus } from "@/lib/utils/format";
 
 interface HistoryViewProps {
   orders: Order[];
@@ -124,7 +124,7 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
                       <span
                         className={`text-[9px] font-bold ${isDelivered ? "text-green-600" : "text-red-600"}`}
                       >
-                        {translateVendorOrderStatus(order.status)}
+                        {translateStatus(order.status)}
                       </span>
                     </div>
                     {isExpanded ? (

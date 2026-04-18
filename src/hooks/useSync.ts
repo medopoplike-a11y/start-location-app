@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { subscribeToOrders, subscribeToProfiles, subscribeToWallets, subscribeToSettlements } from "@/lib/orders";
+import { subscribeToOrders } from "@/lib/api/orders";
+import { subscribeToProfiles } from "@/lib/api/profiles";
+import { subscribeToWallets, subscribeToSettlements } from "@/lib/api/wallets";
 import { supabase } from "@/lib/supabaseClient";
 import { cleanupBroadcastChannel } from "@/lib/native-utils";
 
@@ -205,11 +207,12 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         console.log("useSync: App visible — Radical self-healing...");
         setIsSyncing(true);
         try {
-          // 1. Re-authenticate session
-          await supabase.auth.refreshSession();
-          // 2. Re-subscribe to all channels
+          // V1.3.2: Unified WAKE-UP using the native refresh session logic
+          const { refreshAppSession } = await import('@/lib/native-utils');
+          await refreshAppSession();
+          
+          // Force re-subscribe and update UI
           await subscribe();
-          // 3. Force update UI
           triggerUpdate({ source: 'app_resume' });
         } catch (e) {
           console.error("useSync: Visibility healing failed", e);

@@ -10,7 +10,7 @@ import RatingModal from "@/components/RatingModal";
 import { supabase } from "@/lib/supabaseClient";
 import RatingBadge from "@/components/RatingBadge";
 import type { OnlineDriver, Order, VendorLocation } from "../types";
-import { translateVendorOrderStatus } from "../utils";
+import { translateStatus } from "@/lib/utils/format";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), {
   ssr: false,
@@ -281,7 +281,7 @@ export default function StoreView({
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700 tracking-tighter">#{order.id.slice(0, 8)}</span>
                           <span className={`text-[9px] px-3 py-1 rounded-full font-black border ${getStatusStyle(order.status)}`}>
-                            {translateVendorOrderStatus(order.status)}
+                            {translateStatus(order.status)}
                           </span>
                         </div>
                       </div>

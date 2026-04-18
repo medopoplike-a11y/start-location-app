@@ -443,6 +443,29 @@ BEGIN
   END IF;
 END $$;
 
+-- V1.3.2: PERFORMANCE & EFFICIENCY AUDIT - Adding critical indexes
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON orders(driver_id);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_role_online ON profiles(role, is_online);
+CREATE INDEX IF NOT EXISTS idx_location_logs_user_ts ON location_logs(user_id, created_at DESC);
+
+-- V1.3.2: ROOT-CAUSE FIX - Unified Status Updated At
+CREATE OR REPLACE FUNCTION trg_update_order_status_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (OLD.status IS DISTINCT FROM NEW.status) THEN
+    NEW.status_updated_at := NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_orders_status_timestamp ON orders;
+CREATE TRIGGER trg_orders_status_timestamp
+  BEFORE UPDATE ON orders
+  FOR EACH ROW EXECUTE PROCEDURE trg_update_order_status_timestamp();
+
 -- 7. دوال متقدمة للأدمن (RPC) لجلب كافة البيانات مع تجاوز RLS بشكل آمن
 -- تستخدم SECURITY DEFINER لتعمل بصلاحيات الأدمن على مستوى قاعدة البيانات
 

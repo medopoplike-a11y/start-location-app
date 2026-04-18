@@ -12,8 +12,8 @@ const SUPABASE_KEY = config.supabase.anonKey;
 const SESSION_KEY = 'start-location-v1-session';
 
 /**
- * دالة للاستيقاظ وإعادة مزامنة الجلسة والقنوات الحية (V1.8.0)
- * يتم استدعاؤها عند عودة التطبيق من الخلفية لضمان عدم تجمد البيانات
+ * دالة للاستيقاظ وإعادة مزامنة الجلسة والقنوات الحية (V1.8.1)
+ * تم دمجها مع useSync لضمان عدم حدوث تعارضات عند استيقاظ التطبيق
  */
 export const refreshAppSession = async () => {
   try {
@@ -23,19 +23,12 @@ export const refreshAppSession = async () => {
     const { data: { session }, error } = await supabase.auth.refreshSession();
     if (error) {
       console.warn("Session Refresh Error:", error);
-      // Fallback: Check if we still have a valid user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("User logged out during background suspension");
-        // We could trigger a logout here but it's risky
-      }
     }
 
     // 2. Re-establish broadcast channel if dead
     await getBroadcastChannel();
 
-    // 3. Clear and Re-subscribe Realtime (Handled by useSync via visibility listener)
-    // We send a custom event to notify listeners that a hard wake-up occurred
+    // 3. Clear and Re-subscribe Realtime (Handled by useSync)
     const channel = supabase.channel('system_sync');
     await channel.subscribe();
     await channel.send({
