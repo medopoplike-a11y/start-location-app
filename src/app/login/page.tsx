@@ -461,15 +461,15 @@ const LoginPage = () => {
         </motion.div>
       </main>
 
-      {/* APK Download + Diagnostic Panel - يظهر فقط داخل التطبيق المحلي (Native) */}
-      {(typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) && (
+      {/* APK Download Panel - يظهر للجميع (متصفح وتطبيق) لتسهيل التحميل */}
+      {mounted && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="fixed bottom-6 left-4 right-4 z-50 space-y-2"
         >
-          {/* تحذير: نظام مختلف */}
-          {(supabaseStatus === 'mismatch' || supabaseStatus === 'error') && (
+          {/* تحذير: نظام مختلف — فقط داخل التطبيق المحلي */}
+          {(typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) && (supabaseStatus === 'mismatch' || supabaseStatus === 'error') && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -480,7 +480,7 @@ const LoginPage = () => {
             </motion.div>
           )}
 
-          {/* زر تحميل APK - يعمل داخل وخارج التطبيق */}
+          {/* زر تحميل APK - يظهر للجميع */}
           <button
             onClick={handleDownloadAPK}
             className="w-full flex items-center gap-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 backdrop-blur-2xl px-5 py-4 rounded-2xl shadow-2xl transition-all active:scale-95"
@@ -489,25 +489,29 @@ const LoginPage = () => {
               <Download className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col text-right flex-1">
-              <span className="text-xs font-black text-amber-300 leading-none mb-1">تثبيت نسخة جديدة موحدة</span>
-              <span className="text-[9px] text-amber-400/70 font-bold">اضغط هنا إذا كانت بياناتك مختلفة عن المتوقع</span>
+              <span className="text-xs font-black text-amber-300 leading-none mb-1">تحميل تطبيق الأندرويد</span>
+              <span className="text-[9px] text-amber-400/70 font-bold">اضغط هنا لتحميل وتثبيت التطبيق على هاتفك</span>
             </div>
             <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg uppercase">APK</span>
           </button>
 
-          {/* رابط تشخيص */}
-          <button
-            onClick={() => setShowDiag(!showDiag)}
-            className="w-full text-center text-[9px] text-slate-600 hover:text-slate-400 transition-colors py-1"
-          >
-            {showDiag ? 'إخفاء التشخيص' : 'معلومات تقنية'}
-          </button>
-          {showDiag && (
-            <div className="bg-black/60 border border-white/10 rounded-xl p-3 text-[9px] font-mono text-slate-400 break-all">
-              <p>Supabase: {config.supabase.url || 'غير محدد'}</p>
-              <p>Status: {supabaseStatus}</p>
-              <p>Version: {VERSION}</p>
-            </div>
+          {/* رابط تشخيص — فقط داخل التطبيق المحلي */}
+          {(typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) && (
+            <>
+              <button
+                onClick={() => setShowDiag(!showDiag)}
+                className="w-full text-center text-[9px] text-slate-600 hover:text-slate-400 transition-colors py-1"
+              >
+                {showDiag ? 'إخفاء التشخيص' : 'معلومات تقنية'}
+              </button>
+              {showDiag && (
+                <div className="bg-black/60 border border-white/10 rounded-xl p-3 text-[9px] font-mono text-slate-400 break-all">
+                  <p>Supabase: {config.supabase.url || 'غير محدد'}</p>
+                  <p>Status: {supabaseStatus}</p>
+                  <p>Version: {VERSION}</p>
+                </div>
+              )}
+            </>
           )}
         </motion.div>
       )}
