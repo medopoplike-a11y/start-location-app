@@ -18,6 +18,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // V1.7.1: Global tsparticles polyfills to prevent crashes across all interfaces
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const applyPolyfills = () => {
+        // We try to catch the engine whenever it's loaded
+        const anyWindow = window as any;
+        if (anyWindow.tsParticles) {
+          const engine = anyWindow.tsParticles;
+          if (!engine.addEasing) engine.addEasing = () => {};
+          if (!engine.checkVersion) engine.checkVersion = () => {};
+        }
+      };
+      
+      applyPolyfills();
+      // Also listen for potential loads
+      const timer = setInterval(applyPolyfills, 2000);
+      return () => clearInterval(timer);
+    }
+  }, []);
   
   // Use a ref to track current user ID to avoid stale closure loops
   const currentUserIdRef = React.useRef<string | null>(null);

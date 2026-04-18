@@ -187,7 +187,7 @@ export default function DriverApp() {
         if (driverId) {
           await supabase.from('profiles').update({ 
             is_online: true,
-            updated_at: new Date().toISOString()
+            last_location_update: new Date().toISOString()
           }).eq('id', driverId);
         }
 
@@ -215,7 +215,7 @@ export default function DriverApp() {
           try {
             await supabase.from('profiles').update({
               is_online: true,
-              updated_at: new Date().toISOString()
+              last_location_update: new Date().toISOString()
             }).eq('id', driverId);
           } catch (e) { console.warn("Heartbeat failed", e); }
         }, 2 * 60 * 1000); // Every 2 minutes
@@ -388,8 +388,7 @@ export default function DriverApp() {
         await supabase.from('profiles').update({ 
           location: { ...newLocation, ts: now },
           is_online: true,
-          last_location_update: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          last_location_update: new Date().toISOString()
         }).eq('id', driverId);
       },
       (error) => {
