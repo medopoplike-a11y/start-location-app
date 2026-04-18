@@ -2,18 +2,20 @@
 
 import { signIn } from "@/lib/auth";
 import { config } from "@/lib/config";
+import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { AppLoader } from "@/components/AppLoader";
 
 const isSupabaseConfigured = config.isConfigured();
+const FALLBACK_APK_URL = "https://sdpjvorettivpdviytqo.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
 
 const LoginPage = () => {
   const { toasts, removeToast } = useToast();
@@ -39,6 +41,8 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [apkUrl, setApkUrl] = useState(FALLBACK_APK_URL);
+  const isInsideNativeApp = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 
   useEffect(() => {
     const handleResize = () => {
@@ -82,6 +86,18 @@ const LoginPage = () => {
       }
     }, 0);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    supabase
+      .from('app_config')
+      .select('download_url')
+      .eq('id', 1)
+      .single()
+      .then(({ data }) => {
+        if (data?.download_url) setApkUrl(data.download_url);
+      })
+      .catch(() => {});
   }, []);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
@@ -290,6 +306,28 @@ const LoginPage = () => {
             </div>
           )}
         </motion.div>
+
+        {/* زر تحميل APK — للمتصفح فقط وليس داخل التطبيق المثبت */}
+        {mounted && !isInsideNativeApp && (
+          <motion.a
+            href={apkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-4 flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 backdrop-blur-xl px-5 py-4 rounded-2xl transition-all active:scale-[0.98] group"
+          >
+            <div className="w-11 h-11 bg-emerald-500/10 group-hover:bg-emerald-500 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0">
+              <Smartphone className="w-5 h-5 text-emerald-400 group-hover:text-white transition-colors" />
+            </div>
+            <div className="flex-1 text-right">
+              <p className="text-[12px] font-black text-white leading-none mb-1">تحميل تطبيق الأندرويد</p>
+              <p className="text-[10px] text-slate-400">اضغط لتنزيل وتثبيت APK على هاتفك</p>
+            </div>
+            <Download className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+          </motion.a>
+        )}
       </main>
 
       <style jsx global>{`
