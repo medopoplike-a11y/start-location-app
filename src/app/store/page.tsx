@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
-  Plus, AlertTriangle
+  Plus, AlertTriangle, X, Zap, Loader2, Bot
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
