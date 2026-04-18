@@ -3,234 +3,318 @@
 import * as React from "react";
 import { isNative, checkForAutoUpdate } from "@/lib/native-utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Download, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  RefreshCw, Download, CheckCircle, AlertTriangle, X, Wifi, WifiOff, ShieldAlert, Rocket
+} from "lucide-react";
 import { NativeBridge } from "./NativeBridge";
+import { supabase } from "@/lib/supabaseClient";
+import { config } from "@/lib/config";
 
-/**
- * AppWrapper: A simple container to ensure the application is mounted
- * and ready before rendering children. Handles background OTA updates
- * silently for a smooth experience.
- */
+const CORRECT_SUPABASE_HOST = "sdpjvorettivpdviytqo.supabase.co";
+const HARDCODED_APK_URL = "https://sdpjvorettivpdviytqo.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
+const CURRENT_VERSION = "V1.9.0";
+
+type BannerMode =
+  | "hidden"
+  | "wrong-system"    // متصل بـ Supabase خاطئ
+  | "ota-checking"    // يفحص تحديثات
+  | "ota-downloading" // يحمّل تحديث
+  | "ota-ready"       // تحديث جاهز للتطبيق
+  | "ota-error"       // فشل OTA
+  | "apk-available";  // نسخة جديدة متاحة يدوياً
+
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
-  const [updateStatus, setUpdateStatus] = React.useState<"idle" | "checking" | "downloading" | "ready" | "error">("idle");
-  const [errorMessage, setErrorMessage] = React.useState("");
+  const [bannerMode, setBannerMode] = React.useState<BannerMode>("hidden");
   const [progress, setProgress] = React.useState(0);
-  const [version, setVersion] = React.useState("");
+  const [newVersion, setNewVersion] = React.useState("");
   const [bundleId, setBundleId] = React.useState("");
+  const [dismissed, setDismissed] = React.useState(false);
   const lastUpdateRef = React.useRef<string>("");
 
+  const openAPKDownload = React.useCallback(async () => {
+    try {
+      if (isNative()) {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: HARDCODED_APK_URL, presentationStyle: "fullscreen" });
+      } else {
+        window.open(HARDCODED_APK_URL, "_blank");
+      }
+    } catch {
+      window.open(HARDCODED_APK_URL, "_blank");
+    }
+  }, []);
+
+  // فحص اتصال Supabase
+  const checkSupabaseHealth = React.useCallback(async () => {
+    try {
+      const configuredUrl = config.supabase.url || "";
+      const isCorrect = configuredUrl.includes(CORRECT_SUPABASE_HOST);
+
+      if (!isCorrect) {
+        setBannerMode("wrong-system");
+        return false;
+      }
+
+      // اختبر الاتصال الفعلي
+      const { error } = await supabase.from("app_config").select("id").limit(1).single();
+      if (error && error.code !== "PGRST116") {
+        setBannerMode("wrong-system");
+        return false;
+      }
+
+      return true;
+    } catch {
+      setBannerMode("wrong-system");
+      return false;
+    }
+  }, []);
+
+  // آلية OTA كاملة
   const runUpdateCheck = React.useCallback(async (isManual = false) => {
     if (!isNative()) return;
-    
+    if (bannerMode === "ota-downloading") return;
+
     try {
       const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-      
+
+      if (!isManual) setBannerMode("ota-checking");
+
       const updateInfo = await checkForAutoUpdate(isManual);
 
-      if (updateInfo?.available) {
-        // V1.6.6: Avoid multiple parallel downloads
-        if (updateStatus === "downloading") return;
-
-        // Add listener for download progress
-        const downloadListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
-          const percent = data.percent ?? 0;
-          setUpdateStatus("downloading");
-          setProgress(percent);
-        });
-
-        setVersion(updateInfo.version || "");
-        if (updateInfo.bundleId) {
-          setBundleId(updateInfo.bundleId);
-        }
-        
-        if (updateInfo.downloaded) {
-          setUpdateStatus("ready");
-          setProgress(100);
-          
-          // Give system time to finalize
-          setTimeout(async () => {
-            try {
-              const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
-              if ((updater as any).checkVersion) {
-                await (updater as any).checkVersion();
-              }
-              if ((updater as any).notifyAppReady) {
-                await (updater as any).notifyAppReady();
-              }
-              await updater.reload();
-            } catch (e) {
-              window.location.reload();
-            }
-          }, 2000);
-        } else {
-          setUpdateStatus("downloading");
-        }
-        
-        return () => downloadListener.remove();
+      if (!updateInfo?.available) {
+        if (!isManual) setBannerMode("hidden");
+        return;
       }
+
+      setNewVersion(updateInfo.version || "");
+      if (updateInfo.bundleId) setBundleId(updateInfo.bundleId);
+
+      // إضافة مستمع التحميل
+      const dlListener = await CapacitorUpdater.addListener("download", (data: { percent?: number }) => {
+        setProgress(data.percent ?? 0);
+        setBannerMode("ota-downloading");
+      });
+
+      if (updateInfo.downloaded) {
+        setBannerMode("ota-ready");
+        setProgress(100);
+
+        // تطبيق تلقائي بعد 2.5 ثانية
+        setTimeout(async () => {
+          try {
+            const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
+            if ((updater as any).notifyAppReady) await (updater as any).notifyAppReady();
+            await updater.reload();
+          } catch {
+            window.location.reload();
+          }
+        }, 2500);
+      } else {
+        setBannerMode("ota-downloading");
+      }
+
+      return () => dlListener.remove();
     } catch (e: any) {
-      console.error("OTA Update Check Failed:", e);
-      // Silently fail unless manual
-      if (isManual) {
-        setUpdateStatus("error");
-        setErrorMessage(e.message || "حدث خطأ");
-      }
+      console.error("OTA Update failed:", e);
+      setBannerMode("ota-error");
     }
-  }, [updateStatus]);
+  }, [bannerMode]);
 
   React.useEffect(() => {
-    // Wrap initial state changes in a small delay to avoid cascading renders
-    const timer = setTimeout(() => {
-      setMounted(true);
-    }, 0);
-    
-    // Polyfill for showSystemAlert
-    if (typeof window !== 'undefined') {
-      (window as any).showSystemAlert = (msg: string) => {
-        console.log('System Alert:', msg);
-      };
+    const timer = setTimeout(() => setMounted(true), 0);
+
+    if (typeof window !== "undefined") {
+      (window as any).showSystemAlert = (msg: string) => console.log("System Alert:", msg);
     }
 
-    // OTA Update Check Logic (Silent)
-    if (isNative()) {
-      const confirmAppReady = async () => {
-        try {
+    const init = async () => {
+      try {
+        if (isNative()) {
           const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-          // Inform Capgo that the current bundle is loaded and working correctly
-          // This prevents the system from rolling back to the previous version
           if ((CapacitorUpdater as any).notifyAppReady) {
             await (CapacitorUpdater as any).notifyAppReady();
-            console.log('Native OTA: Current bundle confirmed as READY to prevent rollback');
           }
-        } catch (e) {
-          console.warn('Native OTA: Failed to confirm app ready', e);
         }
-      };
-      
-      // Wrap the calls in a small delay
-      const runUpdates = async () => {
-        try {
-          await confirmAppReady();
-          await runUpdateCheck();
-        } catch (e) {
-          console.error("Initial update sequence failed", e);
+
+        // فحص Supabase أولاً
+        const healthy = await checkSupabaseHealth();
+
+        // إذا Supabase صحيح → فحص OTA
+        if (healthy && isNative()) {
+          await runUpdateCheck(false);
         }
-      };
-      
-      const updateTimer = setTimeout(runUpdates, 500);
+      } catch (e) {
+        console.error("Init sequence failed:", e);
+      }
+    };
 
-      // Listen for manual retries
-      const retryListener = () => {
-        runUpdateCheck(true);
-      };
-      window.addEventListener('retryUpdate', retryListener);
+    const initTimer = setTimeout(init, 800);
 
-      // Check every 30 minutes
-      const interval = setInterval(() => runUpdateCheck(false), 1000 * 60 * 30);
-      return () => {
-        clearTimeout(timer);
-        clearTimeout(updateTimer);
-        clearInterval(interval);
-        window.removeEventListener('retryUpdate', retryListener);
-      };
-    } else {
-      // If not native, still need to clean up timer
-      return () => clearTimeout(timer);
+    const retryListener = () => runUpdateCheck(true);
+    window.addEventListener("retryUpdate", retryListener);
+
+    // فحص كل 20 دقيقة
+    const interval = setInterval(() => {
+      if (bannerMode === "hidden") runUpdateCheck(false);
+    }, 1000 * 60 * 20);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(initTimer);
+      clearInterval(interval);
+      window.removeEventListener("retryUpdate", retryListener);
+    };
+  }, []);
+
+  if (!mounted) return null;
+
+  const showBanner = bannerMode !== "hidden" && !dismissed;
+  const canDismiss = bannerMode !== "wrong-system" && bannerMode !== "ota-ready";
+
+  const bannerConfig = {
+    "wrong-system": {
+      bg: "bg-red-600",
+      border: "border-red-500",
+      icon: <ShieldAlert className="w-6 h-6 text-white" />,
+      title: "تطبيقك متصل بنظام مختلف!",
+      subtitle: "بياناتك الحقيقية في النسخة الجديدة — حمّل الآن",
+      urgent: true,
+    },
+    "ota-checking": {
+      bg: "bg-blue-600",
+      border: "border-blue-500",
+      icon: <RefreshCw className="w-6 h-6 text-white animate-spin" />,
+      title: "جاري فحص التحديثات...",
+      subtitle: "نتحقق من وجود نسخة جديدة",
+      urgent: false,
+    },
+    "ota-downloading": {
+      bg: "bg-blue-700",
+      border: "border-blue-600",
+      icon: <Download className="w-6 h-6 text-white animate-bounce" />,
+      title: `جاري تحميل التحديث (${progress}%)`,
+      subtitle: `النسخة الجديدة ${newVersion}`,
+      urgent: false,
+    },
+    "ota-ready": {
+      bg: "bg-emerald-600",
+      border: "border-emerald-500",
+      icon: <CheckCircle className="w-6 h-6 text-white" />,
+      title: "التحديث جاهز — جاري التطبيق...",
+      subtitle: `تم تثبيت ${newVersion} بنجاح`,
+      urgent: false,
+    },
+    "ota-error": {
+      bg: "bg-orange-600",
+      border: "border-orange-500",
+      icon: <AlertTriangle className="w-6 h-6 text-white" />,
+      title: "فشل التحديث التلقائي",
+      subtitle: "اضغط لتحميل النسخة الجديدة مباشرة",
+      urgent: true,
+    },
+    "apk-available": {
+      bg: "bg-amber-600",
+      border: "border-amber-500",
+      icon: <Rocket className="w-6 h-6 text-white" />,
+      title: `نسخة جديدة متاحة ${newVersion}`,
+      subtitle: "اضغط لتحميل التطبيق المحدّث",
+      urgent: false,
+    },
+    "hidden": {
+      bg: "", border: "", icon: null, title: "", subtitle: "", urgent: false
     }
-  }, [runUpdateCheck]);
+  };
 
-  if (!mounted) {
-    return null;
-  }
+  const bc = bannerConfig[bannerMode];
 
   return (
     <>
       <NativeBridge />
-      <AnimatePresence>
-        {(updateStatus !== "idle") && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className={`fixed bottom-8 left-6 right-6 z-[9999] drawer-glass p-6 rounded-[32px] shadow-2xl flex flex-col gap-4 border-none`}
-            dir="rtl"
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${
-                updateStatus === "ready" ? "bg-emerald-500 text-white shadow-emerald-200" : 
-                updateStatus === "error" ? "bg-red-500 text-white shadow-red-200" : "bg-blue-600 text-white shadow-blue-200"
-              }`}>
-                {updateStatus === "downloading" && <Download className="w-6 h-6 animate-bounce" />}
-                {updateStatus === "ready" && <CheckCircle className="w-6 h-6" />}
-                {updateStatus === "error" && <AlertTriangle className="w-6 h-6" />}
-              </div>
-              
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-black text-slate-900 dark:text-white">
-                  {updateStatus === "downloading" ? `جاري تحديث النظام (${progress}%)` : 
-                   updateStatus === "ready" ? "تم تحميل تحديث جديد بنجاح" :
-                   updateStatus === "error" ? "فشل تحديث النظام" : "جاري فحص التحديثات..."}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-white/10 rounded-md text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                    Version {version || "Current"}
-                  </span>
-                  {updateStatus === "error" && (
-                    <span className="text-[10px] font-bold text-red-500 truncate max-w-[150px]">
-                      {errorMessage}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            <div className="flex gap-3 mt-2">
-              {updateStatus === "ready" && (
+      {/* شريط التحديث الشامل - يظهر أعلى كل الصفحات */}
+      <AnimatePresence>
+        {showBanner && (
+          <motion.div
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className={`fixed top-0 left-0 right-0 z-[99999] ${bc.bg} border-b ${bc.border} shadow-2xl`}
+            dir="rtl"
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+          >
+            {/* شريط التقدم للتحميل */}
+            {bannerMode === "ota-downloading" && (
+              <div className="absolute bottom-0 left-0 h-1 bg-white/40 transition-all duration-300" style={{ width: `${progress}%` }} />
+            )}
+
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="shrink-0">{bc.icon}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-black text-white leading-tight truncate">{bc.title}</p>
+                <p className="text-[10px] text-white/70 truncate">{bc.subtitle}</p>
+              </div>
+
+              {/* زر الإجراء */}
+              {(bc.urgent || bannerMode === "ota-error") && (
+                <button
+                  onClick={openAPKDownload}
+                  className="shrink-0 flex items-center gap-1.5 bg-white/20 hover:bg-white/30 border border-white/30 backdrop-blur rounded-xl px-3 py-2 transition-all active:scale-95"
+                >
+                  <Download className="w-4 h-4 text-white" />
+                  <span className="text-[11px] font-black text-white whitespace-nowrap">حمّل APK</span>
+                </button>
+              )}
+
+              {bannerMode === "ota-ready" && (
                 <button
                   onClick={async () => {
                     try {
                       const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
-                      if (bundleId) {
-                        await CapacitorUpdater.set({ id: bundleId });
-                      }
+                      if (bundleId) await CapacitorUpdater.set({ id: bundleId });
                       await CapacitorUpdater.reload();
-                    } catch (e) {
+                    } catch {
                       window.location.reload();
                     }
                   }}
-                  className="flex-1 bg-blue-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-blue-200 active:scale-95 transition-all uppercase tracking-wider"
+                  className="shrink-0 bg-white/20 border border-white/30 rounded-xl px-3 py-2"
                 >
-                  تطبيق التحديث الآن
+                  <span className="text-[11px] font-black text-white">تطبيق الآن</span>
                 </button>
               )}
 
-              {updateStatus === "error" && (
-                <button
-                  onClick={() => {
-                    setUpdateStatus("idle");
-                    setTimeout(() => {
-                      const event = new CustomEvent('retryUpdate');
-                      window.dispatchEvent(event);
-                    }, 100);
-                  }}
-                  className="flex-1 bg-red-600 text-white py-4 rounded-2xl text-xs font-black shadow-xl shadow-red-200 active:scale-95 transition-all"
-                >
-                  إعادة المحاولة
+              {canDismiss && (
+                <button onClick={() => setDismissed(true)} className="shrink-0 text-white/60 hover:text-white p-1">
+                  <X className="w-4 h-4" />
                 </button>
               )}
-
-              <button
-                onClick={() => setUpdateStatus("idle")}
-                className="px-6 py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 rounded-2xl text-xs font-black hover:bg-slate-200 transition-colors"
-              >
-                {updateStatus === "ready" ? "لاحقاً" : "إغلاق"}
-              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-      {children}
+
+      {/* دفع المحتوى للأسفل عند ظهور الشريط */}
+      <div style={{ paddingTop: showBanner ? 56 : 0, transition: 'padding-top 0.3s ease' }}>
+        {children}
+      </div>
+
+      {/* زر عائم دائم داخل التطبيق المحمول لتحميل APK */}
+      {isNative() && bannerMode === "wrong-system" && (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 1.5, type: "spring" }}
+          onClick={openAPKDownload}
+          className="fixed bottom-24 left-4 z-[99998] flex flex-col items-center gap-1"
+          dir="rtl"
+        >
+          <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-red-500/50 border-2 border-white/20">
+            <Download className="w-7 h-7 text-white" />
+          </div>
+          <span className="text-[9px] font-black text-red-400 bg-black/80 px-2 py-0.5 rounded-full">حمّل النسخة الجديدة</span>
+        </motion.button>
+      )}
     </>
   );
 }
