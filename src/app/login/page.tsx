@@ -16,6 +16,9 @@ import { AppLoader } from "@/components/AppLoader";
 
 const isSupabaseConfigured = config.isConfigured();
 
+// رابط تحميل APK ثابت - يعمل حتى لو الـ Supabase مختلف
+const HARDCODED_APK_URL = "https://sdpjvorettivpdviytqo.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
+
 const LoginPage = () => {
   const { toasts, removeToast } = useToast();
   const getRedirectPath = (role: string) => {
@@ -25,7 +28,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.8.0-FINAL-MOBILE-STABLE";
+  const VERSION = "V1.9.0-UNIFIED-SYSTEM";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -45,7 +48,11 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false); // V1.6.6
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'ok' | 'mismatch' | 'error'>('checking');
+  const [showDiag, setShowDiag] = useState(false);
+
+  const CORRECT_SUPABASE = "sdpjvorettivpdviytqo.supabase.co";
 
   useEffect(() => {
     const fetchAppConfig = async () => {
@@ -58,9 +65,15 @@ const LoginPage = () => {
         if (data && !error) {
           setLatestVersion(data.latest_version);
           setDownloadUrl(data.download_url);
+          // تحقق أن التطبيق متصل بـ Supabase الصحيح
+          const currentUrl = config.supabase.url || '';
+          setSupabaseStatus(currentUrl.includes(CORRECT_SUPABASE) ? 'ok' : 'mismatch');
+        } else {
+          setSupabaseStatus('error');
         }
       } catch (e) {
         console.error("Failed to fetch app config:", e);
+        setSupabaseStatus('error');
       }
     };
     fetchAppConfig();
@@ -78,11 +91,9 @@ const LoginPage = () => {
     if (checkingUpdate) return;
     setCheckingUpdate(true);
     
-    // Trigger the actual update logic in AppWrapper via custom event
     const event = new CustomEvent('retryUpdate');
     window.dispatchEvent(event);
     
-    // Refresh the latest version from DB
     try {
       const { data } = await supabase
         .from('app_config')
@@ -93,6 +104,23 @@ const LoginPage = () => {
     } catch (e) {}
     
     setTimeout(() => setCheckingUpdate(false), 2000);
+  };
+
+  const handleDownloadAPK = async () => {
+    const apkUrl = downloadUrl || HARDCODED_APK_URL;
+    try {
+      const isNativeApp = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+      if (isNativeApp) {
+        // داخل التطبيق المحمول: افتح في المتصفح الخارجي
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: apkUrl, presentationStyle: 'fullscreen' });
+      } else {
+        window.open(apkUrl, '_blank');
+      }
+    } catch (e) {
+      // fallback
+      window.open(apkUrl, '_blank');
+    }
   };
 
   useEffect(() => {
@@ -428,26 +456,54 @@ const LoginPage = () => {
         </motion.div>
       </main>
 
-      {/* Simple APK Download Button at Bottom */}
-      {isMobileDevice && downloadUrl && typeof window !== 'undefined' && !(window as any).Capacitor?.isNativePlatform() && (
+      {/* APK Download + Diagnostic Panel - يظهر دائماً على الأجهزة المحمولة */}
+      {(isMobileDevice || (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform())) && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-8 left-0 right-0 z-50 px-6 flex justify-center pointer-events-none"
+          className="fixed bottom-6 left-4 right-4 z-50 space-y-2"
         >
-          <a 
-            href={downloadUrl} 
-            download="StartLocation.apk"
-            className="pointer-events-auto flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-2xl px-6 py-4 rounded-[20px] shadow-2xl transition-all active:scale-95 group"
+          {/* تحذير: نظام مختلف */}
+          {(supabaseStatus === 'mismatch' || supabaseStatus === 'error') && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-red-500/20 border border-red-500/40 backdrop-blur-2xl rounded-2xl p-4 text-center"
+            >
+              <p className="text-[11px] font-black text-red-400 mb-2">⚠️ التطبيق متصل بنظام مختلف</p>
+              <p className="text-[10px] text-red-300/80">يجب تثبيت النسخة الجديدة لاستعادة بياناتك</p>
+            </motion.div>
+          )}
+
+          {/* زر تحميل APK - يعمل داخل وخارج التطبيق */}
+          <button
+            onClick={handleDownloadAPK}
+            className="w-full flex items-center gap-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 backdrop-blur-2xl px-5 py-4 rounded-2xl shadow-2xl transition-all active:scale-95"
           >
-            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">
               <Download className="w-5 h-5 text-white" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-black text-white leading-none mb-1">حمّل التطبيق الرسمي</span>
-              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">Direct APK Download</span>
+            <div className="flex flex-col text-right flex-1">
+              <span className="text-xs font-black text-amber-300 leading-none mb-1">تثبيت نسخة جديدة موحدة</span>
+              <span className="text-[9px] text-amber-400/70 font-bold">اضغط هنا إذا كانت بياناتك مختلفة عن المتوقع</span>
             </div>
-          </a>
+            <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg uppercase">APK</span>
+          </button>
+
+          {/* رابط تشخيص */}
+          <button
+            onClick={() => setShowDiag(!showDiag)}
+            className="w-full text-center text-[9px] text-slate-600 hover:text-slate-400 transition-colors py-1"
+          >
+            {showDiag ? 'إخفاء التشخيص' : 'معلومات تقنية'}
+          </button>
+          {showDiag && (
+            <div className="bg-black/60 border border-white/10 rounded-xl p-3 text-[9px] font-mono text-slate-400 break-all">
+              <p>Supabase: {config.supabase.url || 'غير محدد'}</p>
+              <p>Status: {supabaseStatus}</p>
+              <p>Version: {VERSION}</p>
+            </div>
+          )}
         </motion.div>
       )}
 
