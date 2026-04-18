@@ -1,9 +1,8 @@
-
 import { supabase } from '../supabaseClient';
 
 /**
- * AI Insight & System Log API - V1.4.0
- * Connects the system to the AI Co-pilot
+ * AI Insight & System Log API - V1.9.0
+ * Uses Next.js API route to call Gemini directly (no Supabase Edge Function needed)
  */
 
 export interface AIInsight {
@@ -43,8 +42,6 @@ export const fetchAIInsights = async (onlyUnapplied = true) => {
 };
 
 export const applyAIFix = async (insightId: string, fixData: any) => {
-  // Logic to apply the fix (can be dynamic depending on the suggested_fix type)
-  // For safety, this should be handled via a specialized Edge Function or RPC
   const { data, error } = await supabase.rpc('apply_ai_fix', { 
     p_insight_id: insightId,
     p_fix_data: fixData 
@@ -55,14 +52,26 @@ export const applyAIFix = async (insightId: string, fixData: any) => {
 };
 
 /**
- * Call Gemini AI to analyze a specific situation
- * This triggers a Supabase Edge Function that securely calls Google Gemini
+ * Call Gemini AI via Next.js API route (/api/ai)
+ * Works on both web and mobile (Capacitor) since it calls relative URLs
  */
 export const requestAIAnalysis = async (type: string, data: any, role: 'admin' | 'driver' | 'vendor' = 'admin') => {
-  const { data: res, error } = await supabase.functions.invoke('gemini-analyzer', {
-    body: { type, data, role }
+  const baseUrl = typeof window !== 'undefined'
+    ? window.location.origin
+    : (process.env.NEXT_PUBLIC_APP_URL || '');
+
+  const response = await fetch(`${baseUrl}/api/ai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, data, role }),
   });
-  
-  if (error) throw error;
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Request failed with status ${response.status}`);
+  }
+
+  const res = await response.json();
+  if (!res.success) throw new Error(res.error || 'AI request failed');
   return res;
 };
