@@ -4,24 +4,25 @@ import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { 
-  LayoutDashboard, 
-  Map as MapIcon, 
-  Users, 
-  Store, 
+  Zap,
+  AlertTriangle,
+  Loader2,
+  BarChart3,
+  FileText,
+  Users,
+  Store,
   ShieldCheck,
   Settings,
   Truck,
   Menu,
   X,
   ChevronRight,
-  LogOut, 
+  LogOut,
   Wallet,
   RefreshCw,
-  Zap,
-  AlertTriangle,
-  Loader2,
-  BarChart3,
-  FileText
+  LayoutDashboard,
+  Map as MapIcon,
+  Bot
 } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { ThemeToggle } from "@/components/ThemeToggle";

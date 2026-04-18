@@ -25,7 +25,7 @@ import DriverWalletView from "./components/DriverWalletView";
 import DriverHistoryView from "./components/DriverHistoryView";
 import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
-import { Wallet, X, Loader2, Settings } from "lucide-react";
+import { Wallet, X, Loader2, Settings, Bot, MapPin } from "lucide-react";
 
 export default function DriverApp() {
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
