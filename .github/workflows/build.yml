@@ -131,5 +131,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+      - name: Deploy to Vercel
+        run: npx vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
       - name: Notify Build Complete
-        run: echo "✅ Build complete — APK and OTA bundle uploaded to Supabase. All users will receive the update automatically."
+        run: echo "✅ Build complete — APK and OTA uploaded to Supabase, web deployed to Vercel. All users will receive the update automatically."
