@@ -43,17 +43,19 @@ serve(async (req) => {
     } else if (role === 'driver') {
       systemPrompt += ` Task: Help the driver with location clarity or navigation.
       Input is an order with potential address issues: ${JSON.stringify(data)}
-      Analyze the address and provide:
-      1. A clear breakdown of the location.
+      Instructions:
+      1. Provide a clear breakdown of the location.
       2. If vague, suggest what to ask the customer.
-      3. Provide a 'friendly_guidance' string in Arabic.`;
+      3. Provide a 'friendly_guidance' string in Arabic.
+      4. DO NOT provide technical info or system fixes. You are a personal navigation assistant.`;
     } else if (role === 'vendor') {
       systemPrompt += ` Task: Provide store performance insights.
       Input is store sales/order data: ${JSON.stringify(data)}
-      Analyze trends and provide:
+      Instructions:
       1. Peak hour suggestions.
       2. Delivery efficiency tips.
-      3. Provide 'store_advice' string in Arabic.`;
+      3. Provide 'store_advice' string in Arabic.
+      4. DO NOT provide technical info or system fixes. You are a business growth assistant.`;
     } else {
       systemPrompt += ` Task: Analyze ${type} data for admin review.
       Data: ${JSON.stringify(data)}`;
@@ -65,10 +67,12 @@ serve(async (req) => {
       {
         "content": "Description/Guidance in Arabic",
         "severity": "info" | "warning" | "critical",
-        "suggested_fix": { "action": "...", "data": "..." } | null,
+        "suggested_fix": ${role === 'admin' ? '{ "action": "...", "data": "..." } | null' : 'null'},
         "ai_meta": { ... }
       }
-      IMPORTANT: Ensure "content" is always in Arabic.
+      IMPORTANT: 
+      1. Ensure "content" is always in Arabic.
+      2. ${role !== 'admin' ? 'NEVER provide a suggested_fix for this user role. It must be null.' : 'Only provide a suggested_fix if a technical action is strictly necessary.'}
     `
 
     // 2. Call Google Gemini API

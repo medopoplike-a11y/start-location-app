@@ -1436,26 +1436,17 @@ function StoreContent() {
                     className="space-y-6"
                   >
                     <div className="bg-purple-50 dark:bg-purple-900/10 p-6 rounded-[24px] border border-purple-100 dark:border-purple-900/30">
-                      <p className="text-sm font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
-                        {storeAIAnalysis.content}
-                      </p>
-                    </div>
-
-                    {storeAIAnalysis.suggested_fix && (
-                      <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex items-start gap-3">
-                        <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300 leading-relaxed">
-                          نصيحة ذكية: {storeAIAnalysis.suggested_fix.data}
+                        <p className="text-sm font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
+                          {storeAIAnalysis.content}
                         </p>
                       </div>
-                    )}
 
-                    <button 
-                      onClick={() => setShowStoreAI(false)}
-                      className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-slate-200 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-3"
-                    >
-                      شكراً للنصيحة
-                    </button>
+                      <button 
+                        onClick={() => setShowStoreAI(false)}
+                        className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-slate-200 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        شكراً للنصيحة
+                      </button>
                   </motion.div>
                 )}
               </div>
