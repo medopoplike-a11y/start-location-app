@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.6.2-FIX-LOGIN-STABLE";
+  const VERSION = "V1.6.3-ULTRA-STABLE";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -122,7 +122,10 @@ const LoginPage = () => {
       const isTransitioning = sessionStorage.getItem('is_transitioning') === 'true';
       if (isTransitioning) return;
 
-      const role = user.user_metadata?.role || profile?.role || "driver";
+      // Only redirect if we have the profile role, otherwise wait
+      if (!profile?.role) return;
+
+      const role = profile.role;
       const path = getRedirectPath(role);
       if (window.location.pathname !== path) {
         router.replace(path);
@@ -225,7 +228,14 @@ const LoginPage = () => {
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('is_transitioning', 'true');
           }
-          router.push("/welcome");
+          
+          const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+          if (isNative) {
+            // For native apps, a direct location change is often more stable than the router
+            window.location.href = "/welcome";
+          } else {
+            router.push("/welcome");
+          }
         } catch (redirErr) {
           window.location.assign("/welcome"); 
         }

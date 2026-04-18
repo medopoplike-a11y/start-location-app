@@ -36,12 +36,14 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       if (loading) {
         console.warn("AuthGuard: Auth state loading stuck, forcing redirect to login...");
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
-        if (isNative) window.location.assign("/login");
-        else window.location.assign("/login");
+        if (!user) { // Only redirect if user is actually null
+          if (isNative) window.location.assign("/login");
+          else window.location.assign("/login");
+        }
       }
-    }, 8000); // Reduced from 15s to 8s for better UX
+    }, 20000); // Increased to 20s for slow networks
     return () => clearTimeout(safetyTimeout);
-  }, [loading]);
+  }, [loading, user]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
@@ -67,15 +69,9 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
         else if (router) router.replace(loginUrl);
         else window.location.assign(loginUrl);
       } else if (!userRole) {
-        console.log("AuthGuard: User logged in but role not found yet, waiting...");
-        timeoutId = setTimeout(() => {
-          if (!userRole) {
-            console.error("AuthGuard: Role discovery timeout, forcing login");
-            const loginUrl = "/login";
-            if (isNative) window.location.assign(loginUrl);
-            else router.replace(loginUrl);
-          }
-        }, isNative ? 30000 : 15000);
+        console.log("AuthGuard: User logged in but role not found yet, waiting for profile...");
+        // Don't redirect yet! Just wait for profile to load.
+        // The safety timeout above will handle the case where it's truly stuck.
       }
     }, 0);
     return () => {

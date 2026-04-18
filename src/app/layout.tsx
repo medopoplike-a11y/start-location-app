@@ -31,31 +31,8 @@ export default function RootLayout({
                 navigator.serviceWorker.getRegistrations().then(function(registrations) {
                   for(let registration of registrations) {
                     registration.unregister();
-                    console.log('SW Unregistered');
                   }
                 });
-              }
-              if (typeof window !== 'undefined') {
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    for (let name of names) caches.delete(name);
-                  });
-                }
-                // Force reload if we find a version mismatch in localStorage
-                const currentVersion = "V1.6.2-FIX-LOGIN-STABLE";
-                const storedVersion = localStorage.getItem('app_version');
-                if (storedVersion && storedVersion !== currentVersion) {
-                  localStorage.setItem('app_version', currentVersion);
-                  console.log('Version mismatch detected, clearing storage and reloading...');
-                  if (typeof window !== 'undefined') {
-                    // Only clear essential items, don't clear everything to avoid login loops
-                    localStorage.removeItem('auth_profile');
-                    sessionStorage.clear();
-                    window.location.reload();
-                  }
-                } else {
-                  localStorage.setItem('app_version', currentVersion);
-                }
               }
             } catch (e) {
               console.warn('SW Cleanup failed:', e);

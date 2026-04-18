@@ -26,36 +26,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let active = true;
     let authSubscription: { unsubscribe: () => void } | null = null;
 
-    const loadSession = async () => {
+    const loadSession = async (retryCount = 0) => {
       // 1. Try to load profile from cache first for instant UX
       const cachedProfile = await getCache<UserProfile>('auth_profile');
       if (cachedProfile && active) {
         setProfile(cachedProfile);
-        setLoading(false); // Can hide loader early if we have a cached profile
+        // Don't set loading false yet, we still want to verify the session
       }
 
       try {
         const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
-        console.log(`AuthProvider: loadSession started (Native: ${isNative})`);
+        console.log(`AuthProvider: loadSession started (Native: ${isNative}, Retry: ${retryCount})`);
 
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 5000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 10000));
         
         const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
         let session = result?.data?.session;
 
         // If no session on native, try a small retry because storage can be slow
-        if (!session && isNative && active) {
-          console.log("AuthProvider: No session found on native, retrying in 500ms...");
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const retry = await supabase.auth.getSession();
-          session = retry.data.session;
+        if (!session && isNative && active && retryCount < 2) {
+          console.log(`AuthProvider: No session found, retrying in 2000ms (Attempt ${retryCount + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return loadSession(retryCount + 1);
         }
         
         if (!active) return;
 
         if (session?.user) {
-          console.log("AuthProvider: Initial session found:", session.user.id);
+          console.log("AuthProvider: Session found:", session.user.id);
           currentUserIdRef.current = session.user.id;
           setUser(session.user);
           const userProfile = await getUserProfile(session.user.id, session.user.email);
@@ -64,15 +63,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (userProfile) setCache('auth_profile', userProfile);
           }
         } else {
-          console.log("AuthProvider: No initial session");
+          console.log("AuthProvider: No session found after retries");
           setUser(null);
           setProfile(null);
           setCache('auth_profile', null);
         }
       } catch (error) {
-        console.warn("AuthProvider: Initial session load skipped or timed out", error);
+        console.warn(`AuthProvider: Session load failed (Attempt ${retryCount}):`, error);
+        if (active && retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return loadSession(retryCount + 1);
+        }
       } finally {
-        if (active) {
+        if (active && (retryCount >= 2 || !loading)) {
           setLoading(false);
         }
       }
