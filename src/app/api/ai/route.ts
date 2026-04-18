@@ -110,21 +110,49 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents }),
-      }
-    );
+    const MODELS = [
+      'gemini-flash-latest',
+      'gemini-2.0-flash-001',
+      'gemini-2.0-flash-lite',
+    ];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Gemini API error:', errText);
+    let response: Response | null = null;
+    let lastError = '';
+
+    for (const model of MODELS) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents }),
+            }
+          );
+
+          if (response.ok) break;
+
+          const errText = await response.text();
+          lastError = errText;
+          console.warn(`Gemini [${model}] attempt ${attempt} failed (${response.status}):`, errText);
+
+          if (response.status !== 503 && response.status !== 429) break;
+          if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000));
+        } catch (fetchErr: any) {
+          lastError = fetchErr.message;
+          console.warn(`Gemini [${model}] attempt ${attempt} exception:`, fetchErr.message);
+          if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000));
+        }
+      }
+      if (response?.ok) break;
+    }
+
+    if (!response || !response.ok) {
+      console.error('Gemini API error after all retries:', lastError);
       return NextResponse.json(
-        { error: `Gemini API error: ${response.status}` },
-        { status: 500, headers: corsHeaders }
+        { error: `الذكاء الاصطناعي غير متاح حاليًا، يرجى المحاولة مرة أخرى` },
+        { status: 503, headers: corsHeaders }
       );
     }
 
