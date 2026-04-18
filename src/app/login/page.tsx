@@ -25,7 +25,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.6.8-RUNTIME-FIX-PRO";
+  const VERSION = "V1.6.9-RUNTIME-FIX-PRO";
 
   const router = useRouter();
   const { user, profile } = useAuth();

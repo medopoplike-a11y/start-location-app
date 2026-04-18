@@ -16,9 +16,12 @@ export default function WelcomePage() {
   const [phase, setPhase] = useState<"intro" | "greeting" | "syncing" | "final">("intro");
 
   const particlesInit = useCallback(async (engine: Engine) => {
-    // V1.6.7: Polyfill checkVersion to prevent crash with incompatible tsparticles versions
+    // V1.6.9: Comprehensive Polyfills to prevent crash with incompatible tsparticles versions
     if (!(engine as any).checkVersion) {
       (engine as any).checkVersion = () => {};
+    }
+    if (!(engine as any).addEasing) {
+      (engine as any).addEasing = () => {};
     }
     await loadSlim(engine as any);
   }, []);

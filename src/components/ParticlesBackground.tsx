@@ -11,9 +11,12 @@ interface ParticlesBackgroundProps {
 
 export default function ParticlesBackground({ theme = 'neon-blue' }: ParticlesBackgroundProps) {
   const particlesInit = useCallback(async (engine: any) => {
-    // V1.6.7: Polyfill checkVersion to prevent crash with incompatible tsparticles versions
+    // V1.6.9: Comprehensive Polyfills to prevent crash with incompatible tsparticles versions
     if (engine && !engine.checkVersion) {
       engine.checkVersion = () => {};
+    }
+    if (engine && !engine.addEasing) {
+      engine.addEasing = () => {};
     }
     await loadSlim(engine);
   }, []);
