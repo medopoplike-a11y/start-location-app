@@ -61,28 +61,50 @@ jobs:
       - name: Prepare Keystore
         id: signing_check
         run: |
+          mkdir -p android/app
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
-            mkdir -p android/app
             node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
-            echo "✅ Keystore generated successfully"
-            echo "has_keystore=true" >> $GITHUB_OUTPUT
+            echo "✅ Keystore restored from secret"
+            echo "store_password=$RELEASE_STORE_PASSWORD" >> $GITHUB_ENV
+            echo "key_alias=$RELEASE_KEY_ALIAS" >> $GITHUB_ENV
+            echo "key_password=$RELEASE_KEY_PASSWORD" >> $GITHUB_ENV
           else
-            echo "⚠️ No valid keystore found, building unsigned"
-            echo "has_keystore=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No keystore secret found — generating a fresh release keystore..."
+            STORE_PASS="StartLocation@2025"
+            KEY_ALIAS="start-release"
+            KEY_PASS="StartLocation@2025"
+            keytool -genkeypair -v \
+              -keystore android/app/release-key.keystore \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$STORE_PASS" \
+              -keypass "$KEY_PASS" \
+              -dname "CN=Start Location, OU=Mobile, O=Start, L=SA, ST=SA, C=SA" 2>/dev/null
+            echo "✅ Fresh keystore generated"
+            echo "store_password=$STORE_PASS" >> $GITHUB_ENV
+            echo "key_alias=$KEY_ALIAS" >> $GITHUB_ENV
+            echo "key_password=$KEY_PASS" >> $GITHUB_ENV
+            # Print base64 so it can be saved as a secret for future consistent builds
+            echo "📋 Save this as ANDROID_KEYSTORE_BASE64 secret for consistent future builds:"
+            base64 -w 0 android/app/release-key.keystore
+            echo ""
           fi
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Build Android APK
         working-directory: ./android
         run: |
           chmod +x gradlew
           export RELEASE_STORE_FILE="$(pwd)/app/release-key.keystore"
-          ./gradlew assembleRelease --no-daemon --max-workers=1 --console=plain --warning-mode=none -Dorg.gradle.jvmargs="-Xmx4g"
-        env:
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          export RELEASE_STORE_PASSWORD="${{ env.store_password }}"
+          export RELEASE_KEY_ALIAS="${{ env.key_alias }}"
+          export RELEASE_KEY_PASSWORD="${{ env.key_password }}"
+          ./gradlew assembleRelease --no-daemon --max-workers=2 --console=plain --warning-mode=none -Dorg.gradle.jvmargs="-Xmx4g"
+          echo "✅ APK build complete"
 
       - name: Prepare Final Assets
         run: |
@@ -91,10 +113,11 @@ jobs:
             cp dist/update.zip build-out/update.zip
             echo "✅ OTA bundle ready"
           fi
-          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
           if [ -n "$APK_PATH" ]; then
             cp "$APK_PATH" build-out/start-location.apk
-            echo "✅ APK ready: $APK_PATH"
+            APK_SIZE=$(du -sh "$APK_PATH" | cut -f1)
+            echo "✅ APK ready: $APK_PATH ($APK_SIZE)"
           else
             echo "❌ No APK found!"
             exit 1
@@ -109,4 +132,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Notify Build Complete
-        run: echo "✅ Build complete. OTA bundle uploaded to Supabase Storage and app_config updated."
+        run: echo "✅ Build complete — APK and OTA bundle uploaded to Supabase. All users will receive the update automatically."
