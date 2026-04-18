@@ -95,17 +95,46 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // V1.8.0: Disable internal locking on Native to prevent "Lock not released" hang
+    // Standard web browser fallback if we can't use complex locking
+    lock: isNative ? {
+      acquire: async (name: string, timeout: number, callback: () => Promise<any>) => await callback(),
+      release: async () => {}
+    } as any : undefined,
     // Use custom storage ONLY for native to handle Preferences sync
     // For web, we use default localStorage which is most stable
     storage: isNative ? appStorage : undefined,
     storageKey: 'start-location-v1-session',
-    // DO NOT override flowType or lock for Web - let Supabase use its defaults
+    // DO NOT override flowType for Web - let Supabase use its defaults
     ...(isNative ? {
       flowType: 'pkce',
-      lock: supabaseLock as any
     } : {
       flowType: 'implicit', // Use implicit for broad browser compatibility if PKCE fails
     })
+  },
+  global: {
+    // V1.8.0: Use CapacitorHttp for Native to bypass CORS and improve reliability
+    // Note: CapacitorHttp must be imported or available globally
+    fetch: isNative ? (async (...args: any[]) => {
+      const { CapacitorHttp } = await import('@capacitor/core');
+      const res = await CapacitorHttp.request({
+        url: args[0] as string,
+        method: (args[1]?.method as any) || 'GET',
+        headers: args[1]?.headers as any,
+        data: args[1]?.body ? JSON.parse(args[1].body as string) : undefined,
+        connectTimeout: 10000,
+        readTimeout: 10000,
+      });
+      return {
+        ok: res.status >= 200 && res.status < 300,
+        status: res.status,
+        statusText: 'OK',
+        json: async () => res.data,
+        text: async () => typeof res.data === 'string' ? res.data : JSON.stringify(res.data),
+        blob: async () => new Blob([res.data]),
+        headers: new Headers(res.headers as any),
+      } as Response;
+    }) : undefined
   },
   // Global Realtime configuration for Web
   realtime: {

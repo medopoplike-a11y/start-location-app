@@ -45,10 +45,10 @@ export default function WelcomePage() {
       sessionStorage.removeItem('is_transitioning');
     }
 
-    // Sequence of artistic phases with professional timing
+    // V1.8.0: Faster transition for mobile stability
     const timers = [
-      setTimeout(() => setPhase("greeting"), 1500),
-      setTimeout(() => setPhase("syncing"), 4500),
+      setTimeout(() => setPhase("greeting"), 800),
+      setTimeout(() => setPhase("syncing"), 1800),
       setTimeout(() => {
         setPhase("final");
         if (user) {
@@ -57,7 +57,7 @@ export default function WelcomePage() {
         } else {
           router.replace("/login");
         }
-      }, 7500)
+      }, 2800)
     ];
 
     return () => timers.forEach(clearTimeout);

@@ -48,6 +48,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let active = true;
     let authSubscription: { unsubscribe: () => void } | null = null;
 
+    // V1.8.0: Ultimate safety timeout to prevent app hanging on loading
+    const safetyTimer = setTimeout(() => {
+      if (loading && active) {
+        console.log("AuthProvider: Loading state safety trigger activated");
+        setLoading(false);
+      }
+    }, 8000);
+
     const loadSession = async (retryCount = 0) => {
       // 1. Try to load profile from cache first for instant UX
       const cachedProfile = await getCache<UserProfile>('auth_profile');
@@ -164,6 +172,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       active = false;
+      clearTimeout(safetyTimer);
       authSubscription?.unsubscribe();
     };
   }, []);
