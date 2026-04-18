@@ -24,7 +24,7 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.6.4-HYPER-STABLE";
+  const VERSION = "V1.6.5-FINAL-STABLE-OTA";
 
   const router = useRouter();
   const { user, profile } = useAuth();
