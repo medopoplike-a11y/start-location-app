@@ -66,6 +66,8 @@ async function uploadFile(fileName, bucketName, contentType, rename = null) {
 async function main() {
   console.log('🚀 Starting Robust Binary Upload to Supabase Storage...');
   
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf8'));
+  
   const assets = [
     { name: 'update.zip', bucket: 'app-updates', type: 'application/zip' },
     { name: 'start-location.apk', bucket: 'app-updates', type: 'application/vnd.android.package-archive' },
