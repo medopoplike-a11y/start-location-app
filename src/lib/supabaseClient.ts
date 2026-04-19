@@ -152,9 +152,15 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
         ok: res.status >= 200 && res.status < 300,
         status: res.status,
         statusText: String(res.status),
-        json: async () => (typeof res.data === 'string' ? JSON.parse(res.data) : res.data),
-        text: async () => (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)),
-        blob: async () => new Blob([typeof res.data === 'string' ? res.data : JSON.stringify(res.data)]),
+        json: async () => {
+          if (!res.data) return {};
+          if (typeof res.data === 'string') {
+            try { return JSON.parse(res.data); } catch { return {}; }
+          }
+          return res.data;
+        },
+        text: async () => (typeof res.data === 'string' ? res.data : JSON.stringify(res.data || "")),
+        blob: async () => new Blob([typeof res.data === 'string' ? res.data : JSON.stringify(res.data || "")]),
         headers: new Headers(res.headers as any),
       } as Response;
     }) : undefined

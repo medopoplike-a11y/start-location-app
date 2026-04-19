@@ -15,7 +15,9 @@ import Toast from "@/components/Toast";
 import { AppLoader } from "@/components/AppLoader";
 
 const isSupabaseConfigured = config.isConfigured();
-const FALLBACK_APK_URL = "https://sdpjvorettivpdviytqo.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
+const FALLBACK_APK_URL = config.supabase.url 
+  ? `${config.supabase.url}/storage/v1/object/public/app-updates/start-location.apk`
+  : "https://placeholder.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
 
 const LoginPage = () => {
   const { toasts, removeToast } = useToast();

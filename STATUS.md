@@ -1,13 +1,13 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v1.1.0-ULTRA-PERSISTENT)
+## ✅ Project Status: Production Live (v1.9.1-DYNAMIC-FIX)
 
-**Last Deployment**: April 17, 2026 - 🎉 Full CI/CD Pipeline Active (GitHub -> Vercel Sync)
+**Last Deployment**: April 19, 2026 - 🎉 Unified Project Configuration Active
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v1.1.0]
+- **Mobile (Android)**: APK Build Status ✅ [v1.9.1]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
-- **API (Supabase)**: PostgreSQL Backend ✅ [your-project-ref.supabase.co]
+- **API (Supabase)**: PostgreSQL Backend ✅ [sdpjvorettivpdviytqo.supabase.co] (Dynamic)
 
 ### 🏗️ **Architecture**
 ```
@@ -19,6 +19,10 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 ```
 
 ### 📊 **Features Implemented**
+- ✅ Unified Dynamic Supabase Configuration (No Hardcoded Refs)
+- ✅ Fixed Android Network Security to allow any Supabase Project
+- ✅ Robust CapacitorHttp Fetch Override (Fixes empty JSON response issues)
+- ✅ Dynamic Fallback APK URL in Login Page
 - ✅ Ultra-Persistent Background Tracking (Foreground Service)
 - ✅ Native HTTP Bypass (Bypasses OS JavaScript Throttling)
 - ✅ Continuous Zero-Freeze Heartbeat (DB + Broadcast)
@@ -78,13 +82,13 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 - ✅ Smart Telemetry Dashboard (Speed, ETA, Distance)
 
 ### 📦 **Latest Builds**
-- **APK v1.0.0**: ✅ Built & Available
+- **APK v1.9.1**: ✅ Built & Available (Dynamic Config)
 - **Web**: ✅ Live on Vercel (Synced)
 - **Database**: ✅ 16 Tables (including location_logs)
 
 ---
 
 **Status:** 🟢 Active & Deployed  
-**Last Updated:** 2026-04-17  
-**Version:** 1.0.1-STABLE-ARABIC
+**Last Updated:** 2026-04-19  
+**Version:** 1.9.1-DYNAMIC-FIX
 
