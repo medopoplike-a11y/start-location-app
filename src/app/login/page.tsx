@@ -41,7 +41,7 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V1.9.5";
+  const VERSION = "V1.9.6";
 
   const router = useRouter();
   const { user, profile } = useAuth();

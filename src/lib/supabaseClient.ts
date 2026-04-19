@@ -140,47 +140,37 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
         }
       }
 
+      // V1.9.6: Minimalist High-Compatibility Fetch Bridge
+      // This implementation avoids complex object structures that trigger 'this.lock' errors
       const res = await CapacitorHttp.request({
         url: args[0] as string,
         method: (args[1]?.method as any) || 'GET',
         headers: plainHeaders,
         data: bodyData,
-        connectTimeout: 20000, // V1.8.2: Increased timeout for slow mobile networks
+        connectTimeout: 20000,
         readTimeout: 20000,
       }).catch(err => {
         console.error("CapacitorHttp: Request failed", err);
         throw err;
       });
 
-      // V1.8.2: Handle potentially missing or malformed data from plugin
       const responseData = res.data;
       const isString = typeof responseData === 'string';
+      const status = res.status || 200;
 
-      // V1.9.5: High-Fidelity Fetch Polyfill for Supabase-js
-      // Fixed: 'this.lock is not a function' error by providing a compliant Response object
-      const response = {
-        ok: res.status >= 200 && res.status < 300,
-        status: res.status,
-        statusText: String(res.status),
+      // Create a native-compliant Response object that supabase-js expects
+      return {
+        ok: status >= 200 && status < 300,
+        status: status,
+        statusText: String(status),
         url: args[0] as string,
         headers: new Headers(res.headers as any),
-        json: async () => {
-          if (!responseData || responseData === "") return [];
-          if (isString) {
-            try { return JSON.parse(responseData); } catch { return {}; }
-          }
-          return responseData;
-        },
+        json: async () => (isString && responseData ? JSON.parse(responseData) : (responseData || {})),
         text: async () => (isString ? responseData : JSON.stringify(responseData || "")),
         blob: async () => new Blob([isString ? responseData : JSON.stringify(responseData || "")]),
-        arrayBuffer: async () => {
-          const s = isString ? responseData : JSON.stringify(responseData || "");
-          return new TextEncoder().encode(s).buffer;
-        },
+        arrayBuffer: async () => new TextEncoder().encode(isString ? responseData : JSON.stringify(responseData || "")).buffer,
         clone: function() { return this; }
-      };
-
-      return response as Response;
+      } as unknown as Response;
     }) : undefined
   },
   // Global Realtime configuration for Web
