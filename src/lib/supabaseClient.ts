@@ -204,11 +204,6 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       events_per_second: 20, // V2.1.1: Reduced from 50 to stabilize slow connections
     },
   },
-    config: {
-      broadcast: { self: true },
-      presence: { key: 'admin-monitor' },
-    },
-  },
 });
 
 export const supabase = supabaseInner;
