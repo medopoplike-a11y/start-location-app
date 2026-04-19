@@ -9,7 +9,7 @@ import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone, X } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { AppLoader } from "@/components/AppLoader";
@@ -28,7 +28,20 @@ const LoginPage = () => {
     return "/driver";
   };
 
-  const VERSION = "V1.9.2";
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+
+  const handleVersionTap = () => {
+    setTapCount(prev => {
+      if (prev + 1 >= 5) {
+        setShowDiagnostics(true);
+        return 0;
+      }
+      return prev + 1;
+    });
+  };
+
+  const VERSION = "V1.9.4";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -168,6 +181,51 @@ const LoginPage = () => {
 
   return (
     <div className="h-screen bg-[#020617] relative overflow-hidden font-sans flex flex-col items-center justify-center p-6" dir="rtl">
+      {/* Diagnostics Overlay */}
+      {showDiagnostics && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/95 p-6 overflow-auto animate-in fade-in zoom-in duration-200" dir="rtl">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-blue-400">تشخيص النظام (Diagnostics)</h2>
+            <button 
+              onClick={() => setShowDiagnostics(false)}
+              className="p-2 bg-slate-800 rounded-full text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="space-y-4 text-sm font-mono text-left" dir="ltr">
+            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+              <p className="text-slate-400 mb-1">Supabase URL:</p>
+              <p className="break-all text-white">{config.supabase.url || "NULL"}</p>
+            </div>
+            
+            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+              <p className="text-slate-400 mb-1">Platform:</p>
+              <p className="text-white">
+                {(window as any).Capacitor?.getPlatform?.() || 'web'} ({(window as any).Capacitor?.isNativePlatform?.() ? 'Native' : 'Web'})
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+              <p className="text-slate-400 mb-1">Connection Test:</p>
+              <button 
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+                    alert(error ? `Error: ${error.message}` : "Connected Successfully! ✅");
+                  } catch (e: any) {
+                    alert(`Failed: ${e.message}`);
+                  }
+                }}
+                className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white"
+              >
+                اختبار الاتصال بقاعدة البيانات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Toast toasts={toasts} onRemove={removeToast} />
 
       {/* Premium Animated Background */}
@@ -297,7 +355,7 @@ const LoginPage = () => {
 
           {!isKeyboardOpen && (
             <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
-              <div className="space-y-1">
+              <div className="space-y-1 cursor-pointer" onClick={handleVersionTap}>
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
                 <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
               </div>

@@ -1,24 +1,26 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v1.9.2-REPAIR-STABLE)
+## ✅ Project Status: Production Live (v1.9.4-STANDALONE-FIX)
 
-**Last Deployment**: April 19, 2026 - 🎉 Self-Healing & Native Stability Active
+**Last Deployment**: April 19, 2026 - 🎉 Native Standalone Assets & Diagnostics Active
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v1.9.2]
+- **Mobile (Android)**: APK Build Status ✅ [v1.9.4]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [sdpjvorettivpdviytqo.supabase.co] (Dynamic)
 
 ### 🏗️ **Architecture**
 ```
 Frontend: Next.js 16 + React 19 + Tailwind CSS
-Mobile: Capacitor 8 + 5 Native Plugins
+Mobile: Capacitor 8 + Standalone Assets (No Server URL)
 Backend: Supabase PostgreSQL + Auth
 Hosting: Vercel (Web) + GitHub Releases (APK)
 CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 ```
 
 ### 📊 **Features Implemented**
+- ✅ Standalone Native Assets: Fixed APK isolation by removing `server.url` (Now uses built-in assets + bridge).
+- ✅ Hidden Diagnostics Dashboard: Tap version 5 times in login to test DB connection.
 - ✅ Self-Healing Profiles (Auto-creates missing profiles from Auth Metadata)
 - ✅ Robust Native Detection (Ensures CapacitorHttp is always active on APK)
 - ✅ Improved Binary/JSON Fetch Handling (Fixes empty response issues)
