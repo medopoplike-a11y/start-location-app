@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone, X } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
@@ -60,7 +60,6 @@ const LoginPage = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [apkUrl, setApkUrl] = useState(apkUrlV);
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle');
-  const connStatusRef = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle')[0]; // Initial value for ref
   const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>('idle');
 
   useEffect(() => {
