@@ -37,7 +37,7 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-NEXT_PUBLIC_APP_VERSION = "0.2.2"
+NEXT_PUBLIC_APP_VERSION = "1.9.0"
 NEXT_PUBLIC_BUILD_TYPE = "production"
 NEXT_PUBLIC_CAPGO_APP_ID = "com.start.location"
 NEXT_PUBLIC_AUTO_UPDATE_ENABLED = "true"
