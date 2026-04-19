@@ -47,7 +47,7 @@ VERBOSE_LOGGING = "false"
 NEXT_PUBLIC_ADMIN_EMAILS = "medopoplike@gmail.com"
 NEXT_PUBLIC_SUPABASE_URL = "https://sdpjvorettivpdviytqo.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcGp2b3JldHRpdnBkdml5dHFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODI2MDIsImV4cCI6MjA4OTQ1ODYwMn0.Ti0wZbQHBQwFCBZlCdSaar7JUZm7k7sYUbvr9H2MsZ4"
-NEXT_PUBLIC_APP_URL = "https://ff36471a-fe3f-472d-b63e-18789126fcad-00-2ngt656ybw9xv.riker.replit.dev"
+NEXT_PUBLIC_APP_URL = "https://start-location-app.vercel.app"
 
 [deployment]
 deploymentTarget = "autoscale"
