@@ -4,13 +4,13 @@
   "webDir": "out",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://traestartzlum.vercel.app",
+    "url": "https://start-location-app.vercel.app",
     "androidScheme": "https",
-    "hostname": "traestartzlum.vercel.app",
+    "hostname": "start-location-app.vercel.app",
     "cleartext": false,
     "allowNavigation": [
-      "traestartzlum.vercel.app",
       "start-location-app.vercel.app",
+      "traestartzlum.vercel.app",
       "sdpjvorettivpdviytqo.supabase.co",
       "*.supabase.co",
       "*.replit.dev",

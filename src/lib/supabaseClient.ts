@@ -117,21 +117,44 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     // Note: CapacitorHttp must be imported or available globally
     fetch: isNative ? (async (...args: any[]) => {
       const { CapacitorHttp } = await import('@capacitor/core');
+
+      // Normalize headers: CapacitorHttp needs a plain Record<string,string>
+      // Supabase sometimes passes a Headers instance instead of a plain object
+      const rawHeaders = args[1]?.headers;
+      let plainHeaders: Record<string, string> = {};
+      if (rawHeaders instanceof Headers) {
+        rawHeaders.forEach((value: string, key: string) => { plainHeaders[key] = value; });
+      } else if (rawHeaders && typeof rawHeaders === 'object') {
+        plainHeaders = { ...rawHeaders };
+      }
+
+      // Normalize body: CapacitorHttp expects a parsed object, not a JSON string
+      let bodyData: any = undefined;
+      const rawBody = args[1]?.body;
+      if (rawBody) {
+        if (typeof rawBody === 'string') {
+          try { bodyData = JSON.parse(rawBody); } catch { bodyData = rawBody; }
+        } else {
+          bodyData = rawBody;
+        }
+      }
+
       const res = await CapacitorHttp.request({
         url: args[0] as string,
         method: (args[1]?.method as any) || 'GET',
-        headers: args[1]?.headers as any,
-        data: args[1]?.body ? JSON.parse(args[1].body as string) : undefined,
-        connectTimeout: 10000,
-        readTimeout: 10000,
+        headers: plainHeaders,
+        data: bodyData,
+        connectTimeout: 15000,
+        readTimeout: 15000,
       });
+
       return {
         ok: res.status >= 200 && res.status < 300,
         status: res.status,
-        statusText: 'OK',
-        json: async () => res.data,
-        text: async () => typeof res.data === 'string' ? res.data : JSON.stringify(res.data),
-        blob: async () => new Blob([res.data]),
+        statusText: String(res.status),
+        json: async () => (typeof res.data === 'string' ? JSON.parse(res.data) : res.data),
+        text: async () => (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)),
+        blob: async () => new Blob([typeof res.data === 'string' ? res.data : JSON.stringify(res.data)]),
         headers: new Headers(res.headers as any),
       } as Response;
     }) : undefined
