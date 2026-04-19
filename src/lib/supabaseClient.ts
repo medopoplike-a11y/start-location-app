@@ -157,34 +157,20 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       const responseData = res.data;
       const isString = typeof responseData === 'string';
 
-      // V2.1.0: EMERGENCY FETCH BRIDGE (RADICAL COMPATIBILITY)
-      // This implementation avoids all object-literal issues and uses standard Response
+      // V2.1.4: RADICAL RESPONSE POLYFILL (BYPASSES BUGGY NATIVE RESPONSE)
+      // This implementation avoids all object-literal issues and avoids buggy Native Response.body streams
       const status = res.status || 200;
       const body = isString ? responseData : JSON.stringify(responseData || "");
       
-      // Instead of an object, we use the real Response constructor but with a polyfill-friendly approach
       const headers = new Headers();
       if (res.headers) {
         Object.entries(res.headers).forEach(([k, v]) => headers.set(k, String(v)));
       }
 
-      const responseInit = {
-        status: status,
-        statusText: String(status),
-        headers: headers
-      };
-
-      try {
-        // Attempt to create a real Response instance if available
-        if (typeof Response !== 'undefined') {
-          return new Response(body, responseInit);
-        }
-      } catch (e) {
-        console.warn("Supabase Bridge: Native Response constructor failed, using fallback object");
-      }
-
-      // Final Fallback: Fully compliant object if constructor fails
-      return {
+      // V2.1.4: Create a fully-compliant response-like object that avoids internal stream locking
+      // We explicitly DO NOT use 'new Response()' on native because it can trigger 'this.lock' errors
+      // when supabase-js tries to clone or read the response in certain WebView versions.
+      const responseFallback = {
         ok: status >= 200 && status < 300,
         status: status,
         statusText: String(status),
@@ -194,8 +180,16 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
         text: async () => body,
         blob: async () => new Blob([body]),
         arrayBuffer: async () => new TextEncoder().encode(body).buffer,
-        clone: function() { return this; },
-      } as unknown as Response;
+        clone: function() { 
+          // Return a new copy to satisfy clone() requirements
+          return { ...this }; 
+        },
+        // Mock body as a simple property to avoid stream locking issues
+        body: null, 
+        bodyUsed: false,
+      };
+
+      return responseFallback as unknown as Response;
     }) : undefined
   },
   // Global Realtime configuration for Web

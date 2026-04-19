@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V2.1.3";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.3.apk`)}`;
+  const VERSION = "V2.1.4";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.4.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -66,16 +66,26 @@ const LoginPage = () => {
       setConnStatus('checking');
       setLastError("");
       
-      const checkConnection = async () => {
+      const checkConnection = async (retries = 3) => {
         try {
           const { error, data } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
           if (error) {
+            if (retries > 0) {
+              console.log(`Retrying connection... (${3 - retries + 1})`);
+              setTimeout(() => checkConnection(retries - 1), 2000);
+              return;
+            }
             setConnStatus('fail');
             setLastError(`${error.code || 'ERR'}: ${error.message}`);
           } else {
             setConnStatus('ok');
           }
         } catch (e: any) {
+          if (retries > 0) {
+            console.log(`Retrying connection after error... (${3 - retries + 1})`);
+            setTimeout(() => checkConnection(retries - 1), 2000);
+            return;
+          }
           setConnStatus('fail');
           setLastError(e.message || "Network Error");
         }
