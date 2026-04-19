@@ -41,7 +41,7 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V2.0.1";
+  const VERSION = "V2.1.0";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -56,7 +56,18 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.0.1.apk`)}`);
+  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.0.apk`)}`);
+  const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle');
+
+  useEffect(() => {
+    if (mounted) {
+      setConnStatus('checking');
+      supabase.from('app_config').select('count', { count: 'exact', head: true })
+        .then(({ error }) => setConnStatus(error ? 'fail' : 'ok'))
+        .catch(() => setConnStatus('fail'));
+    }
+  }, [mounted]);
+
   const isInsideNativeApp = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 
   useEffect(() => {
@@ -274,6 +285,21 @@ const LoginPage = () => {
                   <span className="text-white text-shadow-glow">Start</span>
                   <span className="text-blue-400 not-italic">Location</span>
                 </h1>
+                
+                {/* مؤشر الاتصال المباشر */}
+                <div className="flex items-center gap-2 mt-2 mb-4">
+                  <div className={`w-2 h-2 rounded-full ${
+                    connStatus === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 
+                    connStatus === 'fail' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 
+                    'bg-slate-500 animate-pulse'
+                  }`} />
+                  <p className="text-[10px] font-bold text-slate-400">
+                    {connStatus === 'ok' ? 'متصل بالسيرفر' : 
+                     connStatus === 'fail' ? 'فشل الاتصال' : 
+                     'جاري فحص الاتصال...'}
+                  </p>
+                </div>
+
                 <div className="flex items-center gap-2 opacity-60">
                   <div className="h-px w-4 bg-slate-500" />
                   <p className="text-[9px] font-black text-slate-400 tracking-[0.4em] uppercase">Smart Delivery System</p>

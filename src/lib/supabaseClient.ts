@@ -157,28 +157,45 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       const responseData = res.data;
       const isString = typeof responseData === 'string';
 
-      // V2.0.1: RADICAL COMPATIBILITY FIX
-      // Avoiding 'new Response' which fails on some Android versions with 'this.lock is not a function'
+      // V2.1.0: EMERGENCY FETCH BRIDGE (RADICAL COMPATIBILITY)
+      // This implementation avoids all object-literal issues and uses standard Response
       const status = res.status || 200;
       const body = isString ? responseData : JSON.stringify(responseData || "");
       
-      const response = {
+      // Instead of an object, we use the real Response constructor but with a polyfill-friendly approach
+      const headers = new Headers();
+      if (res.headers) {
+        Object.entries(res.headers).forEach(([k, v]) => headers.set(k, String(v)));
+      }
+
+      const responseInit = {
+        status: status,
+        statusText: String(status),
+        headers: headers
+      };
+
+      try {
+        // Attempt to create a real Response instance if available
+        if (typeof Response !== 'undefined') {
+          return new Response(body, responseInit);
+        }
+      } catch (e) {
+        console.warn("Supabase Bridge: Native Response constructor failed, using fallback object");
+      }
+
+      // Final Fallback: Fully compliant object if constructor fails
+      return {
         ok: status >= 200 && status < 300,
         status: status,
         statusText: String(status),
         url: args[0] as string,
-        headers: new Headers(res.headers as any),
+        headers: headers,
         json: async () => (isString && responseData ? JSON.parse(responseData) : (responseData || {})),
         text: async () => body,
         blob: async () => new Blob([body]),
         arrayBuffer: async () => new TextEncoder().encode(body).buffer,
         clone: function() { return this; },
-        // satisfy internal supabase-js / node-fetch checks
-        body: null,
-        bodyUsed: true
-      };
-
-      return response as unknown as Response;
+      } as unknown as Response;
     }) : undefined
   },
   // Global Realtime configuration for Web
