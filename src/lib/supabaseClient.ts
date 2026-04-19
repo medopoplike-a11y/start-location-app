@@ -147,8 +147,8 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
         method: (args[1]?.method as any) || 'GET',
         headers: plainHeaders,
         data: bodyData,
-        connectTimeout: 20000,
-        readTimeout: 20000,
+        connectTimeout: 30000, // V2.1.1: Increased to 30s for slow connections
+        readTimeout: 30000,
       }).catch(err => {
         console.error("CapacitorHttp: Request failed", err);
         throw err;
@@ -201,8 +201,9 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   // Global Realtime configuration for Web
   realtime: {
     params: {
-      events_per_second: 50, // Higher frequency for smoother map movement
+      events_per_second: 20, // V2.1.1: Reduced from 50 to stabilize slow connections
     },
+  },
     config: {
       broadcast: { self: true },
       presence: { key: 'admin-monitor' },

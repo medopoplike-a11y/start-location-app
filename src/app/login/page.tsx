@@ -41,7 +41,7 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V2.1.0";
+  const VERSION = "V2.1.1";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -56,7 +56,7 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.0.apk`)}`);
+  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.1.apk`)}`);
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle');
 
   useEffect(() => {
