@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V5.0.3";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.3.apk`)}`;
+  const VERSION = "V5.0.4";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.4.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -72,19 +72,17 @@ const LoginPage = () => {
       setLastError("");
       
       const checkConnection = async (retries = 3) => {
-        // V5.0.2: Use Ref to check latest status and stop infinite loops
-        if (currentConnStatus.current === 'ok') {
-          console.log("Connection already established, stopping checks.");
-          return;
-        }
+        // V5.0.4: ABSOLUTE STATUS CHECK - STOP EVERYTHING IF OK
+        if (currentConnStatus.current === 'ok') return;
         
         try {
+          console.log(`Testing connection... Attempts left: ${retries}`);
           const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+          
           if (error) {
-            console.error("Connection Check Error:", error);
+            console.error("Connection Check Failed:", error.message);
             if (retries > 0 && currentConnStatus.current !== 'ok') {
-              console.log(`Retrying connection... (${3 - retries + 1})`);
-              setTimeout(() => checkConnection(retries - 1), 3000); // Increased to 3s
+              setTimeout(() => checkConnection(retries - 1), 4000); // Increased to 4s
               return;
             }
             if (currentConnStatus.current !== 'ok') {
@@ -92,14 +90,13 @@ const LoginPage = () => {
               setLastError(`${error.code || 'ERR'}: ${error.message}`);
             }
           } else {
-            console.log("Connection Success ✅ - Setting status to ok");
+            console.log("Connection Success! ✅ TERMINATING RETRY LOOP.");
             setConnStatus('ok');
           }
         } catch (e: any) {
-          console.error("Connection Exception:", e);
+          console.error("Connection Exception:", e.message);
           if (retries > 0 && currentConnStatus.current !== 'ok') {
-            console.log(`Retrying after exception... (${3 - retries + 1})`);
-            setTimeout(() => checkConnection(retries - 1), 3000);
+            setTimeout(() => checkConnection(retries - 1), 4000);
             return;
           }
           if (currentConnStatus.current !== 'ok') {
@@ -266,7 +263,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "FINAL STABLE (V5.0.3)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ULTRA STABLE (V5.0.4)" : "INACTIVE" }
               </p>
             </div>
 

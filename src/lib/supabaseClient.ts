@@ -208,8 +208,14 @@ if (typeof window !== 'undefined' && isNative) {
         bodyUsed: false,
         type: 'default',
         redirected: false,
-        // V5.0.1: Re-add dummy lock to response to satisfy libraries that check for it
+        formData: async () => new FormData(),
+        // V5.0.4: RE-RESTORED CRITICAL LOCK METHODS (REMOVED BY ACCIDENT IN V5.0.2)
+        // These are essential to prevent 'TypeError: this.lock is not a function'
         lock: async (name: string, timeout: any, callback: any) => {
+          const cb = typeof timeout === 'function' ? timeout : callback;
+          if (cb) return await cb();
+        },
+        acquire: async (name: string, timeout: any, callback: any) => {
           const cb = typeof timeout === 'function' ? timeout : callback;
           if (cb) return await cb();
         }
