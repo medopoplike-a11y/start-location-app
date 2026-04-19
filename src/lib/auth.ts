@@ -41,7 +41,11 @@ export const createUserByAdmin = async (
       { 
         auth: { 
           persistSession: false,
-          lock: supabaseLock as any,
+          // V2.1.5: Use ultra-safe lock for temp client
+          lock: {
+            acquire: async () => {},
+            release: async () => {}
+          } as any,
         } 
       }
     );

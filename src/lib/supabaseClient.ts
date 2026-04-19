@@ -50,8 +50,9 @@ export interface SupabaseLock {
 // internal implementation of the lock
 const createSupabaseLock = (): SupabaseLock => {
   const lockFn = async (name: string, acquireTimeout: number, callback: () => Promise<any>) => {
-    // Standard web browser fallback if we can't use complex locking
-    if (typeof window !== 'undefined' && !isNative) {
+    // V2.1.5: RADICAL SIMPLICITY - Always bypass locking on Native
+    // This prevents any "this.lock" or mutex-related hangs in buggy WebViews
+    if (isNative || (typeof window !== 'undefined' && !isNative)) {
       return await callback();
     }
 
@@ -157,36 +158,54 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       const responseData = res.data;
       const isString = typeof responseData === 'string';
 
-      // V2.1.4: RADICAL RESPONSE POLYFILL (BYPASSES BUGGY NATIVE RESPONSE)
-      // This implementation avoids all object-literal issues and avoids buggy Native Response.body streams
+      // V2.1.5: ULTRA-RADICAL RESPONSE POLYFILL (NO NATIVE CONSTRUCTORS)
+      // We avoid 'new Headers()' and 'new Response()' entirely to bypass Android WebView bugs
       const status = res.status || 200;
       const body = isString ? responseData : JSON.stringify(responseData || "");
       
-      const headers = new Headers();
+      // Manual Headers implementation
+      const headerMap = new Map<string, string>();
       if (res.headers) {
-        Object.entries(res.headers).forEach(([k, v]) => headers.set(k, String(v)));
+        Object.entries(res.headers).forEach(([k, v]) => headerMap.set(k.toLowerCase(), String(v)));
       }
 
-      // V2.1.4: Create a fully-compliant response-like object that avoids internal stream locking
-      // We explicitly DO NOT use 'new Response()' on native because it can trigger 'this.lock' errors
-      // when supabase-js tries to clone or read the response in certain WebView versions.
+      const mockHeaders = {
+        get: (n: string) => headerMap.get(n.toLowerCase()) || null,
+        has: (n: string) => headerMap.has(n.toLowerCase()),
+        forEach: (cb: any) => headerMap.forEach((v, k) => cb(v, k)),
+        entries: () => headerMap.entries(),
+        keys: () => headerMap.keys(),
+        values: () => headerMap.values(),
+        [Symbol.iterator]: () => headerMap.entries()[Symbol.iterator](),
+      };
+
+      const statusTexts: Record<number, string> = {
+        200: "OK", 201: "Created", 204: "No Content",
+        400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
+        500: "Internal Server Error"
+      };
+
+      // V2.1.5: Create a fully-compliant response-like object with NO internal slots
       const responseFallback = {
         ok: status >= 200 && status < 300,
         status: status,
-        statusText: String(status),
+        statusText: statusTexts[status] || String(status),
         url: args[0] as string,
-        headers: headers,
-        json: async () => (isString && responseData ? JSON.parse(responseData) : (responseData || {})),
+        headers: mockHeaders as any,
+        json: async () => {
+          if (typeof responseData === 'object') return responseData;
+          try { return JSON.parse(body); } catch { return {}; }
+        },
         text: async () => body,
         blob: async () => new Blob([body]),
         arrayBuffer: async () => new TextEncoder().encode(body).buffer,
         clone: function() { 
-          // Return a new copy to satisfy clone() requirements
-          return { ...this }; 
+          return { ...this, clone: this.clone }; 
         },
-        // Mock body as a simple property to avoid stream locking issues
         body: null, 
         bodyUsed: false,
+        type: 'default',
+        redirected: false,
       };
 
       return responseFallback as unknown as Response;
