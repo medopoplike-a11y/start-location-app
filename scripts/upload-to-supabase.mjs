@@ -10,7 +10,8 @@ if (!supabaseUrl || !serviceRoleKey) {
   process.exit(1);
 }
 
-async function uploadFile(fileName, bucketName, contentType) {
+async function uploadFile(fileName, bucketName, contentType, rename = null) {
+  const targetName = rename || fileName;
   const filePath = path.resolve(process.cwd(), 'build-out', fileName);
   
   if (!fs.existsSync(filePath)) {
@@ -20,14 +21,14 @@ async function uploadFile(fileName, bucketName, contentType) {
 
   const stats = fs.statSync(filePath);
   const fileSize = stats.size;
-  console.log(`\n📦 Preparing: ${fileName}`);
+  console.log(`\n📦 Preparing: ${targetName}`);
   console.log(`📏 Original Size: ${(fileSize / (1024 * 1024)).toFixed(2)} MB (${fileSize} bytes)`);
 
   const fileBuffer = fs.readFileSync(filePath);
 
   try {
     // Binary-safe upload using standard fetch with precise headers
-    const response = await fetch(`${supabaseUrl}/storage/v1/object/${bucketName}/${fileName}`, {
+    const response = await fetch(`${supabaseUrl}/storage/v1/object/${bucketName}/${targetName}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceRoleKey}`,
@@ -44,10 +45,10 @@ async function uploadFile(fileName, bucketName, contentType) {
       throw new Error(`Upload failed [${response.status}]: ${errorData}`);
     }
 
-    console.log(`✅ SUCCESS: ${fileName} uploaded to ${bucketName}`);
+    console.log(`✅ SUCCESS: ${targetName} uploaded to ${bucketName}`);
     
     // Double check size on Supabase (optional but good for logs)
-    const infoResponse = await fetch(`${supabaseUrl}/storage/v1/object/info/public/${bucketName}/${fileName}`, {
+    const infoResponse = await fetch(`${supabaseUrl}/storage/v1/object/info/public/${bucketName}/${targetName}`, {
         headers: { 'apikey': serviceRoleKey }
     });
     if (infoResponse.ok) {
@@ -57,7 +58,7 @@ async function uploadFile(fileName, bucketName, contentType) {
 
     return true;
   } catch (error) {
-    console.error(`❌ CRITICAL ERROR uploading ${fileName}:`, error.message);
+    console.error(`❌ CRITICAL ERROR uploading ${targetName}:`, error.message);
     return false;
   }
 }
@@ -67,11 +68,12 @@ async function main() {
   
   const assets = [
     { name: 'update.zip', bucket: 'app-updates', type: 'application/zip' },
-    { name: 'start-location.apk', bucket: 'app-updates', type: 'application/vnd.android.package-archive' }
+    { name: 'start-location.apk', bucket: 'app-updates', type: 'application/vnd.android.package-archive' },
+    { name: 'start-location.apk', bucket: 'app-updates', type: 'application/vnd.android.package-archive', rename: `start-location-v${packageJson.version}.apk` }
   ];
 
   for (const asset of assets) {
-    const success = await uploadFile(asset.name, asset.bucket, asset.type);
+    const success = await uploadFile(asset.name, asset.bucket, asset.type, asset.rename);
     if (!success) {
         console.error(`🛑 Failed to upload ${asset.name}. Aborting.`);
         process.exit(1);

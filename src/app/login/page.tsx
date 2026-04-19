@@ -41,7 +41,7 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V1.9.7";
+  const VERSION = "V1.9.8";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -56,7 +56,7 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [apkUrl, setApkUrl] = useState(FALLBACK_APK_URL);
+  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v1.9.8.apk`)}`);
   const isInsideNativeApp = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 
   useEffect(() => {
@@ -208,21 +208,36 @@ const LoginPage = () => {
             </div>
 
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-              <p className="text-slate-400 mb-1">Connection Test:</p>
-              <button 
-                onClick={async () => {
-                  try {
-                    const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
-                    alert(error ? `Error: ${error.message}` : "Connected Successfully! ✅");
-                  } catch (e: any) {
-                    alert(`Failed: ${e.message}`);
-                  }
-                }}
-                className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white"
-              >
-                اختبار الاتصال بقاعدة البيانات
-              </button>
-            </div>
+               <p className="text-slate-400 mb-1">Connection Test:</p>
+               <div className="flex gap-2">
+                 <button 
+                   onClick={async () => {
+                     try {
+                       const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+                       alert(error ? `Error: ${error.message}` : "Connected Successfully! ✅");
+                     } catch (e: any) {
+                       alert(`Failed: ${e.message}`);
+                     }
+                   }}
+                   className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white"
+                 >
+                   اختبار الاتصال
+                 </button>
+                 <button 
+                   onClick={async () => {
+                     if (confirm("سيتم مسح كافة البيانات المخزنة وتسجيل الخروج. هل أنت متأكد؟")) {
+                       localStorage.clear();
+                       const { Preferences } = await import("@capacitor/preferences");
+                       await Preferences.clear();
+                       window.location.reload();
+                     }
+                   }}
+                   className="mt-2 px-4 py-2 bg-red-600 rounded text-xs text-white"
+                 >
+                   تطهير النظام
+                 </button>
+               </div>
+             </div>
           </div>
         </div>
       )}
