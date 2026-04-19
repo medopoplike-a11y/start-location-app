@@ -4,10 +4,14 @@
   "webDir": "out",
   "bundledWebRuntime": false,
   "server": {
+    "url": "https://start-location-app.vercel.app",
     "androidScheme": "https",
-    "hostname": "localhost",
+    "hostname": "start-location-app.vercel.app",
+    "cleartext": false,
     "allowNavigation": [
+      "start-location-app.vercel.app",
       "sdpjvorettivpdviytqo.supabase.co",
+      "*.supabase.co",
       "*.replit.dev",
       "*.replit.app"
     ]
