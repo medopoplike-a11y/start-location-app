@@ -19,15 +19,28 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
           }
 
           // فحص OTA بصمت — بدون أي إشعارات للمستخدم
-          const updateInfo = await checkForAutoUpdate(false).catch(() => null);
-          if (updateInfo?.available && updateInfo.downloaded) {
-            try {
-              const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
-              await updater.reload();
-            } catch {
-              window.location.reload();
+          const performUpdateCheck = async () => {
+            const updateInfo = await checkForAutoUpdate(false).catch(() => null);
+            if (updateInfo?.available && updateInfo.downloaded) {
+              try {
+                const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
+                await updater.reload();
+              } catch {
+                window.location.reload();
+              }
             }
-          }
+          };
+
+          // 1. فحص عند بدء التشغيل
+          await performUpdateCheck();
+
+          // 2. فحص عند عودة التطبيق من الخلفية (هام جداً للطيارين)
+          const { App } = await import("@capacitor/app");
+          App.addListener('appStateChange', ({ isActive }) => {
+            if (isActive) {
+              performUpdateCheck();
+            }
+          });
         }
       } catch (e) {
         console.error("Init sequence failed:", e);
