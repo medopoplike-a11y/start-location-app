@@ -41,10 +41,12 @@ export const createUserByAdmin = async (
       { 
         auth: { 
           persistSession: false,
-          // V3.0.0: Global fetch hijacking handles everything,
-          // but we still disable locking for temp clients
+          // V4.0.0: Functional transparent lock
           lock: {
-            acquire: async () => {},
+            acquire: async (name: string, timeout: any, callback: any) => {
+              const cb = typeof timeout === 'function' ? timeout : callback;
+              if (cb) return await cb();
+            },
             release: async () => {}
           } as any,
         } 

@@ -8,6 +8,29 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = Capacitor.isNativePlatform();
 
+// V4.0.0: GLOBAL WEB API MOCKS (THE NUCLEAR OPTION)
+// These mocks ensure that even if the Android WebView is extremely outdated or buggy,
+// the core Web APIs expected by Supabase/GoTrue are present and functional.
+if (typeof window !== 'undefined' && isNative) {
+  // 1. Mock navigator.locks if missing (GoTrue uses this for internal locking)
+  if (!(navigator as any).locks) {
+    (navigator as any).locks = {
+      request: async (name: string, options: any, callback: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) return await cb();
+      }
+    };
+  }
+
+  // 2. Ensure globalThis.lock exists (some libraries look here)
+  if (!(globalThis as any).lock) {
+    (globalThis as any).lock = async (name: string, timeout: any, callback: any) => {
+      const cb = typeof timeout === 'function' ? timeout : callback;
+      if (cb) return await cb();
+    };
+  }
+}
+
 // Standard storage for maximum compatibility with all browsers and Capacitor
 const appStorage: SupportedStorage = {
   getItem: (key: string): string | null | Promise<string | null> => {
@@ -104,7 +127,7 @@ if (typeof window !== 'undefined' && isNative) {
       const options = args[1] || {};
       
       // Skip non-http(s) or relative URLs if needed, but for Supabase we want all
-      if (!url.startsWith('http')) return originalFetch(...args);
+      if (!url || (typeof url === 'string' && !url.startsWith('http'))) return originalFetch(...args);
 
       // Normalize headers
       const rawHeaders = options.headers;
@@ -155,11 +178,11 @@ if (typeof window !== 'undefined' && isNative) {
         [Symbol.iterator]: () => headerMap.entries()[Symbol.iterator](),
       };
 
-      // The "Unbreakable" Response Object
+      // The "Unbreakable" Response Object (V4.0.0: More robust interface)
       const responseFallback = {
         ok: status >= 200 && status < 300,
         status: status,
-        statusText: "OK", // Simplified
+        statusText: "OK",
         url: url,
         headers: mockHeaders,
         json: async () => (typeof responseData === 'object' ? responseData : JSON.parse(body)),
@@ -171,6 +194,12 @@ if (typeof window !== 'undefined' && isNative) {
         bodyUsed: false,
         type: 'default',
         redirected: false,
+        // V4.0.0: Added missing methods to prevent TypeError
+        formData: async () => new FormData(),
+        lock: async (name: string, timeout: any, callback: any) => {
+          const cb = typeof timeout === 'function' ? timeout : callback;
+          if (cb) return await cb();
+        }
       };
 
       return responseFallback as unknown as Response;
@@ -187,9 +216,12 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // V3.0.0: Fully neuter the lock object
+    // V4.0.0: A functional lock that DOES NOT block
     lock: isNative ? {
-      acquire: async () => {},
+      acquire: async (name: string, timeout: any, callback: any) => {
+        const cb = typeof timeout === 'function' ? timeout : callback;
+        if (cb) return await cb();
+      },
       release: async () => {}
     } as any : undefined,
     storage: isNative ? appStorage : undefined,
@@ -197,7 +229,6 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: isNative ? 'pkce' : 'implicit'
   },
   global: {
-    // V3.0.0: We no longer need per-client fetch override because we hijacked window.fetch
     fetch: undefined 
   },
   realtime: {
@@ -206,5 +237,17 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+// V4.0.0: Instance-level method injection to stop TypeError: this.lock is not a function
+if (isNative) {
+  (supabaseInner as any).lock = async (name: string, timeout: any, callback: any) => {
+    const cb = typeof timeout === 'function' ? timeout : callback;
+    if (cb) return await cb();
+  };
+  (supabaseInner as any).acquire = async (name: string, timeout: any, callback: any) => {
+    const cb = typeof timeout === 'function' ? timeout : callback;
+    if (cb) return await cb();
+  };
+}
 
 export const supabase = supabaseInner;
