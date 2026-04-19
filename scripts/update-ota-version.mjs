@@ -19,7 +19,8 @@ async function updateOtaVersion() {
   const version = `${baseVersion}-${buildId}`;
   
   const bundleUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/update.zip?t=${Date.now()}`;
-  const downloadUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/start-location.apk?t=${Date.now()}`;
+  // V1.9.9: Use versioned APK URL in database to bypass browser cache completely
+  const downloadUrl = `${supabaseUrl}/storage/v1/object/public/app-updates/start-location-v${baseVersion}.apk?t=${Date.now()}`;
 
   console.log(`🚀 Updating OTA version to: ${version}`);
   console.log(`🔗 Bundle URL: ${bundleUrl}`);
