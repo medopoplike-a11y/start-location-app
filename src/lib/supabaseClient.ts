@@ -6,18 +6,18 @@ import { Preferences } from '@capacitor/preferences';
 const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
-const isNative = typeof window !== 'undefined' && 
-  (window as any).Capacitor?.isNativePlatform?.() === true;
+const isNative = Capacitor.isNativePlatform();
 
 // Standard storage for maximum compatibility with all browsers and Capacitor
 const appStorage: SupportedStorage = {
   getItem: (key: string): string | null | Promise<string | null> => {
     if (typeof window === 'undefined') return null;
     
+    // Check localStorage first
     const localValue = localStorage.getItem(key);
     if (localValue) return localValue;
 
-    // V1.6.4: Fallback to Preferences on Native if localStorage is empty
+    // V1.8.2: If on Native and not in localStorage, MUST check Preferences
     if (isNative) {
       return Preferences.get({ key }).then(res => res.value);
     }
@@ -27,6 +27,7 @@ const appStorage: SupportedStorage = {
   setItem: (key: string, value: string): void | Promise<void> => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(key, value);
+    // V1.8.2: Always mirror to Preferences on Native for persistence across updates
     if (isNative) {
       Preferences.set({ key, value }).catch(() => {});
     }
@@ -144,24 +145,36 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
         method: (args[1]?.method as any) || 'GET',
         headers: plainHeaders,
         data: bodyData,
-        connectTimeout: 15000,
-        readTimeout: 15000,
+        connectTimeout: 20000, // V1.8.2: Increased timeout for slow mobile networks
+        readTimeout: 20000,
+      }).catch(err => {
+        console.error("CapacitorHttp: Request failed", err);
+        throw err;
       });
+
+      // V1.8.2: Handle potentially missing or malformed data from plugin
+      const responseData = res.data;
+      const isString = typeof responseData === 'string';
 
       return {
         ok: res.status >= 200 && res.status < 300,
         status: res.status,
         statusText: String(res.status),
         json: async () => {
-          if (!res.data) return {};
-          if (typeof res.data === 'string') {
-            try { return JSON.parse(res.data); } catch { return {}; }
+          if (!responseData || responseData === "") return []; // Return empty array by default for list queries
+          if (isString) {
+            try { return JSON.parse(responseData); } catch { return {}; }
           }
-          return res.data;
+          return responseData;
         },
-        text: async () => (typeof res.data === 'string' ? res.data : JSON.stringify(res.data || "")),
-        blob: async () => new Blob([typeof res.data === 'string' ? res.data : JSON.stringify(res.data || "")]),
+        text: async () => (isString ? responseData : JSON.stringify(responseData || "")),
+        blob: async () => new Blob([isString ? responseData : JSON.stringify(responseData || "")]),
+        arrayBuffer: async () => {
+          const s = isString ? responseData : JSON.stringify(responseData || "");
+          return new TextEncoder().encode(s).buffer;
+        },
         headers: new Headers(res.headers as any),
+        clone: function() { return { ...this }; } // Minimal clone for compatibility
       } as Response;
     }) : undefined
   },

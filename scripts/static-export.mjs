@@ -33,15 +33,22 @@ if (fs.existsSync(apiDir)) {
 }
 
 // Load .env.production variables manually to ensure they are available for the build
+// V1.8.2: ONLY load if the variable is not already set in the environment (e.g. by GitHub Actions)
 const envProdPath = path.resolve(__dirname, '../.env.production');
 let envVars = 'BUILD_TYPE=static ';
 if (fs.existsSync(envProdPath)) {
-  console.log('📝 Loading environment variables from .env.production');
+  console.log('📝 Checking environment variables from .env.production');
   const envProd = fs.readFileSync(envProdPath, 'utf8');
   envProd.split('\n').forEach(line => {
     const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      envVars += `${trimmed} `;
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+      const [key, ...valueParts] = trimmed.split('=');
+      const value = valueParts.join('=');
+      if (key && !process.env[key]) {
+        envVars += `${key}=${value} `;
+      } else if (key) {
+        console.log(`ℹ️ Respecting existing environment variable: ${key}`);
+      }
     }
   });
 }

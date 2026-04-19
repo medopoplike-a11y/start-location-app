@@ -124,7 +124,38 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
     if (!error && data) {
       return data as UserProfile;
     }
-    console.warn("getUserProfile: No profile found in DB for user", userId);
+    
+    // V1.8.2: Auto-Repair missing profiles from metadata if possible
+    // This is critical when migrating projects or if profile sync failed during signup
+    console.warn("getUserProfile: No profile found in DB for user", userId, "Attempting auto-repair...");
+    
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    
+    if (user && user.id === userId) {
+      const metadata = user.user_metadata || {};
+      const role = (metadata.role || 'driver').toLowerCase() as UserRole;
+      
+      const newProfile: UserProfile = {
+        id: userId,
+        email: user.email || userEmail || '',
+        full_name: metadata.full_name || metadata.name || 'مستخدم',
+        role: role,
+        is_locked: false,
+        created_at: new Date().toISOString(),
+        phone: metadata.phone || '',
+        area: metadata.area || ''
+      };
+      
+      // Attempt to create the missing profile
+      const { error: insertError } = await supabase.from('profiles').insert([newProfile]);
+      if (!insertError) {
+        console.log("getUserProfile: Profile auto-repaired successfully");
+        return newProfile;
+      } else {
+        console.error("getUserProfile: Auto-repair failed", insertError);
+      }
+    }
   } catch (dbError) {
     console.warn('getUserProfile: Database error:', dbError);
   }
