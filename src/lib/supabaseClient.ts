@@ -156,12 +156,16 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       const responseData = res.data;
       const isString = typeof responseData === 'string';
 
-      return {
+      // V1.9.5: High-Fidelity Fetch Polyfill for Supabase-js
+      // Fixed: 'this.lock is not a function' error by providing a compliant Response object
+      const response = {
         ok: res.status >= 200 && res.status < 300,
         status: res.status,
         statusText: String(res.status),
+        url: args[0] as string,
+        headers: new Headers(res.headers as any),
         json: async () => {
-          if (!responseData || responseData === "") return []; // Return empty array by default for list queries
+          if (!responseData || responseData === "") return [];
           if (isString) {
             try { return JSON.parse(responseData); } catch { return {}; }
           }
@@ -173,9 +177,10 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
           const s = isString ? responseData : JSON.stringify(responseData || "");
           return new TextEncoder().encode(s).buffer;
         },
-        headers: new Headers(res.headers as any),
-        clone: function() { return { ...this }; } // Minimal clone for compatibility
-      } as Response;
+        clone: function() { return this; }
+      };
+
+      return response as Response;
     }) : undefined
   },
   // Global Realtime configuration for Web
