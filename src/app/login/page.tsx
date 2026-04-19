@@ -41,7 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V2.1.2";
+  const VERSION = "V2.1.3";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.3.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -56,15 +57,31 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.2.apk`)}`);
+  const [apkUrl, setApkUrl] = useState(apkUrlV);
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle');
+  const [lastError, setLastError] = useState<string>("");
 
   useEffect(() => {
     if (mounted) {
       setConnStatus('checking');
-      supabase.from('app_config').select('count', { count: 'exact', head: true })
-        .then(({ error }) => setConnStatus(error ? 'fail' : 'ok'))
-        .catch(() => setConnStatus('fail'));
+      setLastError("");
+      
+      const checkConnection = async () => {
+        try {
+          const { error, data } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+          if (error) {
+            setConnStatus('fail');
+            setLastError(`${error.code || 'ERR'}: ${error.message}`);
+          } else {
+            setConnStatus('ok');
+          }
+        } catch (e: any) {
+          setConnStatus('fail');
+          setLastError(e.message || "Network Error");
+        }
+      };
+
+      checkConnection();
     }
   }, [mounted]);
 
@@ -287,17 +304,24 @@ const LoginPage = () => {
                 </h1>
                 
                 {/* مؤشر الاتصال المباشر */}
-                <div className="flex items-center gap-2 mt-2 mb-4">
-                  <div className={`w-2 h-2 rounded-full ${
-                    connStatus === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 
-                    connStatus === 'fail' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 
-                    'bg-slate-500 animate-pulse'
-                  }`} />
-                  <p className="text-[10px] font-bold text-slate-400">
-                    {connStatus === 'ok' ? 'متصل بالسيرفر' : 
-                     connStatus === 'fail' ? 'فشل الاتصال' : 
-                     'جاري فحص الاتصال...'}
-                  </p>
+                <div className="flex flex-col gap-1 mt-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      connStatus === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 
+                      connStatus === 'fail' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 
+                      'bg-slate-500 animate-pulse'
+                    }`} />
+                    <p className="text-[10px] font-bold text-slate-400">
+                      {connStatus === 'ok' ? 'متصل بالسيرفر' : 
+                       connStatus === 'fail' ? 'فشل الاتصال' : 
+                       'جاري فحص الاتصال...'}
+                    </p>
+                  </div>
+                  {connStatus === 'fail' && lastError && (
+                    <p className="text-[8px] text-red-400/80 font-mono break-all bg-red-500/5 p-1 rounded border border-red-500/10">
+                      خطأ: {lastError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 opacity-60">
