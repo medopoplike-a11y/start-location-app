@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V5.0.4";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.4.apk`)}`;
+  const VERSION = "V6.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v6.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -64,48 +64,41 @@ const LoginPage = () => {
 
   useEffect(() => {
     currentConnStatus.current = connStatus;
+    if (connStatus === 'ok' && typeof window !== 'undefined') {
+      (window as any).__START_LOCATION_CONNECTED = true;
+    }
   }, [connStatus]);
 
-  useEffect(() => {
-    if (mounted && currentConnStatus.current === 'idle') {
-      setConnStatus('checking');
-      setLastError("");
-      
-      const checkConnection = async (retries = 3) => {
-        // V5.0.4: ABSOLUTE STATUS CHECK - STOP EVERYTHING IF OK
-        if (currentConnStatus.current === 'ok') return;
-        
-        try {
-          console.log(`Testing connection... Attempts left: ${retries}`);
-          const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
-          
-          if (error) {
-            console.error("Connection Check Failed:", error.message);
-            if (retries > 0 && currentConnStatus.current !== 'ok') {
-              setTimeout(() => checkConnection(retries - 1), 4000); // Increased to 4s
-              return;
-            }
-            if (currentConnStatus.current !== 'ok') {
-              setConnStatus('fail');
-              setLastError(`${error.code || 'ERR'}: ${error.message}`);
-            }
-          } else {
-            console.log("Connection Success! ✅ TERMINATING RETRY LOOP.");
-            setConnStatus('ok');
-          }
-        } catch (e: any) {
-          console.error("Connection Exception:", e.message);
-          if (retries > 0 && currentConnStatus.current !== 'ok') {
-            setTimeout(() => checkConnection(retries - 1), 4000);
-            return;
-          }
-          if (currentConnStatus.current !== 'ok') {
-            setConnStatus('fail');
-            setLastError(e.message || "Network Error");
-          }
-        }
-      };
+  const checkConnection = async () => {
+    if (typeof window !== 'undefined' && (window as any).__START_LOCATION_CONNECTED) {
+      setConnStatus('ok');
+      return;
+    }
 
+    setConnStatus('checking');
+    setLastError("");
+    
+    try {
+      console.log(`V6.0.0: Performing one-time connection check...`);
+      const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error("Connection Check Failed:", error.message);
+        setConnStatus('fail');
+        setLastError(`${error.code || 'ERR'}: ${error.message}`);
+      } else {
+        console.log("Connection Success! ✅");
+        setConnStatus('ok');
+      }
+    } catch (e: any) {
+      console.error("Connection Exception:", e.message);
+      setConnStatus('fail');
+      setLastError(e.message || "Network Error");
+    }
+  };
+
+  useEffect(() => {
+    if (mounted) {
       checkConnection();
     }
   }, [mounted]);
@@ -263,7 +256,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ULTRA STABLE (V5.0.4)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "RADICAL STABLE (V6.0.0)" : "INACTIVE" }
               </p>
             </div>
 
@@ -271,18 +264,11 @@ const LoginPage = () => {
                <p className="text-slate-400 mb-1">Connection Test:</p>
                <div className="flex gap-2">
                  <button 
-                   onClick={async () => {
-                     try {
-                       const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
-                       alert(error ? `Error: ${error.message}` : "Connected Successfully! ✅");
-                     } catch (e: any) {
-                       alert(`Failed: ${e.message}`);
-                     }
-                   }}
-                   className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white"
-                 >
-                   اختبار الاتصال
-                 </button>
+                  onClick={() => checkConnection()}
+                  className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white hover:bg-blue-700 transition-colors"
+                >
+                  إعادة المحاولة (Retry)
+                </button>
                  <button 
                    onClick={async () => {
                      if (confirm("سيتم مسح كافة البيانات المخزنة وتسجيل الخروج. هل أنت متأكد؟")) {

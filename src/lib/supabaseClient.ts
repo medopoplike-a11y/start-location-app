@@ -222,9 +222,21 @@ if (typeof window !== 'undefined' && isNative) {
       };
 
       return responseFallback as unknown as Response;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Global Fetch Bridge Error:", e);
-      return originalFetch(...args);
+      // V6.0.0: NEVER fallback to originalFetch on Native for HTTP requests.
+      // This is the root cause of 'this.lock' errors.
+      const errBody = JSON.stringify({ error: "Network Bridge Error", message: e.message });
+      return {
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        url: typeof args[0] === 'string' ? args[0] : (args[0] as any).url,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ error: e.message }),
+        text: async () => errBody,
+        clone: function() { return { ...this }; }
+      } as unknown as Response;
     }
   };
   (window as any).__START_FETCH_BRIDGE_ACTIVE = true;
