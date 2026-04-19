@@ -245,14 +245,25 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// V5.0.1: Final check - provide NO-OP methods to prevent library crashes
+// V5.0.2: Deep Injection - Provide NO-OP methods to ALL internal clients
 if (isNative) {
   const noop = async (name: string, timeout: any, callback: any) => {
     const cb = typeof timeout === 'function' ? timeout : callback;
     if (cb) return await cb();
   };
-  (supabaseInner as any).lock = noop;
-  (supabaseInner as any).acquire = noop;
+  
+  const patchClient = (client: any) => {
+    if (!client) return;
+    try {
+      client.lock = noop;
+      client.acquire = noop;
+    } catch (e) {}
+  };
+
+  patchClient(supabaseInner);
+  patchClient((supabaseInner as any).auth);
+  patchClient((supabaseInner as any).storage);
+  patchClient((supabaseInner as any).realtime);
 }
 
 export const supabase = supabaseInner;

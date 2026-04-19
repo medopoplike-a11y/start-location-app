@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V5.0.1";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.1.apk`)}`;
+  const VERSION = "V5.0.2";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.2.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -50,6 +50,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lastError, setLastError] = useState<string>("");
   const [status, setStatus] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -59,40 +60,53 @@ const LoginPage = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [apkUrl, setApkUrl] = useState(apkUrlV);
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle');
-  const [lastError, setLastError] = useState<string>("");
+  const connStatusRef = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle')[0]; // Initial value for ref
+  const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>('idle');
 
   useEffect(() => {
-    if (mounted) {
+    currentConnStatus.current = connStatus;
+  }, [connStatus]);
+
+  useEffect(() => {
+    if (mounted && currentConnStatus.current === 'idle') {
       setConnStatus('checking');
       setLastError("");
       
       const checkConnection = async (retries = 3) => {
-        if (connStatus === 'ok') return; // V5.0.1: Don't retry if already connected
+        // V5.0.2: Use Ref to check latest status and stop infinite loops
+        if (currentConnStatus.current === 'ok') {
+          console.log("Connection already established, stopping checks.");
+          return;
+        }
         
         try {
-          const { error, data } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+          const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
           if (error) {
             console.error("Connection Check Error:", error);
-            if (retries > 0) {
+            if (retries > 0 && currentConnStatus.current !== 'ok') {
               console.log(`Retrying connection... (${3 - retries + 1})`);
-              setTimeout(() => checkConnection(retries - 1), 2000);
+              setTimeout(() => checkConnection(retries - 1), 3000); // Increased to 3s
               return;
             }
-            setConnStatus('fail');
-            setLastError(`${error.code || 'ERR'}: ${error.message}`);
+            if (currentConnStatus.current !== 'ok') {
+              setConnStatus('fail');
+              setLastError(`${error.code || 'ERR'}: ${error.message}`);
+            }
           } else {
-            console.log("Connection Success ✅");
+            console.log("Connection Success ✅ - Setting status to ok");
             setConnStatus('ok');
           }
         } catch (e: any) {
           console.error("Connection Exception:", e);
-          if (retries > 0) {
-            console.log(`Retrying connection after error... (${3 - retries + 1})`);
-            setTimeout(() => checkConnection(retries - 1), 2000);
+          if (retries > 0 && currentConnStatus.current !== 'ok') {
+            console.log(`Retrying after exception... (${3 - retries + 1})`);
+            setTimeout(() => checkConnection(retries - 1), 3000);
             return;
           }
-          setConnStatus('fail');
-          setLastError(e.message || "Network Error");
+          if (currentConnStatus.current !== 'ok') {
+            setConnStatus('fail');
+            setLastError(e.message || "Network Error");
+          }
         }
       };
 
@@ -253,7 +267,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "STABLE NO-LOCK (V5.0.1)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ULTRA STABLE (V5.0.2)" : "INACTIVE" }
               </p>
             </div>
 
