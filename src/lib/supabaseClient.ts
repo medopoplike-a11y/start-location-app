@@ -208,7 +208,11 @@ if (typeof window !== 'undefined' && isNative) {
         bodyUsed: false,
         type: 'default',
         redirected: false,
-        formData: async () => new FormData()
+        // V5.0.1: Re-add dummy lock to response to satisfy libraries that check for it
+        lock: async (name: string, timeout: any, callback: any) => {
+          const cb = typeof timeout === 'function' ? timeout : callback;
+          if (cb) return await cb();
+        }
       };
 
       return responseFallback as unknown as Response;
@@ -241,12 +245,14 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// V5.0.0: Final check - ensure no .lock exists on the instance
+// V5.0.1: Final check - provide NO-OP methods to prevent library crashes
 if (isNative) {
-  try {
-    delete (supabaseInner as any).lock;
-    delete (supabaseInner as any).acquire;
-  } catch (e) {}
+  const noop = async (name: string, timeout: any, callback: any) => {
+    const cb = typeof timeout === 'function' ? timeout : callback;
+    if (cb) return await cb();
+  };
+  (supabaseInner as any).lock = noop;
+  (supabaseInner as any).acquire = noop;
 }
 
 export const supabase = supabaseInner;

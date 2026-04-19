@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V5.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.0.apk`)}`;
+  const VERSION = "V5.0.1";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.1.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -67,9 +67,12 @@ const LoginPage = () => {
       setLastError("");
       
       const checkConnection = async (retries = 3) => {
+        if (connStatus === 'ok') return; // V5.0.1: Don't retry if already connected
+        
         try {
           const { error, data } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
           if (error) {
+            console.error("Connection Check Error:", error);
             if (retries > 0) {
               console.log(`Retrying connection... (${3 - retries + 1})`);
               setTimeout(() => checkConnection(retries - 1), 2000);
@@ -78,9 +81,11 @@ const LoginPage = () => {
             setConnStatus('fail');
             setLastError(`${error.code || 'ERR'}: ${error.message}`);
           } else {
+            console.log("Connection Success ✅");
             setConnStatus('ok');
           }
         } catch (e: any) {
+          console.error("Connection Exception:", e);
           if (retries > 0) {
             console.log(`Retrying connection after error... (${3 - retries + 1})`);
             setTimeout(() => checkConnection(retries - 1), 2000);
@@ -248,7 +253,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "NO-LOCK PROTOCOL (V5.0.0)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "STABLE NO-LOCK (V5.0.1)" : "INACTIVE" }
               </p>
             </div>
 
