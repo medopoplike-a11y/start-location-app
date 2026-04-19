@@ -158,6 +158,11 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       const isString = typeof responseData === 'string';
       const status = res.status || 200;
 
+      // Debug: Log the response in native for troubleshooting
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform() === 'android') {
+        console.log(`[Supabase Native] Request: ${args[0]} | Status: ${status} | Type: ${typeof responseData}`);
+      }
+
       // Create a native-compliant Response object that supabase-js expects
       return {
         ok: status >= 200 && status < 300,
