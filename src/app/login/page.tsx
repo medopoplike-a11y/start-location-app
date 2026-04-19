@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V5.0.2";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.2.apk`)}`;
+  const VERSION = "V5.0.3";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v5.0.3.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -266,7 +266,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ULTRA STABLE (V5.0.2)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "FINAL STABLE (V5.0.3)" : "INACTIVE" }
               </p>
             </div>
 
