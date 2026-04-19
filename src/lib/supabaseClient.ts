@@ -92,78 +92,54 @@ const createSupabaseLock = (): SupabaseLock => {
 
 export const supabaseLock = createSupabaseLock();
 
-const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    // V1.8.0: Disable internal locking on Native to prevent "Lock not released" hang
-    // Standard web browser fallback if we can't use complex locking
-    lock: isNative ? {
-      acquire: async (name: string, timeout: number, callback: () => Promise<any>) => await callback(),
-      release: async () => {}
-    } as any : undefined,
-    // Use custom storage ONLY for native to handle Preferences sync
-    // For web, we use default localStorage which is most stable
-    storage: isNative ? appStorage : undefined,
-    storageKey: 'start-location-v1-session',
-    // DO NOT override flowType for Web - let Supabase use its defaults
-    ...(isNative ? {
-      flowType: 'pkce',
-    } : {
-      flowType: 'implicit', // Use implicit for broad browser compatibility if PKCE fails
-    })
-  },
-  global: {
-    // V1.8.0: Use CapacitorHttp for Native to bypass CORS and improve reliability
-    // Note: CapacitorHttp must be imported or available globally
-    fetch: isNative ? (async (...args: any[]) => {
+// V3.0.0: GLOBAL FETCH HIJACKING (THE ULTIMATE FIX)
+// This overrides window.fetch globally to ensure EVERY network request in the app
+// uses our safe CapacitorHttp bridge, bypassing buggy Android WebView fetch/Response.
+if (typeof window !== 'undefined' && isNative) {
+  const originalFetch = window.fetch;
+  (window as any).fetch = async (...args: any[]) => {
+    try {
       const { CapacitorHttp } = await import('@capacitor/core');
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as any).url;
+      const options = args[1] || {};
+      
+      // Skip non-http(s) or relative URLs if needed, but for Supabase we want all
+      if (!url.startsWith('http')) return originalFetch(...args);
 
-      // Normalize headers: CapacitorHttp needs a plain Record<string,string>
-      // Supabase sometimes passes a Headers instance instead of a plain object
-      const rawHeaders = args[1]?.headers;
+      // Normalize headers
+      const rawHeaders = options.headers;
       let plainHeaders: Record<string, string> = {};
       if (rawHeaders instanceof Headers) {
-        rawHeaders.forEach((value: string, key: string) => { plainHeaders[key] = value; });
+        rawHeaders.forEach((v, k) => { plainHeaders[k] = v; });
       } else if (rawHeaders && typeof rawHeaders === 'object') {
         plainHeaders = { ...rawHeaders };
       }
 
-      // Normalize body: CapacitorHttp expects a parsed object, not a JSON string
+      // Normalize body
       let bodyData: any = undefined;
-      const rawBody = args[1]?.body;
-      if (rawBody) {
-        if (typeof rawBody === 'string') {
-          try { bodyData = JSON.parse(rawBody); } catch { bodyData = rawBody; }
+      if (options.body) {
+        if (typeof options.body === 'string') {
+          try { bodyData = JSON.parse(options.body); } catch { bodyData = options.body; }
         } else {
-          bodyData = rawBody;
+          bodyData = options.body;
         }
       }
 
-      // V1.9.6: Minimalist High-Compatibility Fetch Bridge
-      // This implementation avoids complex object structures that trigger 'this.lock' errors
       const res = await CapacitorHttp.request({
-        url: args[0] as string,
-        method: (args[1]?.method as any) || 'GET',
+        url: url,
+        method: options.method || 'GET',
         headers: plainHeaders,
         data: bodyData,
-        connectTimeout: 30000, // V2.1.1: Increased to 30s for slow connections
+        connectTimeout: 30000,
         readTimeout: 30000,
-      }).catch(err => {
-        console.error("CapacitorHttp: Request failed", err);
-        throw err;
       });
 
       const responseData = res.data;
       const isString = typeof responseData === 'string';
-
-      // V2.1.5: ULTRA-RADICAL RESPONSE POLYFILL (NO NATIVE CONSTRUCTORS)
-      // We avoid 'new Headers()' and 'new Response()' entirely to bypass Android WebView bugs
-      const status = res.status || 200;
       const body = isString ? responseData : JSON.stringify(responseData || "");
-      
-      // Manual Headers implementation
+      const status = res.status || 200;
+
+      // Manual Headers Implementation (No internal slots)
       const headerMap = new Map<string, string>();
       if (res.headers) {
         Object.entries(res.headers).forEach(([k, v]) => headerMap.set(k.toLowerCase(), String(v)));
@@ -179,42 +155,54 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
         [Symbol.iterator]: () => headerMap.entries()[Symbol.iterator](),
       };
 
-      const statusTexts: Record<number, string> = {
-        200: "OK", 201: "Created", 204: "No Content",
-        400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
-        500: "Internal Server Error"
-      };
-
-      // V2.1.5: Create a fully-compliant response-like object with NO internal slots
+      // The "Unbreakable" Response Object
       const responseFallback = {
         ok: status >= 200 && status < 300,
         status: status,
-        statusText: statusTexts[status] || String(status),
-        url: args[0] as string,
-        headers: mockHeaders as any,
-        json: async () => {
-          if (typeof responseData === 'object') return responseData;
-          try { return JSON.parse(body); } catch { return {}; }
-        },
+        statusText: "OK", // Simplified
+        url: url,
+        headers: mockHeaders,
+        json: async () => (typeof responseData === 'object' ? responseData : JSON.parse(body)),
         text: async () => body,
         blob: async () => new Blob([body]),
         arrayBuffer: async () => new TextEncoder().encode(body).buffer,
-        clone: function() { 
-          return { ...this, clone: this.clone }; 
-        },
-        body: null, 
+        clone: function() { return { ...this, clone: this.clone }; },
+        body: null,
         bodyUsed: false,
         type: 'default',
         redirected: false,
       };
 
       return responseFallback as unknown as Response;
-    }) : undefined
+    } catch (e) {
+      console.error("Global Fetch Bridge Error:", e);
+      return originalFetch(...args);
+    }
+  };
+  (window as any).__START_FETCH_BRIDGE_ACTIVE = true;
+}
+
+const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // V3.0.0: Fully neuter the lock object
+    lock: isNative ? {
+      acquire: async () => {},
+      release: async () => {}
+    } as any : undefined,
+    storage: isNative ? appStorage : undefined,
+    storageKey: 'start-location-v1-session',
+    flowType: isNative ? 'pkce' : 'implicit'
   },
-  // Global Realtime configuration for Web
+  global: {
+    // V3.0.0: We no longer need per-client fetch override because we hijacked window.fetch
+    fetch: undefined 
+  },
   realtime: {
     params: {
-      events_per_second: 20, // V2.1.1: Reduced from 50 to stabilize slow connections
+      events_per_second: 20,
     },
   },
 });

@@ -41,8 +41,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V2.1.5";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.1.5.apk`)}`;
+  const VERSION = "V3.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v3.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -242,6 +242,13 @@ const LoginPage = () => {
               <p className="text-slate-400 mb-1">Platform:</p>
               <p className="text-white">
                 {(window as any).Capacitor?.getPlatform?.() || 'web'} ({(window as any).Capacitor?.isNativePlatform?.() ? 'Native' : 'Web'})
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+              <p className="text-slate-400 mb-1">Network Bridge:</p>
+              <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ACTIVE (V3.0.0)" : "INACTIVE" }
               </p>
             </div>
 

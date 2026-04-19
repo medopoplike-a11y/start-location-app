@@ -41,7 +41,8 @@ export const createUserByAdmin = async (
       { 
         auth: { 
           persistSession: false,
-          // V2.1.5: Use ultra-safe lock for temp client
+          // V3.0.0: Global fetch hijacking handles everything,
+          // but we still disable locking for temp clients
           lock: {
             acquire: async () => {},
             release: async () => {}
