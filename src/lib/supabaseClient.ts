@@ -8,26 +8,32 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = Capacitor.isNativePlatform();
 
-// V4.0.0: GLOBAL WEB API MOCKS (THE NUCLEAR OPTION)
-// These mocks ensure that even if the Android WebView is extremely outdated or buggy,
-// the core Web APIs expected by Supabase/GoTrue are present and functional.
-if (typeof window !== 'undefined' && isNative) {
-  // 1. Mock navigator.locks if missing (GoTrue uses this for internal locking)
-  if (!(navigator as any).locks) {
-    (navigator as any).locks = {
+// V5.0.0: TOTAL LOCK DESTRUCTION (THE "NO-LOCK" PROTOCOL)
+// We are now completely overriding the window.navigator.locks object
+// to prevent any library (including Supabase internals) from even attempting
+// to use the system locking mechanism.
+if (typeof window !== 'undefined') {
+  try {
+    const emptyLock = {
       request: async (name: string, options: any, callback: any) => {
         const cb = typeof options === 'function' ? options : callback;
         if (cb) return await cb();
-      }
+      },
+      query: async () => ({ pending: [], held: [] })
     };
-  }
+    
+    // Force override even if it exists
+    Object.defineProperty(navigator, 'locks', {
+      value: emptyLock,
+      writable: false,
+      configurable: true
+    });
 
-  // 2. Ensure globalThis.lock exists (some libraries look here)
-  if (!(globalThis as any).lock) {
-    (globalThis as any).lock = async (name: string, timeout: any, callback: any) => {
-      const cb = typeof timeout === 'function' ? timeout : callback;
-      if (cb) return await cb();
-    };
+    // Also globally mock 'lock' property on any object that might be checked
+    (window as any).lock = undefined;
+    (window as any).acquire = undefined;
+  } catch (e) {
+    console.warn("V5.0.0: Failed to safely destroy locks object", e);
   }
 }
 
@@ -184,7 +190,9 @@ if (typeof window !== 'undefined' && isNative) {
         [Symbol.iterator]: () => headerMap.entries()[Symbol.iterator](),
       };
 
-      // The "Unbreakable" Response Object (V4.0.0: More robust interface)
+      // V5.0.0: THE UNBREAKABLE RESPONSE (NO LOCK PROPERTY)
+      // We explicitly avoid adding any property named 'lock' to this object
+      // to prevent libraries from thinking they can use it.
       const responseFallback = {
         ok: status >= 200 && status < 300,
         status: status,
@@ -200,12 +208,7 @@ if (typeof window !== 'undefined' && isNative) {
         bodyUsed: false,
         type: 'default',
         redirected: false,
-        // V4.0.0: Added missing methods to prevent TypeError
-        formData: async () => new FormData(),
-        lock: async (name: string, timeout: any, callback: any) => {
-          const cb = typeof timeout === 'function' ? timeout : callback;
-          if (cb) return await cb();
-        }
+        formData: async () => new FormData()
       };
 
       return responseFallback as unknown as Response;
@@ -222,14 +225,8 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // V4.0.0: A functional lock that DOES NOT block
-    lock: isNative ? {
-      acquire: async (name: string, timeout: any, callback: any) => {
-        const cb = typeof timeout === 'function' ? timeout : callback;
-        if (cb) return await cb();
-      },
-      release: async () => {}
-    } as any : undefined,
+    // V5.0.0: No lock object at all
+    lock: undefined,
     storage: isNative ? appStorage : undefined,
     storageKey: 'start-location-v1-session',
     flowType: isNative ? 'pkce' : 'implicit'
@@ -244,16 +241,12 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// V4.0.0: Instance-level method injection to stop TypeError: this.lock is not a function
+// V5.0.0: Final check - ensure no .lock exists on the instance
 if (isNative) {
-  (supabaseInner as any).lock = async (name: string, timeout: any, callback: any) => {
-    const cb = typeof timeout === 'function' ? timeout : callback;
-    if (cb) return await cb();
-  };
-  (supabaseInner as any).acquire = async (name: string, timeout: any, callback: any) => {
-    const cb = typeof timeout === 'function' ? timeout : callback;
-    if (cb) return await cb();
-  };
+  try {
+    delete (supabaseInner as any).lock;
+    delete (supabaseInner as any).acquire;
+  } catch (e) {}
 }
 
 export const supabase = supabaseInner;

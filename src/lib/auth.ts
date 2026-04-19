@@ -41,14 +41,8 @@ export const createUserByAdmin = async (
       { 
         auth: { 
           persistSession: false,
-          // V4.0.0: Functional transparent lock
-          lock: {
-            acquire: async (name: string, timeout: any, callback: any) => {
-              const cb = typeof timeout === 'function' ? timeout : callback;
-              if (cb) return await cb();
-            },
-            release: async () => {}
-          } as any,
+          // V5.0.0: No lock for temp client
+          lock: undefined,
         } 
       }
     );
