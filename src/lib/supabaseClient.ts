@@ -156,9 +156,8 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
 
       const responseData = res.data;
       const isString = typeof responseData === 'string';
-      const status = res.status || 200;
 
-      // V2.0.0: RADICAL COMPATIBILITY FIX
+      // V2.0.1: RADICAL COMPATIBILITY FIX
       // Avoiding 'new Response' which fails on some Android versions with 'this.lock is not a function'
       const status = res.status || 200;
       const body = isString ? responseData : JSON.stringify(responseData || "");

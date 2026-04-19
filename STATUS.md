@@ -1,11 +1,11 @@
 # 🚀 START Location Delivery App
 
-## ✅ Project Status: Production Live (v2.0.0-RADICAL-FIX)
+## ✅ Project Status: Production Live (v2.0.1-HOTFIX)
 
 **Last Deployment**: April 19, 2026 - 🎉 Radical Native Stability & UI Refresh
 
 ### 📱 **Applications**
-- **Mobile (Android)**: APK Build Status ✅ [v2.0.0]
+- **Mobile (Android)**: APK Build Status ✅ [v2.0.1]
 - **Web (Vercel)**: Continuous Deployment ✅ [start-location-app.vercel.app]
 - **API (Supabase)**: PostgreSQL Backend ✅ [sdpjvorettivpdviytqo.supabase.co] (Dynamic)
 
