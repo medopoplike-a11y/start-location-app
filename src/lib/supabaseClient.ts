@@ -158,30 +158,28 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       const isString = typeof responseData === 'string';
       const status = res.status || 200;
 
-      // V1.9.8: RADICAL FIX - Use the real native Response constructor
-      // This is the only way to guarantee 100% compatibility with supabase-js and fix 'this.lock'
-      try {
-        const body = isString ? responseData : JSON.stringify(responseData || "");
-        return new Response(body, {
-          status: status,
-          statusText: String(status),
-          headers: new Headers(res.headers as any)
-        });
-      } catch (e) {
-        console.error("Radical Fetch: Failed to construct Response, falling back to legacy bridge", e);
-        // Fallback only if native Response fails
-        return {
-          ok: status >= 200 && status < 300,
-          status: status,
-          statusText: String(status),
-          url: args[0] as string,
-          headers: new Headers(res.headers as any),
-          json: async () => (isString && responseData ? JSON.parse(responseData) : (responseData || {})),
-          text: async () => (isString ? responseData : JSON.stringify(responseData || "")),
-          blob: async () => new Blob([isString ? responseData : JSON.stringify(responseData || "")]),
-          clone: function() { return this; }
-        } as unknown as Response;
-      }
+      // V2.0.0: RADICAL COMPATIBILITY FIX
+      // Avoiding 'new Response' which fails on some Android versions with 'this.lock is not a function'
+      const status = res.status || 200;
+      const body = isString ? responseData : JSON.stringify(responseData || "");
+      
+      const response = {
+        ok: status >= 200 && status < 300,
+        status: status,
+        statusText: String(status),
+        url: args[0] as string,
+        headers: new Headers(res.headers as any),
+        json: async () => (isString && responseData ? JSON.parse(responseData) : (responseData || {})),
+        text: async () => body,
+        blob: async () => new Blob([body]),
+        arrayBuffer: async () => new TextEncoder().encode(body).buffer,
+        clone: function() { return this; },
+        // satisfy internal supabase-js / node-fetch checks
+        body: null,
+        bodyUsed: true
+      };
+
+      return response as unknown as Response;
     }) : undefined
   },
   // Global Realtime configuration for Web

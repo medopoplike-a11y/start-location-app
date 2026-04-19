@@ -28,7 +28,7 @@ jobs:
         run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
       - name: Next.js Static Export
-        run: npm run export
+        run: npm run build:mobile
         env:
           BUILD_TYPE: static
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -36,9 +36,6 @@ jobs:
           NEXT_PUBLIC_ADMIN_EMAILS: ${{ secrets.NEXT_PUBLIC_ADMIN_EMAILS }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_APP_VERSION: ${{ env.APP_VERSION }}
-
-      - name: Capacitor Sync
-        run: npx cap sync android
 
       - name: Create OTA Bundle
         run: node scripts/create-ota-bundle.js

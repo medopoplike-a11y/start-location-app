@@ -41,7 +41,7 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V1.9.9";
+  const VERSION = "V2.0.0";
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -56,7 +56,7 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v1.9.9.apk`)}`);
+  const [apkUrl, setApkUrl] = useState(`${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v2.0.0.apk`)}`);
   const isInsideNativeApp = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 
   useEffect(() => {
