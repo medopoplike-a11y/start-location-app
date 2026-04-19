@@ -19,13 +19,22 @@ export interface AIInsight {
 
 export const logSystemEvent = async (level: 'info' | 'error' | 'security', source: string, message: string, metadata?: any) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    // V4.1.0: Defensive logging to prevent "this.lock" errors during critical failures
+    // We try to get the user, but if it fails or locks, we proceed without user_id
+    let userId = undefined;
+    try {
+      const { data } = await supabase.auth.getSession();
+      userId = data?.session?.user?.id;
+    } catch (sessionErr) {
+      console.warn("AI: Session fetch failed during logging", sessionErr);
+    }
+
     await supabase.from('system_logs').insert([{
       level,
       source,
       message,
       metadata,
-      user_id: user?.id
+      user_id: userId
     }]);
   } catch (e) {
     console.warn("AI: Failed to log system event", e);
@@ -58,21 +67,29 @@ export const applyAIFix = async (insightId: string, fixData: any) => {
 export const requestAIAnalysis = async (type: string, data: any, role: 'admin' | 'driver' | 'vendor' = 'admin') => {
   const isNativePlatform = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.() === true;
 
+  // V4.1.0: Ensure we have a valid base URL for Native
   const baseUrl = isNativePlatform
     ? (process.env.NEXT_PUBLIC_APP_URL || '')
     : typeof window !== 'undefined'
       ? window.location.origin
       : (process.env.NEXT_PUBLIC_APP_URL || '');
 
-  const response = await fetch(`${baseUrl}/api/ai`, {
+  // V4.1.0: Use the hijacked fetch to ensure stability
+  const url = `${baseUrl}/api/ai`;
+  
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, data, role }),
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `Request failed with status ${response.status}`);
+    let errorMsg = `Request failed with status ${response.status}`;
+    try {
+      const err = await response.json();
+      errorMsg = err.error || errorMsg;
+    } catch (e) {}
+    throw new Error(errorMsg);
   }
 
   const res = await response.json();

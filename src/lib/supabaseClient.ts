@@ -123,10 +123,16 @@ if (typeof window !== 'undefined' && isNative) {
   (window as any).fetch = async (...args: any[]) => {
     try {
       const { CapacitorHttp } = await import('@capacitor/core');
-      const url = typeof args[0] === 'string' ? args[0] : (args[0] as any).url;
+      let url = typeof args[0] === 'string' ? args[0] : (args[0] as any).url;
       const options = args[1] || {};
       
-      // Skip non-http(s) or relative URLs if needed, but for Supabase we want all
+      // V4.1.0: Better URL handling for relative paths
+      if (url && typeof url === 'string' && !url.startsWith('http')) {
+        const origin = process.env.NEXT_PUBLIC_APP_URL || '';
+        url = url.startsWith('/') ? `${origin}${url}` : `${origin}/${url}`;
+      }
+
+      // If still not a valid URL or doesn't start with http, fallback to original
       if (!url || (typeof url === 'string' && !url.startsWith('http'))) return originalFetch(...args);
 
       // Normalize headers
