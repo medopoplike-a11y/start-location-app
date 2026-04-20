@@ -12,7 +12,7 @@ const nextConfig = {
   },
   // Force standard build on Vercel to support API routes, and static export only for local mobile builds
   output: (process.env.BUILD_TYPE === 'static' && !process.env.VERCEL) ? 'export' : undefined,
-  trailingSlash: true, // Set to true for Capacitor to ensure each route has an index.html
+  trailingSlash: false, // Set to false to prevent Vercel redirect loops (needed true only for some static hosts)
   images: {
     unoptimized: true,
   },

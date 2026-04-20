@@ -34,7 +34,7 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
     const timer = setTimeout(() => {
       const currentPath = pathname?.replace(/\/$/, "") || "";
-      const isLoginPath = currentPath === "/login";
+      const isLoginPath = currentPath === "/login" || currentPath === "";
 
       if (!user) {
         if (!isLoginPath) {

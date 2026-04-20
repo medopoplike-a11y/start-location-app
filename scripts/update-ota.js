@@ -16,8 +16,8 @@ async function updateOTA() {
   const { data, error } = await supabase
     .from('app_config')
     .update({ 
-      latest_version: "16.0.0-THE-ULTIMATE-FIX",
-      update_message: "V16.0.0: إصلاح شامل لمشكلة الريلود وتكوين أندرويد الجديد",
+      latest_version: "16.0.1-BROWSER-FIX",
+      update_message: "V16.0.1: إصلاح حلقة إعادة التوجيه في المتصفح وتأمين الوصول لصفحة التحميل",
       updated_at: new Date().toISOString()
     })
     .eq('id', 1);
