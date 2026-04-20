@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V16.3.1";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.3.1.apk`)}`;
+  const VERSION = "V16.4.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.4.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -225,14 +225,22 @@ const LoginPage = () => {
         localStorage.removeItem('remembered_email');
       }
 
-      const redirectDelay = (window as any).Capacitor?.isNativePlatform?.() ? 500 : 100;
+      const redirectDelay = (window as any).Capacitor?.isNativePlatform?.() ? 800 : 300; // V16.4.0: Increased delay to ensure storage is flushed
 
       setTimeout(async () => {
+        if (!isRedirecting) return; // V16.4.0: Safety check
+        
         const role = data.user.user_metadata?.role || "driver";
         const path = getRedirectPath(role);
+        
+        console.log(`[LoginV16.4.0] Redirecting to ${path} after ${redirectDelay}ms`);
+        
         try {
+          // V16.4.0: Clear the reload guard before a legitimate redirect
+          sessionStorage.removeItem('auth_redirect_guard');
           router.replace(path);
-        } catch {
+        } catch (e) {
+          console.error("[LoginV16.4.0] Router redirect failed, using window.location", e);
           window.location.assign(path);
         }
       }, redirectDelay);

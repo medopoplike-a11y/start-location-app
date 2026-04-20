@@ -39,22 +39,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const updateState = async (session: any, source: string) => {
       if (!active) return;
-      console.log(`[AuthV16] State update from ${source}:`, session?.user?.id || "None");
+      console.log(`[AuthV16.4.0] State update from ${source}:`, session?.user?.id || "None");
       
       const currentUser = session?.user || null;
+      
+      // V16.4.0: Optimization - If user is same and profile exists, skip re-fetch
+      if (currentUser && user?.id === currentUser.id && profileRef.current) {
+        console.log("[AuthV16.4.0] Skipping redundant state update");
+        if (active) setLoading(false);
+        return;
+      }
+
       setUser(currentUser);
 
       if (currentUser) {
         // Only fetch profile if user ID changed or profile is null
         if (!profileRef.current || profileRef.current.id !== currentUser.id) {
           try {
+            console.log("[AuthV16.4.0] Fetching profile for:", currentUser.email);
             const p = await getUserProfile(currentUser.id, currentUser.email);
             if (active) {
               profileRef.current = p;
               setProfile(p);
             }
           } catch (e) {
-            console.error("[AuthV16] Profile fetch failed", e);
+            console.error("[AuthV16.4.0] Profile fetch failed", e);
           }
         }
       } else {
@@ -62,17 +71,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
       }
       
-      if (active) setLoading(false);
+      if (active) {
+        console.log("[AuthV16.4.0] Loading finished");
+        setLoading(false);
+      }
     };
 
     // 1. Initial Session Load
     const initAuth = async () => {
       try {
-        console.log("[AuthV16] Initial session check...");
+        console.log("[AuthV16.4.0] Initial session check...");
         const { data: { session } } = await supabase.auth.getSession();
-        await updateState(session, "init");
+        
+        if (session) {
+          console.log("[AuthV16.4.0] Initial session found, updating state...");
+          await updateState(session, "init");
+        } else {
+          console.log("[AuthV16.4.0] No initial session found.");
+          // V16.4.0: Wait a bit before giving up, in case onAuthStateChange is about to fire
+          setTimeout(() => {
+            if (active && !profileRef.current) {
+              console.log("[AuthV16.4.0] Still no session after wait, setting loading false");
+              setLoading(false);
+            }
+          }, 1500); 
+        }
       } catch (e) {
-        console.error("[AuthV16] Init error", e);
+        console.error("[AuthV16.4.0] Init error", e);
         if (active) setLoading(false);
       }
     };
