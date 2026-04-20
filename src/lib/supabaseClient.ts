@@ -265,7 +265,7 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
       release: async () => {}
     } as any : undefined,
     storage: isNative ? appStorage : undefined,
-    storageKey: 'start-location-v1-session',
+    storageKey: 'start-location-v10-final', // V10.0.0: New storage key to clear old sessions
     flowType: isNative ? 'pkce' : 'implicit'
   },
   global: {
