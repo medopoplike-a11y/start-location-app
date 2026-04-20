@@ -254,7 +254,7 @@ if (typeof window !== 'undefined' && isNative) {
 const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    autoRefreshToken: isNative ? false : true, // V8.0.0: Disable background refresh on native during startup
+    autoRefreshToken: true, // V8.1.0: Re-enabled for data sync, protected by bulletproof locks
     detectSessionInUrl: true,
     // V8.0.0: Functional transparent lock at the client level
     lock: isNative ? {
@@ -273,7 +273,7 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   },
   realtime: {
     params: {
-      events_per_second: 10, // V8.0.0: Further reduced to minimize network noise
+      events_per_second: 15, // V8.1.0: Balanced for performance
     },
   },
 });
