@@ -5,13 +5,8 @@ import { Capacitor } from '@capacitor/core';
 const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
-const isNative = typeof window !== 'undefined' && (
-  (window as any).Capacitor?.isNativePlatform?.() || 
-  Capacitor.isNativePlatform()
-);
-
 /**
- * V14.2.2: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
+ * V14.2.3: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
  * Robust environment detection and direct native bridge.
  */
 const getIsNative = () => {
