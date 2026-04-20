@@ -1,287 +1,99 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from './config';
 import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 
-const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
-const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
+const supabaseUrl = config.supabase.url;
+const supabaseAnonKey = config.supabase.anonKey;
 
 /**
- * V16.5.0: ULTRA-STABLE NATIVE DETECTION
- * Hardened detection that cannot be bypassed even during hydration.
+ * V16.6.0: RADICAL CLEAN ARCHITECTURE (JAZRI)
+ * This is the ultimate stable implementation for Capacitor/Android.
+ * Instead of mocks/hacks, we use the OFFICIAL Supabase client but 
+ * override its internal mechanisms (Fetch and Storage) to work natively.
  */
-const getIsNativeStable = () => {
-  if (typeof window === 'undefined') return false;
-  
-  // 1. Check persistent global flag
-  if ((window as any)._IS_NATIVE_STABLE !== undefined) return (window as any)._IS_NATIVE_STABLE;
 
-  // 2. Check Capacitor object and platform
-  const isCap = !!(window as any).Capacitor;
-  const platform = isCap ? (window as any).Capacitor.getPlatform?.() : 'web';
-  
-  // 3. Check for specific native bridge markers
-  const hasNativeBridge = !!((window as any).webkit?.messageHandlers?.CapacitorHttp || (window as any).Capacitor?.Plugins?.CapacitorHttp);
-  
-  const detected = (isCap && platform !== 'web') || hasNativeBridge;
+const isNative = typeof window !== 'undefined' && 
+                 !!window.Capacitor && 
+                 window.Capacitor.getPlatform() !== 'web';
 
-  (window as any)._IS_NATIVE_STABLE = detected;
-  if (detected) console.log(`[SupabaseV16] Native environment locked: ${platform}`);
-  return detected;
+/**
+ * 1. NATIVE STORAGE ADAPTER
+ * Uses Capacitor Preferences for session persistence.
+ */
+const NativeStorage = {
+  getItem: async (key: string) => {
+    const { value } = await Preferences.get({ key });
+    return value;
+  },
+  setItem: async (key: string, value: string) => {
+    await Preferences.set({ key, value });
+  },
+  removeItem: async (key: string) => {
+    await Preferences.remove({ key });
+  }
 };
 
-const isNative = getIsNativeStable();
-
 /**
- * V16.5.0: SESSION MIRRORING (LOCAL STORAGE BRIDGE)
- * This ensures that even if a web-based component bypasses the native driver,
- * it finds a valid session in LocalStorage.
+ * 2. NATIVE FETCH ADAPTER (CAPACITOR HTTP)
+ * This is the MAGIC that bypasses CORS and Web Locks API.
+ * We transform standard Fetch calls into CapacitorHttp requests.
  */
-const syncSessionToLocalStorage = (session: any) => {
-  if (typeof window === 'undefined') return;
+const nativeFetch = async (url: string, options: any = {}) => {
+  const { CapacitorHttp } = await import('@capacitor/core');
+  
+  // Convert standard fetch headers to object
+  let headers: any = {};
+  if (options.headers instanceof Headers) {
+    options.headers.forEach((value, key) => { headers[key] = value; });
+  } else if (typeof options.headers === 'object') {
+    headers = { ...options.headers };
+  }
+
+  // CapacitorHttp requires absolute URL
+  const fullUrl = url.startsWith('http') ? url : `${supabaseUrl}${url}`;
+
   try {
-    const key = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
-    if (session) {
-      localStorage.setItem(key, JSON.stringify(session));
-      localStorage.setItem('sb-session-v14', JSON.stringify(session));
-    } else {
-      localStorage.removeItem(key);
-      localStorage.removeItem('sb-session-v14');
-    }
-  } catch (e) {}
+    const response = await CapacitorHttp.request({
+      url: fullUrl,
+      method: options.method || 'GET',
+      headers: headers,
+      data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
+    });
+
+    // Create a Fetch-compatible Response object
+    return new Response(
+      typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
+      {
+        status: response.status,
+        headers: new Headers(response.headers as any),
+      }
+    );
+  } catch (error: any) {
+    console.error("[SupabaseNativeFetch] Fatal:", error);
+    throw error;
+  }
 };
 
-class SupabaseNativeDriver {
-  private authSubscribers: ((event: string, session: any) => void)[] = [];
-
-  private async restRequest(path: string, options: any = {}) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-    try {
-      const { CapacitorHttp } = await import('@capacitor/core');
-      const { Preferences } = await import('@capacitor/preferences');
-      
-      const { value: sessionJson } = await Preferences.get({ key: 'sb-session-v14' });
-      const session = sessionJson ? JSON.parse(sessionJson) : null;
-      const token = session?.access_token || supabaseAnonKey;
-
-      const headers: any = {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      };
-
-      if (options.single) {
-        headers['Accept'] = 'application/vnd.pgrst.object+json';
-      }
-
-      const res = await CapacitorHttp.request({
-        url: `${supabaseUrl}${path}`,
-        method: options.method || 'GET',
-        headers,
-        data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
-      });
-
-      clearTimeout(timeoutId);
-
-      // V16.2.1: Advanced error handling for Supabase Restrictions
-      if (res.status === 503) {
-        return { data: null, error: { message: "مشروع Supabase متوقف مؤقتاً (Paused). يرجى تشغيله من لوحة تحكم Supabase.", status: 503 } };
-      }
-
-      if (res.status === 429) {
-        return { data: null, error: { message: "تم تجاوز حد الطلبات (Rate Limit). يرجى المحاولة لاحقاً.", status: 429 } };
-      }
-
-      if (res.status === 401 || res.status === 403) {
-        console.warn("[SupabaseV16] Unauthorized - session may be expired");
-      }
-
-      // Handle cases where data might be a string (HTML error page)
-      const data = typeof res.data === 'string' && res.data.includes('<!DOCTYPE') ? { message: "Error parsing API response" } : res.data;
-
-      const error = res.status >= 400 ? { 
-        message: data?.message || data?.error_description || `API Error ${res.status}`, 
-        status: res.status,
-        details: data
-      } : null;
-
-      return { data: res.data, error };
-    } catch (e: any) {
-      clearTimeout(timeoutId);
-      console.error("[SupabaseV16] Request error:", path, e.message);
-      return { data: null, error: { message: e.message || "Network Error" } };
-    }
-  }
-
-  auth = {
-    signInWithPassword: async ({ email, password }: any) => {
-      try {
-        const { CapacitorHttp } = await import('@capacitor/core');
-        const { Preferences } = await import('@capacitor/preferences');
-        
-        const res = await CapacitorHttp.request({
-          url: `${supabaseUrl}/auth/v1/token?grant_type=password`,
-          method: 'POST',
-          headers: {
-            'apikey': supabaseAnonKey,
-            'Content-Type': 'application/json'
-          },
-          data: { email, password }
-        });
-
-        if (res.status >= 400) {
-          return { data: { user: null, session: null }, error: { message: res.data?.error_description || res.data?.message || 'فشل تسجيل الدخول' } };
-        }
-
-        const session = res.data;
-        await Preferences.set({ key: 'sb-session-v14', value: JSON.stringify(session) });
-        syncSessionToLocalStorage(session); // V16.5.0: Sync to LS
-        this.notifyAuthSubscribers('SIGNED_IN', session);
-        return { data: { user: session.user, session }, error: null };
-      } catch (e: any) {
-        return { data: { user: null, session: null }, error: { message: e.message || 'خطأ في الاتصال' } };
-      }
+/**
+ * 3. CLIENT INITIALIZATION
+ * Standard Supabase client with native overrides.
+ */
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Disable web locks to avoid "this.lock" error in Android WebView
+    lock: {
+      acquire: async () => ({ release: () => {} }),
     },
-    getSession: async () => {
-      try {
-        const { Preferences } = await import('@capacitor/preferences');
-        const { value } = await Preferences.get({ key: 'sb-session-v14' });
-        const session = value ? JSON.parse(value) : null;
-        if (session) syncSessionToLocalStorage(session); // V16.5.0: Passive sync
-        return { data: { session }, error: null };
-      } catch {
-        return { data: { session: null }, error: null };
-      }
-    },
-    getUser: async () => {
-      const { data } = await this.auth.getSession();
-      return { data: { user: data.session?.user || null }, error: null };
-    },
-    signOut: async () => {
-      try {
-        const { Preferences } = await import('@capacitor/preferences');
-        await Preferences.remove({ key: 'sb-session-v14' });
-        syncSessionToLocalStorage(null); // V16.5.0: Sync removal
-        this.notifyAuthSubscribers('SIGNED_OUT', null);
-        return { error: null };
-      } catch (e: any) {
-        return { error: e };
-      }
-    },
-    refreshSession: async () => {
-      try {
-        const { CapacitorHttp } = await import('@capacitor/core');
-        const { Preferences } = await import('@capacitor/preferences');
-        const { value: sessionJson } = await Preferences.get({ key: 'sb-session-v14' });
-        const session = sessionJson ? JSON.parse(sessionJson) : null;
-        if (!session?.refresh_token) return { data: { session: null, user: null }, error: { message: 'No refresh token' } };
-        
-        // V16.1.0: Prevent rapid consecutive session refreshes
-        const now = Date.now();
-        if ((window as any)._LAST_REFRESH_TS && now - (window as any)._LAST_REFRESH_TS < 10000) {
-          console.log("[SupabaseV16] Skipping rapid session refresh (throttle)");
-          return { data: { session, user: session.user }, error: null };
-        }
-        (window as any)._LAST_REFRESH_TS = now;
-
-        const res = await CapacitorHttp.request({
-          url: `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
-          method: 'POST',
-          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-          data: { refresh_token: session.refresh_token }
-        });
-        if (res.status >= 400) return { data: { session: null, user: null }, error: { message: 'Expired' } };
-        const newSession = res.data;
-        await Preferences.set({ key: 'sb-session-v14', value: JSON.stringify(newSession) });
-        syncSessionToLocalStorage(newSession); // V16.5.0: Sync refresh
-        this.notifyAuthSubscribers('TOKEN_REFRESHED', newSession);
-        return { data: { session: newSession, user: newSession.user }, error: null };
-      } catch (e: any) {
-        return { data: { session: null, user: null }, error: { message: e.message } };
-      }
-    },
-    onAuthStateChange: (callback: (event: string, session: any) => void) => {
-      this.authSubscribers.push(callback);
-      // V16.2.0: Trigger INITIAL_SESSION if we have one
-      this.auth.getSession().then(({ data }) => {
-        if (data.session) callback('INITIAL_SESSION', data.session);
-      });
-      return { data: { subscription: { unsubscribe: () => { this.authSubscribers = this.authSubscribers.filter(sub => sub !== callback); } } } };
-    }
-  };
-
-  private notifyAuthSubscribers(event: string, session: any) {
-    this.authSubscribers.forEach(sub => { try { sub(event, session); } catch (e) {} });
-  }
-
-  rpc(name: string, params: any = {}) { return this.restRequest(`/rest/v1/rpc/${name}`, { method: 'POST', body: params }); }
-  from(table: string) {
-    const createBuilder = (method: string = 'GET', initialBody?: any) => {
-      const state = { params: new URLSearchParams(), headers: {} as any, isSingle: false, body: initialBody };
-      const builder: any = {
-        select(columns: string = '*') { state.params.set('select', columns); return builder; },
-        eq(col: string, val: any) { state.params.set(col, `eq.${val}`); return builder; },
-        neq(col: string, val: any) { state.params.set(col, `neq.${val}`); return builder; },
-        gt(col: string, val: any) { state.params.set(col, `gt.${val}`); return builder; },
-        lt(col: string, val: any) { state.params.set(col, `lt.${val}`); return builder; },
-        in(col: string, vals: any[]) { state.params.set(col, `in.(${vals.join(',')})`); return builder; },
-        or(filters: string) { state.params.set('or', `(${filters})`); return builder; },
-        order(col: string, { ascending = true } = {}) { state.params.set('order', `${col}.${ascending ? 'asc' : 'desc'}`); return builder; },
-        limit(n: number) { state.params.set('limit', n.toString()); return builder; },
-        not(col: string, op: string, val: any) { state.params.set(col, `${op}.${val}`); return builder; },
-        is(col: string, val: any) { state.params.set(col, `is.${val}`); return builder; },
-        single() { state.isSingle = true; return builder; },
-        maybeSingle() { state.isSingle = true; return builder; },
-        async then(onfulfilled: any, onrejected?: any) {
-          try {
-            const queryString = state.params.toString();
-            const path = `/rest/v1/${table}${queryString ? '?' + queryString : ''}`;
-            const result = await nativeDriver.restRequest(path, { method, body: state.body, single: state.isSingle, headers: state.headers });
-            return onfulfilled ? onfulfilled(result) : result;
-          } catch (e) { if (onrejected) return onrejected(e); throw e; }
-        }
-      };
-      return builder;
-    };
-    return {
-      select: (cols?: string) => createBuilder('GET').select(cols),
-      insert: (data: any) => { const b = createBuilder('POST', data); b.headers['Prefer'] = 'return=representation'; return b; },
-      update: (data: any) => { const b = createBuilder('PATCH', data); b.headers['Prefer'] = 'return=representation'; return b; },
-      delete: () => createBuilder('DELETE'),
-      upsert: (data: any, { onConflict }: any = {}) => {
-        const b = createBuilder('POST', data);
-        b.headers['Prefer'] = 'return=representation,resolution=merge-duplicates';
-        if (onConflict) b.params.set('on_conflict', onConflict);
-        return b;
-      }
-    };
-  }
-  channel(name: string) { return { on: () => this.channel(name), subscribe: (callback: any) => { if (callback) setTimeout(() => callback('SUBSCRIBED'), 0); return { unsubscribe: () => ({}) }; }, send: async () => ({}) }; }
-  removeChannel() {}
-}
-
-const nativeDriver = new SupabaseNativeDriver();
-
-// V15.0.0: THE UNIVERSAL PROXY (IMMUTABLE DISPATCH)
-export const supabase = new Proxy({} as any, {
-  get: (target, prop: string) => {
-    if (isNative) {
-      if (prop === 'auth') return nativeDriver.auth;
-      if (prop === 'from') return (table: string) => nativeDriver.from(table);
-      if (prop === 'rpc') return (name: string, params: any) => nativeDriver.rpc(name, params);
-      if (prop === 'channel') return (name: string) => nativeDriver.channel(name);
-      if (prop === 'removeChannel') return () => nativeDriver.removeChannel();
-      return (nativeDriver as any)[prop]?.bind?.(nativeDriver) || (nativeDriver as any)[prop];
-    }
-    
-    if (!target._web) {
-      target._web = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-      });
-    }
-    return target._web[prop];
+    // Use native preferences for session storage
+    storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  global: {
+    // Use CapacitorHttp to bypass CORS and improve reliability in native environment
+    fetch: isNative ? nativeFetch : undefined,
   }
 });
 
