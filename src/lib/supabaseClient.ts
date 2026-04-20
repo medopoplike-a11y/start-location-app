@@ -8,32 +8,41 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = Capacitor.isNativePlatform();
 
-// V5.0.0: TOTAL LOCK DESTRUCTION (THE "NO-LOCK" PROTOCOL)
-// We are now completely overriding the window.navigator.locks object
-// to prevent any library (including Supabase internals) from even attempting
-// to use the system locking mechanism.
+// V8.0.0: BULLETPROOF LOCK POLYFILL (THE ULTIMATE DEFENSE)
+// This implementation is even more radical - it forces every possible variation of 
+// the Lock API to be a transparent pass-through.
 if (typeof window !== 'undefined') {
   try {
-    const emptyLock = {
-      request: async (name: string, options: any, callback: any) => {
-        const cb = typeof options === 'function' ? options : callback;
-        if (cb) return await cb();
-      },
-      query: async () => ({ pending: [], held: [] })
+    const passThroughLock = async (name: any, options: any, callback: any) => {
+      const cb = typeof options === 'function' ? options : callback;
+      if (cb) return await cb();
+    };
+
+    const emptyLockManager = {
+      request: passThroughLock,
+      query: async () => ({ pending: [], held: [] }),
+      // Some versions check for these
+      acquire: passThroughLock,
+      lock: passThroughLock,
     };
     
-    // Force override even if it exists
+    // 1. Force navigator.locks
     Object.defineProperty(navigator, 'locks', {
-      value: emptyLock,
+      value: emptyLockManager,
       writable: false,
       configurable: true
     });
 
-    // Also globally mock 'lock' property on any object that might be checked
-    (window as any).lock = undefined;
-    (window as any).acquire = undefined;
+    // 2. Force window level locks (some polyfills put them here)
+    (window as any).lock = passThroughLock;
+    (window as any).acquire = passThroughLock;
+    
+    // 3. Force globalThis level (the screenshot showed TypeError on 'this')
+    (globalThis as any).lock = passThroughLock;
+    (globalThis as any).acquire = passThroughLock;
+
   } catch (e) {
-    console.warn("V5.0.0: Failed to safely destroy locks object", e);
+    console.warn("V8.0.0: Failed to apply bulletproof locks", e);
   }
 }
 
@@ -245,10 +254,16 @@ if (typeof window !== 'undefined' && isNative) {
 const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    autoRefreshToken: true,
+    autoRefreshToken: isNative ? false : true, // V8.0.0: Disable background refresh on native during startup
     detectSessionInUrl: true,
-    // V5.0.0: No lock object at all
-    lock: undefined,
+    // V8.0.0: Functional transparent lock at the client level
+    lock: isNative ? {
+      acquire: async (name: string, timeout: any, callback: any) => {
+        const cb = typeof timeout === 'function' ? timeout : callback;
+        if (cb) return await cb();
+      },
+      release: async () => {}
+    } as any : undefined,
     storage: isNative ? appStorage : undefined,
     storageKey: 'start-location-v1-session',
     flowType: isNative ? 'pkce' : 'implicit'
@@ -258,7 +273,7 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   },
   realtime: {
     params: {
-      events_per_second: 20,
+      events_per_second: 10, // V8.0.0: Further reduced to minimize network noise
     },
   },
 });

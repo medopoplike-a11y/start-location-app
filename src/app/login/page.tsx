@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V7.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v7.0.0.apk`)}`;
+  const VERSION = "V8.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v8.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -86,15 +86,24 @@ const LoginPage = () => {
     setLastError("");
     
     try {
-      console.log(`V7.0.0: Performing protected one-time connection check...`);
-      const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
+      console.log(`V8.0.0: Performing direct REST health check...`);
+      // V8.0.0: Bypass the Supabase JS library entirely for health check
+      // to avoid any 'this.lock' or 'navigator.locks' issues during initial boot.
+      const url = `${config.supabase.url}/rest/v1/app_config?select=count&limit=1`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': config.supabase.anonKey,
+          'Authorization': `Bearer ${config.supabase.anonKey}`
+        }
+      });
       
-      if (error) {
-        console.error("Connection Check Failed:", error.message);
+      if (!response.ok) {
+        console.error("Direct Connection Failed:", response.status);
         setConnStatus('fail');
-        setLastError(`${error.code || 'ERR'}: ${error.message}`);
+        setLastError(`HTTP ${response.status}: Failed to reach server`);
       } else {
-        console.log("Connection Success! ✅");
+        console.log("Direct Connection Success! ✅");
         setConnStatus('ok');
       }
     } catch (e: any) {
@@ -265,7 +274,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "LOOP PROTECTION (V7.0.0)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "BULLETPROOF (V8.0.0)" : "INACTIVE" }
               </p>
             </div>
 
