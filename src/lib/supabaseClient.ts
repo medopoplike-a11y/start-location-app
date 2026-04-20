@@ -11,11 +11,21 @@ const isNative = typeof window !== 'undefined' && (
 );
 
 /**
- * V14.1.1: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
- * This driver COMPLETELY bypasses @supabase/supabase-js on Native platforms.
- * It uses CapacitorHttp to talk directly to the Supabase REST API,
- * which eliminates the "this.lock" error and all library-related crashes on Android.
+ * V14.2.2: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
+ * Robust environment detection and direct native bridge.
  */
+const getIsNative = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    (window as any).Capacitor?.isNativePlatform?.() || 
+    (window as any).Capacitor?.getPlatform?.() !== 'web' ||
+    Capacitor.isNativePlatform()
+  );
+};
+
+const isNative = getIsNative();
+console.log(`SupabaseClient: Environment detection -> isNative: ${isNative}`);
+
 class SupabaseNativeDriver {
   private authSubscribers: ((event: string, session: any) => void)[] = [];
 
@@ -45,6 +55,12 @@ class SupabaseNativeDriver {
         headers,
         data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
       });
+
+      if (res.status === 401 || res.status === 403) {
+        console.warn("Native Driver: Unauthorized request, forcing session check...");
+        // Possible expired session - we don't auto-refresh here to avoid loops
+        // but the app should handle this via onAuthStateChange or manual refresh
+      }
 
       // Handle PostgREST specific errors and formatting
       const error = res.status >= 400 ? { 
@@ -308,6 +324,7 @@ const nativeDriver = new SupabaseNativeDriver();
 let webClientInstance: any = null;
 const getWebClient = () => {
   if (!webClientInstance && !isNative) {
+    console.log("SupabaseClient: Initializing Web Client (isNative=false)");
     webClientInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
@@ -319,10 +336,13 @@ const getWebClient = () => {
   return webClientInstance;
 };
 
-// V14.1.0: The Universal Proxy Driver (ZERO library calls on Native)
+// V14.2.2: The Universal Proxy Driver (ZERO library calls on Native)
 export const supabase = new Proxy({} as any, {
   get: (target, prop: string) => {
-    if (isNative) {
+    // We re-check native status on every call just in case it was initialized late
+    const currentIsNative = getIsNative();
+    
+    if (currentIsNative) {
       if (prop === 'auth') return nativeDriver.auth;
       if (prop === 'from') return (table: string) => nativeDriver.from(table);
       if (prop === 'rpc') return (name: string, params: any) => nativeDriver.rpc(name, params);
@@ -338,6 +358,10 @@ export const supabase = new Proxy({} as any, {
     }
     
     const client = getWebClient();
+    if (!client) {
+      console.warn(`Supabase Proxy: Accessing '${prop}' on null client (isNative=false)`);
+      return undefined;
+    }
     return (client as any)[prop];
   }
 });

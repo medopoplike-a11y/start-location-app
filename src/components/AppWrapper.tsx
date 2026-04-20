@@ -20,13 +20,26 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
           // فحص OTA بصمت — بدون أي إشعارات للمستخدم
           const performUpdateCheck = async () => {
+            // V14.2.2: Add a session flag to prevent infinite reload loops
+            if (typeof window !== 'undefined' && (window as any)._OTA_RELOADED_THIS_SESSION) {
+              console.log("AppWrapper: Skipping OTA check, already reloaded this session.");
+              return;
+            }
+
             const updateInfo = await checkForAutoUpdate(false).catch(() => null);
             if (updateInfo?.available && updateInfo.downloaded) {
               try {
                 const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
+                console.log("AppWrapper: OTA update available, reloading...");
+                (window as any)._OTA_RELOADED_THIS_SESSION = true;
                 await updater.reload();
-              } catch {
-                window.location.reload();
+              } catch (e) {
+                console.error("AppWrapper: OTA reload failed", e);
+                // Only reload window if we haven't already
+                if (!(window as any)._OTA_RELOADED_THIS_SESSION) {
+                  (window as any)._OTA_RELOADED_THIS_SESSION = true;
+                  window.location.reload();
+                }
               }
             }
           };
