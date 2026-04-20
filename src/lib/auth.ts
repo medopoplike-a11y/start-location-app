@@ -216,6 +216,7 @@ export const signOut = async () => {
       if (Capacitor.isNativePlatform()) {
         import('@capacitor/preferences').then(({ Preferences }) => {
           Preferences.remove({ key: sessionKey }).catch(() => {});
+          Preferences.remove({ key: 'sb-session-v14' }).catch(() => {});
           Preferences.remove({ key: 'supabase.auth.token' }).catch(() => {});
         }).catch(() => {});
       }
