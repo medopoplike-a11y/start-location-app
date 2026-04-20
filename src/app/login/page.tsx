@@ -19,6 +19,11 @@ const FALLBACK_APK_URL = config.supabase.url
   ? `${config.supabase.url}/storage/v1/object/public/app-updates/start-location.apk`
   : "https://placeholder.supabase.co/storage/v1/object/public/app-updates/start-location.apk";
 
+// V7.0.0: OUT-OF-COMPONENT PERSISTENT STATE
+// This prevents React re-renders from triggering new connection checks.
+let isGlobalConnectionChecking = false;
+let globalConnectionStatus: 'idle' | 'checking' | 'ok' | 'fail' = 'idle';
+
 const LoginPage = () => {
   const { toasts, removeToast } = useToast();
   const getRedirectPath = (role: string) => {
@@ -41,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V6.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v6.0.0.apk`)}`;
+  const VERSION = "V7.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v7.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -59,27 +64,29 @@ const LoginPage = () => {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [apkUrl, setApkUrl] = useState(apkUrlV);
-  const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>('idle');
-  const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>('idle');
+  const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
+  const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
 
   useEffect(() => {
     currentConnStatus.current = connStatus;
+    globalConnectionStatus = connStatus;
     if (connStatus === 'ok' && typeof window !== 'undefined') {
       (window as any).__START_LOCATION_CONNECTED = true;
     }
   }, [connStatus]);
 
-  const checkConnection = async () => {
-    if (typeof window !== 'undefined' && (window as any).__START_LOCATION_CONNECTED) {
-      setConnStatus('ok');
-      return;
+  const checkConnection = async (force = false) => {
+    // V7.0.0: Strict guards to prevent loop
+    if (!force) {
+      if (globalConnectionStatus === 'ok' || isGlobalConnectionChecking) return;
     }
 
+    isGlobalConnectionChecking = true;
     setConnStatus('checking');
     setLastError("");
     
     try {
-      console.log(`V6.0.0: Performing one-time connection check...`);
+      console.log(`V7.0.0: Performing protected one-time connection check...`);
       const { error } = await supabase.from('app_config').select('count', { count: 'exact', head: true });
       
       if (error) {
@@ -94,11 +101,13 @@ const LoginPage = () => {
       console.error("Connection Exception:", e.message);
       setConnStatus('fail');
       setLastError(e.message || "Network Error");
+    } finally {
+      isGlobalConnectionChecking = false;
     }
   };
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && globalConnectionStatus === 'idle') {
       checkConnection();
     }
   }, [mounted]);
@@ -256,7 +265,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "RADICAL STABLE (V6.0.0)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "LOOP PROTECTION (V7.0.0)" : "INACTIVE" }
               </p>
             </div>
 
@@ -264,11 +273,11 @@ const LoginPage = () => {
                <p className="text-slate-400 mb-1">Connection Test:</p>
                <div className="flex gap-2">
                  <button 
-                  onClick={() => checkConnection()}
-                  className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white hover:bg-blue-700 transition-colors"
-                >
-                  إعادة المحاولة (Retry)
-                </button>
+                   onClick={() => checkConnection(true)}
+                   className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white hover:bg-blue-700 transition-colors"
+                 >
+                   إعادة المحاولة (Retry)
+                 </button>
                  <button 
                    onClick={async () => {
                      if (confirm("سيتم مسح كافة البيانات المخزنة وتسجيل الخروج. هل أنت متأكد؟")) {
