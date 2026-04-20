@@ -1,6 +1,8 @@
 node_modules
 build
 dist
+android
+ios
 .git
 .trae
 .log
