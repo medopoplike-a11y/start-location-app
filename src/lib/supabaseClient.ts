@@ -35,14 +35,18 @@ const NativeStorage = {
 };
 
 /**
- * 2. NATIVE FETCH ADAPTER (CAPACITOR HTTP)
+ * 2. NATIVE FETCH ADAPTER (CAPACITOR HTTP) - V16.6.1 HARDENED
  * This is the MAGIC that bypasses CORS and Web Locks API.
- * We transform standard Fetch calls into CapacitorHttp requests.
  */
 const nativeFetch = async (url: string, options: any = {}) => {
   const { CapacitorHttp } = await import('@capacitor/core');
   
-  // Convert standard fetch headers to object
+  // V16.6.1: Improved URL joining to prevent double slashes or missing slashes
+  const baseUrl = supabaseUrl.replace(/\/$/, '');
+  const path = url.startsWith('/') ? url : `/${url}`;
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${path}`;
+
+  // V16.6.1: Enhanced Header Handling
   let headers: any = {};
   if (options.headers instanceof Headers) {
     options.headers.forEach((value, key) => { headers[key] = value; });
@@ -50,28 +54,54 @@ const nativeFetch = async (url: string, options: any = {}) => {
     headers = { ...options.headers };
   }
 
-  // CapacitorHttp requires absolute URL
-  const fullUrl = url.startsWith('http') ? url : `${supabaseUrl}${url}`;
+  // Ensure mandatory Supabase headers are present
+  if (!headers['apikey']) headers['apikey'] = supabaseAnonKey;
 
   try {
+    // V16.6.1: Intelligent Body handling
+    let requestData: any = undefined;
+    if (options.body) {
+      if (typeof options.body === 'string') {
+        try {
+          requestData = JSON.parse(options.body);
+        } catch {
+          requestData = options.body;
+        }
+      } else {
+        requestData = options.body;
+      }
+    }
+
     const response = await CapacitorHttp.request({
       url: fullUrl,
       method: options.method || 'GET',
       headers: headers,
-      data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
+      data: requestData,
+      connectTimeout: 15000,
+      readTimeout: 15000
     });
 
+    // V16.6.1: Detailed logging for debugging (only in development or if enabled)
+    if (response.status >= 400) {
+      console.warn(`[SupabaseNativeFetch] Error ${response.status} on ${fullUrl}:`, response.data);
+    }
+
+    // Convert response data to string for standard Response object
+    const bodyString = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+
     // Create a Fetch-compatible Response object
-    return new Response(
-      typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
-      {
-        status: response.status,
-        headers: new Headers(response.headers as any),
-      }
-    );
+    return new Response(bodyString, {
+      status: response.status,
+      statusText: response.status === 200 ? 'OK' : `Status ${response.status}`,
+      headers: new Headers(response.headers as any),
+    });
   } catch (error: any) {
-    console.error("[SupabaseNativeFetch] Fatal:", error);
-    throw error;
+    console.error("[SupabaseNativeFetch] Fatal Network Error:", fullUrl, error.message);
+    // Return a failed response instead of throwing to prevent app crash
+    return new Response(JSON.stringify({ error: error.message || "Network Error" }), {
+      status: 500,
+      headers: new Headers({ 'Content-Type': 'application/json' })
+    });
   }
 };
 
