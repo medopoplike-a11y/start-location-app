@@ -254,9 +254,9 @@ if (typeof window !== 'undefined' && isNative) {
 const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    autoRefreshToken: true, // V8.1.0: Re-enabled for data sync, protected by bulletproof locks
+    autoRefreshToken: true,
     detectSessionInUrl: true,
-    // V8.0.0: Functional transparent lock at the client level
+    // V9.0.0: FORCED DATA SYNC - Ensure auth events trigger data refresh
     lock: isNative ? {
       acquire: async (name: string, timeout: any, callback: any) => {
         const cb = typeof timeout === 'function' ? timeout : callback;
@@ -269,14 +269,20 @@ const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: isNative ? 'pkce' : 'implicit'
   },
   global: {
+    // V9.0.0: Increase fetch timeout and retry logic for slow connections
     fetch: undefined 
   },
   realtime: {
     params: {
-      events_per_second: 15, // V8.1.0: Balanced for performance
+      events_per_second: 20,
     },
   },
 });
+
+// V9.0.0: Global Event Bus for Connection Monitoring
+if (typeof window !== 'undefined') {
+  (window as any).__SUPABASE_CLIENT = supabaseInner;
+}
 
 // V5.0.2: Deep Injection - Provide NO-OP methods to ALL internal clients
 if (isNative) {

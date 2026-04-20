@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V8.1.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v8.1.0.apk`)}`;
+  const VERSION = "V9.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v9.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -274,7 +274,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "DATA SYNC ACTIVE (V8.1.0)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "FULL FORCED SYNC (V9.0.0)" : "INACTIVE" }
               </p>
             </div>
 
