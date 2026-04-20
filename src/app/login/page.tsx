@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V10.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v10.0.0.apk`)}`;
+  const VERSION = "V11.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v11.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -274,34 +274,49 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "COMPLETE DATA ACCESS (V10.0.0)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ULTRA TRANSPARENCY (V11.0.0)" : "INACTIVE" }
               </p>
             </div>
 
-            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-               <p className="text-slate-400 mb-1">Connection Test:</p>
-               <div className="flex gap-2">
+            <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 mt-4">
+               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V11.0.0)</p>
+               <div className="grid grid-cols-1 gap-2">
                  <button 
-                   onClick={() => checkConnection(true)}
-                   className="mt-2 px-4 py-2 bg-blue-600 rounded text-xs text-white hover:bg-blue-700 transition-colors"
+                   onClick={async () => {
+                     try {
+                       const url = config.supabase.url || "MISSING";
+                       const key = config.supabase.anonKey ? `${config.supabase.anonKey.substring(0, 10)}...` : "MISSING";
+                       alert(`Supabase Config:\nURL: ${url}\nKey: ${key}`);
+                       
+                       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+                       alert(`Auth Session:\nUser: ${sessionData?.session?.user?.email || "NOT LOGGED IN"}\nError: ${sessionError?.message || "None"}`);
+                       
+                       const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').limit(1);
+                       alert(`Data Test (Profiles):\nRows: ${profileData?.length || 0}\nError: ${profileError?.message || "None"}`);
+                     } catch (e: any) {
+                       alert(`Super Diag Failed: ${e.message}`);
+                     }
+                   }}
+                   className="w-full px-4 py-2 bg-red-600 rounded text-xs text-white hover:bg-red-700 transition-colors"
                  >
-                   إعادة المحاولة (Retry)
+                   تشغيل الفحص العميق (Deep Audit)
                  </button>
                  <button 
                    onClick={async () => {
                      if (confirm("سيتم مسح كافة البيانات المخزنة وتسجيل الخروج. هل أنت متأكد؟")) {
                        localStorage.clear();
+                       sessionStorage.clear();
                        const { Preferences } = await import("@capacitor/preferences");
                        await Preferences.clear();
                        window.location.reload();
                      }
                    }}
-                   className="mt-2 px-4 py-2 bg-red-600 rounded text-xs text-white"
+                   className="w-full px-4 py-2 bg-slate-700 rounded text-xs text-white hover:bg-slate-600 transition-colors"
                  >
-                   تطهير النظام
+                   مسح شامل للبيانات (Nuclear Reset)
                  </button>
                </div>
-             </div>
+            </div>
           </div>
         </div>
       )}
