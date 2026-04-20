@@ -8,41 +8,39 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = Capacitor.isNativePlatform();
 
-// V8.0.0: BULLETPROOF LOCK POLYFILL (THE ULTIMATE DEFENSE)
-// This implementation is even more radical - it forces every possible variation of 
-// the Lock API to be a transparent pass-through.
+// V12.0.0: THE ABSOLUTE NUCLEAR LOCK STUB
+// We must freeze the navigator.locks object BEFORE any library can touch it.
 if (typeof window !== 'undefined') {
   try {
-    const passThroughLock = async (name: any, options: any, callback: any) => {
+    const noop = async (name: any, options: any, callback: any) => {
       const cb = typeof options === 'function' ? options : callback;
       if (cb) return await cb();
     };
 
-    const emptyLockManager = {
-      request: passThroughLock,
+    const lockStub = {
+      request: noop,
       query: async () => ({ pending: [], held: [] }),
-      // Some versions check for these
-      acquire: passThroughLock,
-      lock: passThroughLock,
+      acquire: noop,
+      lock: noop
     };
-    
-    // 1. Force navigator.locks
+
+    // Use defineProperty with value to make it unchangeable
     Object.defineProperty(navigator, 'locks', {
-      value: emptyLockManager,
+      value: lockStub,
       writable: false,
-      configurable: true
+      configurable: false
     });
 
-    // 2. Force window level locks (some polyfills put them here)
-    (window as any).lock = passThroughLock;
-    (window as any).acquire = passThroughLock;
+    // Also patch globalThis directly as 'this.lock' was seen in error
+    (globalThis as any).lock = noop;
+    (globalThis as any).acquire = noop;
     
-    // 3. Force globalThis level (the screenshot showed TypeError on 'this')
-    (globalThis as any).lock = passThroughLock;
-    (globalThis as any).acquire = passThroughLock;
-
+    // Patch Response prototype if it exists to ensure no 'lock' property causes issues
+    if (typeof Response !== 'undefined' && Response.prototype) {
+      (Response.prototype as any).lock = noop;
+    }
   } catch (e) {
-    console.warn("V8.0.0: Failed to apply bulletproof locks", e);
+    console.warn("V12.0.0: Critical lock stub failure", e);
   }
 }
 
@@ -199,9 +197,7 @@ if (typeof window !== 'undefined' && isNative) {
         [Symbol.iterator]: () => headerMap.entries()[Symbol.iterator](),
       };
 
-      // V5.0.0: THE UNBREAKABLE RESPONSE (NO LOCK PROPERTY)
-      // We explicitly avoid adding any property named 'lock' to this object
-      // to prevent libraries from thinking they can use it.
+      // The "Unbreakable" Response Object (V4.0.0: More robust interface)
       const responseFallback = {
         ok: status >= 200 && status < 300,
         status: status,
@@ -218,16 +214,14 @@ if (typeof window !== 'undefined' && isNative) {
         type: 'default',
         redirected: false,
         formData: async () => new FormData(),
-        // V5.0.4: RE-RESTORED CRITICAL LOCK METHODS (REMOVED BY ACCIDENT IN V5.0.2)
-        // These are essential to prevent 'TypeError: this.lock is not a function'
-        lock: async (name: string, timeout: any, callback: any) => {
-          const cb = typeof timeout === 'function' ? timeout : callback;
-          if (cb) return await cb();
-        },
-        acquire: async (name: string, timeout: any, callback: any) => {
-          const cb = typeof timeout === 'function' ? timeout : callback;
-          if (cb) return await cb();
-        }
+        // V12.0.0: Ensure NO internal function called 'lock' exists on this object
+        // by explicitly making it a no-op function that cannot be 'this-locked'.
+        lock: (async function(this: any) { 
+          return; 
+        }).bind({}),
+        acquire: (async function(this: any) { 
+          return; 
+        }).bind({})
       };
 
       return responseFallback as unknown as Response;

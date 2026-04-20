@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V11.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v11.0.0.apk`)}`;
+  const VERSION = "V12.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v12.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -274,7 +274,7 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ULTRA TRANSPARENCY (V11.0.0)" : "INACTIVE" }
+                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ANTILOCK PROTOCOL (V12.0.0)" : "INACTIVE" }
               </p>
             </div>
 
