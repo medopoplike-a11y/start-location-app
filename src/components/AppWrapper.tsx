@@ -20,10 +20,13 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
 
           // فحص OTA بصمت — بدون أي إشعارات للمستخدم
           const performUpdateCheck = async () => {
-            // V14.2.2: Add a session flag to prevent infinite reload loops
-            if (typeof window !== 'undefined' && (window as any)._OTA_RELOADED_THIS_SESSION) {
-              console.log("AppWrapper: Skipping OTA check, already reloaded this session.");
-              return;
+            // V14.2.4: Use sessionStorage to prevent infinite reload loops across page refreshes
+            if (typeof window !== 'undefined') {
+              const reloadCount = parseInt(sessionStorage.getItem('_OTA_RELOAD_COUNT') || '0');
+              if (reloadCount > 1) {
+                console.log("AppWrapper: Stop! OTA reload limit reached for this session.");
+                return;
+              }
             }
 
             const updateInfo = await checkForAutoUpdate(false).catch(() => null);
@@ -31,14 +34,21 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
               try {
                 const { CapacitorUpdater: updater } = await import("@capgo/capacitor-updater");
                 console.log("AppWrapper: OTA update available, reloading...");
-                (window as any)._OTA_RELOADED_THIS_SESSION = true;
+                
+                if (typeof window !== 'undefined') {
+                  const currentCount = parseInt(sessionStorage.getItem('_OTA_RELOAD_COUNT') || '0');
+                  sessionStorage.setItem('_OTA_RELOAD_COUNT', (currentCount + 1).toString());
+                }
+
                 await updater.reload();
               } catch (e) {
                 console.error("AppWrapper: OTA reload failed", e);
-                // Only reload window if we haven't already
-                if (!(window as any)._OTA_RELOADED_THIS_SESSION) {
-                  (window as any)._OTA_RELOADED_THIS_SESSION = true;
-                  window.location.reload();
+                if (typeof window !== 'undefined') {
+                  const currentCount = parseInt(sessionStorage.getItem('_OTA_RELOAD_COUNT') || '0');
+                  if (currentCount < 1) {
+                    sessionStorage.setItem('_OTA_RELOAD_COUNT', (currentCount + 1).toString());
+                    window.location.reload();
+                  }
                 }
               }
             }

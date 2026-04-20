@@ -16,8 +16,8 @@ async function updateOTA() {
   const { data, error } = await supabase
     .from('app_config')
     .update({ 
-      latest_version: "14.2.3-NATIVE-FIX-DUPLICATE",
-      update_message: "V14.2.3: إصلاح خطأ برمجي يمنع بناء التطبيق وتأمين استقرار الجسر",
+      latest_version: "14.2.4-NATIVE-STABLE-AUTH",
+      update_message: "V14.2.4: إصلاح استقرار المصادقة ومنع حلقات إعادة التشغيل",
       updated_at: new Date().toISOString()
     })
     .eq('id', 1);

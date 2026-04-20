@@ -6,20 +6,32 @@ const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 /**
- * V14.2.3: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
- * Robust environment detection and direct native bridge.
+ * V14.2.4: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
+ * Sticky environment detection to prevent session flip-flopping.
  */
+let _isNativeSticky: boolean | null = null;
+
 const getIsNative = () => {
   if (typeof window === 'undefined') return false;
-  return (
+  if (_isNativeSticky !== null) return _isNativeSticky;
+
+  const detected = (
     (window as any).Capacitor?.isNativePlatform?.() || 
     (window as any).Capacitor?.getPlatform?.() !== 'web' ||
     Capacitor.isNativePlatform()
   );
+
+  if (detected) {
+    _isNativeSticky = true;
+    console.log("SupabaseClient: Native environment STICKY detected.");
+  }
+  return detected;
 };
 
-const isNative = getIsNative();
-console.log(`SupabaseClient: Environment detection -> isNative: ${isNative}`);
+// Also check immediately if possible
+if (typeof window !== 'undefined') {
+  getIsNative();
+}
 
 class SupabaseNativeDriver {
   private authSubscribers: ((event: string, session: any) => void)[] = [];
@@ -318,7 +330,8 @@ const nativeDriver = new SupabaseNativeDriver();
 // Lazy Web Client initialization
 let webClientInstance: any = null;
 const getWebClient = () => {
-  if (!webClientInstance && !isNative) {
+  const currentIsNative = getIsNative();
+  if (!webClientInstance && !currentIsNative) {
     console.log("SupabaseClient: Initializing Web Client (isNative=false)");
     webClientInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {

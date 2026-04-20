@@ -12,7 +12,7 @@ import type { Engine } from "tsparticles-engine";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [phase, setPhase] = useState<"intro" | "greeting" | "syncing" | "final">("intro");
 
   const particlesInit = useCallback(async (engine: Engine) => {
@@ -45,6 +45,9 @@ export default function WelcomePage() {
       sessionStorage.removeItem('is_transitioning');
     }
 
+    // V1.8.1: Ensure we don't redirect until auth is loaded
+    if (loading) return;
+
     // V1.8.0: Faster transition for mobile stability
     const timers = [
       setTimeout(() => setPhase("greeting"), 800),
@@ -61,7 +64,7 @@ export default function WelcomePage() {
     ];
 
     return () => timers.forEach(clearTimeout);
-  }, [user, profile, router]);
+  }, [user, profile, loading, router]);
 
   return (
     <div className="h-screen bg-[#020617] flex flex-col items-center justify-center relative overflow-hidden font-sans select-none" dir="rtl">
