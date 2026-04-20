@@ -65,7 +65,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       try {
-        const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+        const isNative = typeof window !== 'undefined' && (
+          (window as any).Capacitor?.isNativePlatform?.() || 
+          (window as any).Capacitor?.getPlatform?.() !== 'web'
+        );
         console.log(`AuthProvider: loadSession started (Native: ${isNative}, Retry: ${retryCount})`);
 
         const sessionPromise = supabase.auth.getSession();

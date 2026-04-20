@@ -1,5 +1,5 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import { supabase, supabaseLock } from './supabaseClient';
+import { supabase } from './supabaseClient';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Toast } from '@capacitor/toast';
 import { Preferences } from '@capacitor/preferences';

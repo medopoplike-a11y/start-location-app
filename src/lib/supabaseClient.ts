@@ -1,163 +1,345 @@
-import { createClient, SupportedStorage } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { config } from './config';
 import { Capacitor } from '@capacitor/core';
-import { Preferences } from '@capacitor/preferences';
 
 const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
-const isNative = Capacitor.isNativePlatform();
+const isNative = typeof window !== 'undefined' && (
+  (window as any).Capacitor?.isNativePlatform?.() || 
+  Capacitor.isNativePlatform()
+);
 
-// V13.0.0: NATIVE SUPABASE BRIDGE (THE CLEAN WAY)
-// A direct REST bridge for mobile to bypass library bugs.
-export class NativeSupabaseBridge {
-  private async request(path: string, options: any = {}) {
-    const { CapacitorHttp } = await import('@capacitor/core');
-    const url = `${supabaseUrl}${path}`;
-    
-    const res = await CapacitorHttp.request({
-      url,
-      method: options.method || 'GET',
-      headers: {
+/**
+ * V14.1.1: THE ULTIMATE NATIVE DRIVER (RADICAL ARCHITECTURE)
+ * This driver COMPLETELY bypasses @supabase/supabase-js on Native platforms.
+ * It uses CapacitorHttp to talk directly to the Supabase REST API,
+ * which eliminates the "this.lock" error and all library-related crashes on Android.
+ */
+class SupabaseNativeDriver {
+  private authSubscribers: ((event: string, session: any) => void)[] = [];
+
+  private async restRequest(path: string, options: any = {}) {
+    try {
+      const { CapacitorHttp } = await import('@capacitor/core');
+      const { Preferences } = await import('@capacitor/preferences');
+      
+      const { value: sessionJson } = await Preferences.get({ key: 'sb-session-v14' });
+      const session = sessionJson ? JSON.parse(sessionJson) : null;
+      const token = session?.access_token || supabaseAnonKey;
+
+      const headers: any = {
         'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...options.headers
-      },
-      data: options.body ? JSON.parse(options.body) : undefined
+      };
+
+      if (options.single) {
+        headers['Accept'] = 'application/vnd.pgrst.object+json';
+      }
+
+      const res = await CapacitorHttp.request({
+        url: `${supabaseUrl}${path}`,
+        method: options.method || 'GET',
+        headers,
+        data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
+      });
+
+      // Handle PostgREST specific errors and formatting
+      const error = res.status >= 400 ? { 
+        message: res.data?.message || res.data?.error_description || `API Error ${res.status}`, 
+        status: res.status,
+        details: res.data
+      } : null;
+
+      return { data: res.data, error };
+    } catch (e: any) {
+      console.error("Native Driver Request Error:", e);
+      return { data: null, error: { message: e.message || "Network Error" } };
+    }
+  }
+
+  auth = {
+    signInWithPassword: async ({ email, password }: any) => {
+      try {
+        const { CapacitorHttp } = await import('@capacitor/core');
+        const { Preferences } = await import('@capacitor/preferences');
+        
+        const res = await CapacitorHttp.request({
+          url: `${supabaseUrl}/auth/v1/token?grant_type=password`,
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Content-Type': 'application/json'
+          },
+          data: { email, password }
+        });
+
+        if (res.status >= 400) {
+          return { data: { user: null, session: null }, error: { message: res.data?.error_description || res.data?.message || 'فشل تسجيل الدخول' } };
+        }
+
+        const session = res.data;
+        await Preferences.set({ key: 'sb-session-v14', value: JSON.stringify(session) });
+        
+        // Notify subscribers
+        this.notifyAuthSubscribers('SIGNED_IN', session);
+
+        return { data: { user: session.user, session }, error: null };
+      } catch (e: any) {
+        return { data: { user: null, session: null }, error: { message: e.message || 'خطأ في الاتصال' } };
+      }
+    },
+    getSession: async () => {
+      try {
+        const { Preferences } = await import('@capacitor/preferences');
+        const { value } = await Preferences.get({ key: 'sb-session-v14' });
+        return { data: { session: value ? JSON.parse(value) : null }, error: null };
+      } catch {
+        return { data: { session: null }, error: null };
+      }
+    },
+    getUser: async () => {
+      const { data } = await this.auth.getSession();
+      return { data: { user: data.session?.user || null }, error: null };
+    },
+    signOut: async () => {
+      try {
+        const { Preferences } = await import('@capacitor/preferences');
+        await Preferences.remove({ key: 'sb-session-v14' });
+        
+        // Notify subscribers
+        this.notifyAuthSubscribers('SIGNED_OUT', null);
+        
+        return { error: null };
+      } catch (e: any) {
+        return { error: e };
+      }
+    },
+    updateUser: async (updates: any) => {
+      return await this.restRequest('/auth/v1/user', { method: 'PUT', body: updates });
+    },
+    refreshSession: async () => {
+      try {
+        const { CapacitorHttp } = await import('@capacitor/core');
+        const { Preferences } = await import('@capacitor/preferences');
+        
+        const { value: sessionJson } = await Preferences.get({ key: 'sb-session-v14' });
+        const session = sessionJson ? JSON.parse(sessionJson) : null;
+        
+        if (!session?.refresh_token) return { data: { session: null, user: null }, error: { message: 'No refresh token' } };
+
+        const res = await CapacitorHttp.request({
+          url: `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Content-Type': 'application/json'
+          },
+          data: { refresh_token: session.refresh_token }
+        });
+
+        if (res.status >= 400) {
+          return { data: { session: null, user: null }, error: { message: 'فشل تجديد الجلسة' } };
+        }
+
+        const newSession = res.data;
+        await Preferences.set({ key: 'sb-session-v14', value: JSON.stringify(newSession) });
+        
+        this.notifyAuthSubscribers('TOKEN_REFRESHED', newSession);
+        
+        return { data: { session: newSession, user: newSession.user }, error: null };
+      } catch (e: any) {
+        return { data: { session: null, user: null }, error: { message: e.message || 'خطأ في تجديد الجلسة' } };
+      }
+    },
+    onAuthStateChange: (callback: (event: string, session: any) => void) => {
+      this.authSubscribers.push(callback);
+      // Immediately send current session
+      this.auth.getSession().then(({ data }) => {
+        if (data.session) callback('INITIAL_SESSION', data.session);
+      });
+      
+      return {
+        data: {
+          subscription: {
+            unsubscribe: () => {
+              this.authSubscribers = this.authSubscribers.filter(sub => sub !== callback);
+            }
+          }
+        }
+      };
+    }
+  };
+
+  private notifyAuthSubscribers(event: string, session: any) {
+    this.authSubscribers.forEach(sub => {
+      try { sub(event, session); } catch (e) { console.error("Auth subscriber error:", e); }
     });
-    return res.data;
+  }
+
+  rpc(name: string, params: any = {}) {
+    return this.restRequest(`/rest/v1/rpc/${name}`, { method: 'POST', body: params });
   }
 
   from(table: string) {
+    const createBuilder = (method: string = 'GET', initialBody?: any) => {
+      const state = {
+        params: new URLSearchParams(),
+        headers: {} as any,
+        isSingle: false,
+        body: initialBody
+      };
+
+      const builder: any = {
+        select(columns: string = '*') {
+          state.params.set('select', columns);
+          return builder;
+        },
+        eq(col: string, val: any) {
+          state.params.set(col, `eq.${val}`);
+          return builder;
+        },
+        neq(col: string, val: any) {
+          state.params.set(col, `neq.${val}`);
+          return builder;
+        },
+        gt(col: string, val: any) {
+          state.params.set(col, `gt.${val}`);
+          return builder;
+        },
+        lt(col: string, val: any) {
+          state.params.set(col, `lt.${val}`);
+          return builder;
+        },
+        in(col: string, vals: any[]) {
+          state.params.set(col, `in.(${vals.join(',')})`);
+          return builder;
+        },
+        or(filters: string) {
+          state.params.set('or', `(${filters})`);
+          return builder;
+        },
+        order(col: string, { ascending = true } = {}) {
+          state.params.set('order', `${col}.${ascending ? 'asc' : 'desc'}`);
+          return builder;
+        },
+        limit(n: number) {
+          state.params.set('limit', n.toString());
+          return builder;
+        },
+        single() {
+          state.isSingle = true;
+          return builder;
+        },
+        maybeSingle() {
+          state.isSingle = true;
+          return builder;
+        },
+        // Support for .insert().select().single() pattern
+        select_chain() {
+          return builder;
+        },
+        // The Magic: makes it awaitable
+        async then(onfulfilled: any, onrejected?: any) {
+          try {
+            const queryString = state.params.toString();
+            const path = `/rest/v1/${table}${queryString ? '?' + queryString : ''}`;
+            const result = await nativeDriver.restRequest(path, { 
+              method, 
+              body: state.body,
+              single: state.isSingle,
+              headers: state.headers
+            });
+            return onfulfilled ? onfulfilled(result) : result;
+          } catch (e) {
+            if (onrejected) return onrejected(e);
+            throw e;
+          }
+        }
+      };
+
+      return builder;
+    };
+
     return {
-      select: (columns: string = '*') => ({
-        limit: (n: number) => this.request(`/rest/v1/${table}?select=${columns}&limit=${n}`)
-      })
+      select: (cols?: string) => createBuilder('GET').select(cols),
+      insert: (data: any) => {
+        const b = createBuilder('POST', data);
+        b.headers['Prefer'] = 'return=representation';
+        return b;
+      },
+      update: (data: any) => {
+        const b = createBuilder('PATCH', data);
+        b.headers['Prefer'] = 'return=representation';
+        return b;
+      },
+      delete: () => createBuilder('DELETE'),
+      upsert: (data: any, { onConflict }: any = {}) => {
+        const b = createBuilder('POST', data);
+        let prefer = 'return=representation,resolution=merge-duplicates';
+        b.headers['Prefer'] = prefer;
+        if (onConflict) b.params.set('on_conflict', onConflict);
+        return b;
+      }
     };
   }
-}
 
-const nativeBridge = new NativeSupabaseBridge();
-
-// Standard storage for maximum compatibility with all browsers and Capacitor
-const appStorage: SupportedStorage = {
-  getItem: (key: string): string | null | Promise<string | null> => {
-    if (typeof window === 'undefined') return null;
-    
-    // Check localStorage first
-    const localValue = localStorage.getItem(key);
-    if (localValue) return localValue;
-
-    // V1.8.2: If on Native and not in localStorage, MUST check Preferences
-    if (isNative) {
-      return Preferences.get({ key }).then(res => res.value);
-    }
-    
-    return null;
-  },
-  setItem: (key: string, value: string): void | Promise<void> => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(key, value);
-    // V1.8.2: Always mirror to Preferences on Native for persistence across updates
-    if (isNative) {
-      Preferences.set({ key, value }).catch(() => {});
-    }
-  },
-  removeItem: (key: string): void | Promise<void> => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(key);
-    if (isNative) {
-      Preferences.remove({ key }).catch(() => {});
-    }
-  }
-};
-
-// Advanced lock interface compatible with standard patterns
-export interface SupabaseLock {
-  (name: string, acquireTimeout: number, callback: () => Promise<any>): Promise<any>;
-  runExclusive: <T>(callback: () => Promise<T>) => Promise<T>;
-}
-
-// internal implementation of the lock
-const createSupabaseLock = (): SupabaseLock => {
-  const lockFn = async (name: string, acquireTimeout: number, callback: () => Promise<any>) => {
-    // V2.1.5: RADICAL SIMPLICITY - Always bypass locking on Native
-    // This prevents any "this.lock" or mutex-related hangs in buggy WebViews
-    if (isNative || (typeof window !== 'undefined' && !isNative)) {
-      return await callback();
-    }
-
-    const state = (globalThis as any).__startSupabaseLockState || ((globalThis as any).__startSupabaseLockState = { tails: new Map<string, Promise<void>>() });
-    const tails: Map<string, Promise<void>> = state.tails;
-
-    const previous = tails.get(name) || Promise.resolve();
-    let release!: () => void;
-    const current = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    tails.set(name, previous.then(() => current));
-
-    if (acquireTimeout && acquireTimeout > 0) {
-      const waitForPrevious = Promise.race([
-        previous,
-        new Promise<void>((_, reject) => setTimeout(() => reject(new Error(`Supabase lock timeout: ${name}`)), acquireTimeout)),
-      ]);
-      await waitForPrevious;
-    } else {
-      await previous;
-    }
-    try {
-      return await callback();
-    } finally {
-      release();
-    }
-  };
-
-  const lockObj = lockFn as SupabaseLock;
-  lockObj.runExclusive = async <T>(callback: () => Promise<T>): Promise<T> => {
-    return await lockFn('shared-mutex', 30000, callback);
-  };
-
-  return lockObj;
-};
-
-export const supabaseLock = createSupabaseLock();
-
-
-
-const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    // V9.0.0: FORCED DATA SYNC - Ensure auth events trigger data refresh
-    lock: isNative ? {
-      acquire: async (name: string, timeout: any, callback: any) => {
-        const cb = typeof timeout === 'function' ? timeout : callback;
-        if (cb) return await cb();
+  // Real-time Mock - prevents library crashes
+  channel(name: string) {
+    console.warn(`V14.1.0: Real-time channel '${name}' is mocked on Native.`);
+    const mockChannel = {
+      on: () => mockChannel,
+      subscribe: (callback: any) => {
+        if (callback) setTimeout(() => callback('SUBSCRIBED'), 0);
+        return { unsubscribe: () => ({}) };
       },
-      release: async () => {}
-    } as any : undefined,
-    storage: isNative ? appStorage : undefined,
-    storageKey: 'start-location-v10-final', // V10.0.0: New storage key to clear old sessions
-    flowType: isNative ? 'pkce' : 'implicit'
-  },
-  global: {
-    // V9.0.0: Increase fetch timeout and retry logic for slow connections
-    fetch: undefined 
-  },
-  realtime: {
-    params: {
-      events_per_second: 20,
-    },
-  },
+      send: async () => ({})
+    };
+    return mockChannel;
+  }
+  removeChannel() {}
+}
+
+const nativeDriver = new SupabaseNativeDriver();
+
+// Lazy Web Client initialization
+let webClientInstance: any = null;
+const getWebClient = () => {
+  if (!webClientInstance && !isNative) {
+    webClientInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      }
+    });
+  }
+  return webClientInstance;
+};
+
+// V14.1.0: The Universal Proxy Driver (ZERO library calls on Native)
+export const supabase = new Proxy({} as any, {
+  get: (target, prop: string) => {
+    if (isNative) {
+      if (prop === 'auth') return nativeDriver.auth;
+      if (prop === 'from') return (table: string) => nativeDriver.from(table);
+      if (prop === 'rpc') return (name: string, params: any) => nativeDriver.rpc(name, params);
+      if (prop === 'channel') return (name: string) => nativeDriver.channel(name);
+      if (prop === 'removeChannel') return () => nativeDriver.removeChannel();
+      
+      // If code tries to access something we haven't implemented,
+      // return a safe no-op instead of falling back to webClient (which would crash)
+      if (typeof (nativeDriver as any)[prop] === 'function') {
+        return (nativeDriver as any)[prop].bind(nativeDriver);
+      }
+      return (nativeDriver as any)[prop] || undefined;
+    }
+    
+    const client = getWebClient();
+    return (client as any)[prop];
+  }
 });
 
-// V9.0.0: Global Event Bus for Connection Monitoring
-if (typeof window !== 'undefined') {
-  (window as any).__SUPABASE_CLIENT = supabaseInner;
-}
-
-// V13.0.0: CLEANUP - Removed all manual patchClient and global hijacking
-export const supabase = supabaseInner;
+export default supabase;

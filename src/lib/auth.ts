@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { supabase, supabaseLock } from './supabaseClient';
+import { supabase } from './supabaseClient';
 import { config } from './config';
 import { Capacitor } from '@capacitor/core';
 
