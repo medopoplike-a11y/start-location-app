@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V16.0.1";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.0.1.apk`)}`;
+  const VERSION = "V16.1.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.1.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -278,12 +278,12 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).Capacitor?.isNativePlatform?.() ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).Capacitor?.isNativePlatform?.() ? "NATIVE ULTIMATE (V16.0.1)" : "WEB STANDARD" }
+                { (window as any).Capacitor?.isNativePlatform?.() ? "NATIVE ULTIMATE (V16.1.0)" : "WEB STANDARD" }
               </p>
             </div>
 
             <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 mt-4">
-               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V16.0.1)</p>
+               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V16.1.0)</p>
                <div className="grid grid-cols-1 gap-2">
                  <button 
                    onClick={async () => {
@@ -292,7 +292,7 @@ const LoginPage = () => {
                        const key = config.supabase.anonKey ? `${config.supabase.anonKey.substring(0, 10)}...` : "MISSING";
                        alert(`Supabase Config:\nURL: ${url}\nKey: ${key}`);
                        
-                       // V16.0.1: More defensive diagnostics
+                       // V16.1.0: More defensive diagnostics
                        alert("Checking Auth Session...");
                        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
                        alert(`Auth Session Result:\nUser: ${sessionData?.session?.user?.email || "NOT LOGGED IN"}\nError: ${sessionError?.message || "None"}`);

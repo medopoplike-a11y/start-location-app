@@ -130,6 +130,15 @@ class SupabaseNativeDriver {
         const { value: sessionJson } = await Preferences.get({ key: 'sb-session-v14' });
         const session = sessionJson ? JSON.parse(sessionJson) : null;
         if (!session?.refresh_token) return { data: { session: null, user: null }, error: { message: 'No refresh token' } };
+        
+        // V16.1.0: Prevent rapid consecutive session refreshes
+        const now = Date.now();
+        if ((window as any)._LAST_REFRESH_TS && now - (window as any)._LAST_REFRESH_TS < 10000) {
+          console.log("[SupabaseV15] Skipping rapid session refresh (throttle)");
+          return { data: { session, user: session.user }, error: null };
+        }
+        (window as any)._LAST_REFRESH_TS = now;
+
         const res = await CapacitorHttp.request({
           url: `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
           method: 'POST',

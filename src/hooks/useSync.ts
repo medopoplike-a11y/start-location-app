@@ -27,6 +27,11 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
    */
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
+    
+    // V16.1.0: Skip trigger if payload source is 'initial_subscribe' 
+    // to prevent immediate re-renders during mount/subscribe.
+    if (payload?.source === 'initial_subscribe') return;
+
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
     syncTimeoutRef.current = setTimeout(() => {
@@ -57,9 +62,19 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const subscribe = useCallback(async () => {
     if (!userId || !isMountedRef.current) return;
 
-    await cleanupChannels();
+    // V16.1.0: Radical debounce for re-subscriptions
+    const now = Date.now();
+    const lastSubTime = (window as any)._LAST_SUB_TIME || 0;
+    if (now - lastSubTime < 5000 && (window as any)._LAST_SYNC_USER_ID === userId) {
+      console.log("useSync: Skipping rapid re-subscription (throttle)");
+      return;
+    }
+    (window as any)._LAST_SUB_TIME = now;
 
-    console.log("useSync: Establishing real-time streams...");
+    await cleanupChannels();
+    (window as any)._LAST_SYNC_USER_ID = userId;
+
+    console.log("useSync: Establishing real-time streams for:", userId);
 
     const newChannels: RealtimeChannel[] = [];
 
