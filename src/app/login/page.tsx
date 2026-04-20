@@ -9,7 +9,7 @@ import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone, X } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone, X, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { AppLoader } from "@/components/AppLoader";
@@ -46,8 +46,36 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V16.4.2";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.4.2.apk`)}`;
+  const handleManualUpdate = async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    setStatus("جاري البحث عن تحديثات...");
+    
+    try {
+      const { checkForAutoUpdate, showNativeToast } = await import("@/lib/native-utils");
+      const update = await checkForAutoUpdate(true);
+      
+      if (update.available && update.downloaded) {
+        setStatus("تم العثور على تحديث! جاري التثبيت...");
+        await showNativeToast(update.updateMessage || "جاري تثبيت التحديث وإعادة التشغيل...");
+        setTimeout(async () => {
+          const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+          await CapacitorUpdater.reload();
+        }, 1500);
+      } else {
+        setStatus("");
+        const { showNativeToast } = await import("@/lib/native-utils");
+        await showNativeToast("تطبيقك يعمل بأحدث إصدار متاح");
+      }
+    } catch (e: any) {
+      setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const VERSION = "V16.4.3";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.4.3.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -63,6 +91,7 @@ const LoginPage = () => {
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [apkUrl, setApkUrl] = useState(apkUrlV);
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
   const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
@@ -485,15 +514,29 @@ const LoginPage = () => {
           </form>
 
           {!isKeyboardOpen && (
-            <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
-              <div className="space-y-1 cursor-pointer" onClick={handleVersionTap}>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
-                <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
+            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1 cursor-pointer" onClick={handleVersionTap}>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
+                  <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em]">Active</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em]">Active</span>
-              </div>
+
+              {/* Manual Update Button - V16.4.3 */}
+              <button 
+                onClick={handleManualUpdate}
+                disabled={isUpdating}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] group"
+              >
+                <RefreshCw className={`w-4 h-4 text-blue-400 ${isUpdating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">
+                  {isUpdating ? "جاري البحث عن تحديثات..." : "سحب التحديث الجديد يدوياً"}
+                </span>
+              </button>
             </div>
           )}
         </motion.div>

@@ -136,10 +136,15 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Deploy to Vercel
-        run: |
-          npx vercel pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
-          npx vercel build --prod --token ${{ secrets.VERCEL_TOKEN }}
-          npx vercel deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            npx vercel pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
+            npx vercel build --prod --token ${{ secrets.VERCEL_TOKEN }}
+            npx vercel deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
