@@ -16,8 +16,8 @@ async function updateOTA() {
   const { data, error } = await supabase
     .from('app_config')
     .update({ 
-      latest_version: "1.1.1-HYPER-BACKGROUND-RADICAL",
-      update_message: "تحديث جذري: دعم كامل للعمل في الخلفية وإصلاح الأرقام العربية",
+      latest_version: "14.2.1-NATIVE-DIRECT-FIX",
+      update_message: "V14.2.1: إصلاح جذري لمشكلة الاتصال ونظام المصادقة في أندرويد",
       updated_at: new Date().toISOString()
     })
     .eq('id', 1);
