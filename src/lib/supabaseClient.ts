@@ -57,20 +57,30 @@ class SupabaseNativeDriver {
         method: options.method || 'GET',
         headers,
         data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
-        // CapacitorHttp doesn't support signal directly in all versions, 
-        // but we can at least try to handle the rejection
       });
 
       clearTimeout(timeoutId);
+
+      // V16.2.1: Advanced error handling for Supabase Restrictions
+      if (res.status === 503) {
+        return { data: null, error: { message: "مشروع Supabase متوقف مؤقتاً (Paused). يرجى تشغيله من لوحة تحكم Supabase.", status: 503 } };
+      }
+
+      if (res.status === 429) {
+        return { data: null, error: { message: "تم تجاوز حد الطلبات (Rate Limit). يرجى المحاولة لاحقاً.", status: 429 } };
+      }
 
       if (res.status === 401 || res.status === 403) {
         console.warn("[SupabaseV16] Unauthorized - session may be expired");
       }
 
+      // Handle cases where data might be a string (HTML error page)
+      const data = typeof res.data === 'string' && res.data.includes('<!DOCTYPE') ? { message: "Error parsing API response" } : res.data;
+
       const error = res.status >= 400 ? { 
-        message: res.data?.message || res.data?.error_description || `API Error ${res.status}`, 
+        message: data?.message || data?.error_description || `API Error ${res.status}`, 
         status: res.status,
-        details: res.data
+        details: data
       } : null;
 
       return { data: res.data, error };
@@ -186,7 +196,14 @@ class SupabaseNativeDriver {
         select(columns: string = '*') { state.params.set('select', columns); return builder; },
         eq(col: string, val: any) { state.params.set(col, `eq.${val}`); return builder; },
         neq(col: string, val: any) { state.params.set(col, `neq.${val}`); return builder; },
+        gt(col: string, val: any) { state.params.set(col, `gt.${val}`); return builder; },
+        lt(col: string, val: any) { state.params.set(col, `lt.${val}`); return builder; },
+        in(col: string, vals: any[]) { state.params.set(col, `in.(${vals.join(',')})`); return builder; },
+        or(filters: string) { state.params.set('or', `(${filters})`); return builder; },
+        order(col: string, { ascending = true } = {}) { state.params.set('order', `${col}.${ascending ? 'asc' : 'desc'}`); return builder; },
         limit(n: number) { state.params.set('limit', n.toString()); return builder; },
+        not(col: string, op: string, val: any) { state.params.set(col, `${op}.${val}`); return builder; },
+        is(col: string, val: any) { state.params.set(col, `is.${val}`); return builder; },
         single() { state.isSingle = true; return builder; },
         maybeSingle() { state.isSingle = true; return builder; },
         async then(onfulfilled: any, onrejected?: any) {

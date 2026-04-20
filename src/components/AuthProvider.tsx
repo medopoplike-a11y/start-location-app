@@ -18,7 +18,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Use refs to avoid dependency loops in useEffect
   const initializedRef = React.useRef(false);
+  const profileRef = React.useRef<UserProfile | null>(null);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -26,53 +29,66 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     let active = true;
     
-    // V16.2.0: Safety timeout for loading state
+    // V16.3.0: Safety timeout for loading state
     const safetyTimeout = setTimeout(() => {
       if (active && loading) {
-        console.warn("[AuthV16] Safety timeout reached, forcing loading false");
+        console.warn("[AuthV16] Safety timeout triggered");
         setLoading(false);
       }
-    }, 10000);
+    }, 15000);
 
-    const updateAuth = async (session: any, source: string) => {
+    const updateState = async (session: any, source: string) => {
       if (!active) return;
-      console.log(`[AuthV16] Updating from ${source}:`, session?.user?.id || "None");
+      console.log(`[AuthV16] State update from ${source}:`, session?.user?.id || "None");
       
-      if (session?.user) {
-        setUser(session.user);
-        // Only fetch profile if user changed or profile is missing
-        if (!profile || profile.id !== session.user.id) {
-          const p = await getUserProfile(session.user.id, session.user.email);
-          if (active) setProfile(p);
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        // Only fetch profile if user ID changed or profile is null
+        if (!profileRef.current || profileRef.current.id !== currentUser.id) {
+          try {
+            const p = await getUserProfile(currentUser.id, currentUser.email);
+            if (active) {
+              profileRef.current = p;
+              setProfile(p);
+            }
+          } catch (e) {
+            console.error("[AuthV16] Profile fetch failed", e);
+          }
         }
       } else {
-        setUser(null);
+        profileRef.current = null;
         setProfile(null);
       }
-      setLoading(false);
+      
+      if (active) setLoading(false);
     };
 
+    // 1. Initial Session Load
     const initAuth = async () => {
       try {
-        console.log("[AuthV16] Initializing getSession...");
+        console.log("[AuthV16] Initial session check...");
         const { data: { session } } = await supabase.auth.getSession();
-        if (active) await updateAuth(session, "initAuth");
-      } catch (e: any) {
-        console.error("[AuthV16] Init error", e.message);
+        await updateState(session, "init");
+      } catch (e) {
+        console.error("[AuthV16] Init error", e);
         if (active) setLoading(false);
       }
     };
 
+    // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthV16] Event received: ${event}`);
+      console.log(`[AuthV16] Auth event: ${event}`);
       if (!active) return;
 
       if (event === 'SIGNED_OUT') {
+        profileRef.current = null;
         setUser(null);
         setProfile(null);
         setLoading(false);
-      } else if (session?.user || event === 'INITIAL_SESSION') {
-        await updateAuth(session, `event:${event}`);
+      } else if (session?.user || event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        await updateState(session, `event:${event}`);
       }
     });
 
@@ -83,7 +99,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, [profile, loading]); // Added profile to deps to allow updateAuth to check it correctly
+  }, []); // REMOVED DEPENDENCIES - Effect must only run ONCE on mount
+
+  return (
+    <AuthContext.Provider value={{ user, profile, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
   return (
     <AuthContext.Provider value={{ user, profile, loading }}>
