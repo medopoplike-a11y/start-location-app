@@ -8,41 +8,37 @@ const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 const isNative = Capacitor.isNativePlatform();
 
-// V12.0.0: THE ABSOLUTE NUCLEAR LOCK STUB
-// We must freeze the navigator.locks object BEFORE any library can touch it.
-if (typeof window !== 'undefined') {
-  try {
-    const noop = async (name: any, options: any, callback: any) => {
-      const cb = typeof options === 'function' ? options : callback;
-      if (cb) return await cb();
-    };
-
-    const lockStub = {
-      request: noop,
-      query: async () => ({ pending: [], held: [] }),
-      acquire: noop,
-      lock: noop
-    };
-
-    // Use defineProperty with value to make it unchangeable
-    Object.defineProperty(navigator, 'locks', {
-      value: lockStub,
-      writable: false,
-      configurable: false
-    });
-
-    // Also patch globalThis directly as 'this.lock' was seen in error
-    (globalThis as any).lock = noop;
-    (globalThis as any).acquire = noop;
+// V13.0.0: NATIVE SUPABASE BRIDGE (THE CLEAN WAY)
+// A direct REST bridge for mobile to bypass library bugs.
+export class NativeSupabaseBridge {
+  private async request(path: string, options: any = {}) {
+    const { CapacitorHttp } = await import('@capacitor/core');
+    const url = `${supabaseUrl}${path}`;
     
-    // Patch Response prototype if it exists to ensure no 'lock' property causes issues
-    if (typeof Response !== 'undefined' && Response.prototype) {
-      (Response.prototype as any).lock = noop;
-    }
-  } catch (e) {
-    console.warn("V12.0.0: Critical lock stub failure", e);
+    const res = await CapacitorHttp.request({
+      url,
+      method: options.method || 'GET',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      data: options.body ? JSON.parse(options.body) : undefined
+    });
+    return res.data;
+  }
+
+  from(table: string) {
+    return {
+      select: (columns: string = '*') => ({
+        limit: (n: number) => this.request(`/rest/v1/${table}?select=${columns}&limit=${n}`)
+      })
+    };
   }
 }
+
+const nativeBridge = new NativeSupabaseBridge();
 
 // Standard storage for maximum compatibility with all browsers and Capacitor
 const appStorage: SupportedStorage = {
@@ -128,122 +124,7 @@ const createSupabaseLock = (): SupabaseLock => {
 
 export const supabaseLock = createSupabaseLock();
 
-// V3.0.0: GLOBAL FETCH HIJACKING (THE ULTIMATE FIX)
-// This overrides window.fetch globally to ensure EVERY network request in the app
-// uses our safe CapacitorHttp bridge, bypassing buggy Android WebView fetch/Response.
-if (typeof window !== 'undefined' && isNative) {
-  const originalFetch = window.fetch;
-  (window as any).fetch = async (...args: any[]) => {
-    try {
-      const { CapacitorHttp } = await import('@capacitor/core');
-      let url = typeof args[0] === 'string' ? args[0] : (args[0] as any).url;
-      const options = args[1] || {};
-      
-      // V4.1.0: Better URL handling for relative paths
-      if (url && typeof url === 'string' && !url.startsWith('http')) {
-        const origin = process.env.NEXT_PUBLIC_APP_URL || '';
-        url = url.startsWith('/') ? `${origin}${url}` : `${origin}/${url}`;
-      }
 
-      // If still not a valid URL or doesn't start with http, fallback to original
-      if (!url || (typeof url === 'string' && !url.startsWith('http'))) return originalFetch(...args);
-
-      // Normalize headers
-      const rawHeaders = options.headers;
-      let plainHeaders: Record<string, string> = {};
-      if (rawHeaders instanceof Headers) {
-        rawHeaders.forEach((v, k) => { plainHeaders[k] = v; });
-      } else if (rawHeaders && typeof rawHeaders === 'object') {
-        plainHeaders = { ...rawHeaders };
-      }
-
-      // Normalize body
-      let bodyData: any = undefined;
-      if (options.body) {
-        if (typeof options.body === 'string') {
-          try { bodyData = JSON.parse(options.body); } catch { bodyData = options.body; }
-        } else {
-          bodyData = options.body;
-        }
-      }
-
-      const res = await CapacitorHttp.request({
-        url: url,
-        method: options.method || 'GET',
-        headers: plainHeaders,
-        data: bodyData,
-        connectTimeout: 30000,
-        readTimeout: 30000,
-      });
-
-      const responseData = res.data;
-      const isString = typeof responseData === 'string';
-      const body = isString ? responseData : JSON.stringify(responseData || "");
-      const status = res.status || 200;
-
-      // Manual Headers Implementation (No internal slots)
-      const headerMap = new Map<string, string>();
-      if (res.headers) {
-        Object.entries(res.headers).forEach(([k, v]) => headerMap.set(k.toLowerCase(), String(v)));
-      }
-
-      const mockHeaders = {
-        get: (n: string) => headerMap.get(n.toLowerCase()) || null,
-        has: (n: string) => headerMap.has(n.toLowerCase()),
-        forEach: (cb: any) => headerMap.forEach((v, k) => cb(v, k)),
-        entries: () => headerMap.entries(),
-        keys: () => headerMap.keys(),
-        values: () => headerMap.values(),
-        [Symbol.iterator]: () => headerMap.entries()[Symbol.iterator](),
-      };
-
-      // The "Unbreakable" Response Object (V4.0.0: More robust interface)
-      const responseFallback = {
-        ok: status >= 200 && status < 300,
-        status: status,
-        statusText: "OK",
-        url: url,
-        headers: mockHeaders,
-        json: async () => (typeof responseData === 'object' ? responseData : JSON.parse(body)),
-        text: async () => body,
-        blob: async () => new Blob([body]),
-        arrayBuffer: async () => new TextEncoder().encode(body).buffer,
-        clone: function() { return { ...this, clone: this.clone }; },
-        body: null,
-        bodyUsed: false,
-        type: 'default',
-        redirected: false,
-        formData: async () => new FormData(),
-        // V12.0.0: Ensure NO internal function called 'lock' exists on this object
-        // by explicitly making it a no-op function that cannot be 'this-locked'.
-        lock: (async function(this: any) { 
-          return; 
-        }).bind({}),
-        acquire: (async function(this: any) { 
-          return; 
-        }).bind({})
-      };
-
-      return responseFallback as unknown as Response;
-    } catch (e: any) {
-      console.error("Global Fetch Bridge Error:", e);
-      // V6.0.0: NEVER fallback to originalFetch on Native for HTTP requests.
-      // This is the root cause of 'this.lock' errors.
-      const errBody = JSON.stringify({ error: "Network Bridge Error", message: e.message });
-      return {
-        ok: false,
-        status: 503,
-        statusText: "Service Unavailable",
-        url: typeof args[0] === 'string' ? args[0] : (args[0] as any).url,
-        headers: { get: () => 'application/json' },
-        json: async () => ({ error: e.message }),
-        text: async () => errBody,
-        clone: function() { return { ...this }; }
-      } as unknown as Response;
-    }
-  };
-  (window as any).__START_FETCH_BRIDGE_ACTIVE = true;
-}
 
 const supabaseInner = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -278,25 +159,5 @@ if (typeof window !== 'undefined') {
   (window as any).__SUPABASE_CLIENT = supabaseInner;
 }
 
-// V5.0.2: Deep Injection - Provide NO-OP methods to ALL internal clients
-if (isNative) {
-  const noop = async (name: string, timeout: any, callback: any) => {
-    const cb = typeof timeout === 'function' ? timeout : callback;
-    if (cb) return await cb();
-  };
-  
-  const patchClient = (client: any) => {
-    if (!client) return;
-    try {
-      client.lock = noop;
-      client.acquire = noop;
-    } catch (e) {}
-  };
-
-  patchClient(supabaseInner);
-  patchClient((supabaseInner as any).auth);
-  patchClient((supabaseInner as any).storage);
-  patchClient((supabaseInner as any).realtime);
-}
-
+// V13.0.0: CLEANUP - Removed all manual patchClient and global hijacking
 export const supabase = supabaseInner;

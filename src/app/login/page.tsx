@@ -46,8 +46,8 @@ const LoginPage = () => {
     });
   };
 
-  const VERSION = "V12.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v12.0.0.apk`)}`;
+  const VERSION = "V13.0.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v13.0.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -86,11 +86,13 @@ const LoginPage = () => {
     setLastError("");
     
     try {
-      console.log(`V8.0.0: Performing direct REST health check...`);
-      // V8.0.0: Bypass the Supabase JS library entirely for health check
-      // to avoid any 'this.lock' or 'navigator.locks' issues during initial boot.
+      console.log(`V13.0.0: Performing DIRECT NATIVE check...`);
+      // V13.0.0: Use the direct native bridge for health check to avoid all library issues
+      const { CapacitorHttp } = await import('@capacitor/core');
       const url = `${config.supabase.url}/rest/v1/app_config?select=count&limit=1`;
-      const response = await fetch(url, {
+      
+      const response = await CapacitorHttp.request({
+        url,
         method: 'GET',
         headers: {
           'apikey': config.supabase.anonKey,
@@ -98,12 +100,12 @@ const LoginPage = () => {
         }
       });
       
-      if (!response.ok) {
-        console.error("Direct Connection Failed:", response.status);
+      if (response.status !== 200) {
+        console.error("Native Bridge Failed:", response.status);
         setConnStatus('fail');
         setLastError(`HTTP ${response.status}: Failed to reach server`);
       } else {
-        console.log("Direct Connection Success! ✅");
+        console.log("Native Bridge Success! ✅");
         setConnStatus('ok');
       }
     } catch (e: any) {
@@ -273,8 +275,8 @@ const LoginPage = () => {
 
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
-              <p className={ (window as any).__START_FETCH_BRIDGE_ACTIVE ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).__START_FETCH_BRIDGE_ACTIVE ? "ANTILOCK PROTOCOL (V12.0.0)" : "INACTIVE" }
+              <p className={ (window as any).Capacitor?.isNativePlatform?.() ? "text-green-400" : "text-yellow-400" }>
+                { (window as any).Capacitor?.isNativePlatform?.() ? "NATIVE DIRECT (V13.0.0)" : "WEB STANDARD" }
               </p>
             </div>
 
