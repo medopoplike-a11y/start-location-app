@@ -6,25 +6,49 @@ const supabaseUrl = config.supabase.url || 'https://placeholder.supabase.co';
 const supabaseAnonKey = config.supabase.anonKey || 'placeholder-anon-key';
 
 /**
- * V15.0.0: RADICAL NATIVE ARCHITECTURE
- * Final, unified, and immutable environment detection.
+ * V16.5.0: ULTRA-STABLE NATIVE DETECTION
+ * Hardened detection that cannot be bypassed even during hydration.
  */
 const getIsNativeStable = () => {
   if (typeof window === 'undefined') return false;
   
-  // Use a reliable global flag that persists across some reloads but is set correctly on boot
+  // 1. Check persistent global flag
   if ((window as any)._IS_NATIVE_STABLE !== undefined) return (window as any)._IS_NATIVE_STABLE;
 
+  // 2. Check Capacitor object and platform
   const isCap = !!(window as any).Capacitor;
   const platform = isCap ? (window as any).Capacitor.getPlatform?.() : 'web';
-  const detected = isCap && platform !== 'web';
+  
+  // 3. Check for specific native bridge markers
+  const hasNativeBridge = !!((window as any).webkit?.messageHandlers?.CapacitorHttp || (window as any).Capacitor?.Plugins?.CapacitorHttp);
+  
+  const detected = (isCap && platform !== 'web') || hasNativeBridge;
 
   (window as any)._IS_NATIVE_STABLE = detected;
-  console.log(`[SupabaseV15] Native detection: ${detected} (Platform: ${platform})`);
+  if (detected) console.log(`[SupabaseV16] Native environment locked: ${platform}`);
   return detected;
 };
 
 const isNative = getIsNativeStable();
+
+/**
+ * V16.5.0: SESSION MIRRORING (LOCAL STORAGE BRIDGE)
+ * This ensures that even if a web-based component bypasses the native driver,
+ * it finds a valid session in LocalStorage.
+ */
+const syncSessionToLocalStorage = (session: any) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+    if (session) {
+      localStorage.setItem(key, JSON.stringify(session));
+      localStorage.setItem('sb-session-v14', JSON.stringify(session));
+    } else {
+      localStorage.removeItem(key);
+      localStorage.removeItem('sb-session-v14');
+    }
+  } catch (e) {}
+};
 
 class SupabaseNativeDriver {
   private authSubscribers: ((event: string, session: any) => void)[] = [];
@@ -113,6 +137,7 @@ class SupabaseNativeDriver {
 
         const session = res.data;
         await Preferences.set({ key: 'sb-session-v14', value: JSON.stringify(session) });
+        syncSessionToLocalStorage(session); // V16.5.0: Sync to LS
         this.notifyAuthSubscribers('SIGNED_IN', session);
         return { data: { user: session.user, session }, error: null };
       } catch (e: any) {
@@ -124,6 +149,7 @@ class SupabaseNativeDriver {
         const { Preferences } = await import('@capacitor/preferences');
         const { value } = await Preferences.get({ key: 'sb-session-v14' });
         const session = value ? JSON.parse(value) : null;
+        if (session) syncSessionToLocalStorage(session); // V16.5.0: Passive sync
         return { data: { session }, error: null };
       } catch {
         return { data: { session: null }, error: null };
@@ -137,6 +163,7 @@ class SupabaseNativeDriver {
       try {
         const { Preferences } = await import('@capacitor/preferences');
         await Preferences.remove({ key: 'sb-session-v14' });
+        syncSessionToLocalStorage(null); // V16.5.0: Sync removal
         this.notifyAuthSubscribers('SIGNED_OUT', null);
         return { error: null };
       } catch (e: any) {
@@ -168,6 +195,7 @@ class SupabaseNativeDriver {
         if (res.status >= 400) return { data: { session: null, user: null }, error: { message: 'Expired' } };
         const newSession = res.data;
         await Preferences.set({ key: 'sb-session-v14', value: JSON.stringify(newSession) });
+        syncSessionToLocalStorage(newSession); // V16.5.0: Sync refresh
         this.notifyAuthSubscribers('TOKEN_REFRESHED', newSession);
         return { data: { session: newSession, user: newSession.user }, error: null };
       } catch (e: any) {

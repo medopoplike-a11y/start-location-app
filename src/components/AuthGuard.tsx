@@ -56,21 +56,22 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       const currentPath = pathname?.replace(/\/$/, "") || "";
       const isLoginPath = currentPath === "/login" || currentPath === "";
 
+      // V16.5.0: Hardened Redirection logic
       if (!user) {
         if (!isLoginPath) {
           if (checkReloadLoop()) return;
-          console.log("AuthGuard: No user, redirecting to login");
+          console.log("AuthGuard: [NATIVE SAFETY] Redirecting to login - No user detected");
           router.replace("/login");
         }
       } else if (userRole && !authorized) {
         const correctDashboard = userRole === 'admin' ? '/admin' : userRole === 'vendor' ? '/store' : '/driver';
         if (currentPath !== correctDashboard) {
           if (checkReloadLoop()) return;
-          console.log(`AuthGuard: Unauthorized role ${userRole}, redirecting to ${correctDashboard}`);
+          console.log(`AuthGuard: [NATIVE SAFETY] Redirecting to ${correctDashboard} - Role mismatch`);
           router.replace(correctDashboard);
         }
       }
-    }, 800); // V16.4.0: Slightly increased delay to allow session persistence to settle
+    }, 1500); // V16.5.0: Further increased delay to allow AuthProvider second try to complete
     
     return () => clearTimeout(timer);
   }, [loading, user, userRole, authorized, router, pathname]);

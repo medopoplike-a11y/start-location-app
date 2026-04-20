@@ -80,24 +80,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Initial Session Load
     const initAuth = async () => {
       try {
-        console.log("[AuthV16.4.0] Initial session check...");
+        console.log("[AuthV16.5.0] Initial session check...");
+        
+        // V16.5.0: Race condition protection. Wait for any pending web-client initialization.
+        await new Promise(r => setTimeout(r, 200));
+
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          console.log("[AuthV16.4.0] Initial session found, updating state...");
+          console.log("[AuthV16.5.0] Initial session found, updating state...");
           await updateState(session, "init");
         } else {
-          console.log("[AuthV16.4.0] No initial session found.");
-          // V16.4.0: Wait a bit before giving up, in case onAuthStateChange is about to fire
+          console.log("[AuthV16.5.0] No initial session found.");
+          // V16.5.0: Increased wait for native listeners to catch up
           setTimeout(() => {
             if (active && !profileRef.current) {
-              console.log("[AuthV16.4.0] Still no session after wait, setting loading false");
-              setLoading(false);
+              console.log("[AuthV16.5.0] Still no session after wait, checking again...");
+              supabase.auth.getSession().then(({ data: { session: secondTry } }) => {
+                if (secondTry) {
+                   updateState(secondTry, "init_second_try");
+                } else {
+                   setLoading(false);
+                }
+              });
             }
-          }, 1500); 
+          }, 3000); // 3 seconds is safer for slow mobile storage
         }
       } catch (e) {
-        console.error("[AuthV16.4.0] Init error", e);
+        console.error("[AuthV16.5.0] Init error", e);
         if (active) setLoading(false);
       }
     };

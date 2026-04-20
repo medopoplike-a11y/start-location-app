@@ -74,8 +74,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.4.6";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.4.6.apk`)}`;
+  const VERSION = "V16.5.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.5.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
