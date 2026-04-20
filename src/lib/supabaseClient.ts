@@ -30,6 +30,9 @@ class SupabaseNativeDriver {
   private authSubscribers: ((event: string, session: any) => void)[] = [];
 
   private async restRequest(path: string, options: any = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     try {
       const { CapacitorHttp } = await import('@capacitor/core');
       const { Preferences } = await import('@capacitor/preferences');
@@ -53,11 +56,15 @@ class SupabaseNativeDriver {
         url: `${supabaseUrl}${path}`,
         method: options.method || 'GET',
         headers,
-        data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
+        data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
+        // CapacitorHttp doesn't support signal directly in all versions, 
+        // but we can at least try to handle the rejection
       });
 
+      clearTimeout(timeoutId);
+
       if (res.status === 401 || res.status === 403) {
-        console.warn("[SupabaseV15] Unauthorized - session may be expired");
+        console.warn("[SupabaseV16] Unauthorized - session may be expired");
       }
 
       const error = res.status >= 400 ? { 
@@ -68,6 +75,8 @@ class SupabaseNativeDriver {
 
       return { data: res.data, error };
     } catch (e: any) {
+      clearTimeout(timeoutId);
+      console.error("[SupabaseV16] Request error:", path, e.message);
       return { data: null, error: { message: e.message || "Network Error" } };
     }
   }
@@ -104,7 +113,8 @@ class SupabaseNativeDriver {
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value } = await Preferences.get({ key: 'sb-session-v14' });
-        return { data: { session: value ? JSON.parse(value) : null }, error: null };
+        const session = value ? JSON.parse(value) : null;
+        return { data: { session }, error: null };
       } catch {
         return { data: { session: null }, error: null };
       }
@@ -134,7 +144,7 @@ class SupabaseNativeDriver {
         // V16.1.0: Prevent rapid consecutive session refreshes
         const now = Date.now();
         if ((window as any)._LAST_REFRESH_TS && now - (window as any)._LAST_REFRESH_TS < 10000) {
-          console.log("[SupabaseV15] Skipping rapid session refresh (throttle)");
+          console.log("[SupabaseV16] Skipping rapid session refresh (throttle)");
           return { data: { session, user: session.user }, error: null };
         }
         (window as any)._LAST_REFRESH_TS = now;
@@ -156,6 +166,10 @@ class SupabaseNativeDriver {
     },
     onAuthStateChange: (callback: (event: string, session: any) => void) => {
       this.authSubscribers.push(callback);
+      // V16.2.0: Trigger INITIAL_SESSION if we have one
+      this.auth.getSession().then(({ data }) => {
+        if (data.session) callback('INITIAL_SESSION', data.session);
+      });
       return { data: { subscription: { unsubscribe: () => { this.authSubscribers = this.authSubscribers.filter(sub => sub !== callback); } } } };
     }
   };

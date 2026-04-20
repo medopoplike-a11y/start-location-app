@@ -26,38 +26,53 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     let active = true;
     
-    const initAuth = async () => {
-      try {
-        console.log("[AuthV15] Initializing...");
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!active) return;
+    // V16.2.0: Safety timeout for loading state
+    const safetyTimeout = setTimeout(() => {
+      if (active && loading) {
+        console.warn("[AuthV16] Safety timeout reached, forcing loading false");
+        setLoading(false);
+      }
+    }, 10000);
 
-        if (session?.user) {
-          setUser(session.user);
+    const updateAuth = async (session: any, source: string) => {
+      if (!active) return;
+      console.log(`[AuthV16] Updating from ${source}:`, session?.user?.id || "None");
+      
+      if (session?.user) {
+        setUser(session.user);
+        // Only fetch profile if user changed or profile is missing
+        if (!profile || profile.id !== session.user.id) {
           const p = await getUserProfile(session.user.id, session.user.email);
           if (active) setProfile(p);
         }
-      } catch (e) {
-        console.error("[AuthV15] Init error", e);
-      } finally {
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+      setLoading(false);
+    };
+
+    const initAuth = async () => {
+      try {
+        console.log("[AuthV16] Initializing getSession...");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (active) await updateAuth(session, "initAuth");
+      } catch (e: any) {
+        console.error("[AuthV16] Init error", e.message);
         if (active) setLoading(false);
       }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthV15] Event: ${event}`);
+      console.log(`[AuthV16] Event received: ${event}`);
       if (!active) return;
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
         setLoading(false);
-      } else if (session?.user) {
-        setUser(session.user);
-        const p = await getUserProfile(session.user.id, session.user.email);
-        if (active) setProfile(p);
-        setLoading(false);
+      } else if (session?.user || event === 'INITIAL_SESSION') {
+        await updateAuth(session, `event:${event}`);
       }
     });
 
@@ -65,9 +80,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       active = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [profile, loading]); // Added profile to deps to allow updateAuth to check it correctly
 
   return (
     <AuthContext.Provider value={{ user, profile, loading }}>
