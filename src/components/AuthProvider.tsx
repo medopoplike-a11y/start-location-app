@@ -18,7 +18,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  
+  const loadingRef = React.useRef(true);
+
+  // Sync ref with state
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
   // Use refs to avoid dependency loops in useEffect
   const initializedRef = React.useRef(false);
   const profileRef = React.useRef<UserProfile | null>(null);
@@ -28,30 +34,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializedRef.current = true;
 
     let active = true;
-    
-    // V16.9.2: Safety timeout for loading state
+
+    // V16.9.3: Safety timeout using Ref to avoid closure stale data
     const safetyTimeout = setTimeout(() => {
-      if (active && loading) {
-        console.warn("[AuthV16.9.2] Safety timeout triggered - Force closing AppLoader");
+      if (active && loadingRef.current) {
+        console.warn("[AuthV16.9.3] Safety timeout triggered - Force closing AppLoader");
         setLoading(false);
       }
-    }, 8000); // V16.9.2: Reduced to 8s for better UX
+    }, 8000); 
 
     const updateState = async (session: any, source: string) => {
       if (!active) return;
-      console.log(`[AuthV16.9.2] State update from ${source}:`, session?.user?.id || "None");
+      console.log(`[AuthV16.9.3] State update from ${source}:`, session?.user?.id || "None");
       
       const currentUser = session?.user || null;
       
-      // V16.9.2: Optimization - If user is same and profile exists, skip re-fetch
+      // V16.9.3: Optimization - If user is same and profile exists, skip re-fetch
       if (currentUser && user?.id === currentUser.id && profileRef.current) {
-        console.log("[AuthV16.9.2] Skipping redundant state update");
-        if (active) setLoading(false);
+        console.log("[AuthV16.9.3] Skipping redundant state update");
+        if (active) {
+            loadingRef.current = false;
+            setLoading(false);
+        }
         return;
       }
 
-      // V16.9.2: STABILITY DELAY for Native platforms
-      // This ensures the session is fully propagated to all listeners
+      // V16.9.3: STABILITY DELAY for Native platforms
       if (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() !== 'web') {
         await new Promise(r => setTimeout(r, 600));
       }
@@ -60,14 +68,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (currentUser) {
         try {
-          console.log("[AuthV16.9.2] Fetching/Repairing profile for:", currentUser.email);
+          console.log("[AuthV16.9.3] Fetching/Repairing profile for:", currentUser.email);
           const p = await getUserProfile(currentUser.id, currentUser.email);
           if (active) {
             profileRef.current = p;
             setProfile(p);
           }
         } catch (e) {
-          console.error("[AuthV16.9.2] Profile fetch failed", e);
+          console.error("[AuthV16.9.3] Profile fetch failed", e);
         }
       } else {
         profileRef.current = null;
@@ -75,7 +83,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (active) {
-        console.log("[AuthV16.9.2] Loading finished");
+        console.log("[AuthV16.9.3] Loading finished");
+        loadingRef.current = false;
         setLoading(false);
       }
     };
@@ -83,33 +92,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Initial Session Load
     const initAuth = async () => {
       try {
-        console.log("[AuthV16.6.0] Standard session check...");
-        
-        // Use the official getSession which now uses NativeStorage and NativeFetch
+        console.log("[AuthV16.9.3] Standard session check...");
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          console.log("[AuthV16.6.0] Session found, updating state...");
           await updateState(session, "init");
         } else {
-          console.log("[AuthV16.6.0] No session found, setting loading false");
+          console.log("[AuthV16.9.3] No session found, setting loading false");
+          loadingRef.current = false;
           setLoading(false);
         }
-      } catch (e) {
-        console.error("[AuthV16.6.0] Init error", e);
-        if (active) setLoading(false);
+      } catch (e) {System.out.println("[AuthV16.9.3] Init error", e);
+        if (active) {
+            loadingRef.current = false;
+            setLoading(false);
+        }
       }
     };
 
     // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthV16] Auth event: ${event}`);
+      console.log(`[AuthV16.9.3] Auth event: ${event}`);
       if (!active) return;
 
       if (event === 'SIGNED_OUT') {
         profileRef.current = null;
         setUser(null);
         setProfile(null);
+        loadingRef.current = false;
         setLoading(false);
       } else if (session?.user || event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         await updateState(session, `event:${event}`);

@@ -768,10 +768,15 @@ function AdminContent() {
 
       try {
         setLoading(true);
-        // V0.9.94: SINGLE INITIALIZATION FETCH
-        await fetchData(true);
+        // V16.9.3: Added total timeout for setup to prevent infinite loader
+        const setupPromise = fetchData(true);
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Setup Timeout")), 8000));
+        
+        await Promise.race([setupPromise, timeoutPromise]);
+        console.log("[AdminV16.9.3] Setup completed successfully");
       } catch (e) {
-        setError(`فشل في تهيئة النظام: ${getErrorMessage(e)}`);
+        console.warn("[AdminV16.9.3] Setup took too long or failed, forcing UI ready", e);
+        setError(null); // Clear errors to allow UI to show
       } finally {
         clearTimeout(hardFallback);
         setLoading(false);

@@ -469,12 +469,27 @@ export default function DriverApp() {
         // 1. Broadcast immediately via persistent singleton (no channel-leak)
         sendLocationBroadcast(driverId, newLocation, driverName);
 
-        // 2. Persist to DB
-        await supabase.from('profiles').update({ 
-          location: { ...newLocation, ts: now },
-          is_online: true,
-          last_location_update: new Date().toISOString()
-        }).eq('id', driverId);
+        // 2. Persist to DB (V16.9.3: Improved robustness and validation)
+        try {
+          if (isNaN(newLocation.lat) || isNaN(newLocation.lng)) {
+            console.warn("[DriverV16.9.3] Invalid location coords skipped");
+            return;
+          }
+
+          const patchData = { 
+            location: { ...newLocation, ts: now },
+            is_online: true,
+            last_location_update: new Date().toISOString()
+          };
+
+          const { error: patchError } = await supabase.from('profiles').update(patchData).eq('id', driverId);
+          
+          if (patchError) {
+            console.error("[DriverV16.9.3] Profile update failed:", patchError);
+          }
+        } catch (e) {
+          console.error("[DriverV16.9.3] Exception during location sync:", e);
+        }
       },
       (error) => {
         console.warn("Geolocation watch error:", error);
