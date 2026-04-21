@@ -14,19 +14,21 @@ const supabaseAnonKey = config.supabase.anonKey;
  */
 
 /**
- * V16.6.5: HARD OVERRIDE FOR ANDROID WEB LOCKS
- * This prevents the "this.lock is not a function" error globally in Android WebView.
+ * V16.6.6: GLOBAL LOCK KILLER
+ * We must ensure locks are disabled BEFORE any other code runs.
  */
-if (typeof window !== 'undefined' && 
-    !!window.Capacitor && 
-    window.Capacitor.getPlatform() !== 'web') {
+if (typeof window !== 'undefined') {
+  // Polyfill for navigator.locks
   if (!(navigator as any).locks) {
     (navigator as any).locks = {
       acquire: async () => ({ release: () => {} }),
       query: async () => ({ pending: [], held: [] })
     };
-    console.log("[SupabaseV16] Web Locks API Polyfill applied for Android");
   }
+  
+  // Hard disable for any library checking for locks
+  (window as any).WebLock = undefined;
+  (window as any).LockManager = undefined;
 }
 
 const isNative = typeof window !== 'undefined' && 
@@ -93,9 +95,14 @@ const nativeFetch = async (url: string, options: any = {}) => {
       method: options.method || 'GET',
       headers: headers,
       data: requestData,
-      connectTimeout: 15000,
-      readTimeout: 15000
+      connectTimeout: 20000,
+      readTimeout: 20000
     });
+
+    // V16.6.6: PostgREST usually returns array, if we get null/empty it might be RLS
+    if (response.status === 200 && (!response.data || (Array.isArray(response.data) && response.data.length === 0))) {
+      console.log(`[SupabaseV16] Warning: Empty data from ${fullUrl}. Check RLS or Auth Header.`);
+    }
 
     // V16.6.1: Detailed logging for debugging (only in development or if enabled)
     if (response.status >= 400) {

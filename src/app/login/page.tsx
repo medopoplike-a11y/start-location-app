@@ -74,8 +74,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.6.5";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.6.5.apk`)}`;
+  const VERSION = "V16.6.6";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.6.6.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -315,12 +315,12 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).Capacitor?.isNativePlatform?.() ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).Capacitor?.isNativePlatform?.() ? "NATIVE ULTIMATE (V16.6.5)" : "WEB STANDARD" }
+                { (window as any).Capacitor?.isNativePlatform?.() ? "NATIVE ULTIMATE (V16.6.6)" : "WEB STANDARD" }
               </p>
             </div>
 
             <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 mt-4">
-               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V16.6.5)</p>
+               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V16.6.6)</p>
                <div className="grid grid-cols-1 gap-2">
                  <button 
                    onClick={async () => {
@@ -345,26 +345,26 @@ const LoginPage = () => {
                  </button>
                  <button 
                    onClick={async () => {
+                     if (!confirm("تحذير: هذا الخيار سيمسح كل بيانات التطبيق والجلسات والذاكرة المؤقتة تماماً. هل أنت متأكد؟")) return;
                      try {
-                       const url = config.supabase.url || "MISSING";
-                       const key = config.supabase.anonKey ? `${config.supabase.anonKey.substring(0, 10)}...` : "MISSING";
-                       alert(`Supabase Config:\nURL: ${url}\nKey: ${key}`);
+                       const { Preferences } = await import('@capacitor/preferences');
+                       await Preferences.clear();
+                       localStorage.clear();
+                       sessionStorage.clear();
                        
-                       // V16.3.0: More defensive diagnostics
-                       alert("Checking Auth Session...");
-                       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-                       alert(`Auth Session Result:\nUser: ${sessionData?.session?.user?.email || "NOT LOGGED IN"}\nError: ${sessionError?.message || "None"}`);
+                       const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+                       await CapacitorUpdater.reset();
                        
-                       alert("Checking Data Connection (Profiles)...");
-                       const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').limit(1);
-                       alert(`Data Test Result:\nRows: ${profileData?.length || 0}\nError: ${profileError?.message || "None"}`);
+                       alert("تم المسح الشامل بنجاح. سيتم إغلاق التطبيق، يرجى فتحه يدوياً.");
+                       const { App } = await import('@capacitor/app');
+                       await App.exitApp();
                      } catch (e: any) {
-                       alert(`Super Diag Failed: ${e.message}\n${e.stack?.substring(0, 100)}`);
+                       alert(`فشل المسح الشامل: ${e.message}`);
                      }
                    }}
-                   className="w-full px-4 py-2 bg-red-600 rounded text-xs text-white hover:bg-red-700 transition-colors"
+                   className="w-full px-4 py-2 bg-slate-700 rounded text-xs text-white hover:bg-slate-800 transition-colors"
                  >
-                   تشغيل الفحص العميق (Deep Audit)
+                   مسح شامل للبيانات (Nuclear Reset)
                  </button>
                  <button 
                    onClick={async () => {
