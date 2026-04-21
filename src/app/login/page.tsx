@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.9.5";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.5.apk`)}`;
+  const VERSION = "V16.9.6";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.6.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -252,6 +252,15 @@ const LoginPage = () => {
     try {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('start-location-v1-session');
+        if ((window as any).Capacitor?.isNativePlatform?.()) {
+          const { Preferences } = await import('@capacitor/preferences');
+          await Preferences.remove({ key: 'start-location-v1-session' });
+          // Also clear any stuck supabase tokens
+          const { keys } = await Preferences.keys();
+          for (const key of keys) {
+            if (key.includes('auth-token')) await Preferences.remove({ key });
+          }
+        }
       }
 
       const { data, error: loginError } = await signIn(email.trim(), password);

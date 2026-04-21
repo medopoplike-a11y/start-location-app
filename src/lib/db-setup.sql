@@ -1005,9 +1005,9 @@ BEGIN
   END IF;
 END $$;
 
--- إدراج البيانات الافتراضية إذا لم تكن موجودة (V16.9.1)
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة (V16.9.6)
 INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
-VALUES (1, '16.9.1-CLEAN-FINAL', '0.1.0', 'https://github.com/medopoplike/start-location-app/releases', 15, 20)
+VALUES (1, 'V16.9.6', '0.1.0', 'https://github.com/medopoplike/start-location-app/releases', 15, 20)
 ON CONFLICT (id) DO UPDATE SET 
     latest_version = EXCLUDED.latest_version,
     updated_at = NOW();

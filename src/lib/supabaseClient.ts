@@ -110,9 +110,12 @@ const nativeFetch = async (url: string, options: any = {}) => {
       }
     }
 
-    // V16.6.1: Detailed logging for debugging (only in development or if enabled)
+    // V16.6.1: Detailed logging for debugging
     if (response.status >= 400) {
       console.warn(`[SupabaseNativeFetch] Error ${response.status} on ${fullUrl}:`, response.data);
+      if (response.status === 401 || response.status === 403) {
+        console.error(`[SupabaseNativeFetch] AUTH ERROR: Possible stale token or RLS block. Auth Header: ${authSummary}`);
+      }
     }
 
     // Convert response data to string for standard Response object

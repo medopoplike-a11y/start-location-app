@@ -225,15 +225,16 @@ export const signIn = async (email: string, password?: string) => {
 };
 
 export const signOut = async () => {
-  console.log("Auth: signOut started (Optimistic)");
+  console.log("Auth: signOut started (V16.9.2 RADICAL CLEANUP)");
   
-  // 1. Immediate local cleanup
   if (typeof window !== 'undefined') {
     try {
+      // 1. Immediate local cleanup
       const sessionKey = 'start-location-v1-session';
       localStorage.removeItem(sessionKey);
+      sessionStorage.clear();
       
-      // Targeted cleanup of auth-related keys
+      // Targeted cleanup of auth-related keys in localStorage
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const key = localStorage.key(i);
         if (key && (key.includes('auth-token') || key.includes('supabase') || key.includes('session'))) {
@@ -241,19 +242,21 @@ export const signOut = async () => {
         }
       }
 
-      // 2. Background global signout (don't await)
-      supabase.auth.signOut({ scope: 'global' }).catch(err => {
-        console.warn("Auth: Background signOut error", err);
-      });
-
-      // 3. Native Preferences cleanup (background)
+      // 2. Native Preferences cleanup (CRITICAL for Capacitor)
       if (Capacitor.isNativePlatform()) {
-        import('@capacitor/preferences').then(({ Preferences }) => {
-          Preferences.remove({ key: sessionKey }).catch(() => {});
-          Preferences.remove({ key: 'sb-session-v14' }).catch(() => {});
-          Preferences.remove({ key: 'supabase.auth.token' }).catch(() => {});
-        }).catch(() => {});
+        const { Preferences } = await import('@capacitor/preferences');
+        const { keys } = await Preferences.keys();
+        for (const key of keys) {
+          if (key.includes('auth-token') || key.includes('supabase') || key.includes('session') || key === sessionKey) {
+            await Preferences.remove({ key });
+          }
+        }
       }
+
+      // 3. Background global signout from Supabase
+      await supabase.auth.signOut({ scope: 'global' }).catch(err => {
+        console.warn("Auth: signOut error", err);
+      });
 
       // 4. Instant redirect
       window.location.href = '/login?logged_out=true';

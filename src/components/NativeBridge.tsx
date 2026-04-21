@@ -59,7 +59,7 @@ export const NativeBridge = () => {
       // V16.4.1: Trigger update check immediately after boot
       try {
         console.log("NativeBridge: Checking for OTA updates...");
-        const update = await checkForAutoUpdate(true);
+        const update = await checkForAutoUpdate(false); // V16.9.2: Use force=false to respect cooldown and prevent loops
         if (update.available && update.downloaded) {
           await showNativeToast(update.updateMessage || "جاري إعادة تشغيل التطبيق لتثبيت التحديث...");
           setTimeout(async () => {
@@ -77,7 +77,7 @@ export const NativeBridge = () => {
     return () => {
       App.removeAllListeners();
     };
-  }, [pathname, router]);
+  }, []); // V16.9.2: Remove pathname dependency to prevent redundant checks and reload loops during navigation
 
   return null;
 };

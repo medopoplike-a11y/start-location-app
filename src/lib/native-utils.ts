@@ -436,11 +436,17 @@ const getFreshAccessToken = async (): Promise<string> => {
   } catch (_) {}
 
   try {
-    // 3. Fall back to cached session in Preferences
-    const { value: sessionStr } = await Preferences.get({ key: SESSION_KEY });
-    if (sessionStr) {
-      const session = JSON.parse(sessionStr);
-      if (session.access_token) return session.access_token;
+    // 3. Fall back to searching for ANY supabase session in Preferences
+    const { keys } = await Preferences.keys();
+    // Look for keys like 'sb-xxxxx-auth-token' or the legacy custom key
+    const authKey = keys.find(k => k.includes('auth-token') || k === SESSION_KEY);
+    
+    if (authKey) {
+      const { value: sessionStr } = await Preferences.get({ key: authKey });
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if (session.access_token) return session.access_token;
+      }
     }
   } catch (_) {}
 
