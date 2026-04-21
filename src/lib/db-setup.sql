@@ -1004,9 +1004,9 @@ BEGIN
   END IF;
 END $$;
 
--- إدراج البيانات الافتراضية إذا لم تكن موجودة
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة (V16.9.1)
 INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
-VALUES (1, '0.9.87-ULTIMATE-BEAST', '0.1.0', 'https://github.com/medopoplike/start-location-app/releases', 15, 20)
+VALUES (1, '16.9.1-CLEAN-FINAL', '0.1.0', 'https://github.com/medopoplike/start-location-app/releases', 15, 20)
 ON CONFLICT (id) DO UPDATE SET 
     latest_version = EXCLUDED.latest_version,
     updated_at = NOW();
@@ -1131,9 +1131,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- د. تحديث رقم النسخة في الإعدادات
+-- د. تحديث رقم النسخة في الإعدادات للإصدار الأخير النظيف
 UPDATE public.app_config 
-SET latest_version = '1.0.5-FIX', updated_at = NOW() 
+SET latest_version = '16.9.1-CLEAN-FINAL', updated_at = NOW() 
 WHERE id = 1;
 
 -- ح. إصلاحات استقرار جدول المحافظ (جديد V1.0.5)
