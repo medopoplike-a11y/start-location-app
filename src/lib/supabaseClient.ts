@@ -14,26 +14,38 @@ const supabaseAnonKey = config.supabase.anonKey;
  */
 
 /**
- * V16.6.6: GLOBAL LOCK KILLER
- * We must ensure locks are disabled BEFORE any other code runs.
+ * V16.8.3: NUCLEAR LOCK RECOVERY
+ * We provide a comprehensive mock for the LockManager that Supabase Auth expects.
  */
 if (typeof window !== 'undefined') {
-  // Polyfill for navigator.locks
+  const mockLock = {
+    acquire: async (name: string, options: any, callback: any) => {
+      if (typeof options === 'function') callback = options;
+      const lock = { name, release: () => {} };
+      if (callback) return callback(lock);
+      return lock;
+    },
+    query: async () => ({ pending: [], held: [] })
+  };
+
+  // 1. Global Polyfill
   if (!(navigator as any).locks) {
-    (navigator as any).locks = {
-      acquire: async (name: string, options: any, callback: any) => {
-        if (typeof options === 'function') callback = options;
-        const lock = { name, release: () => {} };
-        if (callback) return callback(lock);
-        return lock;
-      },
-      query: async () => ({ pending: [], held: [] })
-    };
+    (navigator as any).locks = mockLock;
   }
   
-  // Hard disable for any library checking for locks
+  // 2. Window Overrides to prevent internal checks from finding "real but broken" locks
   (window as any).WebLock = undefined;
   (window as any).LockManager = undefined;
+  
+  // 3. Force navigator.locks to be our mock even if it exists (for some WebViews)
+  try {
+    Object.defineProperty(navigator, 'locks', {
+      get: () => mockLock,
+      configurable: true
+    });
+  } catch (e) {
+    console.warn("SupabaseV16.8.3: Could not redefine navigator.locks", e);
+  }
 }
 
 const isNative = typeof window !== 'undefined' && 
@@ -155,10 +167,14 @@ const nativeFetch = async (url: string, options: any = {}) => {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // V16.6.7: RADICAL LOCK FIX - Ensure compatibility with both Browser and SSR (Node)
-    // Some versions expect a function, others an object. We provide a hybrid.
+    // V16.8.3: RADICAL LOCK FIX - Ensure compatibility with both Browser and SSR (Node)
+    // Providing an object that mimics the expected LockManager structure.
     lock: (typeof window === 'undefined' ? undefined : {
-      acquire: async () => ({ release: () => {} }),
+      acquire: async (name: string, callback: any) => {
+        if (typeof callback === 'function') return callback({ name, release: () => {} });
+        return { name, release: () => {} };
+      },
+      query: async () => ({ pending: [], held: [] })
     }) as any,
     // Use native preferences for session storage
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
