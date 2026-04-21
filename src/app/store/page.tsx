@@ -536,6 +536,11 @@ function StoreContent() {
           setVendorId(currentUser.id);
           setVendorName(profile.full_name || "محل");
           
+          // V16.8.1: Diagnostic Logging
+          console.log(`[Store-Diag] User ID: ${currentUser.id}`);
+          console.log(`[Store-Diag] Profile Role: ${profile.role}`);
+          console.log(`[Store-Diag] Auth Metadata Role: ${currentUser.user_metadata?.role}`);
+          
           let loc = profile.location;
           if (typeof loc === 'string') {
             try { loc = JSON.parse(loc); } catch { loc = null; }
@@ -670,14 +675,22 @@ function StoreContent() {
       }
 
       if (dbOrders.status === 'fulfilled' && dbOrders.value) {
+        console.log(`[Store-Diag] Orders count: ${dbOrders.value.length}`);
+        if (dbOrders.value.length === 0) {
+            console.warn(`[Store-Diag] Warning: 0 orders found for vendor ${uid}. Possible RLS or ID mismatch.`);
+        }
         setOrders(dbOrders.value.map(mapDBOrderToUI));
+      } else if (dbOrders.status === 'rejected') {
+        console.error(`[Store-Diag] Orders query failed:`, dbOrders.reason);
       }
 
       // القيمة الأساسية لمديونية الشركة تأتي من جدول المحافظ لأنه يخصم التسويات المدفوعة سابقاً
       if (walletRes.status === 'fulfilled' && walletRes.value.data) {
         const dbBalance = walletRes.value.data.system_balance || 0;
+        console.log(`[Store-Diag] Wallet balance: ${dbBalance}`);
         setCompanyCommission(dbBalance);
-      } else if (dbOrders.status === 'fulfilled' && dbOrders.value) {
+      } else if (walletRes.status === 'rejected') {
+        console.warn(`[Store-Diag] Wallet query failed or not found:`, walletRes.reason);
         // حساب احتياطي فقط في حال فشل جلب بيانات المحفظة
         const fallbackCommission = dbOrders.value
           .filter((o: any) => o.status === 'delivered')

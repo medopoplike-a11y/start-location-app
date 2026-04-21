@@ -354,68 +354,61 @@ export const checkForAutoUpdate = async (force = false) => {
     
     // 1. Get current state
     const dbVersion = String(config.latest_version || '').trim();
-    // V16.6.3: Force cache bypass on bundle URL
-    const bundleUrl = String(config.bundle_url || '').trim() + (config.bundle_url.includes('?') ? '&' : '?') + 't=' + Date.now();
+    // V16.8.1: Simplified bundle URL to avoid any query param issues
+    const bundleUrl = String(config.bundle_url || '').trim();
 
     // 2. Check persistent storage for "Applied Version"
-    // This is our ground truth to prevent infinite loops
     const { value: appliedVersion } = await Preferences.get({ key: 'last_applied_ota_version' });
     
-    console.log(`Native OTA: [Applied: ${appliedVersion}] [DB: ${dbVersion}]`);
+    console.log(`[Native-OTA] Local: ${appliedVersion} | DB: ${dbVersion}`);
 
-    if (appliedVersion === dbVersion) {
-      console.log('Native OTA: App already has this version applied persistently.');
-      return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
-    }
-
-    // 3. Double check with plugin
-    let current;
-    try {
-      current = await CapacitorUpdater.getLatest();
-    } catch (e) {
-      current = { version: '0.0.0' };
-    }
-
-    if (current.version === dbVersion) {
-      // Sync our storage if plugin already knows
-      await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
+    if (appliedVersion === dbVersion && !force) {
+      console.log('[Native-OTA] Version already applied. Skipping.');
       return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 
     if (!bundleUrl || !dbVersion) {
+      console.warn('[Native-OTA] Missing bundle URL or version in config');
       return { available: false, reason: 'MISSING_CONFIG' };
     }
 
-    console.log('Native OTA: New update found! Downloading:', dbVersion);
+    const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+    console.log('[Native-OTA] Starting download:', bundleUrl);
 
-    const bundle = await CapacitorUpdater.download({
-      url: bundleUrl,
-      version: dbVersion
-    });
+    try {
+      const bundle = await CapacitorUpdater.download({
+        url: bundleUrl,
+        version: dbVersion
+      });
+      
+      console.log('[Native-OTA] Download success, applying...');
 
-    // 4. Set as default and save to persistent storage BEFORE reload
-    await CapacitorUpdater.set({ id: bundle.id });
-    await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
-    
-    console.log('Native OTA: Update applied to storage. Ready for reload.');
+      // 4. Set as default and save to persistent storage BEFORE reload
+      await CapacitorUpdater.set({ id: bundle.id });
+      await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
+      
+      console.log('[Native-OTA] Update applied successfully.');
 
-    // V16.8.0: Nuclear Force Reload
-    // Instead of waiting for the user to click "reload", we can trigger a reload 
-    // after a short delay if it's a critical update.
-    if (config.force_update) {
-        setTimeout(async () => {
-            await CapacitorUpdater.reload();
-        }, 3000);
+      // V16.8.0: Nuclear Force Reload
+      if (config.force_update) {
+          console.log('[Native-OTA] Force update active, reloading in 2s...');
+          setTimeout(async () => {
+              await CapacitorUpdater.reload();
+          }, 2000);
+      }
+
+      return {
+        available: true,
+        version: dbVersion,
+        bundleId: bundle.id,
+        downloaded: true,
+        forceUpdate: true,
+        updateMessage: String(config.update_message || 'جاري تثبيت التحديث...')
+      };
+    } catch (downloadError: any) {
+      console.error('[Native-OTA] Download/Apply failed:', downloadError);
+      return { available: false, reason: 'DOWNLOAD_FAILED', error: downloadError.message };
     }
-
-    return {
-      available: true,
-      version: dbVersion,
-      bundleId: bundle.id,
-      downloaded: true,
-      forceUpdate: true,
-      updateMessage: String(config.update_message || 'جاري تثبيت التحديث...')
-    };
   } catch (e: any) {
     console.error('Native OTA: Fatal error:', e);
     return { available: false, reason: 'FATAL_ERROR', error: e.message };

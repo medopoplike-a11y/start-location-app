@@ -36,6 +36,31 @@ const LoginPage = () => {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [tapCount, setTapCount] = useState(0);
 
+  const handleNuclearReset = async () => {
+    if (!window.confirm("هل أنت متأكد من تصفير التطبيق بالكامل؟ سيتم مسح جميع الجلسات والتحديثات المؤقتة.")) return;
+    
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+        const { Preferences } = await import('@capacitor/preferences');
+        await Preferences.clear();
+        
+        const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+        await CapacitorUpdater.reset();
+        
+        alert("تم تصفير التطبيق بنجاح. سيتم الآن إعادة التشغيل.");
+        await CapacitorUpdater.reload();
+      } else {
+        alert("تم تصفير المتصفح. يرجى تحديث الصفحة.");
+        window.location.reload();
+      }
+    } catch (e: any) {
+      alert(`خطأ في التصفير: ${e.message}`);
+    }
+  };
+
   const handleVersionTap = () => {
     setTapCount(prev => {
       if (prev + 1 >= 5) {
@@ -74,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.8.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.8.0.apk`)}`;
+  const VERSION = "V16.8.1";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.8.1.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -547,17 +572,21 @@ const LoginPage = () => {
                 </div>
               </div>
 
-              {/* Manual Update Button - V16.4.3 */}
-              <button 
-                onClick={handleManualUpdate}
-                disabled={isUpdating}
-                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] group"
-              >
-                <RefreshCw className={`w-4 h-4 text-blue-400 ${isUpdating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">
-                  {isUpdating ? "جاري البحث عن تحديثات..." : "سحب التحديث الجديد يدوياً"}
-                </span>
-              </button>
+              {/* Manual Update & Reset Buttons - V16.4.3 */}
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleManualUpdate}
+                  className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-3 rounded-xl text-[10px] font-black"
+                >
+                  فحص التحديث
+                </button>
+                <button 
+                  onClick={handleNuclearReset}
+                  className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-3 rounded-xl text-[10px] font-black"
+                >
+                  تصفير شامل
+                </button>
+              </div>
             </div>
           )}
         </motion.div>
