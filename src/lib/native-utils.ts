@@ -399,6 +399,15 @@ export const checkForAutoUpdate = async (force = false) => {
     
     console.log('Native OTA: Update applied to storage. Ready for reload.');
 
+    // V16.8.0: Nuclear Force Reload
+    // Instead of waiting for the user to click "reload", we can trigger a reload 
+    // after a short delay if it's a critical update.
+    if (config.force_update) {
+        setTimeout(async () => {
+            await CapacitorUpdater.reload();
+        }, 3000);
+    }
+
     return {
       available: true,
       version: dbVersion,

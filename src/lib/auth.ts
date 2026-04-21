@@ -120,6 +120,16 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
     };
   }
 
+  // V16.8.0: Nuclear fallback for missing profiles in UI
+  const createEmptyProfile = (id: string, email: string, role: UserRole = 'driver'): UserProfile => ({
+    id,
+    email: email || '',
+    full_name: 'جاري التحميل...',
+    role,
+    is_locked: false,
+    created_at: new Date().toISOString()
+  });
+
   try {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (!error && data) {
@@ -173,6 +183,17 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
   } catch (dbError) {
     console.warn('getUserProfile: Database error:', dbError);
   }
+
+  // V16.8.0: FINAL NUCLEAR FALLBACK
+  // If we reach here, the user exists in Auth but we can't get their profile from DB or repair it.
+  // Return a minimal profile object so the UI can at least show a dashboard based on metadata.
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.id === userId) {
+      const metadata = user.user_metadata || {};
+      return createEmptyProfile(userId, user.email || '', (metadata.role || 'driver').toLowerCase() as UserRole);
+    }
+  } catch (e) {}
 
   return null;
 };

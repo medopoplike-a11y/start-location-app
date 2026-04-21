@@ -193,7 +193,11 @@ BEGIN
   WITH CHECK (auth.uid() = id);
 
   -- السماح للأدمن بإدارة جميع الملفات الشخصية
-  -- (تم نقل التعريف النهائي لأسفل الملف لضمان التوافقية)
+  CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com')
+  );
 END $$;
 
 -- 4. تفعيل خاصية إنشاء ملف شخصي ومحفظة تلقائياً عند التسجيل
@@ -1519,16 +1523,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ج. تحديث نهائي لسياسة الأمان للأدمن (Final Unified Security Policy)
--- تضمن وصول الأدمن لكافة الملفات الشخصية بـ 4 طرق أمان (JWT, Metadata, Email, DB Role)
-DROP POLICY IF EXISTS "Admins can manage all profiles" ON profiles;
-CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
-  (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-  (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com') OR
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
-
--- د. تفعيل الإصلاح التلقائي عند استدعاء السكيما (اختياري)
 -- SELECT fix_system_data_integrity();
 
