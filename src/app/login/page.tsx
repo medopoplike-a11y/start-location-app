@@ -74,8 +74,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.6.3";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.6.3.apk`)}`;
+  const VERSION = "V16.6.4";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.6.4.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -322,6 +322,27 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 mt-4">
                <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V16.3.0)</p>
                <div className="grid grid-cols-1 gap-2">
+                 <button 
+                   onClick={async () => {
+                     if (!confirm("سيتم مسح ذاكرة التحديثات تماماً وإعادة التشغيل. هل أنت متأكد؟")) return;
+                     try {
+                       const { Preferences } = await import('@capacitor/preferences');
+                       await Preferences.remove({ key: 'last_applied_ota_version' });
+                       await Preferences.remove({ key: 'last_check_time' });
+                       
+                       const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+                       await CapacitorUpdater.reset();
+                       
+                       alert("تم مسح ذاكرة التحديث بنجاح. سيتم إعادة تشغيل التطبيق الآن.");
+                       setTimeout(() => window.location.reload(), 1000);
+                     } catch (e: any) {
+                       alert(`فشل المسح: ${e.message}`);
+                     }
+                   }}
+                   className="w-full px-4 py-2 bg-yellow-600 rounded text-xs text-white hover:bg-yellow-700 transition-colors"
+                 >
+                   مسح ذاكرة التحديثات (Reset OTA)
+                 </button>
                  <button 
                    onClick={async () => {
                      try {
