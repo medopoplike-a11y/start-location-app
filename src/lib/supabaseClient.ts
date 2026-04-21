@@ -14,38 +14,39 @@ const supabaseAnonKey = config.supabase.anonKey;
  */
 
 /**
- * V16.8.3: NUCLEAR LOCK RECOVERY
- * We provide a comprehensive mock for the LockManager that Supabase Auth expects.
+ * V16.8.4: RADICAL LOCK KILLER
+ * This implementation is designed to be compatible with ALL versions of Supabase Auth.
+ * Instead of providing a complex object, we provide the simplest possible mock.
  */
 if (typeof window !== 'undefined') {
-  const mockLock = {
-    acquire: async (name: string, options: any, callback: any) => {
-      if (typeof options === 'function') callback = options;
-      const lock = { name, release: () => {} };
-      if (callback) return callback(lock);
-      return lock;
+  // 1. Force clear any stuck locks in localStorage/sessionStorage
+  try {
+    const lastVersion = localStorage.getItem('app_version');
+    if (lastVersion && lastVersion.startsWith('16.6')) {
+      console.log("SupabaseV16.8.4: Detected old stuck version, clearing cache...");
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem('app_version', '16.8.4');
+    }
+  } catch (e) {}
+
+  // 2. Simplified Lock Mock
+  const simpleLockMock = {
+    acquire: async (name: string, callback: any) => {
+      if (typeof callback === 'function') return await callback();
+      return { name, release: () => {} };
     },
     query: async () => ({ pending: [], held: [] })
   };
 
-  // 1. Global Polyfill
+  // 3. Global Polyfill
   if (!(navigator as any).locks) {
-    (navigator as any).locks = mockLock;
+    (navigator as any).locks = simpleLockMock;
   }
   
-  // 2. Window Overrides to prevent internal checks from finding "real but broken" locks
+  // 4. Force override
   (window as any).WebLock = undefined;
   (window as any).LockManager = undefined;
-  
-  // 3. Force navigator.locks to be our mock even if it exists (for some WebViews)
-  try {
-    Object.defineProperty(navigator, 'locks', {
-      get: () => mockLock,
-      configurable: true
-    });
-  } catch (e) {
-    console.warn("SupabaseV16.8.3: Could not redefine navigator.locks", e);
-  }
 }
 
 const isNative = typeof window !== 'undefined' && 
@@ -167,14 +168,12 @@ const nativeFetch = async (url: string, options: any = {}) => {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // V16.8.3: RADICAL LOCK FIX - Ensure compatibility with both Browser and SSR (Node)
-    // Providing an object that mimics the expected LockManager structure.
+    // V16.8.4: RADICAL LOCK KILLER - Direct Callback execution
     lock: (typeof window === 'undefined' ? undefined : {
       acquire: async (name: string, callback: any) => {
-        if (typeof callback === 'function') return callback({ name, release: () => {} });
+        if (typeof callback === 'function') return await callback();
         return { name, release: () => {} };
-      },
-      query: async () => ({ pending: [], held: [] })
+      }
     }) as any,
     // Use native preferences for session storage
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
