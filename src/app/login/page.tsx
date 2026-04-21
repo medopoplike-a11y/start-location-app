@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.9.1";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.1.apk`)}`;
+  const VERSION = "V16.9.2";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.2.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -279,23 +279,30 @@ const LoginPage = () => {
         localStorage.removeItem('remembered_email');
       }
 
-      const redirectDelay = (window as any).Capacitor?.isNativePlatform?.() ? 800 : 300; // V16.4.0: Increased delay to ensure storage is flushed
+      // V16.9.2: More aggressive and robust redirection
+      const role = data.user.user_metadata?.role || "driver";
+      const path = getRedirectPath(role);
+      const isNative = (window as any).Capacitor?.isNativePlatform?.();
+      const redirectDelay = isNative ? 600 : 100;
 
-      setTimeout(async () => {
-        if (!isRedirecting) return; // V16.4.0: Safety check
-        
-        const role = data.user.user_metadata?.role || "driver";
-        const path = getRedirectPath(role);
-        
-        console.log(`[LoginV16.4.0] Redirecting to ${path} after ${redirectDelay}ms`);
-        
+      console.log(`[LoginV16.9.2] Redirection sequence started to ${path} (Native: ${isNative})`);
+
+      setTimeout(() => {
         try {
-          // V16.4.0: Clear the reload guard before a legitimate redirect
           sessionStorage.removeItem('auth_redirect_guard');
+          console.log(`[LoginV16.9.2] Attempting router.replace(${path})`);
           router.replace(path);
+          
+          // V16.9.2: Final fallback if router fails to navigate within 2 seconds
+          setTimeout(() => {
+            if (window.location.pathname !== path) {
+              console.warn(`[LoginV16.9.2] Router failed to navigate, forcing window.location`);
+              window.location.href = path;
+            }
+          }, 2000);
         } catch (e) {
-          console.error("[LoginV16.4.0] Router redirect failed, using window.location", e);
-          window.location.assign(path);
+          console.error("[LoginV16.9.2] Redirect exception, using direct location", e);
+          window.location.href = path;
         }
       }, redirectDelay);
     } catch (err: any) {
