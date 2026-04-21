@@ -13,6 +13,22 @@ const supabaseAnonKey = config.supabase.anonKey;
  * override its internal mechanisms (Fetch and Storage) to work natively.
  */
 
+/**
+ * V16.6.5: HARD OVERRIDE FOR ANDROID WEB LOCKS
+ * This prevents the "this.lock is not a function" error globally in Android WebView.
+ */
+if (typeof window !== 'undefined' && 
+    !!window.Capacitor && 
+    window.Capacitor.getPlatform() !== 'web') {
+  if (!(navigator as any).locks) {
+    (navigator as any).locks = {
+      acquire: async () => ({ release: () => {} }),
+      query: async () => ({ pending: [], held: [] })
+    };
+    console.log("[SupabaseV16] Web Locks API Polyfill applied for Android");
+  }
+}
+
 const isNative = typeof window !== 'undefined' && 
                  !!window.Capacitor && 
                  window.Capacitor.getPlatform() !== 'web';
