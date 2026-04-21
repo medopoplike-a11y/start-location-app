@@ -193,11 +193,7 @@ BEGIN
   WITH CHECK (auth.uid() = id);
 
   -- السماح للأدمن بإدارة جميع الملفات الشخصية
-  CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com')
-  );
+  -- (تم نقل التعريف النهائي لأسفل الملف لضمان التوافقية)
 END $$;
 
 -- 4. تفعيل خاصية إنشاء ملف شخصي ومحفظة تلقائياً عند التسجيل
@@ -1065,15 +1061,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- دالة لإصلاح المحافظ المفقودة لجميع المستخدمين (Run manually if needed)
-CREATE OR REPLACE FUNCTION fix_missing_wallets()
-RETURNS void AS $$
-BEGIN
-  INSERT INTO public.wallets (user_id, balance, debt, system_balance)
-  SELECT id, 0, 0, 0
-  FROM public.profiles
-  ON CONFLICT (user_id) DO NOTHING;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- (تم دمج دالة الإصلاح في fix_system_data_integrity بالأسفل)
 
 -- 16. دوال احترافية متقدمة (Advanced Industrial Functions)
 
@@ -1479,10 +1467,68 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- د. تحديث سياسة RLS للبروفايلات لتكون أكثر مرونة مع الآدمن
+-- 17. صيانة وإصلاح النظام (System Maintenance & Repair)
+
+-- أ. دالة إصلاح كافة البيانات المفقودة (Comprehensive Repair)
+-- تقوم بإنشاء بروفايلات ومحافظ مفقودة لجميع مستخدمي Auth لضمان عدم وجود أنظمة فارغة
+CREATE OR REPLACE FUNCTION fix_system_data_integrity()
+RETURNS JSONB AS $$
+DECLARE
+  v_profiles_created INTEGER := 0;
+  v_wallets_created INTEGER := 0;
+BEGIN
+  -- 1. إنشاء البروفايلات المفقودة من auth.users
+  INSERT INTO public.profiles (id, email, full_name, role, is_locked, created_at)
+  SELECT 
+    id, 
+    email, 
+    COALESCE(raw_user_meta_data->>'full_name', 'مستخدم جديد'), 
+    COALESCE(raw_user_meta_data->>'role', 'driver'),
+    false,
+    created_at
+  FROM auth.users
+  WHERE id NOT IN (SELECT id FROM public.profiles)
+  ON CONFLICT (id) DO NOTHING;
+  
+  GET DIAGNOSTICS v_profiles_created = ROW_COUNT;
+
+  -- 2. إنشاء المحافظ المفقودة لجميع البروفايلات
+  INSERT INTO public.wallets (user_id, balance, debt, system_balance)
+  SELECT id, 0, 0, 0
+  FROM public.profiles
+  WHERE id NOT IN (SELECT user_id FROM public.wallets)
+  ON CONFLICT (user_id) DO NOTHING;
+  
+  GET DIAGNOSTICS v_wallets_created = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'profiles_repaired', v_profiles_created,
+    'wallets_repaired', v_wallets_created,
+    'status', 'success',
+    'timestamp', NOW()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ب. دالة إصلاح كافة المحافظ المفقودة (Backwards Compatibility)
+-- يتم استدعاؤها من واجهة الأدمن أو SQL Editor
+CREATE OR REPLACE FUNCTION fix_missing_wallets()
+RETURNS void AS $$
+BEGIN
+  PERFORM fix_system_data_integrity();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ج. تحديث نهائي لسياسة الأمان للأدمن (Final Unified Security Policy)
+-- تضمن وصول الأدمن لكافة الملفات الشخصية بـ 4 طرق أمان (JWT, Metadata, Email, DB Role)
 DROP POLICY IF EXISTS "Admins can manage all profiles" ON profiles;
 CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
   (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+  (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com') OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
 );
+
+-- د. تفعيل الإصلاح التلقائي عند استدعاء السكيما (اختياري)
+-- SELECT fix_system_data_integrity();
 
