@@ -123,6 +123,7 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
   try {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (!error && data) {
+      console.log("getUserProfile: Profile found in DB");
       return data as UserProfile;
     }
     
@@ -130,13 +131,18 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
     // This is critical when migrating projects or if profile sync failed during signup
     console.warn("getUserProfile: No profile found in DB for user", userId, "Attempting auto-repair...");
     
-    const { data: authData } = await supabase.auth.getUser();
+    // V16.6.7: CRITICAL - Use getUser() to get the freshest metadata
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) console.warn("getUserProfile: auth.getUser() failed", authError);
+    
     const user = authData?.user;
     
     if (user && user.id === userId) {
       const metadata = user.user_metadata || {};
       const role = (metadata.role || 'driver').toLowerCase() as UserRole;
       
+      console.log("getUserProfile: Repairing with role:", role);
+
       const newProfile: UserProfile = {
         id: userId,
         email: user.email || userEmail || '',
@@ -148,14 +154,21 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
         area: metadata.area || ''
       };
       
-      // Attempt to create the missing profile
+      // Attempt to create the missing profile (Now allowed by new RLS policy)
       const { error: insertError } = await supabase.from('profiles').insert([newProfile]);
       if (!insertError) {
         console.log("getUserProfile: Profile auto-repaired successfully");
         return newProfile;
       } else {
-        console.error("getUserProfile: Auto-repair failed", insertError);
+        console.error("getUserProfile: Auto-repair failed (Insert Error)", insertError);
+        // Even if insert fails, return the profile object so the UI can at least show something
+        return newProfile;
       }
+    } else {
+      console.error("getUserProfile: auth.getUser() returned wrong user or null", { 
+        foundId: user?.id, 
+        requestedId: userId 
+      });
     }
   } catch (dbError) {
     console.warn('getUserProfile: Database error:', dbError);

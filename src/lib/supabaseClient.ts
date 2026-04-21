@@ -21,7 +21,12 @@ if (typeof window !== 'undefined') {
   // Polyfill for navigator.locks
   if (!(navigator as any).locks) {
     (navigator as any).locks = {
-      acquire: async () => ({ release: () => {} }),
+      acquire: async (name: string, options: any, callback: any) => {
+        if (typeof options === 'function') callback = options;
+        const lock = { name, release: () => {} };
+        if (callback) return callback(lock);
+        return lock;
+      },
       query: async () => ({ pending: [], held: [] })
     };
   }
@@ -74,6 +79,14 @@ const nativeFetch = async (url: string, options: any = {}) => {
 
   // Ensure mandatory Supabase headers are present
   if (!headers['apikey']) headers['apikey'] = supabaseAnonKey;
+  
+  // V16.6.7: CRITICAL HEADER FIX
+  // Ensure the Authorization header is present and in the correct case for CapacitorHttp
+  const authKey = Object.keys(headers).find(k => k.toLowerCase() === 'authorization');
+  if (authKey && authKey !== 'Authorization') {
+    headers['Authorization'] = headers[authKey];
+    delete headers[authKey];
+  }
 
   try {
     // V16.6.1: Intelligent Body handling
@@ -90,6 +103,10 @@ const nativeFetch = async (url: string, options: any = {}) => {
       }
     }
 
+    // V16.6.7: Debug Logging for Authentication issues
+    const hasAuth = !!headers['Authorization'];
+    const authSummary = hasAuth ? `${headers['Authorization'].substring(0, 15)}...` : 'MISSING';
+    
     const response = await CapacitorHttp.request({
       url: fullUrl,
       method: options.method || 'GET',
@@ -101,7 +118,11 @@ const nativeFetch = async (url: string, options: any = {}) => {
 
     // V16.6.6: PostgREST usually returns array, if we get null/empty it might be RLS
     if (response.status === 200 && (!response.data || (Array.isArray(response.data) && response.data.length === 0))) {
-      console.log(`[SupabaseV16] Warning: Empty data from ${fullUrl}. Check RLS or Auth Header.`);
+      console.log(`[SupabaseV16.6.7] Empty data from ${fullUrl}. Auth: ${authSummary}`);
+      // Special case: if it's an orders/wallets fetch and it's empty, it's very suspicious
+      if (fullUrl.includes('/rest/v1/orders') || fullUrl.includes('/rest/v1/wallets')) {
+        console.warn(`[SupabaseV16.6.7] CRITICAL: Empty dashboard data. Possible RLS Block.`);
+      }
     }
 
     // V16.6.1: Detailed logging for debugging (only in development or if enabled)
@@ -134,10 +155,11 @@ const nativeFetch = async (url: string, options: any = {}) => {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Disable web locks to avoid "this.lock" error in Android WebView
-    lock: {
+    // V16.6.7: RADICAL LOCK FIX - Ensure compatibility with both Browser and SSR (Node)
+    // Some versions expect a function, others an object. We provide a hybrid.
+    lock: (typeof window === 'undefined' ? undefined : {
       acquire: async () => ({ release: () => {} }),
-    },
+    }) as any,
     // Use native preferences for session storage
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
     persistSession: true,

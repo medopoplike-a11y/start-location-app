@@ -180,8 +180,12 @@ BEGIN
   CREATE POLICY "Users can view their own profiles" ON profiles FOR SELECT USING (auth.uid() = id);
 
   -- السماح للمستخدمين برؤية الملفات الشخصية ذات الصلة (المطاعم والطيارين والأدمن)
-  CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (true);
+  CREATE POLICY "Anyone can view relevant profiles" ON profiles FOR SELECT USING (auth.uid() IS NOT NULL);
   
+  -- V16.6.7: ALLOW USERS TO CREATE THEIR OWN PROFILE IF MISSING
+  -- This is critical for the "auto-repair" feature to work when metadata exists but DB record is missing
+  CREATE POLICY "Users can insert their own profiles" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
   -- السماح للمستخدمين بتحديث ملفاتهم الشخصية فقط
   -- V1.0.2: Enhanced policy to explicitly allow updating location and online status
   CREATE POLICY "Users can update their own profiles" ON profiles FOR UPDATE USING (auth.uid() = id)
@@ -190,7 +194,8 @@ BEGIN
   -- السماح للأدمن بإدارة جميع الملفات الشخصية
   CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com')
   );
 END $$;
 

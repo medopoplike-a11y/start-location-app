@@ -39,32 +39,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const updateState = async (session: any, source: string) => {
       if (!active) return;
-      console.log(`[AuthV16.4.0] State update from ${source}:`, session?.user?.id || "None");
+      console.log(`[AuthV16.6.7] State update from ${source}:`, session?.user?.id || "None");
       
       const currentUser = session?.user || null;
       
       // V16.4.0: Optimization - If user is same and profile exists, skip re-fetch
       if (currentUser && user?.id === currentUser.id && profileRef.current) {
-        console.log("[AuthV16.4.0] Skipping redundant state update");
+        console.log("[AuthV16.6.7] Skipping redundant state update");
         if (active) setLoading(false);
         return;
+      }
+
+      // V16.6.7: STABILITY DELAY for Native platforms
+      // This ensures the session is fully propagated to all listeners
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() !== 'web') {
+        await new Promise(r => setTimeout(r, 800));
       }
 
       setUser(currentUser);
 
       if (currentUser) {
-        // Only fetch profile if user ID changed or profile is null
-        if (!profileRef.current || profileRef.current.id !== currentUser.id) {
-          try {
-            console.log("[AuthV16.4.0] Fetching profile for:", currentUser.email);
-            const p = await getUserProfile(currentUser.id, currentUser.email);
-            if (active) {
-              profileRef.current = p;
-              setProfile(p);
-            }
-          } catch (e) {
-            console.error("[AuthV16.4.0] Profile fetch failed", e);
+        try {
+          console.log("[AuthV16.6.7] Fetching/Repairing profile for:", currentUser.email);
+          const p = await getUserProfile(currentUser.id, currentUser.email);
+          if (active) {
+            profileRef.current = p;
+            setProfile(p);
           }
+        } catch (e) {
+          console.error("[AuthV16.6.7] Profile fetch failed", e);
         }
       } else {
         profileRef.current = null;
@@ -72,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (active) {
-        console.log("[AuthV16.4.0] Loading finished");
+        console.log("[AuthV16.6.7] Loading finished");
         setLoading(false);
       }
     };
