@@ -173,6 +173,7 @@ BEGIN
   -- حذف السياسات القديمة لضمان التحديث
   DROP POLICY IF EXISTS "Users can view their own profiles" ON profiles;
   DROP POLICY IF EXISTS "Anyone can view relevant profiles" ON profiles;
+  DROP POLICY IF EXISTS "Users can insert their own profiles" ON profiles;
   DROP POLICY IF EXISTS "Users can update their own profiles" ON profiles;
   DROP POLICY IF EXISTS "Admins can manage all profiles" ON profiles;
 
