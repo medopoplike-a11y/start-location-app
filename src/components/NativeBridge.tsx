@@ -17,22 +17,33 @@ export const NativeBridge = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
-      // 1. Handle Back Button
-      await App.addListener('backButton', () => {
-        const handlers = (window as any)._backButtonHandlers || [];
-        if (handlers.length > 0) {
-          const lastHandler = handlers[handlers.length - 1];
-          lastHandler();
-          return;
-        }
+      // V16.9.6: CRITICAL - Hide splash screen as early as possible to avoid white screen
+      try {
+        await SplashScreen.hide();
+      } catch (e) {
+        console.warn('NativeBridge: SplashScreen hide failed', e);
+      }
 
-        const mainRoutes = ['/login', '/driver', '/admin', '/store'];
-        if (mainRoutes.includes(pathname)) {
-          App.minimizeApp();
-        } else {
-          window.history.back();
-        }
-      });
+      // 1. Handle Back Button
+      try {
+        await App.addListener('backButton', () => {
+          const handlers = (window as any)._backButtonHandlers || [];
+          if (handlers.length > 0) {
+            const lastHandler = handlers[handlers.length - 1];
+            lastHandler();
+            return;
+          }
+
+          const mainRoutes = ['/login', '/driver', '/admin', '/store'];
+          if (mainRoutes.includes(pathname)) {
+            App.minimizeApp();
+          } else {
+            window.history.back();
+          }
+        });
+      } catch (e) {
+        console.warn('NativeBridge: Back button listener failed', e);
+      }
 
       // 2. Configure Native UI
       try {
@@ -48,28 +59,25 @@ export const NativeBridge = () => {
         console.warn('NativeBridge: UI config failed', e);
       }
 
-      // 3. Hide Splash Screen when app is ready
-      try {
-        await SplashScreen.hide();
-      } catch (e) {
-        console.warn('NativeBridge: SplashScreen hide failed', e);
-      }
-
-      // 4. Check for Updates (OTA)
-      // V16.4.1: Trigger update check immediately after boot
-      try {
-        console.log("NativeBridge: Checking for OTA updates...");
-        const update = await checkForAutoUpdate(false); // V16.9.2: Use force=false to respect cooldown and prevent loops
-        if (update.available && update.downloaded) {
-          await showNativeToast(update.updateMessage || "جاري إعادة تشغيل التطبيق لتثبيت التحديث...");
-          setTimeout(async () => {
-            const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-            await CapacitorUpdater.reload();
-          }, 1000);
+      // 4. Check for Updates (OTA) in background (Non-blocking)
+      const performOtaCheck = async () => {
+        try {
+          console.log("NativeBridge: Checking for OTA updates...");
+          const update = await checkForAutoUpdate(false);
+          if (update.available && update.downloaded) {
+            await showNativeToast(update.updateMessage || "جاري إعادة تشغيل التطبيق لتثبيت التحديث...");
+            setTimeout(async () => {
+              const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+              await CapacitorUpdater.reload();
+            }, 1000);
+          }
+        } catch (e) {
+          console.warn('NativeBridge: OTA Check failed', e);
         }
-      } catch (e) {
-        console.warn('NativeBridge: OTA Check failed', e);
-      }
+      };
+
+      // Fire and forget OTA check to unblock the main thread
+      performOtaCheck();
     };
 
     setupNative();

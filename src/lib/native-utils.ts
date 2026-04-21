@@ -46,16 +46,15 @@ export const refreshAppSession = async () => {
 
 /**
  * مستمع لحدث عودة التطبيق للواجهة (Resume)
+ * V16.9.8: Simplified to avoid redundant session refreshes
  */
 export const onAppResume = (callback: () => void) => {
   if (!isNative()) return () => {};
   
   const listener = App.addListener('appStateChange', ({ isActive }) => {
     if (isActive) {
-      console.log("App: Resumed from background, triggering refresh...");
-      refreshAppSession().then(() => {
-        callback();
-      });
+      console.log("App: Foreground detected, notifying listeners...");
+      callback();
     }
   });
 

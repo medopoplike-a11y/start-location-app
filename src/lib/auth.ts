@@ -225,7 +225,7 @@ export const signIn = async (email: string, password?: string) => {
 };
 
 export const signOut = async () => {
-  console.log("Auth: signOut started (V16.9.2 RADICAL CLEANUP)");
+  console.log("Auth: signOut started (V16.9.6 INSTANT)");
   
   if (typeof window !== 'undefined') {
     try {
@@ -242,23 +242,29 @@ export const signOut = async () => {
         }
       }
 
-      // 2. Native Preferences cleanup (CRITICAL for Capacitor)
-      if (Capacitor.isNativePlatform()) {
-        const { Preferences } = await import('@capacitor/preferences');
-        const { keys } = await Preferences.keys();
-        for (const key of keys) {
-          if (key.includes('auth-token') || key.includes('supabase') || key.includes('session') || key === sessionKey) {
-            await Preferences.remove({ key });
+      // 2. Background cleanup for Native and Supabase (Non-blocking)
+      const performBackgroundCleanup = async () => {
+        try {
+          if (Capacitor.isNativePlatform()) {
+            const { Preferences } = await import('@capacitor/preferences');
+            const { keys } = await Preferences.keys();
+            for (const key of keys) {
+              if (key.includes('auth-token') || key.includes('supabase') || key.includes('session') || key === sessionKey) {
+                await Preferences.remove({ key });
+              }
+            }
           }
+          // Global signout from Supabase
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch (e) {
+          console.warn("Auth: Background cleanup error", e);
         }
-      }
+      };
 
-      // 3. Background global signout from Supabase
-      await supabase.auth.signOut({ scope: 'global' }).catch(err => {
-        console.warn("Auth: signOut error", err);
-      });
+      // Fire and forget background cleanup
+      performBackgroundCleanup();
 
-      // 4. Instant redirect
+      // 3. Instant redirect - don't wait for network or storage
       window.location.href = '/login?logged_out=true';
     } catch (err) {
       console.error("Auth: Logout failed", err);

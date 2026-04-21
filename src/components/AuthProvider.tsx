@@ -35,23 +35,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     let active = true;
 
-    // V16.9.3: Safety timeout using Ref to avoid closure stale data
+    // V16.9.6: Reduced safety timeout for better UX
     const safetyTimeout = setTimeout(() => {
       if (active && loadingRef.current) {
-        console.warn("[AuthV16.9.3] Safety timeout triggered - Force closing AppLoader");
+        console.warn("[AuthV16.9.6] Safety timeout triggered - Force closing AppLoader");
         setLoading(false);
       }
-    }, 8000); 
+    }, 4000); 
 
     const updateState = async (session: any, source: string) => {
       if (!active) return;
-      console.log(`[AuthV16.9.3] State update from ${source}:`, session?.user?.id || "None");
+      console.log(`[AuthV16.9.6] State update from ${source}:`, session?.user?.id || "None");
       
       const currentUser = session?.user || null;
       
-      // V16.9.3: Optimization - If user is same and profile exists, skip re-fetch
+      // Optimization: If user is same and profile exists, skip re-fetch
       if (currentUser && user?.id === currentUser.id && profileRef.current) {
-        console.log("[AuthV16.9.3] Skipping redundant state update");
         if (active) {
             loadingRef.current = false;
             setLoading(false);
@@ -59,23 +58,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // V16.9.3: STABILITY DELAY for Native platforms
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() !== 'web') {
-        await new Promise(r => setTimeout(r, 600));
+      // V16.9.6: Minimal delay only for initial boot on native
+      if (source === 'init' && typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() !== 'web') {
+        await new Promise(r => setTimeout(r, 400));
       }
 
-      setUser(currentUser);
+      // V16.9.6: Set user IMMEDIATELY to unblock routing
+      if (active) {
+        setUser(currentUser);
+      }
 
       if (currentUser) {
         try {
-          console.log("[AuthV16.9.3] Fetching/Repairing profile for:", currentUser.email);
+          // Profile fetch can happen in background or after user is set
           const p = await getUserProfile(currentUser.id, currentUser.email);
           if (active) {
             profileRef.current = p;
             setProfile(p);
           }
         } catch (e) {
-          console.error("[AuthV16.9.3] Profile fetch failed", e);
+          console.error("[AuthV16.9.6] Profile fetch failed", e);
         }
       } else {
         profileRef.current = null;
@@ -83,7 +85,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (active) {
-        console.log("[AuthV16.9.3] Loading finished");
         loadingRef.current = false;
         setLoading(false);
       }

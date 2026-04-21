@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.9.6";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.6.apk`)}`;
+  const VERSION = "V16.9.8";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.8.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -288,11 +288,11 @@ const LoginPage = () => {
         localStorage.removeItem('remembered_email');
       }
 
-      // V16.9.2: More aggressive and robust redirection
+      // V16.9.7: Reduced delay for snappier redirection
       const role = data.user.user_metadata?.role || "driver";
       const path = getRedirectPath(role);
       const isNative = (window as any).Capacitor?.isNativePlatform?.();
-      const redirectDelay = isNative ? 600 : 100;
+      const redirectDelay = isNative ? 300 : 100;
 
       console.log(`[LoginV16.9.2] Redirection sequence started to ${path} (Native: ${isNative})`);
 

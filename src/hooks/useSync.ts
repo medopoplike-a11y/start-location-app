@@ -217,23 +217,49 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
   // ─── Visibility / App-state listeners ─────────────────────────────────────
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        console.log("useSync: App visible — Radical self-healing...");
-        setIsSyncing(true);
+    let lastResumeTime = 0;
+    const RESUME_COOLDOWN = 2000; // 2s cooldown to prevent double-resume logic
+
+    const handleResume = async (source: string) => {
+      const now = Date.now();
+      if (now - lastResumeTime < RESUME_COOLDOWN) return;
+      lastResumeTime = now;
+
+      console.log(`useSync: App Resume (${source}) — Self-healing...`);
+      
+      // 1. Immediate UI refresh (Non-blocking)
+      setIsSyncing(true);
+      triggerUpdate({ source: 'app_resume_start' });
+
+      // 2. Perform healing in background without blocking the UI thread
+      (async () => {
         try {
-          // V1.3.2: Unified WAKE-UP using the native refresh session logic
           const { refreshAppSession } = await import('@/lib/native-utils');
-          await refreshAppSession();
           
-          // Force re-subscribe and update UI
+          // Parallelize connection restoration
+          await Promise.all([
+            refreshAppSession().catch(e => console.warn("useSync: Session refresh failed", e)),
+            (async () => {
+              if (!supabase.realtime.isConnected()) {
+                supabase.realtime.connect();
+              }
+            })()
+          ]);
+          
+          // Re-subscribe to all channels
           await subscribe();
-          triggerUpdate({ source: 'app_resume' });
+          triggerUpdate({ source: 'app_resume_complete' });
         } catch (e) {
-          console.error("useSync: Visibility healing failed", e);
+          console.error("useSync: Resume healing failed", e);
         } finally {
           setIsSyncing(false);
         }
+      })();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleResume('visibility');
       }
     };
 
@@ -250,37 +276,16 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
         const { App } = await import("@capacitor/app");
         const { Network } = await import("@capacitor/network");
 
-        appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
+        appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
           if (isActive) {
-            console.log("useSync: App foregrounded — restoring state...");
-
-            // 1. Immediate UI refresh so user sees content instantly
-            triggerUpdate({ source: 'app_resume' });
-
-            try {
-              // 2. Reconnect everything in parallel for speed
-              await Promise.all([
-                supabase.auth.refreshSession().catch(e => console.warn("useSync: Session refresh failed", e)),
-                cleanupBroadcastChannel(),
-                (async () => {
-                  if (!supabase.realtime.isConnected()) supabase.realtime.connect();
-                })(),
-              ]);
-
-              // 3. Re-subscribe with fresh channels
-              await subscribe();
-              triggerUpdate({ source: 'app_resume_complete' });
-            } catch (e) {
-              console.error("useSync: Restore error", e);
-            }
+            handleResume('appState');
           }
         });
 
-        networkListener = await Network.addListener('networkStatusChange', async (status) => {
+        networkListener = await Network.addListener('networkStatusChange', (status) => {
           if (status.connected) {
             console.log("useSync: Network restored — re-syncing...");
-            await subscribe();
-            triggerUpdate({ source: 'network_restore' });
+            handleResume('network');
           }
         });
       }
