@@ -354,7 +354,8 @@ export const checkForAutoUpdate = async (force = false) => {
     
     // 1. Get current state
     const dbVersion = String(config.latest_version || '').trim();
-    const bundleUrl = String(config.bundle_url || '').trim();
+    // V16.6.3: Force cache bypass on bundle URL
+    const bundleUrl = String(config.bundle_url || '').trim() + (config.bundle_url.includes('?') ? '&' : '?') + 't=' + Date.now();
 
     // 2. Check persistent storage for "Applied Version"
     // This is our ground truth to prevent infinite loops
