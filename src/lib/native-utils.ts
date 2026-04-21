@@ -372,7 +372,6 @@ export const checkForAutoUpdate = async (force = false) => {
       return { available: false, reason: 'MISSING_CONFIG' };
     }
 
-    const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
     console.log('[Native-OTA] Starting download:', bundleUrl);
 
     try {

@@ -22,22 +22,32 @@ const supabaseKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkData() {
-    console.log("Checking for orders...");
-    const { data: orders, error: ordersError } = await supabase.from('orders').select('id, vendor_id, status').limit(5);
-    if (ordersError) {
-        console.error("Error fetching orders:", ordersError);
-    } else {
-        console.log(`Found ${orders.length} orders total.`);
-        orders.forEach(o => console.log(`Order ID: ${o.id}, Vendor ID: ${o.vendor_id}, Status: ${o.status}`));
+    console.log("--- DB STATS REPORT ---");
+    
+    // 1. Total Orders
+    const { count: totalOrders, error: countErr } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+    if (countErr) console.error("Error counting orders:", countErr);
+    else console.log(`Total Orders in DB: ${totalOrders}`);
+
+    // 2. Orders per vendor
+    const { data: vendorStats, error: vendorErr } = await supabase.from('orders').select('vendor_id');
+    if (!vendorErr) {
+        const stats = {};
+        vendorStats.forEach(o => stats[o.vendor_id] = (stats[o.vendor_id] || 0) + 1);
+        console.log("\nOrders per Vendor:");
+        Object.entries(stats).forEach(([id, count]) => console.log(`- Vendor [${id}]: ${count} orders`));
     }
 
-    console.log("\nChecking for profiles...");
-    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, email, role').limit(5);
-    if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-    } else {
-        console.log(`Found ${profiles.length} profiles total.`);
-        profiles.forEach(p => console.log(`Profile ID: ${p.id}, Email: ${p.email}, Role: ${p.role}`));
+    // 3. Total Profiles
+    const { count: totalProfiles, error: profErr } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+    if (profErr) console.error("Error counting profiles:", profErr);
+    else console.log(`\nTotal Profiles in DB: ${totalProfiles}`);
+
+    // 4. List all profile emails/roles
+    const { data: profiles } = await supabase.from('profiles').select('email, role');
+    if (profiles) {
+        console.log("Profiles found:");
+        profiles.forEach(p => console.log(`- ${p.email} (${p.role})`));
     }
 }
 
