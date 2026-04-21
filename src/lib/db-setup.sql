@@ -196,7 +196,7 @@ BEGIN
   CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL USING (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
     (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com', 'medopoplik@start', 'medopoplik@start.com') OR
+    (auth.jwt() ->> 'email') IN ('mahmoud97mostafa@gmail.com', 'admin@start.com') OR
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
 END $$;
