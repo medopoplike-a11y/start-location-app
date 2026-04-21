@@ -14,37 +14,37 @@ const supabaseAnonKey = config.supabase.anonKey;
  */
 
 /**
- * V16.8.4: RADICAL LOCK KILLER
- * This implementation is designed to be compatible with ALL versions of Supabase Auth.
- * Instead of providing a complex object, we provide the simplest possible mock.
+ * V16.9.0: NUCLEAR LOCK KILLER - TOTAL ISOLATION
+ * This is the ultimate fix for the "this.lock is not a function" error.
+ * We must provide a mock that is BOTH a function and an object with an 'acquire' method.
  */
 if (typeof window !== 'undefined') {
-  // 1. Force clear any stuck locks in localStorage/sessionStorage
+  // 1. Create the ultimate lock mock
+  const ultimateLockMock: any = async (name: string, callback: any) => {
+    if (typeof callback === 'function') return await callback();
+    return { name, release: () => {} };
+  };
+  
+  // Also add the 'acquire' method for libraries that expect an object
+  ultimateLockMock.acquire = async (name: string, callback: any) => {
+    if (typeof callback === 'function') return await callback();
+    return { name, release: () => {} };
+  };
+  
+  ultimateLockMock.query = async () => ({ pending: [], held: [] });
+
+  // 2. Global Polyfill for navigator.locks
   try {
-    const lastVersion = localStorage.getItem('app_version');
-    if (lastVersion && lastVersion.startsWith('16.6')) {
-      console.log("SupabaseV16.8.4: Detected old stuck version, clearing cache...");
-      localStorage.clear();
-      sessionStorage.clear();
-      localStorage.setItem('app_version', '16.8.4');
+    if (!(navigator as any).locks) {
+      Object.defineProperty(navigator, 'locks', {
+        value: ultimateLockMock,
+        configurable: true,
+        writable: true
+      });
     }
   } catch (e) {}
-
-  // 2. Simplified Lock Mock
-  const simpleLockMock = {
-    acquire: async (name: string, callback: any) => {
-      if (typeof callback === 'function') return await callback();
-      return { name, release: () => {} };
-    },
-    query: async () => ({ pending: [], held: [] })
-  };
-
-  // 3. Global Polyfill
-  if (!(navigator as any).locks) {
-    (navigator as any).locks = simpleLockMock;
-  }
   
-  // 4. Force override
+  // 3. Force Global Overrides
   (window as any).WebLock = undefined;
   (window as any).LockManager = undefined;
 }
@@ -168,13 +168,15 @@ const nativeFetch = async (url: string, options: any = {}) => {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // V16.8.4: RADICAL LOCK KILLER - Direct Callback execution
-    lock: (typeof window === 'undefined' ? undefined : {
-      acquire: async (name: string, callback: any) => {
+    // V16.9.0: NUCLEAR LOCK KILLER - BOTH Function and Object to satisfy all versions
+    lock: (typeof window === 'undefined' ? undefined : (() => {
+      const mock: any = async (name: string, callback: any) => {
         if (typeof callback === 'function') return await callback();
         return { name, release: () => {} };
-      }
-    }) as any,
+      };
+      mock.acquire = mock;
+      return mock;
+    })()) as any,
     // Use native preferences for session storage
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
     persistSession: true,
