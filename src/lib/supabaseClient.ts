@@ -14,40 +14,12 @@ const supabaseAnonKey = config.supabase.anonKey;
  */
 
 /**
- * V16.9.0: NUCLEAR LOCK KILLER - TOTAL ISOLATION
- * This is the ultimate fix for the "this.lock is not a function" error.
- * We must provide a mock that is BOTH a function and an object with an 'acquire' method.
+ * V16.9.1: CLEAN ARCHITECTURE (ROOT CAUSE FIX)
+ * We removed all global window mocks and "Nuclear" hacks.
+ * The standard way to handle missing Web Locks API in Capacitor/Next.js is to 
+ * provide a safe storage strategy and only intervene if the environment 
+ * doesn't support the required standard APIs.
  */
-if (typeof window !== 'undefined') {
-  // 1. Create the ultimate lock mock
-  const ultimateLockMock: any = async (name: string, callback: any) => {
-    if (typeof callback === 'function') return await callback();
-    return { name, release: () => {} };
-  };
-  
-  // Also add the 'acquire' method for libraries that expect an object
-  ultimateLockMock.acquire = async (name: string, callback: any) => {
-    if (typeof callback === 'function') return await callback();
-    return { name, release: () => {} };
-  };
-  
-  ultimateLockMock.query = async () => ({ pending: [], held: [] });
-
-  // 2. Global Polyfill for navigator.locks
-  try {
-    if (!(navigator as any).locks) {
-      Object.defineProperty(navigator, 'locks', {
-        value: ultimateLockMock,
-        configurable: true,
-        writable: true
-      });
-    }
-  } catch (e) {}
-  
-  // 3. Force Global Overrides
-  (window as any).WebLock = undefined;
-  (window as any).LockManager = undefined;
-}
 
 const isNative = typeof window !== 'undefined' && 
                  !!window.Capacitor && 
@@ -168,15 +140,10 @@ const nativeFetch = async (url: string, options: any = {}) => {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // V16.9.0: NUCLEAR LOCK KILLER - BOTH Function and Object to satisfy all versions
-    lock: (typeof window === 'undefined' ? undefined : (() => {
-      const mock: any = async (name: string, callback: any) => {
-        if (typeof callback === 'function') return await callback();
-        return { name, release: () => {} };
-      };
-      mock.acquire = mock;
-      return mock;
-    })()) as any,
+    // V16.9.1: CLEAN AUTH STRATEGY
+    // We set lock to undefined to use the internal defaults, or we provide 
+    // a standard interface if absolutely needed for this version of gotrue-js.
+    lock: undefined,
     // Use native preferences for session storage
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
     persistSession: true,
