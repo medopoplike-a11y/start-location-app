@@ -16,8 +16,7 @@
     "buildOptions": {
       "releaseType": "APK"
     },
-    "overScrollMode": "never",
-    "scrollStrategy": "disabled"
+    "overScrollMode": "never"
   },
   "plugins": {
     "CapacitorHttp": {

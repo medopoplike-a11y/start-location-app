@@ -59,23 +59,36 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.2.0: RADICAL NATIVE TRANSFORMATION */
+    /* V17.2.1: Balanced Native Feel - Locked shell with fluid internal scrolling */
     user-select: none;
     -webkit-user-select: none;
-    -webkit-touch-callout: none; /* Disable native context menus */
-    overscroll-behavior-y: none; /* Disable browser bounce */
+    -webkit-touch-callout: none;
+    overscroll-behavior-y: none; /* Keep preventing the browser-wide bounce */
     -webkit-overflow-scrolling: touch;
-    overflow: hidden; /* Prevent body from being a browser scroll container */
-    position: fixed; /* Lock body position to prevent any browser artifacts */
+    overflow: hidden; /* Body remains locked */
+    position: fixed; 
     width: 100%;
     height: 100%;
     background-color: #020617;
   }
 
-  /* Custom Scrollbar Removal for a cleaner Native look */
+  /* Ensure all main content areas can scroll internally */
+  main, .overflow-y-auto {
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain; /* Prevents scrolling from leaking to the body */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Custom Scrollbar Styling - Minimal and Native-like */
   ::-webkit-scrollbar {
-    display: none;
-    width: 0 !important;
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
   }
 
   /* Prevent focus outline which looks web-like */
