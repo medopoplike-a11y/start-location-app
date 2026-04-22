@@ -25,20 +25,37 @@ const isNative = typeof window !== 'undefined' &&
                  !!window.Capacitor && 
                  window.Capacitor.getPlatform() !== 'web';
 
+// V17.3.6: Strict URL Validation
+if (typeof window !== 'undefined' && supabaseUrl && !supabaseUrl.startsWith('https://')) {
+  console.error("CRITICAL: Supabase URL is invalid! It must start with https://. Current value:", supabaseUrl);
+}
+
 /**
  * 1. NATIVE STORAGE ADAPTER
- * Uses Capacitor Preferences for session persistence.
  */
 const NativeStorage = {
   getItem: async (key: string) => {
-    const { value } = await Preferences.get({ key });
-    return value;
+    try {
+      const { value } = await Preferences.get({ key });
+      return value;
+    } catch (e) {
+      console.warn("[NativeStorage] getItem failed:", e);
+      return null;
+    }
   },
   setItem: async (key: string, value: string) => {
-    await Preferences.set({ key, value });
+    try {
+      await Preferences.set({ key, value });
+    } catch (e) {
+      console.error("[NativeStorage] setItem failed:", e);
+    }
   },
   removeItem: async (key: string) => {
-    await Preferences.remove({ key });
+    try {
+      await Preferences.remove({ key });
+    } catch (e) {
+      console.error("[NativeStorage] removeItem failed:", e);
+    }
   }
 };
 

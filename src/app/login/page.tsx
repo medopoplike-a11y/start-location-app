@@ -134,7 +134,7 @@ const LoginPage = () => {
       } else {
         setStatus("");
         const { showNativeToast } = await import("@/lib/native-utils");
-        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.5)");
+        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.6)");
       }
     } catch (e: any) {
       setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
@@ -143,8 +143,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.3.5";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.5.apk`)}`;
+  const VERSION = "V17.3.6";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.6.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -175,13 +175,20 @@ const LoginPage = () => {
   }, [connStatus]);
 
   const checkConnection = async (force = false) => {
-    // V17.2.7: AGGRESSIVE CACHING - If already OK, don't check again for 1 minute
+    // V17.3.6: Strict Throttling to prevent flicker
     const now = Date.now();
-    if (!force && globalConnectionStatus === 'ok') {
-      const lastCheck = parseInt(sessionStorage.getItem('last_conn_check') || '0');
-      if (now - lastCheck < 60000) return;
+    if (!force) {
+      if (globalConnectionStatus === 'ok') {
+        const lastCheck = parseInt(sessionStorage.getItem('last_conn_check') || '0');
+        if (now - lastCheck < 60000) return;
+      }
+      if (globalConnectionStatus === 'fail') {
+        const lastCheck = parseInt(sessionStorage.getItem('last_conn_check') || '0');
+        if (now - lastCheck < 10000) return; // Wait 10s before retrying if it failed
+      }
     }
 
+    if (isGlobalConnectionChecking) return;
     isGlobalConnectionChecking = true;
     sessionStorage.setItem('last_conn_check', now.toString());
     
