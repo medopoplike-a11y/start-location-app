@@ -6,9 +6,12 @@ const archiver = require('archiver');
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'out');
 const distDir = path.join(root, 'dist');
-const publicDir = path.join(root, 'public');
 const zipPath = path.join(distDir, 'update.zip');
-const publicZipPath = path.join(publicDir, 'update.zip');
+
+// Single source of truth for OTA bundles: Supabase Storage (app-updates bucket).
+// The zip is saved to dist/update.zip only — upload it manually (or via CI) to:
+//   Supabase Storage → app-updates → update.zip
+// Never copy to public/ to avoid a duplicate on Vercel serving a stale version.
 
 if (!fs.existsSync(outDir)) {
   console.error('Error: out directory not found. Run the build first.');
@@ -19,29 +22,19 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
 
-// Ensure public directory exists
-if (!fs.existsSync(publicDir)) {
-  fs.mkdirSync(publicDir, { recursive: true });
-}
-
 const output = fs.createWriteStream(zipPath);
 const archive = archiver('zip', { zlib: { level: 9 } });
 
-// Wrap the script in a promise to ensure it waits for the archive to finalize
 async function createBundle() {
   return new Promise((resolve, reject) => {
     output.on('close', () => {
-      console.log(`Created ${zipPath} (${archive.pointer()} total bytes)`);
-      
-      // Copy to public directory so Vercel can serve it
-      try {
-        fs.copyFileSync(zipPath, publicZipPath);
-        console.log(`✅ Copied update.zip to public/ for Vercel deployment`);
-        resolve();
-      } catch (err) {
-        console.error(`❌ Failed to copy update.zip to public: ${err.message}`);
-        reject(err);
-      }
+      const sizeKB = Math.round(archive.pointer() / 1024);
+      console.log(`✅ Bundle created: ${zipPath} (${sizeKB} KB)`);
+      console.log('');
+      console.log('📤 Next step: Upload dist/update.zip to Supabase Storage:');
+      console.log('   Bucket: app-updates  →  File: update.zip  (replace existing)');
+      console.log('   Then update latest_version in app_config from the Admin panel.');
+      resolve();
     });
 
     archive.on('warning', (err) => {
