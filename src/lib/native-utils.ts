@@ -323,9 +323,22 @@ export const cleanupBroadcastChannel = async () => {
 };
 
 /**
- * نظام التحديث التلقائي الذكي (OTA)
- * يقوم بالتحقق من جدول app_config في Supabase وتحميل التحديث فوراً
+ * Compares two semantic version strings numerically (e.g. "17.3.10" > "17.3.9").
+ * Returns: 1 if a > b, -1 if a < b, 0 if equal.
  */
+const compareVersions = (a: string, b: string): number => {
+  const pa = a.replace(/^V/i, '').split('.').map(Number);
+  const pb = b.replace(/^V/i, '').split('.').map(Number);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+  return 0;
+};
+
 export const checkForAutoUpdate = async (force = false) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
   if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
@@ -351,35 +364,30 @@ export const checkForAutoUpdate = async (force = false) => {
 
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
     
-    // 1. Get current state
     const dbVersion = String(config.latest_version || '').trim();
-    // V16.8.1: Simplified bundle URL to avoid any query param issues
     const bundleUrl = String(config.bundle_url || '').trim();
 
-    // 2. Check persistent storage for "Applied Version"
     const { value: appliedVersion } = await Preferences.get({ key: 'last_applied_ota_version' });
     
     console.log(`[Native-OTA] Local: ${appliedVersion} | DB: ${dbVersion}`);
 
-    // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.3.9"; // V17.3.9: Balanced Tracking baseline
+    const hardcodedVersion = "17.3.9";
 
-    // V17.3.9: SILENT BYPASS - If we are on the same version, stop immediately
-    if (normalizedDbVersion === hardcodedVersion && !force) {
+    // Already on this version
+    if (compareVersions(normalizedDbVersion, hardcodedVersion) === 0 && !force) {
       return { available: false, version: dbVersion, reason: 'MATCHES_HARDCODED' };
     }
 
-    // 2. If we are already on this version via a previous OTA, skip
-    if (normalizedAppliedVersion === normalizedDbVersion && !force) {
+    // Already applied this OTA version
+    if (normalizedAppliedVersion && compareVersions(normalizedAppliedVersion, normalizedDbVersion) === 0 && !force) {
       return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 
-    // 3. If the DB version is OLDER than our hardcoded code, DO NOT rollback
-    // This happens if the user hasn't updated the DB yet
-    if (normalizedDbVersion < hardcodedVersion && !force) {
-      console.warn(`[Native-OTA] DB has older version (${dbVersion}) than code (${hardcodedVersion}). Skipping rollback.`);
+    // DB version is older than our built-in code — prevent rollback
+    if (compareVersions(normalizedDbVersion, hardcodedVersion) < 0 && !force) {
+      console.warn(`[Native-OTA] DB version (${dbVersion}) is older than built-in (${hardcodedVersion}). Skipping.`);
       return { available: false, version: dbVersion, reason: 'PREVENT_ROLLBACK' };
     }
 
@@ -396,13 +404,15 @@ export const checkForAutoUpdate = async (force = false) => {
         version: dbVersion
       });
       
-      console.log('[Native-OTA] Download success, applying...');
+      console.log('[Native-OTA] Download complete. Bundle ready:', bundle.id);
 
-      // 4. Set as default and save to persistent storage BEFORE reload
-      await CapacitorUpdater.set({ id: bundle.id });
+      // Use next() instead of set() — critical difference:
+      // set()  → switches bundle and restarts the app IMMEDIATELY (causes reload loop)
+      // next() → marks bundle to be used on the NEXT cold start (no restart, no loop)
+      await CapacitorUpdater.next({ id: bundle.id });
       await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
-      
-      console.log('[Native-OTA] Update applied successfully.');
+
+      console.log('[Native-OTA] Bundle queued for next launch:', bundle.id);
 
       return {
         available: true,
@@ -410,10 +420,10 @@ export const checkForAutoUpdate = async (force = false) => {
         bundleId: bundle.id,
         downloaded: true,
         forceUpdate: !!config.force_update,
-        updateMessage: String(config.update_message || 'جاري تثبيت التحديث...')
+        updateMessage: String(config.update_message || 'تم تحميل تحديث جديد. سيُطبَّق عند فتح التطبيق القادم.')
       };
     } catch (downloadError: any) {
-      console.error('[Native-OTA] Download/Apply failed:', downloadError);
+      console.error('[Native-OTA] Download failed:', downloadError);
       return { available: false, reason: 'DOWNLOAD_FAILED', error: downloadError.message };
     }
   } catch (e: any) {
