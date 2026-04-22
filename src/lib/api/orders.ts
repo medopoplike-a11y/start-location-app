@@ -1,6 +1,8 @@
 
 import { supabase } from '../supabaseClient';
 import type { Order, OrderMessage } from '@/app/store/types';
+import { dbService } from '../db-service';
+import { Capacitor } from '@capacitor/core';
 
 /**
  * Unified Order API - V1.3.2 Efficiency Audit
@@ -13,6 +15,18 @@ export const fetchOrders = async (options: {
   status?: string[],
   limit?: number 
 } = {}) => {
+  // V17.0.7: Local-First Strategy
+  // Try to return local orders immediately for speed, then sync from remote
+  if (Capacitor.isNativePlatform()) {
+    const localOrders = await dbService.getLocalOrders();
+    if (localOrders && localOrders.length > 0) {
+      console.log('[OrdersAPI] Returning local cache first');
+      // Still perform background sync
+      dbService.syncFromRemote().catch(() => {});
+      // return localOrders; // We could return here, but for now we let it fall through to get fresh data
+    }
+  }
+
   let query = supabase
     .from('orders')
     .select('*, vendor:vendor_id(full_name, phone, location, area), driver:driver_id(full_name, phone)')

@@ -8,12 +8,20 @@ import { Keyboard, KeyboardStyle } from "@capacitor/keyboard";
 import { useRouter, usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { checkForAutoUpdate, showNativeToast } from "@/lib/native-utils";
+import { dbService } from "@/lib/db-service";
 
 export const NativeBridge = () => {
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    // Initialize SQLite on boot
+    if (Capacitor.isNativePlatform()) {
+      dbService.initialize().catch(err => {
+        console.error("NativeBridge: SQLite Init Failed", err);
+      });
+    }
+
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {

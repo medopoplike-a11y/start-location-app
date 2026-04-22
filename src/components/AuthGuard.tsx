@@ -54,7 +54,13 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
     const timer = setTimeout(() => {
       const currentPath = pathname?.replace(/\/$/, "") || "";
-      const isLoginPath = currentPath === "/login" || currentPath === "";
+      const isLoginPath = currentPath === "/login" || currentPath === "" || currentPath === "/";
+
+      // V17.0.7: Single Shell - Skip redirects if we are at the root
+      if (currentPath === "" || currentPath === "/") {
+        console.log("AuthGuard: [V17.0.7] Single Shell active, skipping redirect");
+        return;
+      }
 
       // V16.6.0: Stable redirection using standard session state
       if (!user) {

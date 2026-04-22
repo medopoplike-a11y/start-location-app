@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.6";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.6.apk`)}`;
+  const VERSION = "V17.0.7";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.7.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -291,32 +291,15 @@ const LoginPage = () => {
         localStorage.removeItem('remembered_email');
       }
 
-      // V16.9.7: Reduced delay for snappier redirection
-      const role = data.user.user_metadata?.role || "driver";
-      const path = getRedirectPath(role);
-      const isNative = (window as any).Capacitor?.isNativePlatform?.();
-      const redirectDelay = isNative ? 300 : 100;
-
-      console.log(`[LoginV16.9.2] Redirection sequence started to ${path} (Native: ${isNative})`);
-
+      // V17.0.7: Single Shell - No more router.replace or window.location.href.
+      // AuthProvider will detect the session change and MainShell will swap views.
+      console.log(`[LoginV17.0.7] Single Shell transition started...`);
+      
+      // Just a small delay to show the success message before transition
       setTimeout(() => {
-        try {
-          sessionStorage.removeItem('auth_redirect_guard');
-          console.log(`[LoginV16.9.2] Attempting router.replace(${path})`);
-          router.replace(path);
-          
-          // V16.9.2: Final fallback if router fails to navigate within 2 seconds
-          setTimeout(() => {
-            if (window.location.pathname !== path) {
-              console.warn(`[LoginV16.9.2] Router failed to navigate, forcing window.location`);
-              window.location.href = path;
-            }
-          }, 2000);
-        } catch (e) {
-          console.error("[LoginV16.9.2] Redirect exception, using direct location", e);
-          window.location.href = path;
-        }
-      }, redirectDelay);
+        setLoading(false);
+      }, 1000);
+
     } catch (err: any) {
       setError(`خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
       setStatus("");
