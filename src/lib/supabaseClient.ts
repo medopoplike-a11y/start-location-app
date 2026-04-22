@@ -210,8 +210,24 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       presence: { key: 'user' },
     },
     // Tight timeouts to force reconnection faster if network drops
-    timeout: 10000, 
+    timeout: 20000, // V17.3.7: Increased to 20s for better stability on slow networks
   }
 });
+
+// V17.3.7: Global Realtime Health Monitor
+if (typeof window !== 'undefined') {
+  supabase.realtime.onOpen(() => {
+    console.log("[Realtime] Connection established successfully");
+    (window as any).__START_LOCATION_CONNECTED = true;
+  });
+
+  supabase.realtime.onError((err) => {
+    console.warn("[Realtime] Connection error, system will retry silently:", err);
+  });
+
+  supabase.realtime.onClose(() => {
+    console.log("[Realtime] Connection closed, preparing for smart reconnect");
+  });
+}
 
 export default supabase;

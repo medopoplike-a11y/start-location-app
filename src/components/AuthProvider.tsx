@@ -139,12 +139,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // V17.3.6: Emergency Splash Timeout
+    // V17.3.7: Emergency Splash Timeout
       // If we are stuck in "Connecting to system" for more than 10 seconds, 
       // release the loader so the user can see the login page and diagnostics.
       const splashTimeout = setTimeout(() => {
         if (loadingRef.current && active) {
-          console.warn("[AuthV17.3.6] Splash timeout reached. Forcing loader release.");
+          console.warn("[AuthV17.3.7] Splash timeout reached. Forcing loader release.");
           loadingRef.current = false;
           setLoading(false);
         }
