@@ -140,12 +140,11 @@ const nativeFetch = async (url: string, options: any = {}) => {
 /**
  * 3. CLIENT INITIALIZATION
  * Standard Supabase client with native overrides.
+ * V16.9.9: HARDENED REALTIME CONFIG
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // V16.9.1: CLEAN AUTH STRATEGY
-    // We set lock to undefined to use the internal defaults, or we provide 
-    // a standard interface if absolutely needed for this version of gotrue-js.
     lock: undefined,
     // Use native preferences for session storage
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
@@ -156,6 +155,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     // Use CapacitorHttp to bypass CORS and improve reliability in native environment
     fetch: isNative ? nativeFetch : undefined,
+  },
+  realtime: {
+    params: {
+      events_per_second: 10,
+    },
+    // V16.9.9: Radical Realtime Resilience
+    config: {
+      broadcast: { self: true },
+      presence: { key: 'user' },
+    },
+    // Explicitly set timeouts for better network tolerance
+    timeout: 30000,
   }
 });
 

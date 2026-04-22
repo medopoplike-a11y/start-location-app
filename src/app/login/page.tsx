@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V16.9.8";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.8.apk`)}`;
+  const VERSION = "V16.9.9";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v16.9.9.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -130,42 +130,52 @@ const LoginPage = () => {
   }, [connStatus]);
 
   const checkConnection = async (force = false) => {
-    // V7.0.0: Strict guards to prevent loop
+    // V16.9.9: Radical Non-Blocking Connection Check
     if (!force) {
       if (globalConnectionStatus === 'ok' || isGlobalConnectionChecking) return;
     }
 
     isGlobalConnectionChecking = true;
     setConnStatus('checking');
-    setLastError("");
     
     try {
-      console.log(`V13.0.0: Performing DIRECT NATIVE check...`);
-      // V13.0.0: Use the direct native bridge for health check to avoid all library issues
+      console.log(`V16.9.9: Performing RESILIENT NATIVE check...`);
       const { CapacitorHttp } = await import('@capacitor/core');
-      const url = `${config.supabase.url}/rest/v1/app_config?select=count&limit=1`;
+      
+      // V16.9.9: Faster, less overhead check
+      const url = `${config.supabase.url}/rest/v1/app_config?select=id&limit=1`;
       
       const response = await CapacitorHttp.request({
         url,
         method: 'GET',
         headers: {
           'apikey': config.supabase.anonKey,
-          'Authorization': `Bearer ${config.supabase.anonKey}`
-        }
+        },
+        connectTimeout: 5000,
+        readTimeout: 5000
       });
       
-      if (response.status !== 200) {
-        console.error("Native Bridge Failed:", response.status);
-        setConnStatus('fail');
-        setLastError(`HTTP ${response.status}: Failed to reach server`);
-      } else {
+      if (response.status >= 200 && response.status < 300) {
         console.log("Native Bridge Success! ✅");
         setConnStatus('ok');
+        setLastError("");
+      } else {
+        // V16.9.9: Be more tolerant, only fail if it's a clear error
+        if (response.status === 0 || response.status >= 500) {
+          setConnStatus('fail');
+          setLastError(`Connection issue (Status ${response.status})`);
+        } else {
+          // Status like 401/404 means server is reachable but something else is wrong
+          setConnStatus('ok');
+        }
       }
     } catch (e: any) {
-      console.error("Connection Exception:", e.message);
-      setConnStatus('fail');
-      setLastError(e.message || "Network Error");
+      console.warn("Connection Check non-fatal exception:", e.message);
+      // Don't kill the UX for minor network blips
+      if (globalConnectionStatus !== 'ok') {
+        setConnStatus('fail');
+        setLastError(e.message || "Network Error");
+      }
     } finally {
       isGlobalConnectionChecking = false;
     }
