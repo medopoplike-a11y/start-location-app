@@ -1269,7 +1269,7 @@ export default function DriverApp() {
             }}
           />
 
-          <main className="flex-1 relative">
+          <main className="flex-1 relative overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

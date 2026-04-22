@@ -88,53 +88,66 @@ const nativeFetch = async (url: string, options: any = {}) => {
       }
     }
 
-    // V16.6.7: Debug Logging for Authentication issues
-    const hasAuth = !!headers['Authorization'];
-    const authSummary = hasAuth ? `${headers['Authorization'].substring(0, 15)}...` : 'MISSING';
-    
-    const response = await CapacitorHttp.request({
-      url: fullUrl,
-      method: options.method || 'GET',
-      headers: headers,
-      data: requestData,
-      connectTimeout: 20000,
-      readTimeout: 20000
-    });
+  // V16.6.7: Debug Logging for Authentication issues
+  const hasAuth = !!headers['Authorization'];
+  const authSummary = hasAuth ? `${headers['Authorization'].substring(0, 15)}...` : 'MISSING';
+  
+  // V17.0.8: RESILIENT FETCH WITH AUTO-RETRY
+  const MAX_RETRIES = 2;
+  let lastError = null;
 
-    // V16.6.6: PostgREST usually returns array, if we get null/empty it might be RLS
-    if (response.status === 200 && (!response.data || (Array.isArray(response.data) && response.data.length === 0))) {
-      console.log(`[SupabaseV16.6.7] Empty data from ${fullUrl}. Auth: ${authSummary}`);
-      // Special case: if it's an orders/wallets fetch and it's empty, it's very suspicious
-      if (fullUrl.includes('/rest/v1/orders') || fullUrl.includes('/rest/v1/wallets')) {
-        console.warn(`[SupabaseV16.6.7] CRITICAL: Empty dashboard data. Possible RLS Block.`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`[SupabaseNativeFetch] Retry attempt ${attempt}/${MAX_RETRIES} for ${fullUrl}`);
+        await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
       }
-    }
 
-    // V16.6.1: Detailed logging for debugging
-    if (response.status >= 400) {
-      console.warn(`[SupabaseNativeFetch] Error ${response.status} on ${fullUrl}:`, response.data);
-      if (response.status === 401 || response.status === 403) {
-        console.error(`[SupabaseNativeFetch] AUTH ERROR: Possible stale token or RLS block. Auth Header: ${authSummary}`);
+      const response = await CapacitorHttp.request({
+        url: fullUrl,
+        method: options.method || 'GET',
+        headers: headers,
+        data: requestData,
+        connectTimeout: 15000,
+        readTimeout: 15000
+      });
+
+      // V16.6.6: PostgREST usually returns array, if we get null/empty it might be RLS
+      if (response.status === 200 && (!response.data || (Array.isArray(response.data) && response.data.length === 0))) {
+        console.log(`[SupabaseV16.6.7] Empty data from ${fullUrl}. Auth: ${authSummary}`);
       }
+
+      // V16.6.1: Detailed logging for debugging
+      if (response.status >= 400) {
+        console.warn(`[SupabaseNativeFetch] Error ${response.status} on ${fullUrl}:`, response.data);
+        // If it's a 5xx error, we might want to retry
+        if (response.status >= 500 && attempt < MAX_RETRIES) {
+          continue;
+        }
+      }
+
+      // Convert response data to string for standard Response object
+      const bodyString = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+
+      return new Response(bodyString, {
+        status: response.status,
+        statusText: response.status === 200 ? 'OK' : `Status ${response.status}`,
+        headers: new Headers(response.headers as any),
+      });
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`[SupabaseNativeFetch] Attempt ${attempt} failed:`, error.message);
+      if (attempt === MAX_RETRIES) break;
     }
-
-    // Convert response data to string for standard Response object
-    const bodyString = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-
-    // Create a Fetch-compatible Response object
-    return new Response(bodyString, {
-      status: response.status,
-      statusText: response.status === 200 ? 'OK' : `Status ${response.status}`,
-      headers: new Headers(response.headers as any),
-    });
-  } catch (error: any) {
-    console.error("[SupabaseNativeFetch] Fatal Network Error:", fullUrl, error.message);
-    // Return a failed response instead of throwing to prevent app crash
-    return new Response(JSON.stringify({ error: error.message || "Network Error" }), {
-      status: 500,
-      headers: new Headers({ 'Content-Type': 'application/json' })
-    });
   }
+
+  // If we reach here, all attempts failed
+  console.error("[SupabaseNativeFetch] ALL ATTEMPTS FAILED:", fullUrl, lastError?.message);
+  return new Response(JSON.stringify({ error: lastError?.message || "Network Error" }), {
+    status: 500,
+    headers: new Headers({ 'Content-Type': 'application/json' })
+  });
+};
 };
 
 /**

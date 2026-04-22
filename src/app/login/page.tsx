@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.7";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.7.apk`)}`;
+  const VERSION = "V17.0.8";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.8.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -309,7 +309,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#020617] relative font-sans flex flex-col items-center p-6 py-12" dir="rtl">
+    <div className="w-full min-h-screen bg-[#020617] relative font-sans flex flex-col items-center p-6 py-12 overflow-y-auto" dir="rtl">
       {/* V17.0.3: Non-blocking Redirection Overlay */}
       {isRedirecting && (
         <div className="fixed inset-0 z-[100] bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center">

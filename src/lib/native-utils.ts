@@ -364,15 +364,22 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.0.7"; // The version in this code
+    const hardcodedVersion = "17.0.8"; // V17.0.8: Matches LoginPage.tsx
 
-    // 1. If we are already on this version, skip
+    // 1. If the DB version matches our hardcoded code (APK), skip update.
+    // This prevents infinite reload loops when the APK already contains the latest code.
+    if (normalizedDbVersion === hardcodedVersion && !force) {
+      console.log('[Native-OTA] APK already has this version. Skipping.');
+      return { available: false, version: dbVersion, reason: 'MATCHES_HARDCODED' };
+    }
+
+    // 2. If we are already on this version via a previous OTA, skip
     if (normalizedAppliedVersion === normalizedDbVersion && !force) {
-      console.log('[Native-OTA] Version already applied. Skipping.');
+      console.log('[Native-OTA] Version already applied via OTA. Skipping.');
       return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 
-    // 2. If the DB version is OLDER than our hardcoded code, DO NOT rollback
+    // 3. If the DB version is OLDER than our hardcoded code, DO NOT rollback
     // This happens if the user hasn't updated the DB yet
     if (normalizedDbVersion < hardcodedVersion && !force) {
       console.warn(`[Native-OTA] DB has older version (${dbVersion}) than code (${hardcodedVersion}). Skipping rollback.`);

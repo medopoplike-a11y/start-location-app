@@ -1198,7 +1198,7 @@ function AdminContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-hidden transition-colors duration-500" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-y-auto transition-colors duration-500" dir="rtl">
       {/* Sidebar - V1.0.0 GLASSMORPHISM DESIGN */}
       <motion.aside 
         initial={false} 

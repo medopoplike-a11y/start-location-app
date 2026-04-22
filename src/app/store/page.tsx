@@ -1370,7 +1370,7 @@ function StoreContent() {
         </>
       )}
 
-      <main className={`flex-1 ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
+      <main className={`flex-1 overflow-y-auto ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
         {activeView === "store" ? (
           <StoreOrdersHub
             orders={orders}

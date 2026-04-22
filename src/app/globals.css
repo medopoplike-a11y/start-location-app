@@ -59,11 +59,12 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.0.6: Relaxed Native Feel - Allow scrolling while preventing bounce */
+    /* V17.0.9: Relaxed Native Feel - Allow scrolling while preventing aggressive bounce */
     user-select: none;
     -webkit-user-select: none;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: auto; /* Changed from none to auto to fix scrolling issues on some devices */
     -webkit-overflow-scrolling: touch;
+    overflow-y: auto; /* Ensure vertical scrolling is allowed */
   }
 
   /* Allow selection in inputs only */

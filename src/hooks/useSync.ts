@@ -200,12 +200,19 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     isMountedRef.current = true;
     subscribe();
 
-    // Heartbeat every 90 seconds — forces a data refresh to recover from any
-    // dropped real-time messages (network switch, background throttle, etc.)
+    // Heartbeat every 60 seconds — forces a data refresh and checks connection
     const heartbeat = setInterval(() => {
-      console.log("useSync: Heartbeat — forcing full refresh");
+      console.log("useSync: Heartbeat — checking connection and forcing refresh");
+      
+      // V17.0.8: Aggressive Reconnection Logic
+      if (!supabase.realtime.isConnected()) {
+        console.warn("useSync: Realtime disconnected, attempting to reconnect...");
+        supabase.realtime.connect();
+        subscribe(); // Full re-subscribe
+      }
+      
       triggerUpdate({ source: 'heartbeat' });
-    }, 90 * 1000);
+    }, 60 * 1000);
 
     return () => {
       isMountedRef.current = false;
