@@ -62,14 +62,29 @@ export const NativeBridge = () => {
       // 4. Check for Updates (OTA) in background (Non-blocking)
       const performOtaCheck = async () => {
         try {
+          // V17.0.0: Check if we just reloaded to prevent loops
+          const { value: lastReload } = await (await import('@capacitor/preferences')).Preferences.get({ key: 'ota_last_reload_ts' });
+          const now = Date.now();
+          if (lastReload && now - parseInt(lastReload) < 30000) {
+            console.log("NativeBridge: Skipping OTA check (just reloaded)");
+            return;
+          }
+
           console.log("NativeBridge: Checking for OTA updates...");
           const update = await checkForAutoUpdate(false);
           if (update.available && update.downloaded) {
             await showNativeToast(update.updateMessage || "جاري إعادة تشغيل التطبيق لتثبيت التحديث...");
+            
+            // Save reload timestamp BEFORE reloading
+            await (await import('@capacitor/preferences')).Preferences.set({ 
+              key: 'ota_last_reload_ts', 
+              value: now.toString() 
+            });
+
             setTimeout(async () => {
               const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
               await CapacitorUpdater.reload();
-            }, 1000);
+            }, 1500);
           }
         } catch (e) {
           console.warn('NativeBridge: OTA Check failed', e);

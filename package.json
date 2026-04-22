@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "16.9.9",
+  "version": "17.0.0",
   "private": true,
   "engines": {
     "node": ">=22.0.0"

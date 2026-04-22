@@ -361,7 +361,11 @@ export const checkForAutoUpdate = async (force = false) => {
     
     console.log(`[Native-OTA] Local: ${appliedVersion} | DB: ${dbVersion}`);
 
-    if (appliedVersion === dbVersion && !force) {
+    // V17.0.0: Strict version normalization to prevent false positives
+    const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
+    const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
+
+    if (normalizedAppliedVersion === normalizedDbVersion && !force) {
       console.log('[Native-OTA] Version already applied. Skipping.');
       return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
@@ -387,20 +391,12 @@ export const checkForAutoUpdate = async (force = false) => {
       
       console.log('[Native-OTA] Update applied successfully.');
 
-      // V16.8.0: Nuclear Force Reload
-      if (config.force_update) {
-          console.log('[Native-OTA] Force update active, reloading in 2s...');
-          setTimeout(async () => {
-              await CapacitorUpdater.reload();
-          }, 2000);
-      }
-
       return {
         available: true,
         version: dbVersion,
         bundleId: bundle.id,
         downloaded: true,
-        forceUpdate: true,
+        forceUpdate: !!config.force_update,
         updateMessage: String(config.update_message || 'جاري تثبيت التحديث...')
       };
     } catch (downloadError: any) {
