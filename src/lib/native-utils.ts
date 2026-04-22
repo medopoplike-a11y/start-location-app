@@ -364,7 +364,7 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.3.7"; // V17.3.7: Browser & Native Resilience baseline
+    const hardcodedVersion = "17.3.8"; // V17.3.8: Safe Monitor & Loop Fix baseline
 
     // V17.3.7: SILENT BYPASS - If we are on the same version, stop immediately
     if (normalizedDbVersion === hardcodedVersion && !force) {

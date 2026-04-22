@@ -214,20 +214,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// V17.3.7: Global Realtime Health Monitor
-if (typeof window !== 'undefined') {
-  supabase.realtime.onOpen(() => {
-    console.log("[Realtime] Connection established successfully");
-    (window as any).__START_LOCATION_CONNECTED = true;
-  });
+// V17.3.8: Safe Realtime Health Monitor
+if (typeof window !== 'undefined' && supabase.realtime) {
+  try {
+    // Standard RealtimeClient events use .on()
+    supabase.realtime.on('open', () => {
+      console.log("[Realtime] Connection established successfully");
+      (window as any).__START_LOCATION_CONNECTED = true;
+    });
 
-  supabase.realtime.onError((err) => {
-    console.warn("[Realtime] Connection error, system will retry silently:", err);
-  });
+    supabase.realtime.on('error', (err: any) => {
+      console.warn("[Realtime] Connection error, system will retry silently:", err);
+    });
 
-  supabase.realtime.onClose(() => {
-    console.log("[Realtime] Connection closed, preparing for smart reconnect");
-  });
+    supabase.realtime.on('close', () => {
+      console.log("[Realtime] Connection closed, preparing for smart reconnect");
+    });
+  } catch (e) {
+    console.warn("[Realtime] Monitor setup failed:", e);
+  }
 }
 
 export default supabase;
