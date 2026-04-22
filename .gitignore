@@ -42,6 +42,9 @@ coverage/
 *.apk
 *.aab
 
+# OTA bundle — single source of truth is Supabase Storage, never Vercel
+public/update.zip
+
 # temporary local files and test artifacts
 dev-server.log
 tmp-supabase-test.js
