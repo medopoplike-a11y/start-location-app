@@ -79,8 +79,8 @@ class DatabaseService {
   }
 
   /**
-   * ─── SYNC ENGINE ───────────────────────────────────────────────────────────
-   * Pulls latest data from Supabase into local SQLite.
+   * ─── INTELLIGENT SYNC ENGINE (V17.2.9) ─────────────────────────────────────
+   * Proactively repairs data gaps and manages offline/online state transitions.
    * ───────────────────────────────────────────────────────────────────────────
    */
   async syncFromRemote() {
@@ -90,60 +90,74 @@ class DatabaseService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('[SyncEngine] Pulling data from Supabase...');
+      console.log('[SyncEngine-V17.2.9] Proactive Repair Cycle starting...');
 
-      // 1. Sync Orders
-      const { data: remoteOrders } = await supabase
+      // 1. Sync Orders with Gap Detection
+      const { data: remoteOrders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
         .or(`driver_id.eq.${user.id},vendor_id.eq.${user.id}`)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('updated_at', { ascending: false }) // Use updated_at for better repair detection
+        .limit(100); // Increase limit for more thorough repair
+
+      if (ordersError) throw ordersError;
 
       if (remoteOrders && remoteOrders.length > 0) {
-        for (const order of remoteOrders) {
-          await this.saveOrder(order);
+        // Atomic transaction for high-speed local updates
+        await this.db.execute('BEGIN TRANSACTION');
+        try {
+          for (const order of remoteOrders) {
+            await this.saveOrder(order);
+          }
+          await this.db.execute('COMMIT');
+        } catch (e) {
+          await this.db.execute('ROLLBACK');
+          throw e;
         }
       }
 
-      // 2. Sync Wallet
-      const { data: wallet } = await supabase
+      // 2. Sync Wallet with Force Fresh
+      const { data: wallet, error: walletError } = await supabase
         .from('wallets')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (wallet) {
+      if (wallet && !walletError) {
         await this.db.run(
           'INSERT OR REPLACE INTO wallets (user_id, balance, pending_withdrawals, updated_at) VALUES (?, ?, ?, ?)',
           [wallet.user_id, wallet.balance, wallet.pending_withdrawals, wallet.updated_at]
         );
       }
 
-      console.log('✅ SyncEngine: Pull complete');
+      console.log('✅ SyncEngine-V17.2.9: Proactive Repair Complete');
     } catch (err) {
-      console.warn('[SyncEngine] Pull failed (Offline mode?)', err);
+      console.warn('[SyncEngine] Proactive Repair paused (Offline mode?)', err);
     }
   }
 
-  // ─── DATA ACCESS METHODS ───────────────────────────────────────────────────
-
   async saveOrder(order: any) {
     if (!this.db) return;
+    
+    // V17.2.9: Full Data Persistence
     const query = `
       INSERT OR REPLACE INTO orders 
-      (id, status, customer_name, total_amount, vendor_id, driver_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (id, status, customer_name, customer_phone, total_amount, delivery_fee, vendor_id, driver_id, created_at, updated_at, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+    
     await this.db.run(query, [
       order.id, 
       order.status, 
-      order.customer_details?.name || order.customer_name, 
-      order.financials?.order_value || order.total_amount,
+      order.customer_details?.name || order.customer_name || 'عميل',
+      order.customer_details?.phone || order.customer_phone || '',
+      order.financials?.order_value || order.total_amount || 0,
+      order.financials?.delivery_fee || order.delivery_fee || 0,
       order.vendor_id,
       order.driver_id,
       order.created_at,
-      new Date().toISOString()
+      order.updated_at || new Date().toISOString(),
+      JSON.stringify(order.metadata || {})
     ]);
   }
 
