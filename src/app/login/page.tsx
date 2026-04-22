@@ -91,7 +91,7 @@ const LoginPage = () => {
       } else {
         setStatus("");
         const { showNativeToast } = await import("@/lib/native-utils");
-        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.0)");
+        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.1)");
       }
     } catch (e: any) {
       setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
@@ -100,8 +100,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.3.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.0.apk`)}`;
+  const VERSION = "V17.3.1";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.1.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -118,6 +118,7 @@ const LoginPage = () => {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [configError, setConfigError] = useState(false);
   const [apkUrl, setApkUrl] = useState(apkUrlV);
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
   const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
@@ -196,6 +197,13 @@ const LoginPage = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
+      
+      // V17.3.1: Check if app is properly configured
+      if (!config.isConfigured()) {
+        console.error("LoginPage: Critical Configuration Error - Supabase URL/Key missing!");
+        setConfigError(true);
+      }
+
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         if (params.get('logged_out') === 'true') {
@@ -544,10 +552,10 @@ const LoginPage = () => {
               </label>
             </div>
 
-            {(error || status) && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`rounded-2xl px-5 py-4 text-[11px] font-black flex items-center gap-3 backdrop-blur-2xl border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]"}`}>
-                {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
-                <span>{error || status}</span>
+            {(error || status || configError) && (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`rounded-2xl px-5 py-4 text-[11px] font-black flex items-center gap-3 backdrop-blur-2xl border ${error || configError ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]"}`}>
+                {error || configError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
+                <span>{configError ? "خطأ في تهيئة النظام: الروابط مفقودة (يرجى مراجعة GitHub Secrets)" : (error || status)}</span>
               </motion.div>
             )}
 

@@ -33,15 +33,15 @@ export const NativeBridge = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
-      // V17.3.0: HARD RESET GUARD - Clear stale sessions on version upgrade
+      // V17.3.1: HARD RESET GUARD - Clear stale sessions on version upgrade
       // This prevents "Ghost Logins" and "Empty Systems" caused by Android Auto Backup
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value: lastBootVersion } = await Preferences.get({ key: 'app_last_boot_version' });
-        const CURRENT_VERSION = "17.3.0";
+        const CURRENT_VERSION = "17.3.1";
 
         if (lastBootVersion !== CURRENT_VERSION) {
-          console.log(`NativeBridge: [V17.3.0] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
+          console.log(`NativeBridge: [V17.3.1] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
           
           // Only clear auth-related data to avoid losing important user settings
           const sessionKey = 'start-location-v1-session';
@@ -116,23 +116,28 @@ export const NativeBridge = () => {
             return;
           }
 
-          console.log(`NativeBridge: [V17.3.0] Checking for OTA updates...`);
+          console.log(`NativeBridge: [V17.3.1] Checking for OTA updates...`);
+          // V17.3.1: TEMPORARY DISABLE AUTO-RELOAD TO BREAK LOOPS
+          // We will only download, but not force reload.
           const update = await checkForAutoUpdate(false);
           
           if (update.available && update.downloaded) {
             console.log(`NativeBridge: Update available! Version: ${update.version}`);
-            await showNativeToast(update.updateMessage || "جاري تثبيت تحديث جديد لتحسين الأداء...");
+            await showNativeToast(update.updateMessage || "تم تحميل تحديث جديد. سيتم تطبيقه عند تشغيل التطبيق القادم.");
             
-            // Save reload timestamp BEFORE reloading
+            // Save reload timestamp but DO NOT reload
             await (await import('@capacitor/preferences')).Preferences.set({ 
               key: 'ota_last_reload_ts', 
               value: now.toString() 
             });
-
+            
+            // V17.3.1: Removed automatic reload to stop potential loops
+            /*
             setTimeout(async () => {
               const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
               await CapacitorUpdater.reload();
             }, 1500);
+            */
           }
         } catch (e) {
           console.warn('NativeBridge: OTA Check failed', e);
