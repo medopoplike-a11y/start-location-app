@@ -139,6 +139,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
+    // V17.3.3: Emergency Splash Timeout
+    // If we are stuck in "Connecting to system" for more than 10 seconds, 
+    // release the loader so the user can see the login page and diagnostics.
+    const splashTimeout = setTimeout(() => {
+      if (loadingRef.current && active) {
+        console.warn("[AuthV17.3.3] Splash timeout reached. Forcing loader release.");
+        loadingRef.current = false;
+        setLoading(false);
+      }
+    }, 10000);
+
     // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[AuthV16.9.3] Auth event: ${event}`);
@@ -160,6 +171,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       active = false;
       clearTimeout(safetyTimeout);
+      clearTimeout(splashTimeout);
       subscription.unsubscribe();
     };
   }, []); // REMOVED DEPENDENCIES - Effect must only run ONCE on mount

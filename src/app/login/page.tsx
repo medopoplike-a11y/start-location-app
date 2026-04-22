@@ -134,7 +134,7 @@ const LoginPage = () => {
       } else {
         setStatus("");
         const { showNativeToast } = await import("@/lib/native-utils");
-        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.2)");
+        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.3)");
       }
     } catch (e: any) {
       setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
@@ -143,8 +143,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.3.2";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.2.apk`)}`;
+  const VERSION = "V17.3.3";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.3.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
