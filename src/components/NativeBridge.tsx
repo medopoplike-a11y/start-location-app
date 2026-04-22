@@ -101,6 +101,25 @@ export const NativeBridge = () => {
         }
       };
 
+      // 5. Handle App State Changes (Resume from background)
+      // V17.3.0: FORCE SYNC ON RESUME
+      try {
+        await App.addListener('appStateChange', async ({ isActive }) => {
+          if (isActive) {
+            console.log("NativeBridge: [V17.3.0] App Resumed - Triggering global sync...");
+            // Dispatch a custom event that useSync can listen to
+            window.dispatchEvent(new CustomEvent('app-resume-sync'));
+            
+            // Re-check connection silently
+            if ((window as any).__START_LOCATION_CHECK_CONN) {
+                (window as any).__START_LOCATION_CHECK_CONN(true);
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('NativeBridge: App state listener failed', e);
+      }
+
       // Fire and forget OTA check to unblock the main thread
       performOtaCheck();
     };
