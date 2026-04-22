@@ -59,29 +59,35 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.2.2: True Native Feel - Fluid scrolling without browser artifacts */
+    /* V17.2.5: Full Screen Scrolling Fix - Enabled touch panning across the whole screen */
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    overscroll-behavior-y: none; /* Prevent the full-page bounce */
+    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
-    overflow-y: auto; /* Allow the body to scroll naturally */
+    overflow-y: auto;
     overflow-x: hidden;
+    touch-action: pan-y; /* CRITICAL: Allows vertical scrolling from any point */
     background-color: #020617;
     min-height: 100vh;
+    height: auto;
+    width: 100%;
   }
 
   /* Main containers should take full height and allow scrolling */
   main {
     min-height: 100vh;
+    width: 100%;
     display: flex;
     flex-direction: column;
+    touch-action: pan-y;
   }
 
   /* Ensure internal scrollable areas work well with the main body scroll */
   .overflow-y-auto {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   /* Custom Scrollbar Styling - Hidden for a cleaner Native look */
