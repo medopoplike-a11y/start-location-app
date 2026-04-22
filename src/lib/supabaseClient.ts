@@ -124,8 +124,8 @@ const nativeFetch = async (url: string, options: any = {}) => {
         method: options.method || 'GET',
         headers: headers,
         data: requestData,
-        connectTimeout: 15000,
-        readTimeout: 15000
+        connectTimeout: 10000,
+        readTimeout: 10000
       });
 
       // V16.6.6: PostgREST usually returns array, if we get null/empty it might be RLS
@@ -195,7 +195,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       presence: { key: 'user' },
     },
     // Tight timeouts to force reconnection faster if network drops
-    timeout: 15000, 
+    timeout: 10000, 
   }
 });
 

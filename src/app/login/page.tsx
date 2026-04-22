@@ -78,6 +78,7 @@ const LoginPage = () => {
     
     try {
       const { checkForAutoUpdate, showNativeToast } = await import("@/lib/native-utils");
+      // V17.2.7: Force check but handle UI feedback better
       const update = await checkForAutoUpdate(true);
       
       if (update.available && update.downloaded) {
@@ -90,7 +91,7 @@ const LoginPage = () => {
       } else {
         setStatus("");
         const { showNativeToast } = await import("@/lib/native-utils");
-        await showNativeToast("تطبيقك يعمل بأحدث إصدار متاح");
+        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.2.7)");
       }
     } catch (e: any) {
       setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
@@ -99,8 +100,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.2.5";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.2.5.apk`)}`;
+  const VERSION = "V17.2.7";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.2.7.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -130,13 +131,15 @@ const LoginPage = () => {
   }, [connStatus]);
 
   const checkConnection = async (force = false) => {
-    // V17.0.3: COMPLETELY SILENT AND NON-BLOCKING
-    if (!force) {
-      if (globalConnectionStatus === 'ok' || isGlobalConnectionChecking) return;
+    // V17.2.7: AGGRESSIVE CACHING - If already OK, don't check again for 1 minute
+    const now = Date.now();
+    if (!force && globalConnectionStatus === 'ok') {
+      const lastCheck = parseInt(sessionStorage.getItem('last_conn_check') || '0');
+      if (now - lastCheck < 60000) return;
     }
 
     isGlobalConnectionChecking = true;
-    // We don't call setStatus("جاري فحص الاتصال") anymore to avoid UI flickering
+    sessionStorage.setItem('last_conn_check', now.toString());
     
     try {
       const { CapacitorHttp } = await import('@capacitor/core');
@@ -146,25 +149,25 @@ const LoginPage = () => {
         url,
         method: 'GET',
         headers: { 'apikey': config.supabase.anonKey },
-        connectTimeout: 4000,
-        readTimeout: 4000
+        connectTimeout: 8000, // V17.2.6: Doubled timeout for stability
+        readTimeout: 8000
       });
       
       if (response.status >= 200 && response.status < 300) {
         setConnStatus('ok');
         setLastError("");
       } else {
-        // Only set fail if it's a critical infrastructure error
-        if (response.status === 0 || response.status >= 500) {
+        // V17.2.6: Be extremely lenient. Only fail if status is 0 (No internet)
+        if (response.status === 0) {
           setConnStatus('fail');
-          // We don't set global error to avoid blocking the user from trying to login
-          console.warn(`Connection Check: Failed with status ${response.status}`);
+          console.warn(`Connection Check: Offline (0)`);
         } else {
-          setConnStatus('ok');
+          setConnStatus('ok'); // Assume OK if server responded but with error (might be RLS)
         }
       }
     } catch (e: any) {
       console.warn("Connection Check non-fatal exception:", e.message);
+      // Don't flip to fail if we were already OK
       if (globalConnectionStatus !== 'ok') {
         setConnStatus('fail');
       }

@@ -216,16 +216,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       triggerUpdate({ source: 'heartbeat' });
     }, 60 * 1000);
 
-    // V17.3.0: Listen for App Resume events from NativeBridge
-    const handleResumeSync = () => {
-      console.log("useSync: [V17.3.0] Resumed from background, forcing sync...");
-      triggerUpdate({ source: 'app_resume', force: true });
-    };
-
-    window.addEventListener('app-resume-sync' as any, handleResumeSync);
-
     return () => {
-      window.removeEventListener('app-resume-sync' as any, handleResumeSync);
       isMountedRef.current = false;
       clearInterval(heartbeat);
       cleanupChannels();

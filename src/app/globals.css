@@ -59,11 +59,11 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.2.5: Full Screen Scrolling Fix - Enabled touch panning across the whole screen */
+    /* V17.2.7: Full Screen Scrolling Fix - Enabled touch panning across the whole screen */
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: auto; /* V17.2.7: Allow smooth scrolling while maintaining native feel */
     -webkit-overflow-scrolling: touch;
     overflow-y: auto;
     overflow-x: hidden;

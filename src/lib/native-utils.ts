@@ -28,9 +28,9 @@ export const refreshAppSession = async () => {
     // 2. Re-establish broadcast channel if dead
     await getBroadcastChannel();
 
-    // 3. Clear and Re-subscribe Realtime (Handled by useSync)
+    // 3. Re-establish system broadcast (Handled by useSync, but we send a wake-up signal)
     const channel = supabase.channel('system_sync');
-    await channel.subscribe();
+    // We don't subscribe here to avoid duplicate listeners, just send and forget
     await channel.send({
       type: 'broadcast',
       event: 'app_wake_up',
@@ -238,7 +238,7 @@ export const requestAllPermissions = async () => {
 
 let lastCheckTime = 0;
 let isChecking = false;
-const CHECK_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown
+const CHECK_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown to prevent battery drain and server load
 
 // ─── Singleton Broadcast Channel ───────────────────────────────────────────
 // Re-using a single channel instance prevents the channel-leak bug where a new
@@ -364,18 +364,15 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.2.5"; // V17.2.5: Full Screen Scrolling Fix Update
+    const hardcodedVersion = "17.2.7"; // V17.2.7: Radical Stability baseline
 
-    // 1. If the DB version matches our hardcoded code (APK), skip update.
-    // This prevents infinite reload loops when the APK already contains the latest code.
+    // V17.2.7: SILENT BYPASS - If we are on the same version, stop immediately
     if (normalizedDbVersion === hardcodedVersion && !force) {
-      console.log('[Native-OTA] APK already has this version. Skipping.');
       return { available: false, version: dbVersion, reason: 'MATCHES_HARDCODED' };
     }
 
     // 2. If we are already on this version via a previous OTA, skip
     if (normalizedAppliedVersion === normalizedDbVersion && !force) {
-      console.log('[Native-OTA] Version already applied via OTA. Skipping.');
       return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
     }
 

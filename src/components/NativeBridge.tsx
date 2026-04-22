@@ -13,8 +13,16 @@ import { dbService } from "@/lib/db-service";
 export const NativeBridge = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = (typeof window !== 'undefined') ? (window as any)._pathnameRef : null;
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any)._pathnameRef = pathname;
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    let backListener: any;
     // Initialize SQLite on boot
     if (Capacitor.isNativePlatform()) {
       dbService.initialize().catch(err => {
@@ -34,7 +42,7 @@ export const NativeBridge = () => {
 
       // 1. Handle Back Button
       try {
-        await App.addListener('backButton', () => {
+        backListener = await App.addListener('backButton', () => {
           const handlers = (window as any)._backButtonHandlers || [];
           if (handlers.length > 0) {
             const lastHandler = handlers[handlers.length - 1];
@@ -42,8 +50,9 @@ export const NativeBridge = () => {
             return;
           }
 
+          const currentPath = (window as any)._pathnameRef || '/';
           const mainRoutes = ['/login', '/driver', '/admin', '/store'];
-          if (mainRoutes.includes(pathname)) {
+          if (mainRoutes.includes(currentPath)) {
             App.minimizeApp();
           } else {
             window.history.back();
@@ -75,15 +84,17 @@ export const NativeBridge = () => {
           const now = Date.now();
           const lastReloadTs = lastReload ? parseInt(lastReload) : 0;
           
-          if (lastReloadTs > 0 && now - lastReloadTs < 30000) {
-            console.log("NativeBridge: Skipping OTA check (just reloaded)");
+          if (lastReloadTs > 0 && now - lastReloadTs < 60000) {
+            console.log("NativeBridge: Skipping OTA check (just reloaded within 60s)");
             return;
           }
 
-          console.log("NativeBridge: Checking for OTA updates...");
+          console.log(`NativeBridge: [V17.2.7] Checking for OTA updates...`);
           const update = await checkForAutoUpdate(false);
+          
           if (update.available && update.downloaded) {
-            await showNativeToast(update.updateMessage || "جاري إعادة تشغيل التطبيق لتثبيت التحديث...");
+            console.log(`NativeBridge: Update available! Version: ${update.version}`);
+            await showNativeToast(update.updateMessage || "جاري تثبيت تحديث جديد لتحسين الأداء...");
             
             // Save reload timestamp BEFORE reloading
             await (await import('@capacitor/preferences')).Preferences.set({ 
@@ -101,25 +112,6 @@ export const NativeBridge = () => {
         }
       };
 
-      // 5. Handle App State Changes (Resume from background)
-      // V17.3.0: FORCE SYNC ON RESUME
-      try {
-        await App.addListener('appStateChange', async ({ isActive }) => {
-          if (isActive) {
-            console.log("NativeBridge: [V17.3.0] App Resumed - Triggering global sync...");
-            // Dispatch a custom event that useSync can listen to
-            window.dispatchEvent(new CustomEvent('app-resume-sync'));
-            
-            // Re-check connection silently
-            if ((window as any).__START_LOCATION_CHECK_CONN) {
-                (window as any).__START_LOCATION_CHECK_CONN(true);
-            }
-          }
-        });
-      } catch (e) {
-        console.warn('NativeBridge: App state listener failed', e);
-      }
-
       // Fire and forget OTA check to unblock the main thread
       performOtaCheck();
     };
@@ -127,7 +119,7 @@ export const NativeBridge = () => {
     setupNative();
 
     return () => {
-      App.removeAllListeners();
+      if (backListener) backListener.remove();
     };
   }, []); // V16.9.2: Remove pathname dependency to prevent redundant checks and reload loops during navigation
 
