@@ -92,8 +92,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // CRITICAL: If we still don't have a profile after retries, 
           // we MUST NOT set loading to false yet, unless the user object itself is gone.
           // This prevents the "Empty System" / "Reload Loop" race condition.
-          if (!p) {
-            console.error("[AuthV17.1.1] Failed to recover profile after all retries. System may be unstable.");
+          if (!p && active) {
+            console.error("[AuthV17.2.7] Failed to recover profile after all retries. Forcing logout to prevent unstable state.");
+            const { signOut } = await import("@/lib/auth");
+            await signOut();
+            return;
           }
         }
       } else {
@@ -103,6 +106,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // V17.1.1: Final release only if we have definitive state
       if (active) {
+        // V17.2.7: Extra safety - if user exists but profile is still null, 
+        // and it's not a fresh signout, wait a bit more for profile recovery.
+        if (currentUser && !profileRef.current && retryCount < maxRetries) {
+            console.log("[AuthV17.2.7] User exists but profile missing, delaying release...");
+            return; 
+        }
         loadingRef.current = false;
         setLoading(false);
       }

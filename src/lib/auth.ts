@@ -225,7 +225,7 @@ export const signIn = async (email: string, password?: string) => {
 };
 
 export const signOut = async () => {
-  console.log("Auth: signOut started (V16.9.6 INSTANT)");
+  console.log("Auth: signOut started (V17.2.7 BLOCKING)");
   
   if (typeof window !== 'undefined') {
     try {
@@ -242,33 +242,34 @@ export const signOut = async () => {
         }
       }
 
-      // 2. Background cleanup for Native and Supabase (Non-blocking)
-      const performBackgroundCleanup = async () => {
+      // 2. BLOCKING cleanup for Native and Supabase
+      if (Capacitor.isNativePlatform()) {
         try {
-          if (Capacitor.isNativePlatform()) {
-            const { Preferences } = await import('@capacitor/preferences');
-            const { keys } = await Preferences.keys();
-            for (const key of keys) {
-              if (key.includes('auth-token') || key.includes('supabase') || key.includes('session') || key === sessionKey) {
-                await Preferences.remove({ key });
-              }
+          const { Preferences } = await import('@capacitor/preferences');
+          const { keys } = await Preferences.keys();
+          for (const key of keys) {
+            if (key.includes('auth-token') || key.includes('supabase') || key.includes('session') || key === sessionKey) {
+              await Preferences.remove({ key });
             }
           }
-          // Global signout from Supabase
-          await supabase.auth.signOut({ scope: 'global' });
+          // Also clear all preferences to be 100% sure for a "clean" logout feel
+          // await Preferences.clear(); // Maybe too aggressive? Let's stick to auth keys.
         } catch (e) {
-          console.warn("Auth: Background cleanup error", e);
+          console.warn("Auth: Preferences cleanup error", e);
         }
-      };
+      }
 
-      // Fire and forget background cleanup
-      performBackgroundCleanup();
+      // Global signout from Supabase (Blocking)
+      await supabase.auth.signOut({ scope: 'global' }).catch(() => {});
 
-      // 3. Instant redirect - don't wait for network or storage
-      window.location.href = '/login?logged_out=true';
+      // 3. Final safety delay to ensure storage writes are flushed
+      await new Promise(r => setTimeout(r, 500));
+
+      // 4. Instant redirect using replace to prevent "Back" button from returning to authenticated state
+      window.location.replace('/login?logged_out=true');
     } catch (err) {
       console.error("Auth: Logout failed", err);
-      window.location.href = '/login';
+      window.location.replace('/login');
     }
   }
 };

@@ -211,6 +211,14 @@ const LoginPage = () => {
     if (user && mounted && !isLoggedOut && !isRedirecting) {
       const role = profile?.role || user.user_metadata?.role;
       if (!role) return;
+      
+      // V17.2.7: If we are at the root path, let MainShell handle the view swap.
+      // Only redirect if we are specifically at the /login URL.
+      if (window.location.pathname === '/' || window.location.pathname === '') {
+          console.log("LoginPage: [V17.2.7] At root, skipping redundant redirect");
+          return;
+      }
+
       setIsRedirecting(true);
       const path = getRedirectPath(role);
       if (window.location.pathname !== path) {

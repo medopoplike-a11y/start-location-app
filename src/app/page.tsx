@@ -29,7 +29,13 @@ export default function MainShell() {
   }
 
   // 3. Authenticated -> Show Role-based View
-  const role = profile?.role || user.user_metadata?.role || "driver";
+  // V17.2.7: Ensure we have a profile before choosing the dashboard.
+  // If user exists but profile is null, it means we are in the middle of a fetch.
+  if (user && !profile) {
+    return <AppLoader />;
+  }
+
+  const role = profile?.role || user?.user_metadata?.role || "driver";
 
   switch (role) {
     case 'admin':
