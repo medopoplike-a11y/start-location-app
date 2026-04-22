@@ -5,13 +5,12 @@ import { App } from "@capacitor/app";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { Keyboard, KeyboardStyle } from "@capacitor/keyboard";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { checkForAutoUpdate, showNativeToast } from "@/lib/native-utils";
 import { dbService } from "@/lib/db-service";
 
 export const NativeBridge = () => {
-  const router = useRouter();
   const pathname = usePathname();
   const pathnameRef = (typeof window !== 'undefined') ? (window as any)._pathnameRef : null;
 
@@ -103,49 +102,20 @@ export const NativeBridge = () => {
         console.warn('NativeBridge: UI config failed', e);
       }
 
-      // 4. Check for Updates (OTA) in background (Non-blocking)
-      const performOtaCheck = async () => {
+      // 4. Check for OTA updates in the background (non-blocking, safe)
+      // Uses next() instead of set() — no immediate restart, no reload loop.
+      // The downloaded bundle is applied on the next cold start of the app.
+      setTimeout(async () => {
         try {
-          // V17.0.1: Robust Reload Guard - Fixed NaN bug
-          const { value: lastReload } = await (await import('@capacitor/preferences')).Preferences.get({ key: 'ota_last_reload_ts' });
-          const now = Date.now();
-          const lastReloadTs = lastReload ? parseInt(lastReload) : 0;
-          
-          if (lastReloadTs > 0 && now - lastReloadTs < 60000) {
-            console.log("NativeBridge: Skipping OTA check (just reloaded within 60s)");
-            return;
-          }
-
-          console.log(`NativeBridge: [V17.3.9] Checking for OTA updates...`);
-          // V17.3.7: TEMPORARY DISABLE AUTO-RELOAD TO BREAK LOOPS
-          // We will only download, but not force reload.
           const update = await checkForAutoUpdate(false);
-          
           if (update.available && update.downloaded) {
-            console.log(`NativeBridge: Update available! Version: ${update.version}`);
-            await showNativeToast(update.updateMessage || "تم تحميل تحديث جديد. سيتم تطبيقه عند تشغيل التطبيق القادم.");
-            
-            // Save reload timestamp but DO NOT reload
-            await (await import('@capacitor/preferences')).Preferences.set({ 
-              key: 'ota_last_reload_ts', 
-              value: now.toString() 
-            });
-            
-            // V17.3.1: Removed automatic reload to stop potential loops
-            /*
-            setTimeout(async () => {
-              const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-              await CapacitorUpdater.reload();
-            }, 1500);
-            */
+            console.log(`[NativeBridge] OTA update queued for next launch: ${update.version}`);
+            await showNativeToast(update.updateMessage || 'تم تحميل تحديث جديد. سيُطبَّق عند فتح التطبيق القادم.');
           }
         } catch (e) {
-          console.warn('NativeBridge: OTA Check failed', e);
+          console.warn('[NativeBridge] OTA check failed silently:', e);
         }
-      };
-
-      // Fire and forget OTA check to unblock the main thread
-      performOtaCheck();
+      }, 5000); // Delay 5s to let the app fully load before checking
     };
 
     setupNative();
