@@ -1265,7 +1265,7 @@ export default function DriverApp() {
             activeView={activeTab}
             onOpenAIHelp={() => {
               setShowAIHelper(true);
-              setAIAnalysis({ content: "أهلاً بك يا بطل! أنا رفيقك الذكي في الطريق. يمكنني مساعدتك في فهم العناوين الصعبة، اقتراح أسرع المسارات، أو حتى تشجيعك بكلمات طيبة خلال يومك. كيف يمكنني دعمك الآن؟ ✨" });
+              setAIAnalysis(null);
             }}
           />
 
@@ -1359,7 +1359,7 @@ export default function DriverApp() {
                 handleRequestAIHelp(orders[0]);
               } else {
                 setShowAIHelper(true);
-                setAIAnalysis({ content: "أهلاً بك يا كابتن! أنا مساعدك الذكي. حالياً لا توجد طلبات نشطة لتحليلها، ولكن يمكنني مساعدتك فور استلامك لأي طلب جديد." });
+                setAIAnalysis(null);
               }
             }}
             driverName={driverName}
