@@ -73,6 +73,21 @@ const nativeFetch = async (url: string, options: any = {}) => {
     delete headers[authKey];
   }
 
+  // V17.3.0: RADICAL AUTH HARDENING - Recovery from Local Storage
+  if (!headers['Authorization'] || headers['Authorization'].length < 20) {
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if (session.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+          console.log("[SupabaseNativeFetch] V17.3.0: Auth header recovered from Preferences");
+        }
+      }
+    } catch (e) {}
+  }
+
   // V16.6.1: Intelligent Body handling
   let requestData: any = undefined;
   if (options.body) {

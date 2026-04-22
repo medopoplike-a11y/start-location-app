@@ -93,9 +93,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // we MUST NOT set loading to false yet, unless the user object itself is gone.
           // This prevents the "Empty System" / "Reload Loop" race condition.
           if (!p && active) {
-            console.error("[AuthV17.2.7] Failed to recover profile after all retries. Forcing logout to prevent unstable state.");
-            const { signOut } = await import("@/lib/auth");
-            await signOut();
+            // V17.3.0: Loop Breaker - Don't sign out on network error!
+            // Only sign out if the user definitively doesn't exist or is invalid.
+            console.error("[AuthV17.3.0] Profile recovery failed. Remaining in offline/idle mode to prevent reload loop.");
+            setLoading(false); // Stop loading to show "Connection Error" in components instead of reloading
             return;
           }
         }

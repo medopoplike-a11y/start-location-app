@@ -364,9 +364,9 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.2.9"; // V17.2.9: Proactive Intelligent Sync baseline
+    const hardcodedVersion = "17.3.0"; // V17.3.0: Loop Breaker & Connection Resilience baseline
 
-    // V17.2.9: SILENT BYPASS - If we are on the same version, stop immediately
+    // V17.3.0: SILENT BYPASS - If we are on the same version, stop immediately
     if (normalizedDbVersion === hardcodedVersion && !force) {
       return { available: false, version: dbVersion, reason: 'MATCHES_HARDCODED' };
     }
