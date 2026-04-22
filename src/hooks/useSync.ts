@@ -28,9 +28,8 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
     
-    // V16.1.0: Skip trigger if payload source is 'initial_subscribe' 
-    // to prevent immediate re-renders during mount/subscribe.
-    if (payload?.source === 'initial_subscribe') return;
+    // V17.1.0: Allow forcing an update even for 'initial_subscribe'
+    if (payload?.source === 'initial_subscribe' && !payload?.force) return;
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
@@ -192,7 +191,10 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     }
 
     channelsRef.current = newChannels;
-    triggerUpdate({ source: 'initial_subscribe' });
+    
+    // V17.1.0: Force an immediate UI update after subscription to ensure 
+    // the page fetches data even if no real-time event has occurred yet.
+    triggerUpdate({ source: 'initial_subscribe', force: true });
   }, [userId, isAdmin, triggerUpdate, cleanupChannels]);
 
   // ─── Initial subscription + heartbeat ─────────────────────────────────────

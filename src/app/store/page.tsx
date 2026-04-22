@@ -217,7 +217,8 @@ function StoreContent() {
     try {
       setAnalyzingStore(true);
       setShowStoreAI(true);
-      setStoreAIAnalysis(null);
+      // V1.5.9: Set a friendly welcoming context immediately
+      setStoreAIAnalysis({ content: "مرحباً بك! أنا مستشارك الذكي لنمو تجارتك. جاري تحليل بيانات متجرك الآن لاقتراح أفضل النصائح لك... 🚀" });
       
       const { requestAIAnalysis } = await import("@/lib/api/ai");
       // Analyze current orders for peak times and efficiency
@@ -225,7 +226,7 @@ function StoreContent() {
       setStoreAIAnalysis(res);
     } catch (e) {
       console.error("AI: Store help request failed", e);
-      setStoreAIAnalysis({ content: "عذراً، لم أتمكن من تحليل البيانات حالياً. حاول مجدداً." });
+      setStoreAIAnalysis({ content: "أهلاً بك! أنا مستشارك الذكي. واجهت صعوبة في تحليل البيانات اللحظية، لكن يمكنني مساعدتك في أي استفسارات حول تطوير عملك. كيف أخدمك اليوم؟ ✨" });
     } finally {
       setAnalyzingStore(false);
     }

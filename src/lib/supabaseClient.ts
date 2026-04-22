@@ -73,6 +73,23 @@ const nativeFetch = async (url: string, options: any = {}) => {
     delete headers[authKey];
   }
 
+  // V17.1.0: RADICAL AUTH HARDENING
+  // If Authorization is missing or looks like an empty placeholder, 
+  // try to fetch it directly from the active session or cache.
+  if (!headers['Authorization'] || headers['Authorization'].length < 20) {
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      const { value: sessionStr } = await Preferences.get({ key: 'start-location-v1-session' });
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if (session.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+          console.log("[SupabaseNativeFetch] Authorization header recovered from cache");
+        }
+      }
+    } catch (e) {}
+  }
+
   // V16.6.1: Intelligent Body handling
   let requestData: any = undefined;
   if (options.body) {

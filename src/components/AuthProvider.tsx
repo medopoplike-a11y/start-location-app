@@ -35,17 +35,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     let active = true;
 
-    // V16.9.6: Reduced safety timeout for better UX
+    // V17.1.0: Extended safety timeout for slow networks
     const safetyTimeout = setTimeout(() => {
       if (active && loadingRef.current) {
-        console.warn("[AuthV16.9.6] Safety timeout triggered - Force closing AppLoader");
+        console.warn("[AuthV17.1.0] Safety timeout triggered - Releasing UI");
         setLoading(false);
       }
-    }, 4000); 
+    }, 10000); 
 
     const updateState = async (session: any, source: string) => {
       if (!active) return;
-      console.log(`[AuthV16.9.6] State update from ${source}:`, session?.user?.id || "None");
+      console.log(`[AuthV17.1.0] State update from ${source}:`, session?.user?.id || "None");
       
       const currentUser = session?.user || null;
       
@@ -69,21 +69,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (currentUser) {
-        try {
-          // Profile fetch can happen in background or after user is set
-          const p = await getUserProfile(currentUser.id, currentUser.email);
-          if (active) {
-            profileRef.current = p;
-            setProfile(p);
+        // V17.1.1: Aggressive Profile Recovery Loop
+        let retryCount = 0;
+        const maxRetries = 3;
+        let p = null;
+
+        while (retryCount < maxRetries && !p && active) {
+          try {
+            p = await getUserProfile(currentUser.id, currentUser.email);
+            if (p) break;
+          } catch (e) {
+            console.warn(`[AuthV17.1.1] Profile fetch attempt ${retryCount + 1} failed`, e);
           }
-        } catch (e) {
-          console.error("[AuthV16.9.6] Profile fetch failed", e);
+          retryCount++;
+          if (!p && active) await new Promise(r => setTimeout(r, 1000 * retryCount)); // Exponential backoff
+        }
+
+        if (active) {
+          profileRef.current = p;
+          setProfile(p);
+          
+          // CRITICAL: If we still don't have a profile after retries, 
+          // we MUST NOT set loading to false yet, unless the user object itself is gone.
+          // This prevents the "Empty System" / "Reload Loop" race condition.
+          if (!p) {
+            console.error("[AuthV17.1.1] Failed to recover profile after all retries. System may be unstable.");
+          }
         }
       } else {
         profileRef.current = null;
         setProfile(null);
       }
       
+      // V17.1.1: Final release only if we have definitive state
       if (active) {
         loadingRef.current = false;
         setLoading(false);

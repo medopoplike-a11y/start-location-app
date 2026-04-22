@@ -74,25 +74,40 @@ export const requestAIAnalysis = async (type: string, data: any, role: 'admin' |
       ? window.location.origin
       : (process.env.NEXT_PUBLIC_APP_URL || '');
 
-  // V4.1.0: Use the hijacked fetch to ensure stability
+  // V4.1.0: Use the hijacked fetch to ensure stability with a timeout
   const url = `${baseUrl}/api/ai`;
   
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, data, role }),
-  });
+  // V4.1.1: Add controller to prevent hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, data, role }),
+      signal: controller.signal
+    });
 
-  if (!response.ok) {
-    let errorMsg = `Request failed with status ${response.status}`;
-    try {
-      const err = await response.json();
-      errorMsg = err.error || errorMsg;
-    } catch (e) {}
-    throw new Error(errorMsg);
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMsg = `Request failed with status ${response.status}`;
+      try {
+        const err = await response.json();
+        errorMsg = err.error || errorMsg;
+      } catch (e) {}
+      throw new Error(errorMsg);
+    }
+
+    const res = await response.json();
+    if (!res.success) throw new Error(res.error || 'AI request failed');
+    return res;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('الذكاء الاصطناعي استغرق وقتاً طويلاً في الرد، يرجى المحاولة لاحقاً');
+    }
+    throw err;
   }
-
-  const res = await response.json();
-  if (!res.success) throw new Error(res.error || 'AI request failed');
-  return res;
 };

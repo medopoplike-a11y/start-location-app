@@ -364,7 +364,7 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.0.8"; // V17.0.8: Matches LoginPage.tsx
+    const hardcodedVersion = "17.1.2"; // V17.1.2: Radical Stability Update
 
     // 1. If the DB version matches our hardcoded code (APK), skip update.
     // This prevents infinite reload loops when the APK already contains the latest code.

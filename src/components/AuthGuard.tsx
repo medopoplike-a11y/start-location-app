@@ -56,9 +56,9 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       const currentPath = pathname?.replace(/\/$/, "") || "";
       const isLoginPath = currentPath === "/login" || currentPath === "" || currentPath === "/";
 
-      // V17.0.7: Single Shell - Skip redirects if we are at the root
+      // V17.1.2: Increased timer to 3s to allow profile recovery on slow networks
       if (currentPath === "" || currentPath === "/") {
-        console.log("AuthGuard: [V17.0.7] Single Shell active, skipping redirect");
+        console.log("AuthGuard: [V17.1.2] Single Shell active, skipping redirect");
         return;
       }
 
@@ -73,11 +73,11 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
         const correctDashboard = userRole === 'admin' ? '/admin' : userRole === 'vendor' ? '/store' : '/driver';
         if (currentPath !== correctDashboard) {
           if (checkReloadLoop()) return;
-          console.log(`AuthGuard: [V16.6.0] Role mismatch, redirecting to ${correctDashboard}`);
+          console.log(`AuthGuard: [V17.1.2] Role mismatch, redirecting to ${correctDashboard}`);
           router.replace(correctDashboard);
         }
       }
-    }, 1000); // 1s is enough with the new stable architecture
+    }, 3000); 
     
     return () => clearTimeout(timer);
   }, [loading, user, userRole, authorized, router, pathname]);
@@ -86,17 +86,17 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     return <AppLoader />;
   }
 
-  // V17.0.3: Persistent Shell - If we have a user, show children immediately.
-  // Don't unmount the whole app just because we are checking the user.
+  // V17.1.2: Persistent Shell - If we have a user and they are authorized, show content.
   if (user && authorized) {
     return <>{children}</>;
   }
 
-  // If not authorized but we have a user, it will be handled by the redirect timer.
-  // We show AppLoader only as a fallback for unauthorized or signed-out states.
-  if (!user && pathname !== "/login") {
-    return <AppLoader />;
-  }
+  // V17.1.2: ROOT CAUSE FIX for "Empty System" and "Infinite Reloads"
+  // If we have a user but are NOT authorized (e.g. profile still loading or role mismatch),
+  // we MUST keep showing the loader until the redirect timer kicks in.
+  // This prevents the page from rendering in an "Empty" state.
+  return <AppLoader />;
+}
 
   return <>{children}</>;
 }
