@@ -8,10 +8,9 @@ import StoreApp from "./store/page";
 import AdminDashboard from "./admin/page";
 
 /**
- * ─── MAIN SHELL (V17.0.7) ────────────────────────────────────────────────────
- * This is the Single Shell architecture. 
- * Instead of navigating between pages (which causes reloads in Capacitor),
- * we switch views based on the user's role and state.
+ * ─── UNIFIED SYSTEM SHELL (V17.2.7) ──────────────────────────────────────────
+ * The single entry point for all roles. 
+ * Provides a seamless, reload-free experience across Admin, Store, and Driver.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 

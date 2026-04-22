@@ -126,7 +126,8 @@ function AdminContent() {
   // 6. Utility Functions (Defined EARLY to avoid TDZ)
   const broadcastAlert = useCallback(async (message: string) => {
     try {
-      const channel = supabase.channel('system_alerts');
+      // V17.2.7: Unified Broadcast Channel
+      const channel = supabase.channel('system_sync');
       await channel.send({
         type: 'broadcast',
         event: 'system_alert',
@@ -630,25 +631,36 @@ function AdminContent() {
     return () => clearInterval(interval);
   }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
 
-  // 8. Background Refresh Loop for Driver Locations (Fallback for real-time)
+  // V17.2.7: Unified Sync Engine
+  useSync(user?.id, (payload) => {
+    console.log("[AdminSync] Global sync update received:", payload?.source);
+    
+    // 1. Immediate data refresh on relevant events
+    if (payload?.source === 'orders' || payload?.source === 'system_sync' || payload?.source === 'app_resume') {
+      fetchData(false); // Refresh live orders
+    }
+    
+    // 2. Handle global alerts
+    if (payload?.payload?.type === 'system_alert') {
+      toastSuccess(payload.payload.message);
+    }
+    
+    // 3. Handle location updates for the live map
+    if (payload?.source === 'location_update' && payload?.payload) {
+      updateDriverRegistry(payload.payload, 'realtime');
+    }
+  }, true); // isAdmin = true
+
+  // 8. Background Refresh Loop for Driver Status (Fallback)
   useEffect(() => {
     if (!mounted || activeView !== "operations") return;
 
     const backgroundRefresh = async () => {
-      // 1. Only fetch profiles to update driver locations
-      console.log("[Polling] Refreshing driver locations (fallback)...");
+      // V17.2.7: Only fetch profiles to sync status, location is handled by useSync
       await fetchProfiles();
-
-      // 2. Cleanup stale drivers from the Real-time Registry (Inactive for more than 1 hour and offline)
-      // V0.9.71: Increased threshold to 1 hour to prevent flickering/disappearing
-      setOnlineDrivers(prev => {
-        const now = Date.now();
-        const threshold = 60 * 60 * 1000;
-        return prev.filter(d => d.is_online || (now - (d.lastSeenTimestamp || 0) < threshold));
-      });
     };
 
-    const interval = setInterval(backgroundRefresh, 10000); // V0.9.87: Faster refresh (10s) for better dashboard response
+    const interval = setInterval(backgroundRefresh, 30000); // 30s fallback is enough with useSync active
     return () => clearInterval(interval);
   }, [mounted, activeView, fetchProfiles]);
 

@@ -146,24 +146,27 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     });
     newChannels.push(settlementChannel);
 
-    // ─── 4. System broadcast — instant cross-interface sync ───────────────────
-    // updateOrderStatus() broadcasts to 'system_sync' whenever an order status
-    // changes. All interfaces listen here for zero-lag cross-device sync.
+    // ─── 4. System sync — instant cross-interface coordination ───────────────────
     const systemSyncChannel = supabase.channel('system_sync');
     systemSyncChannel
       .on('broadcast', { event: 'sync-update' }, (msg) => {
         triggerUpdate({ source: 'system_sync', payload: msg.payload });
       })
+      .on('broadcast', { event: 'system_alert' }, (msg) => {
+        // V17.2.7: Unified Global Alerts
+        console.log("useSync: GLOBAL ALERT received:", msg.payload?.message);
+        triggerUpdate({ source: 'broadcast', payload: { type: 'system_alert', ...msg.payload } });
+      })
+      .on('broadcast', { event: 'maintenance_mode' }, (msg) => {
+        // V17.2.7: Unified Maintenance Mode
+        console.log("useSync: MAINTENANCE MODE update:", msg.payload?.active);
+        triggerUpdate({ source: 'broadcast', payload: { type: 'maintenance', ...msg.payload } });
+      })
       .on('broadcast', { event: 'app_wake_up' }, () => {
-        // V1.8.0: Radical wake-up detected. Force full re-subscribe to all channels.
         console.log("useSync: RADICAL WAKE-UP event received. Re-subscribing...");
         subscribe(); 
       })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn("useSync: system_sync channel error, will retry via heartbeat");
-        }
-      });
+      .subscribe();
     newChannels.push(systemSyncChannel);
 
     // ─── 5. Admin-only: driver location broadcasts ────────────────────────────

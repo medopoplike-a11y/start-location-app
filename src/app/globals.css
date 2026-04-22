@@ -113,33 +113,25 @@
     -webkit-user-select: text !important;
   }
 
-  /* Improved Text Colors for Dark Mode */
-  .dark .text-slate-900 { color: #f8fafc !important; }
-  .dark .text-slate-800 { color: #f1f5f9 !important; }
-  .dark .text-slate-700 { color: #e2e8f0 !important; }
-  .dark .text-slate-600 { color: #cbd5e1 !important; }
-  .dark .text-slate-500 { color: #94a3b8 !important; }
-  .dark .text-slate-400 { color: #64748b !important; }
+  /* Improved Text Colors for Dark Mode - V17.2.7 Unified Palette */
+  .dark .text-slate-900 { color: #f8fafc; }
+  .dark .text-slate-800 { color: #f1f5f9; }
+  .dark .text-slate-700 { color: #e2e8f0; }
+  .dark .text-slate-600 { color: #cbd5e1; }
+  .dark .text-slate-500 { color: #94a3b8; }
+  .dark .text-slate-400 { color: #64748b; }
 
-  /* Improved Backgrounds for Dark Mode */
-  .dark .bg-white { background-color: #0f172a !important; }
-  .dark .bg-slate-50 { background-color: #1e293b !important; }
-  .dark .bg-slate-100 { background-color: #334155 !important; }
-  .dark .bg-slate-50\/50 { background-color: rgba(30, 41, 59, 0.5) !important; }
-  .dark .bg-white\/60 { background-color: rgba(15, 23, 42, 0.6) !important; }
-  .dark .bg-white\/40 { background-color: rgba(15, 23, 42, 0.4) !important; }
-  .dark .bg-slate-900\/5 { background-color: rgba(255, 255, 255, 0.05) !important; }
-  .dark .bg-slate-50\/30 { background-color: rgba(30, 41, 59, 0.3) !important; }
-  .dark .bg-slate-50\/80 { background-color: rgba(30, 41, 59, 0.8) !important; }
-  .dark .hover\:bg-slate-50\/50:hover { background-color: rgba(30, 41, 59, 0.5) !important; }
-  .dark .hover\:bg-slate-50:hover { background-color: #1e293b !important; }
-  .dark .bg-slate-200 { background-color: #334155 !important; }
-  .dark .bg-slate-300 { background-color: #475569 !important; }
+  /* Improved Backgrounds for Dark Mode - V17.2.7 Unified Palette */
+  .dark .bg-white { background-color: #0f172a; }
+  .dark .bg-slate-50 { background-color: #020617; }
+  .dark .bg-slate-100 { background-color: #1e293b; }
+  .dark .bg-slate-200 { background-color: #334155; }
+  .dark .bg-slate-300 { background-color: #475569; }
 
-  /* Improved Borders for Dark Mode */
-  .dark .border-slate-100 { border-color: #1e293b !important; }
-  .dark .border-slate-200 { border-color: #334155 !important; }
-  .dark .border-gray-100 { border-color: #1e293b !important; }
+  /* Improved Borders for Dark Mode - V17.2.7 Unified Palette */
+  .dark .border-slate-100 { border-color: rgba(255, 255, 255, 0.05); }
+  .dark .border-slate-200 { border-color: rgba(255, 255, 255, 0.1); }
+  .dark .border-gray-100 { border-color: rgba(255, 255, 255, 0.05); }
 }
 
 /* Luxury Glassmorphism Classes */

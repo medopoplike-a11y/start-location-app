@@ -822,10 +822,13 @@ export default function DriverApp() {
     }, 1000); // 1 second debounce
   };
 
-  // Sync with useSync hook
+  // V17.2.7: Unified Sync Engine
   useSync(driverId || undefined, (payload) => {
-    // On app resume or tab-focus, reset the refresh lock in case it got stuck
-    // while the app was in the background (fetch interrupted, finally block not reached).
+    if (!driverId) return;
+
+    console.log("[DriverSync] Global sync update received:", payload?.source);
+
+    // 1. Reset locks on resume/focus
     if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
       isRefreshingRef.current = false;
       if (syncTimeoutRef.current) {
@@ -833,7 +836,15 @@ export default function DriverApp() {
         syncTimeoutRef.current = null;
       }
     }
-    if (driverId && !isRefreshingRef.current) {
+
+    // 2. Handle global alerts
+    if (payload?.payload?.type === 'system_alert') {
+      toastSuccess(payload.payload.message);
+      return;
+    }
+
+    // 3. Trigger data refresh
+    if (!isRefreshingRef.current) {
       manualSync(payload);
     }
   });

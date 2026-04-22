@@ -5,8 +5,8 @@ import { dbService } from '../db-service';
 import { Capacitor } from '@capacitor/core';
 
 /**
- * Unified Order API - V1.3.2 Efficiency Audit
- * Consolidates all logic from orders.ts and adminApi.ts
+ * Unified Order API - V17.2.7 Radical Stability Audit
+ * The single source of truth for order operations across all roles.
  */
 
 export const fetchOrders = async (options: { 

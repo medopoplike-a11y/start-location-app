@@ -400,27 +400,30 @@ function StoreContent() {
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
 
-  // V0.9.95: Unified single-stream sync
+  // V17.2.7: Unified Sync Engine
   useSync(vendorId || undefined, (payload) => {
-    if (vendorId) {
-      // On app resume or tab-focus, reset the isSyncing lock in case it got stuck
-      // in the background (fetch interrupted, finally block didn't run on native).
-      if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
-        isSyncingRef.current = false; // synchronous reset – must happen before updateData reads it
-        setIsSyncing(false);
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-          abortControllerRef.current = null;
-        }
-      }
-      // Skip system alert broadcasts that are not related to data changes
-      if (payload?.source === 'broadcast' && payload?.payload?.type === 'system_alert') return;
+    if (!vendorId) return;
+    
+    console.log("[StoreSync] Global sync update received:", payload?.source);
 
-      // useSync already filters high-frequency driver location pings — any profile
-      // update that reaches here is meaningful (is_online / is_locked change) and
-      // should trigger a full data refresh so the driver list stays current.
-      updateData(vendorId);
+    // 1. Reset locks on resume/focus
+    if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+      isSyncingRef.current = false;
+      setIsSyncing(false);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     }
+
+    // 2. Handle global alerts
+    if (payload?.payload?.type === 'system_alert') {
+      success(payload.payload.message);
+      return;
+    }
+
+    // 3. Trigger data refresh
+    updateData(vendorId);
   });
 
   // Sound notification logic
