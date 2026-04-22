@@ -172,13 +172,14 @@ const nativeFetch = async (url: string, options: any = {}) => {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // V16.9.1: CLEAN AUTH STRATEGY
-    lock: undefined,
-    // Use native preferences for session storage
+    // V17.1.3: RADICAL NATIVE STABILITY
+    // Explicitly disable Web Locks in native environment to prevent session deadlocks
+    lock: undefined, 
     storage: isNative ? NativeStorage : (typeof window !== 'undefined' ? localStorage : undefined),
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: 'pkce', // Ensure PKCE for better native flow
   },
   global: {
     // Use CapacitorHttp to bypass CORS and improve reliability in native environment
@@ -186,15 +187,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   realtime: {
     params: {
-      events_per_second: 10,
+      events_per_second: 20, // V17.2.0: Higher frequency for critical logistics
     },
-    // V16.9.9: Radical Realtime Resilience
+    // V17.2.0: MAXIMUM REALTIME AGGRESSION
     config: {
-      broadcast: { self: true },
+      broadcast: { self: true, ack: true },
       presence: { key: 'user' },
     },
-    // Explicitly set timeouts for better network tolerance
-    timeout: 30000,
+    // Tight timeouts to force reconnection faster if network drops
+    timeout: 15000, 
   }
 });
 

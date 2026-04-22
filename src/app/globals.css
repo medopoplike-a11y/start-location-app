@@ -59,12 +59,33 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.0.9: Relaxed Native Feel - Allow scrolling while preventing aggressive bounce */
+    /* V17.2.0: RADICAL NATIVE TRANSFORMATION */
     user-select: none;
     -webkit-user-select: none;
-    overscroll-behavior-y: auto; /* Changed from none to auto to fix scrolling issues on some devices */
+    -webkit-touch-callout: none; /* Disable native context menus */
+    overscroll-behavior-y: none; /* Disable browser bounce */
     -webkit-overflow-scrolling: touch;
-    overflow-y: auto; /* Ensure vertical scrolling is allowed */
+    overflow: hidden; /* Prevent body from being a browser scroll container */
+    position: fixed; /* Lock body position to prevent any browser artifacts */
+    width: 100%;
+    height: 100%;
+    background-color: #020617;
+  }
+
+  /* Custom Scrollbar Removal for a cleaner Native look */
+  ::-webkit-scrollbar {
+    display: none;
+    width: 0 !important;
+  }
+
+  /* Prevent focus outline which looks web-like */
+  *:focus {
+    outline: none !important;
+  }
+
+  /* Prevent blue highlight on tap in android */
+  * {
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Allow selection in inputs only */

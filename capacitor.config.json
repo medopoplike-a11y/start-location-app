@@ -16,11 +16,19 @@
     "buildOptions": {
       "releaseType": "APK"
     },
-    "overScrollMode": "never"
+    "overScrollMode": "never",
+    "scrollStrategy": "disabled"
   },
   "plugins": {
     "CapacitorHttp": {
       "enabled": true
+    },
+    "CapacitorSQLite": {
+      "androidIsEncryption": false,
+      "androidBiometric": {
+        "biometricAuth": false,
+        "isBiometric": false
+      }
     },
     "CapacitorUpdater": {
       "autoUpdate": false,
@@ -36,13 +44,13 @@
       "resizeOnFullScreen": false
     },
     "BackgroundGeolocation": {
-      "staleLocationInterval": 10000,
-      "distanceFilter": 2,
+      "staleLocationInterval": 5000,
+      "distanceFilter": 1,
       "stopOnTerminate": false,
       "startOnBoot": true,
       "foregroundService": true,
       "enableHeadless": true,
-      "heartbeatInterval": 60
+      "heartbeatInterval": 30
     },
     "SplashScreen": {
       "launchShowDuration": 3000,

@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.8";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.8.apk`)}`;
+  const VERSION = "V17.2.0";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.2.0.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -118,6 +118,21 @@ const LoginPage = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [apkUrl, setApkUrl] = useState(apkUrlV);
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  // V17.1.3: Welcome Screen Logic
+  useEffect(() => {
+    const hasSeenWelcome = sessionStorage.getItem('has_seen_welcome_v17');
+    if (hasSeenWelcome) {
+      setShowWelcome(false);
+    }
+  }, []);
+
+  const handleStart = () => {
+    setShowWelcome(false);
+    sessionStorage.setItem('has_seen_welcome_v17', 'true');
+    try { Haptics.impact({ style: ImpactStyle.Medium }); } catch (e) {}
+  };
   const [connStatus, setConnStatus] = useState<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
   const currentConnStatus = useRef<'idle' | 'checking' | 'ok' | 'fail'>(globalConnectionStatus);
 
@@ -417,221 +432,266 @@ const LoginPage = () => {
       </div>
 
       <main className="relative z-10 w-full max-w-md">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="glass-panel p-8 md:p-12 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] border-white/5"
-        >
-          <AnimatePresence>
-            {!isKeyboardOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="flex flex-col items-center mb-10"
-              >
-                <div className="relative mb-6 group">
-                  <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full scale-150 animate-pulse group-hover:bg-blue-500/40 transition-all duration-700" />
-                  <StartLogo className="w-24 h-24 relative drop-shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform duration-700 group-hover:scale-110" />
-                </div>
-                <h1 className="text-4xl font-black tracking-tighter mb-1 flex items-center gap-3 italic" dir="ltr">
-                  <span className="text-white text-shadow-glow">Start</span>
-                  <span className="text-blue-400 not-italic">Location</span>
-                </h1>
-                
-                {/* مؤشر الاتصال المباشر */}
-                <div className="flex flex-col gap-1 mt-2 mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      connStatus === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 
-                      connStatus === 'fail' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 
-                      'bg-slate-500 animate-pulse'
-                    }`} />
-                    <p className="text-[10px] font-bold text-slate-400">
-                      {connStatus === 'ok' ? 'متصل بالسيرفر' : 
-                       connStatus === 'fail' ? 'فشل الاتصال' : 
-                       'جاري فحص الاتصال...'}
-                    </p>
-                  </div>
-                  {connStatus === 'fail' && lastError && (
-                    <p className="text-[8px] text-red-400/80 font-mono break-all bg-red-500/5 p-1 rounded border border-red-500/10">
-                      خطأ: {lastError}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 opacity-60">
-                  <div className="h-px w-4 bg-slate-500" />
-                  <p className="text-[9px] font-black text-slate-400 tracking-[0.4em] uppercase">Smart Delivery System</p>
-                  <div className="h-px w-4 bg-slate-500" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  <Mail className="w-3 h-3 text-blue-500" />
-                  البريد الإلكتروني
-                </label>
-              </div>
-              <div className="relative group">
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white outline-none transition-all focus:bg-white/10 focus:border-blue-500/40 rounded-2xl font-bold text-sm shadow-inner dark:bg-slate-900/50 dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  <Lock className="w-3 h-3 text-emerald-500" />
-                  كلمة المرور
-                </label>
-              </div>
-              <div className="relative group">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white outline-none transition-all focus:bg-white/10 focus:border-emerald-500/40 rounded-2xl font-bold text-sm shadow-inner dark:bg-slate-900/50 dark:text-white"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors z-20 p-1"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between px-1">
-              <label className="relative flex items-center cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`w-10 h-6 rounded-full transition-all duration-300 border border-white/10 flex items-center ${rememberMe ? 'bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-white/5'}`}>
-                  <div className={`w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md ${rememberMe ? 'translate-x-[-20px]' : 'translate-x-[-4px]'}`} />
-                </div>
-                <span className="mr-3 text-[11px] font-black text-slate-400 group-hover:text-slate-200 transition-colors uppercase tracking-wider">
-                  تذكر بيانات الدخول
-                </span>
-              </label>
-            </div>
-
-            {(error || status) && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`rounded-2xl px-5 py-4 text-[11px] font-black flex items-center gap-3 backdrop-blur-2xl border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]"}`}>
-                {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
-                <span>{error || status}</span>
-              </motion.div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full relative overflow-hidden rounded-2xl py-5 text-sm font-black text-white transition-all shadow-2xl active:scale-[0.98] ${
-                !isSupabaseConfigured ? "bg-red-600/80" : "bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 shadow-blue-500/25"
-              } disabled:opacity-50`}
+        <AnimatePresence mode="wait">
+          {showWelcome ? (
+            <motion.div
+              key="welcome"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="glass-panel p-10 md:p-14 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] border-white/5 flex flex-col items-center text-center"
             >
-              <div className="relative z-10 flex items-center justify-center gap-3">
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
-                <span>{loading ? "جاري التحقق الآمن..." : "دخول للنظام الآمن"}</span>
+              <div className="relative mb-8 group">
+                <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full scale-150 animate-pulse group-hover:bg-blue-500/40 transition-all duration-700" />
+                <StartLogo className="w-32 h-32 relative drop-shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform duration-700 group-hover:scale-110" />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
-            </button>
-          </form>
+              
+              <h1 className="text-5xl font-black tracking-tighter mb-4 flex flex-col items-center italic" dir="ltr">
+                <span className="text-white text-shadow-glow">Start</span>
+                <span className="text-blue-400 not-italic text-3xl mt-[-5px]">Location</span>
+              </h1>
 
-          {!isKeyboardOpen && (
-            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1 cursor-pointer" onClick={handleVersionTap}>
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
-                  <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
-                </div>
-                {/* V17.0.3: Connection status dot instead of blocking message */}
-                <div 
-                  onClick={() => checkConnection(true)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all ${
-                  connStatus === 'ok' 
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                    : connStatus === 'fail' 
-                      ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                      : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
-                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    connStatus === 'ok' ? 'bg-emerald-400 animate-pulse' : connStatus === 'fail' ? 'bg-red-400' : 'bg-slate-400'
-                  }`} />
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em]">
-                    {connStatus === 'ok' ? 'Online' : connStatus === 'fail' ? 'Offline' : 'Checking'}
-                  </span>
-                </div>
+              <div className="space-y-4 mb-10">
+                <h2 className="text-2xl font-bold text-white">أهلاً بك في نظام ستارت الذكي</h2>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-[280px]">
+                  نظام متكامل لإدارة العمليات اللوجستية وتتبع الشحنات بأحدث تقنيات الذكاء الاصطناعي.
+                </p>
               </div>
 
-              {/* V17.0.3: Emergency Quick Actions */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={async () => {
-                    if (confirm("سيتم مسح كل البيانات المسجلة والعودة للحالة الأصلية. هل أنت متأكد؟")) {
-                      localStorage.clear();
-                      sessionStorage.clear();
-                      const { Preferences } = await import("@capacitor/preferences");
-                      await Preferences.clear();
-                      const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-                      await CapacitorUpdater.reset();
-                      window.location.reload();
-                    }
-                  }}
-                  className="bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 text-red-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
-                >
-                  تصفير شامل
-                </button>
-                <button
-                  onClick={() => setShowDiagnostics(true)}
-                  className="bg-slate-500/5 hover:bg-slate-500/10 border border-slate-500/10 text-slate-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
-                >
-                  التشخيص
-                </button>
+              <button
+                onClick={handleStart}
+                className="group relative w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-black text-white shadow-[0_10px_20px_-5px_rgba(37,99,235,0.4)] overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                <span className="relative flex items-center justify-center gap-3 text-lg">
+                  ابدأ الآن
+                  <Smartphone className="w-5 h-5 animate-bounce" />
+                </span>
+              </button>
+
+              <div className="mt-8 flex items-center gap-2 opacity-40">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <p className="text-[10px] font-bold text-slate-300 tracking-widest uppercase">Secured by Gemini AI</p>
               </div>
-            </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="glass-panel p-8 md:p-12 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] border-white/5"
+            >
+              <AnimatePresence>
+                {!isKeyboardOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="flex flex-col items-center mb-10"
+                  >
+                    <div className="relative mb-6 group">
+                      <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full scale-150 animate-pulse group-hover:bg-blue-500/40 transition-all duration-700" />
+                      <StartLogo className="w-24 h-24 relative drop-shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-transform duration-700 group-hover:scale-110" />
+                    </div>
+                    <h1 className="text-4xl font-black tracking-tighter mb-1 flex items-center gap-3 italic" dir="ltr">
+                      <span className="text-white text-shadow-glow">Start</span>
+                      <span className="text-blue-400 not-italic">Location</span>
+                    </h1>
+                    
+                    {/* مؤشر الاتصال المباشر */}
+                    <div className="flex flex-col gap-1 mt-2 mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          connStatus === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 
+                          connStatus === 'fail' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 
+                          'bg-slate-500 animate-pulse'
+                        }`} />
+                        <p className="text-[10px] font-bold text-slate-400">
+                          {connStatus === 'ok' ? 'متصل بالسيرفر' : 
+                          connStatus === 'fail' ? 'فشل الاتصال' : 
+                          'جاري فحص الاتصال...'}
+                        </p>
+                      </div>
+                      {connStatus === 'fail' && lastError && (
+                        <p className="text-[8px] text-red-400/80 font-mono break-all bg-red-500/5 p-1 rounded border border-red-500/10">
+                          خطأ: {lastError}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 opacity-60">
+                      <div className="h-px w-4 bg-slate-500" />
+                      <p className="text-[9px] font-black text-slate-400 tracking-[0.4em] uppercase">Smart Delivery System</p>
+                      <div className="h-px w-4 bg-slate-500" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <Mail className="w-3 h-3 text-blue-500" />
+                      البريد الإلكتروني
+                    </label>
+                  </div>
+                  <div className="relative group">
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white outline-none transition-all focus:bg-white/10 focus:border-blue-500/40 rounded-2xl font-bold text-sm shadow-inner dark:bg-slate-900/50 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <Lock className="w-3 h-3 text-emerald-500" />
+                      كلمة المرور
+                    </label>
+                  </div>
+                  <div className="relative group">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="w-full bg-white/5 border border-white/10 px-6 py-5 text-white outline-none transition-all focus:bg-white/10 focus:border-emerald-500/40 rounded-2xl font-bold text-sm shadow-inner dark:bg-slate-900/50 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors z-20 p-1"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <label className="relative flex items-center cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`w-10 h-6 rounded-full transition-all duration-300 border border-white/10 flex items-center ${rememberMe ? 'bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-white/5'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md ${rememberMe ? 'translate-x-[-20px]' : 'translate-x-[-4px]'}`} />
+                    </div>
+                    <span className="mr-3 text-[11px] font-black text-slate-400 group-hover:text-slate-200 transition-colors uppercase tracking-wider">
+                      تذكر بيانات الدخول
+                    </span>
+                  </label>
+                </div>
+
+                {(error || status) && (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`rounded-2xl px-5 py-4 text-[11px] font-black flex items-center gap-3 backdrop-blur-2xl border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]"}`}>
+                    {error ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0 animate-bounce" />}
+                    <span>{error || status}</span>
+                  </motion.div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full relative overflow-hidden rounded-2xl py-5 text-sm font-black text-white transition-all shadow-2xl active:scale-[0.98] bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 shadow-blue-500/25 disabled:opacity-50"
+                >
+                  <div className="relative z-10 flex items-center justify-center gap-3">
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                    <span>{loading ? "جاري التحقق الآمن..." : "دخول للنظام الآمن"}</span>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
+                </button>
+              </form>
+
+              {!isKeyboardOpen && (
+                <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1 cursor-pointer" onClick={handleVersionTap}>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
+                      <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
+                    </div>
+                    {/* V17.0.3: Connection status dot instead of blocking message */}
+                    <div 
+                      onClick={() => checkConnection(true)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all ${
+                      connStatus === 'ok' 
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                        : connStatus === 'fail' 
+                          ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                          : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                        connStatus === 'ok' ? 'bg-emerald-400 animate-pulse' : connStatus === 'fail' ? 'bg-red-400' : 'bg-slate-400'
+                      }`} />
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">
+                        {connStatus === 'ok' ? 'Online' : connStatus === 'fail' ? 'Offline' : 'Checking'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* V17.0.3: Emergency Quick Actions */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={async () => {
+                        if (confirm("سيتم مسح كل البيانات المسجلة والعودة للحالة الأصلية. هل أنت متأكد؟")) {
+                          localStorage.clear();
+                          sessionStorage.clear();
+                          const { Preferences } = await import("@capacitor/preferences");
+                          await Preferences.clear();
+                          const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+                          await CapacitorUpdater.reset();
+                          window.location.reload();
+                        }
+                      }}
+                      className="bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 text-red-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                    >
+                      تصفير شامل
+                    </button>
+                    <button
+                      onClick={() => setShowDiagnostics(true)}
+                      className="bg-slate-500/5 hover:bg-slate-500/10 border border-slate-500/10 text-slate-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                    >
+                      التشخيص
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
           )}
-        </motion.div>
-
-        {/* زر تحميل APK — للمتصفح فقط وليس داخل التطبيق المثبت */}
-        {mounted && !isInsideNativeApp && (
-          <motion.a
-            href={apkUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-4 flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 backdrop-blur-xl px-5 py-4 rounded-2xl transition-all active:scale-[0.98] group"
-          >
-            <div className="w-11 h-11 bg-emerald-500/10 group-hover:bg-emerald-500 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0">
-              <Smartphone className="w-5 h-5 text-emerald-400 group-hover:text-white transition-colors" />
-            </div>
-            <div className="flex-1 text-right">
-              <p className="text-[12px] font-black text-white leading-none mb-1">تحميل تطبيق الأندرويد</p>
-              <p className="text-[10px] text-slate-400">اضغط لتنزيل وتثبيت APK على هاتفك</p>
-            </div>
-            <Download className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0" />
-          </motion.a>
-        )}
+        </AnimatePresence>
       </main>
+
+      {/* زر تحميل APK — للمتصفح فقط وليس داخل التطبيق المثبت */}
+      {mounted && !isInsideNativeApp && (
+        <motion.a
+          href={apkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mt-4 flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 backdrop-blur-xl px-5 py-4 rounded-2xl transition-all active:scale-[0.98] group relative z-10 w-full max-w-md"
+        >
+          <div className="w-11 h-11 bg-emerald-500/10 group-hover:bg-emerald-500 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0">
+            <Smartphone className="w-5 h-5 text-emerald-400 group-hover:text-white transition-colors" />
+          </div>
+          <div className="flex-1 text-right">
+            <p className="text-[12px] font-black text-white leading-none mb-1">تحميل تطبيق الأندرويد</p>
+            <p className="text-[10px] text-slate-400">اضغط لتنزيل وتثبيت APK على هاتفك</p>
+          </div>
+          <Download className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+        </motion.a>
+      )}
 
       <style jsx global>{`
         @keyframes shimmer {
