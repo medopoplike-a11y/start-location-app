@@ -40,9 +40,7 @@ export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMon
   const [processingId, setProcessingId] = useState<string | null>(null);
   
   // Chat States
-  const [messages, setMessages] = useState<Array<{role: 'user' | 'ai', content: string, suggested_fix?: any}>>([
-    { role: 'ai', content: "أهلاً بك يا مدير! أنا المراقب الذكي لنظام START. يمكنني الآن تحليل الأداء التقني، تتبع سريان البيانات، واكتشاف أي خلل في الواجهات. كيف يمكنني مساعدتك تقنياً اليوم؟" }
-  ]);
+  const [messages, setMessages] = useState<Array<{role: 'user' | 'ai', content: string, suggested_fix?: any}>>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
