@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.2";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.2.apk`)}`;
+  const VERSION = "V17.0.3";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.3.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -130,51 +130,43 @@ const LoginPage = () => {
   }, [connStatus]);
 
   const checkConnection = async (force = false) => {
-    // V16.9.9: Radical Non-Blocking Connection Check
+    // V17.0.3: COMPLETELY SILENT AND NON-BLOCKING
     if (!force) {
       if (globalConnectionStatus === 'ok' || isGlobalConnectionChecking) return;
     }
 
     isGlobalConnectionChecking = true;
-    setConnStatus('checking');
+    // We don't call setStatus("جاري فحص الاتصال") anymore to avoid UI flickering
     
     try {
-      console.log(`V16.9.9: Performing RESILIENT NATIVE check...`);
       const { CapacitorHttp } = await import('@capacitor/core');
-      
-      // V16.9.9: Faster, less overhead check
       const url = `${config.supabase.url}/rest/v1/app_config?select=id&limit=1`;
       
       const response = await CapacitorHttp.request({
         url,
         method: 'GET',
-        headers: {
-          'apikey': config.supabase.anonKey,
-        },
-        connectTimeout: 5000,
-        readTimeout: 5000
+        headers: { 'apikey': config.supabase.anonKey },
+        connectTimeout: 4000,
+        readTimeout: 4000
       });
       
       if (response.status >= 200 && response.status < 300) {
-        console.log("Native Bridge Success! ✅");
         setConnStatus('ok');
         setLastError("");
       } else {
-        // V16.9.9: Be more tolerant, only fail if it's a clear error
+        // Only set fail if it's a critical infrastructure error
         if (response.status === 0 || response.status >= 500) {
           setConnStatus('fail');
-          setLastError(`Connection issue (Status ${response.status})`);
+          // We don't set global error to avoid blocking the user from trying to login
+          console.warn(`Connection Check: Failed with status ${response.status}`);
         } else {
-          // Status like 401/404 means server is reachable but something else is wrong
           setConnStatus('ok');
         }
       }
     } catch (e: any) {
       console.warn("Connection Check non-fatal exception:", e.message);
-      // Don't kill the UX for minor network blips
       if (globalConnectionStatus !== 'ok') {
         setConnStatus('fail');
-        setLastError(e.message || "Network Error");
       }
     } finally {
       isGlobalConnectionChecking = false;
@@ -580,25 +572,48 @@ const LoginPage = () => {
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">System Identifier</p>
                   <p className="text-sm font-black text-white tracking-tighter">{VERSION}</p>
                 </div>
-                <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em]">Active</span>
+                {/* V17.0.3: Connection status dot instead of blocking message */}
+                <div 
+                  onClick={() => checkConnection(true)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all ${
+                  connStatus === 'ok' 
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                    : connStatus === 'fail' 
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                      : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    connStatus === 'ok' ? 'bg-emerald-400 animate-pulse' : connStatus === 'fail' ? 'bg-red-400' : 'bg-slate-400'
+                  }`} />
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em]">
+                    {connStatus === 'ok' ? 'Online' : connStatus === 'fail' ? 'Offline' : 'Checking'}
+                  </span>
                 </div>
               </div>
 
-              {/* Manual Update & Reset Buttons - V16.4.3 */}
-              <div className="flex gap-2">
-                <button 
-                  onClick={handleManualUpdate}
-                  className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-3 rounded-xl text-[10px] font-black"
-                >
-                  فحص التحديث
-                </button>
-                <button 
-                  onClick={handleNuclearReset}
-                  className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-3 rounded-xl text-[10px] font-black"
+              {/* V17.0.3: Emergency Quick Actions */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={async () => {
+                    if (confirm("سيتم مسح كل البيانات المسجلة والعودة للحالة الأصلية. هل أنت متأكد؟")) {
+                      localStorage.clear();
+                      sessionStorage.clear();
+                      const { Preferences } = await import("@capacitor/preferences");
+                      await Preferences.clear();
+                      const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+                      await CapacitorUpdater.reset();
+                      window.location.reload();
+                    }
+                  }}
+                  className="bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 text-red-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
                 >
                   تصفير شامل
+                </button>
+                <button
+                  onClick={() => setShowDiagnostics(true)}
+                  className="bg-slate-500/5 hover:bg-slate-500/10 border border-slate-500/10 text-slate-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                >
+                  التشخيص
                 </button>
               </div>
             </div>

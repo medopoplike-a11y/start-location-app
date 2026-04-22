@@ -361,10 +361,10 @@ export const checkForAutoUpdate = async (force = false) => {
     
     console.log(`[Native-OTA] Local: ${appliedVersion} | DB: ${dbVersion}`);
 
-    // V17.0.2: Smart Version Comparison - Prevent Rollbacks
+    // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.0.2"; // The version in this code
+    const hardcodedVersion = "17.0.3"; // The version in this code
 
     // 1. If we are already on this version, skip
     if (normalizedAppliedVersion === normalizedDbVersion && !force) {
