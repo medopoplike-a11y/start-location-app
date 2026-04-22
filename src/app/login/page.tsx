@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.1";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.1.apk`)}`;
+  const VERSION = "V17.0.2";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.2.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -367,12 +367,12 @@ const LoginPage = () => {
             <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
               <p className="text-slate-400 mb-1">Network Bridge:</p>
               <p className={ (window as any).Capacitor?.isNativePlatform?.() ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).Capacitor?.isNativePlatform?.() ? "NATIVE ULTIMATE (V16.6.6)" : "WEB STANDARD" }
+                { (window as any).Capacitor?.isNativePlatform?.() ? `NATIVE ULTIMATE (${VERSION})` : "WEB STANDARD" }
               </p>
             </div>
 
             <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 mt-4">
-               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics (V16.6.6)</p>
+               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics ({VERSION})</p>
                <div className="grid grid-cols-1 gap-2">
                  <button 
                    onClick={async () => {
@@ -381,6 +381,7 @@ const LoginPage = () => {
                        const { Preferences } = await import('@capacitor/preferences');
                        await Preferences.remove({ key: 'last_applied_ota_version' });
                        await Preferences.remove({ key: 'last_check_time' });
+                       await Preferences.remove({ key: 'ota_last_reload_ts' });
                        
                        const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
                        await CapacitorUpdater.reset();
@@ -415,20 +416,6 @@ const LoginPage = () => {
                      }
                    }}
                    className="w-full px-4 py-2 bg-slate-700 rounded text-xs text-white hover:bg-slate-800 transition-colors"
-                 >
-                   مسح شامل للبيانات (Nuclear Reset)
-                 </button>
-                 <button 
-                   onClick={async () => {
-                     if (confirm("سيتم مسح كافة البيانات المخزنة وتسجيل الخروج. هل أنت متأكد؟")) {
-                       localStorage.clear();
-                       sessionStorage.clear();
-                       const { Preferences } = await import("@capacitor/preferences");
-                       await Preferences.clear();
-                       window.location.reload();
-                     }
-                   }}
-                   className="w-full px-4 py-2 bg-slate-700 rounded text-xs text-white hover:bg-slate-600 transition-colors"
                  >
                    مسح شامل للبيانات (Nuclear Reset)
                  </button>
