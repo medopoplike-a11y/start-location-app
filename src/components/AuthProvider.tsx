@@ -34,6 +34,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializedRef.current = true;
 
     let active = true;
+    let retryCount = 0;
+    const maxRetries = 3;
 
     // V17.1.0: Extended safety timeout for slow networks
     const safetyTimeout = setTimeout(() => {
@@ -70,8 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (currentUser) {
         // V17.1.1: Aggressive Profile Recovery Loop
-        let retryCount = 0;
-        const maxRetries = 3;
+        retryCount = 0;
         let p = null;
 
         while (retryCount < maxRetries && !p && active) {
@@ -131,7 +132,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           loadingRef.current = false;
           setLoading(false);
         }
-      } catch (e) {System.out.println("[AuthV16.9.3] Init error", e);
+      } catch (e) {
+        console.error("[AuthV16.9.3] Init error", e);
         if (active) {
             loadingRef.current = false;
             setLoading(false);
