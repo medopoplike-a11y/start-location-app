@@ -97,6 +97,3 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
   // This prevents the page from rendering in an "Empty" state.
   return <AppLoader />;
 }
-
-  return <>{children}</>;
-}
