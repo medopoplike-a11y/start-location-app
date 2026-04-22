@@ -33,15 +33,15 @@ export const NativeBridge = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
-      // V17.3.8: HARD RESET GUARD - Clear stale sessions on version upgrade
+      // V17.3.9: HARD RESET GUARD - Clear stale sessions on version upgrade
       // This prevents "Ghost Logins" and "Empty Systems" caused by Android Auto Backup
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value: lastBootVersion } = await Preferences.get({ key: 'app_last_boot_version' });
-        const CURRENT_VERSION = "17.3.8";
+        const CURRENT_VERSION = "17.3.9";
 
         if (lastBootVersion !== CURRENT_VERSION) {
-          console.log(`NativeBridge: [V17.3.8] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
+          console.log(`NativeBridge: [V17.3.9] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
           
           // Only clear auth-related data to avoid losing important user settings
           const sessionKey = 'start-location-v1-session';
@@ -116,7 +116,7 @@ export const NativeBridge = () => {
             return;
           }
 
-          console.log(`NativeBridge: [V17.3.8] Checking for OTA updates...`);
+          console.log(`NativeBridge: [V17.3.9] Checking for OTA updates...`);
           // V17.3.7: TEMPORARY DISABLE AUTO-RELOAD TO BREAK LOOPS
           // We will only download, but not force reload.
           const update = await checkForAutoUpdate(false);

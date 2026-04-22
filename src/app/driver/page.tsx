@@ -453,8 +453,8 @@ export default function DriverApp() {
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
-        // Limit updates to once every 3 seconds for smooth admin map updates
-        if (now - lastLocationUpdate < 3000) return;
+        // V17.3.9: Balanced web tracking interval (5 seconds)
+        if (now - lastLocationUpdate < 5000) return;
         
         const newLocation = { 
           lat: position.coords.latitude, 

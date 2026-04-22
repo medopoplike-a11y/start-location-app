@@ -364,9 +364,9 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.3.8"; // V17.3.8: Safe Monitor & Loop Fix baseline
+    const hardcodedVersion = "17.3.9"; // V17.3.9: Balanced Tracking baseline
 
-    // V17.3.7: SILENT BYPASS - If we are on the same version, stop immediately
+    // V17.3.9: SILENT BYPASS - If we are on the same version, stop immediately
     if (normalizedDbVersion === hardcodedVersion && !force) {
       return { available: false, version: dbVersion, reason: 'MATCHES_HARDCODED' };
     }
@@ -486,12 +486,13 @@ export const startBackgroundTracking = async (userId: string, name?: string, rol
       return null;
     }
 
-    // 2. RADICAL Background Config (V1.8.0 - UNKILLABLE MODE)
+    // 2. ADAPTIVE Background Config (V17.3.9 - Network Aware)
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = role === 'driver' ? 3000 : 15000; 
+    // Drivers: 5s (balanced), Others: 20s
+    const DB_UPDATE_INTERVAL = role === 'driver' ? 5000 : 20000; 
     
     let lastHeartbeatUpdate = 0;
-    const HEARTBEAT_DB_INTERVAL = 60 * 1000; 
+    const HEARTBEAT_DB_INTERVAL = 90 * 1000; // 1.5 minutes for heartbeat
 
     const bgMessage = role === 'driver' 
       ? "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق"
@@ -675,7 +676,13 @@ export const startForegroundTracking = async (userId: string, name?: string, onU
     const { Geolocation } = await import('@capacitor/geolocation');
     
     let lastSentTs = 0;
-    const MIN_INTERVAL = 3000; // 3 seconds between DB updates to avoid throttling
+    // V17.3.9: Balanced foreground intervals to prevent server flooding
+    // Stationary: 10s, Moving: 5s, Fast (>2m/s): 3s
+    const getDynamicInterval = (speed: number) => {
+      if (speed > 2) return 3000;
+      if (speed > 0) return 5000;
+      return 10000;
+    };
 
     const watchId = await Geolocation.watchPosition(
       {
@@ -697,8 +704,7 @@ export const startForegroundTracking = async (userId: string, name?: string, onU
         if (onUpdate) onUpdate(loc);
 
         const now = Date.now();
-        // DYNAMIC GPS STREAM: 1s fast, 2s slow, 5s stationary
-        const dynamicInterval = speed > 2 ? 1000 : (speed > 0 ? 2000 : 5000);
+        const dynamicInterval = getDynamicInterval(speed);
         
         if (now - lastSentTs < dynamicInterval) return;
         lastSentTs = now;
