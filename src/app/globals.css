@@ -59,11 +59,10 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.0.3: Native App Feel - Disable web behaviors */
+    /* V17.0.6: Relaxed Native Feel - Allow scrolling while preventing bounce */
     user-select: none;
     -webkit-user-select: none;
-    touch-action: pan-x pan-y;
-    overscroll-behavior: none;
+    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
   }
 
