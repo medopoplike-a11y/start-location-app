@@ -9,7 +9,7 @@ import { StartLogo } from "@/components/StartLogo";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone, X, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Download, Smartphone, X, RefreshCw, Activity } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { AppLoader } from "@/components/AppLoader";
@@ -35,6 +35,8 @@ const LoginPage = () => {
 
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [tapCount, setTapCount] = useState(0);
+  const [diagResults, setDiagResults] = useState<string[]>([]);
+  const [isDiagLoading, setIsDiagLoading] = useState(false);
 
   const handleNuclearReset = async () => {
     if (!window.confirm("هل أنت متأكد من تصفير التطبيق بالكامل؟ سيتم مسح جميع الجلسات والتحديثات المؤقتة.")) return;
@@ -61,10 +63,51 @@ const LoginPage = () => {
     }
   };
 
+  const runFullDiagnostics = async () => {
+    setIsDiagLoading(true);
+    setDiagResults([]);
+    const results: string[] = [];
+
+    // 1. Env Check
+    const isConfigured = config.isConfigured();
+    results.push(isConfigured ? "✅ روابط السيرفر موجودة في التطبيق" : "❌ خطأ: روابط السيرفر مفقودة (يرجى فحص GitHub Secrets)");
+    
+    if (isConfigured) {
+      results.push(`🔗 عنوان السيرفر: ${config.supabase.url.substring(0, 15)}...`);
+    }
+
+    // 2. Network Check
+    try {
+      const { CapacitorHttp } = await import('@capacitor/core');
+      results.push("⏳ جاري فحص استجابة السيرفر...");
+      
+      const response = await CapacitorHttp.request({
+        url: `${config.supabase.url}/rest/v1/app_config?select=id&limit=1`,
+        method: 'GET',
+        headers: { 'apikey': config.supabase.anonKey },
+        connectTimeout: 5000
+      });
+
+      if (response.status >= 200 && response.status < 300) {
+        results.push("✅ اتصال ناجح بالسيرفر (Supabase reachable)");
+      } else if (response.status === 401 || response.status === 403) {
+        results.push(`❌ خطأ في المفتاح (API Key Invalid) - كود الخطأ: ${response.status}`);
+      } else {
+        results.push(`❌ السيرفر رد بكود خطأ: ${response.status}`);
+      }
+    } catch (e: any) {
+      results.push(`❌ فشل الاتصال تماماً: ${e.message}`);
+    }
+
+    setDiagResults(results);
+    setIsDiagLoading(false);
+    setShowDiagnostics(true);
+  };
+
   const handleVersionTap = () => {
     setTapCount(prev => {
       if (prev + 1 >= 5) {
-        setShowDiagnostics(true);
+        runFullDiagnostics();
         return 0;
       }
       return prev + 1;
@@ -91,7 +134,7 @@ const LoginPage = () => {
       } else {
         setStatus("");
         const { showNativeToast } = await import("@/lib/native-utils");
-        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.1)");
+        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.2)");
       }
     } catch (e: any) {
       setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
@@ -100,8 +143,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.3.1";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.1.apk`)}`;
+  const VERSION = "V17.3.2";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.2.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -339,92 +382,48 @@ const LoginPage = () => {
         </div>
       )}
 
-      {/* Diagnostics Overlay */}
-      {showDiagnostics && (
-        <div className="fixed inset-0 z-[9999] bg-slate-900/95 p-6 overflow-auto animate-in fade-in zoom-in duration-200" dir="rtl">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-blue-400">تشخيص النظام (Diagnostics)</h2>
-            <button 
-              onClick={() => setShowDiagnostics(false)}
-              className="p-2 bg-slate-800 rounded-full text-white"
+      {/* Diagnostic Modal */}
+      <AnimatePresence>
+        {showDiagnostics && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl"
             >
-              <X size={20} />
-            </button>
-          </div>
-          
-          <div className="space-y-4 text-sm font-mono text-left" dir="ltr">
-            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-              <p className="text-slate-400 mb-1">Supabase URL:</p>
-              <p className="break-all text-white">{config.supabase.url || "NULL"}</p>
-            </div>
-            
-            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-              <p className="text-slate-400 mb-1">Platform:</p>
-              <p className="text-white">
-                {(window as any).Capacitor?.getPlatform?.() || 'web'} ({(window as any).Capacitor?.isNativePlatform?.() ? 'Native' : 'Web'})
-              </p>
-            </div>
+              <h3 className="text-lg font-black text-white mb-4 flex items-center gap-3">
+                <Activity className="w-5 h-5 text-blue-400" />
+                تشخيص النظام
+              </h3>
+              
+              <div className="space-y-3 mb-6">
+                {diagResults.map((res, i) => (
+                  <div key={i} className="text-xs font-black text-slate-300 bg-white/5 p-3 rounded-xl border border-white/5">
+                    {res}
+                  </div>
+                ))}
+                {diagResults.length === 0 && (
+                  <div className="text-center py-4 text-slate-500 text-xs">
+                    جاري البدء...
+                  </div>
+                )}
+              </div>
 
-            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-              <p className="text-slate-400 mb-1">Network Bridge:</p>
-              <p className={ (window as any).Capacitor?.isNativePlatform?.() ? "text-green-400" : "text-yellow-400" }>
-                { (window as any).Capacitor?.isNativePlatform?.() ? `NATIVE ULTIMATE (${VERSION})` : "WEB STANDARD" }
-              </p>
-            </div>
-
-            <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 mt-4">
-               <p className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Super Diagnostics ({VERSION})</p>
-               <div className="grid grid-cols-1 gap-2">
-                 <button 
-                   onClick={async () => {
-                     if (!confirm("سيتم مسح ذاكرة التحديثات تماماً وإعادة التشغيل. هل أنت متأكد؟")) return;
-                     try {
-                       const { Preferences } = await import('@capacitor/preferences');
-                       await Preferences.remove({ key: 'last_applied_ota_version' });
-                       await Preferences.remove({ key: 'last_check_time' });
-                       await Preferences.remove({ key: 'ota_last_reload_ts' });
-                       
-                       const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-                       await CapacitorUpdater.reset();
-                       
-                       alert("تم مسح ذاكرة التحديث بنجاح. سيتم إعادة تشغيل التطبيق الآن.");
-                       setTimeout(() => window.location.reload(), 1000);
-                     } catch (e: any) {
-                       alert(`فشل المسح: ${e.message}`);
-                     }
-                   }}
-                   className="w-full px-4 py-2 bg-yellow-600 rounded text-xs text-white hover:bg-yellow-700 transition-colors"
-                 >
-                   مسح ذاكرة التحديثات (Reset OTA)
-                 </button>
-                 <button 
-                   onClick={async () => {
-                     if (!confirm("تحذير: هذا الخيار سيمسح كل بيانات التطبيق والجلسات والذاكرة المؤقتة تماماً. هل أنت متأكد؟")) return;
-                     try {
-                       const { Preferences } = await import('@capacitor/preferences');
-                       await Preferences.clear();
-                       localStorage.clear();
-                       sessionStorage.clear();
-                       
-                       const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-                       await CapacitorUpdater.reset();
-                       
-                       alert("تم المسح الشامل بنجاح. سيتم إغلاق التطبيق، يرجى فتحه يدوياً.");
-                       const { App } = await import('@capacitor/app');
-                       await App.exitApp();
-                     } catch (e: any) {
-                       alert(`فشل المسح الشامل: ${e.message}`);
-                     }
-                   }}
-                   className="w-full px-4 py-2 bg-slate-700 rounded text-xs text-white hover:bg-slate-800 transition-colors"
-                 >
-                   مسح شامل للبيانات (Nuclear Reset)
-                 </button>
-               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              <button
+                onClick={() => setShowDiagnostics(false)}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all"
+              >
+                إغلاق
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Toast toasts={toasts} onRemove={removeToast} />
 
       {/* Premium Animated Background */}
@@ -617,10 +616,11 @@ const LoginPage = () => {
                   تصفير شامل
                 </button>
                 <button
-                  onClick={() => setShowDiagnostics(true)}
-                  className="bg-slate-500/5 hover:bg-slate-500/10 border border-slate-500/10 text-slate-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                  onClick={runFullDiagnostics}
+                  disabled={isDiagLoading}
+                  className="bg-slate-500/5 hover:bg-slate-500/10 border border-slate-500/10 text-slate-400/60 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2"
                 >
-                  التشخيص
+                  {isDiagLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "التشخيص"}
                 </button>
               </div>
             </div>
