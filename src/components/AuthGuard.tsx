@@ -76,13 +76,21 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
     return () => clearTimeout(timer);
   }, [loading, user, userRole, authorized, router, pathname]);
 
-  if (loading || (!user && pathname !== "/login")) {
+  if (loading) {
     return <AppLoader />;
   }
 
+  // V17.0.3: Persistent Shell - If we have a user, show children immediately.
+  // Don't unmount the whole app just because we are checking the user.
   if (user && authorized) {
     return <>{children}</>;
   }
 
-  return <AppLoader />;
+  // If not authorized but we have a user, it will be handled by the redirect timer.
+  // We show AppLoader only as a fallback for unauthorized or signed-out states.
+  if (!user && pathname !== "/login") {
+    return <AppLoader />;
+  }
+
+  return <>{children}</>;
 }

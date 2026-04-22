@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.3";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.3.apk`)}`;
+  const VERSION = "V17.0.4";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.4.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -321,15 +321,22 @@ const LoginPage = () => {
       setError(`خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
       setStatus("");
       setLoading(false);
+      setIsRedirecting(false); // V17.0.3: Reset if error
     }
   };
 
-  if (isRedirecting) {
-    return <AppLoader />;
-  }
-
   return (
     <div className="h-screen bg-[#020617] relative overflow-hidden font-sans flex flex-col items-center justify-center p-6" dir="rtl">
+      {/* V17.0.3: Non-blocking Redirection Overlay */}
+      {isRedirecting && (
+        <div className="fixed inset-0 z-[100] bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+            <p className="text-white font-black text-sm uppercase tracking-widest animate-pulse">جاري الدخول...</p>
+          </div>
+        </div>
+      )}
+
       {/* Diagnostics Overlay */}
       {showDiagnostics && (
         <div className="fixed inset-0 z-[9999] bg-slate-900/95 p-6 overflow-auto animate-in fade-in zoom-in duration-200" dir="rtl">

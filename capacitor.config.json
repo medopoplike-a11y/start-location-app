@@ -5,15 +5,18 @@
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https",
-    "hostname": "localhost"
+    "hostname": "localhost",
+    "cleartext": true,
+    "allowNavigation": ["*"]
   },
   "android": {
-    "allowMixedContent": false,
+    "allowMixedContent": true,
     "captureInput": true,
     "backgroundColor": "#020617",
     "buildOptions": {
       "releaseType": "APK"
-    }
+    },
+    "overScrollMode": "never"
   },
   "plugins": {
     "CapacitorHttp": {
