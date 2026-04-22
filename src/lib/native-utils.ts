@@ -364,7 +364,7 @@ export const checkForAutoUpdate = async (force = false) => {
     // V17.0.3: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.3.0"; // V17.3.0: Full Native Synchronization Update
+    const hardcodedVersion = "17.2.2"; // V17.2.2: True Native Fluid Scrolling Update
 
     // 1. If the DB version matches our hardcoded code (APK), skip update.
     // This prevents infinite reload loops when the APK already contains the latest code.

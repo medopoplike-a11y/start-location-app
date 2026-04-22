@@ -59,36 +59,36 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Cairo', sans-serif;
 
-    /* V17.2.1: Balanced Native Feel - Locked shell with fluid internal scrolling */
+    /* V17.2.2: True Native Feel - Fluid scrolling without browser artifacts */
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    overscroll-behavior-y: none; /* Keep preventing the browser-wide bounce */
+    overscroll-behavior-y: none; /* Prevent the full-page bounce */
     -webkit-overflow-scrolling: touch;
-    overflow: hidden; /* Body remains locked */
-    position: fixed; 
-    width: 100%;
-    height: 100%;
+    overflow-y: auto; /* Allow the body to scroll naturally */
+    overflow-x: hidden;
     background-color: #020617;
+    min-height: 100vh;
   }
 
-  /* Ensure all main content areas can scroll internally */
-  main, .overflow-y-auto {
+  /* Main containers should take full height and allow scrolling */
+  main {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Ensure internal scrollable areas work well with the main body scroll */
+  .overflow-y-auto {
     overflow-y: auto !important;
-    overscroll-behavior-y: contain; /* Prevents scrolling from leaking to the body */
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Custom Scrollbar Styling - Minimal and Native-like */
+  /* Custom Scrollbar Styling - Hidden for a cleaner Native look */
   ::-webkit-scrollbar {
-    width: 4px;
-  }
-  ::-webkit-scrollbar-track {
+    width: 0px;
     background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    display: none;
   }
 
   /* Prevent focus outline which looks web-like */
