@@ -73,20 +73,19 @@ const nativeFetch = async (url: string, options: any = {}) => {
     delete headers[authKey];
   }
 
-  try {
-    // V16.6.1: Intelligent Body handling
-    let requestData: any = undefined;
-    if (options.body) {
-      if (typeof options.body === 'string') {
-        try {
-          requestData = JSON.parse(options.body);
-        } catch {
-          requestData = options.body;
-        }
-      } else {
+  // V16.6.1: Intelligent Body handling
+  let requestData: any = undefined;
+  if (options.body) {
+    if (typeof options.body === 'string') {
+      try {
+        requestData = JSON.parse(options.body);
+      } catch {
         requestData = options.body;
       }
+    } else {
+      requestData = options.body;
     }
+  }
 
   // V16.6.7: Debug Logging for Authentication issues
   const hasAuth = !!headers['Authorization'];
@@ -147,7 +146,6 @@ const nativeFetch = async (url: string, options: any = {}) => {
     status: 500,
     headers: new Headers({ 'Content-Type': 'application/json' })
   });
-};
 };
 
 /**
