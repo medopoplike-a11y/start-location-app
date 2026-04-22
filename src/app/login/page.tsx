@@ -99,8 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.0.0";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.0.apk`)}`;
+  const VERSION = "V17.0.1";
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.0.1.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -182,10 +182,11 @@ const LoginPage = () => {
   };
 
   useEffect(() => {
-    if (mounted && globalConnectionStatus === 'idle') {
+    // V17.0.1: Skip connection check if we are already logged in and redirecting
+    if (mounted && globalConnectionStatus === 'idle' && !user && !isRedirecting) {
       checkConnection();
     }
-  }, [mounted]);
+  }, [mounted, user, isRedirecting]);
 
   const isInsideNativeApp = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 

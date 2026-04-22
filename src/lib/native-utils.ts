@@ -361,13 +361,22 @@ export const checkForAutoUpdate = async (force = false) => {
     
     console.log(`[Native-OTA] Local: ${appliedVersion} | DB: ${dbVersion}`);
 
-    // V17.0.0: Strict version normalization to prevent false positives
+    // V17.0.1: Smart Version Comparison - Prevent Rollbacks
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
+    const hardcodedVersion = "17.0.1"; // The version in this code
 
+    // 1. If we are already on this version, skip
     if (normalizedAppliedVersion === normalizedDbVersion && !force) {
       console.log('[Native-OTA] Version already applied. Skipping.');
       return { available: false, version: dbVersion, reason: 'SAME_VERSION' };
+    }
+
+    // 2. If the DB version is OLDER than our hardcoded code, DO NOT rollback
+    // This happens if the user hasn't updated the DB yet
+    if (normalizedDbVersion < hardcodedVersion && !force) {
+      console.warn(`[Native-OTA] DB has older version (${dbVersion}) than code (${hardcodedVersion}). Skipping rollback.`);
+      return { available: false, version: dbVersion, reason: 'PREVENT_ROLLBACK' };
     }
 
     if (!bundleUrl || !dbVersion) {

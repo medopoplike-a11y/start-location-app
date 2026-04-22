@@ -62,10 +62,12 @@ export const NativeBridge = () => {
       // 4. Check for Updates (OTA) in background (Non-blocking)
       const performOtaCheck = async () => {
         try {
-          // V17.0.0: Check if we just reloaded to prevent loops
+          // V17.0.1: Robust Reload Guard - Fixed NaN bug
           const { value: lastReload } = await (await import('@capacitor/preferences')).Preferences.get({ key: 'ota_last_reload_ts' });
           const now = Date.now();
-          if (lastReload && now - parseInt(lastReload) < 30000) {
+          const lastReloadTs = lastReload ? parseInt(lastReload) : 0;
+          
+          if (lastReloadTs > 0 && now - lastReloadTs < 30000) {
             console.log("NativeBridge: Skipping OTA check (just reloaded)");
             return;
           }
