@@ -28,14 +28,11 @@ export const refreshAppSession = async () => {
     // 2. Re-establish broadcast channel if dead
     await getBroadcastChannel();
 
-    // 3. Re-establish system broadcast (Handled by useSync, but we send a wake-up signal)
-    const channel = supabase.channel('system_sync');
-    // We don't subscribe here to avoid duplicate listeners, just send and forget
-    await channel.send({
-      type: 'broadcast',
-      event: 'app_wake_up',
-      payload: { ts: Date.now() }
-    });
+    // V17.4.7: REMOVED `app_wake_up` broadcast.
+    // useSync's visibility/appState handler already re-subscribes on resume,
+    // and broadcasting `app_wake_up` on top of that caused a SECOND full
+    // re-subscribe inside the same client (cascading channel rebuilds and
+    // duplicated initial fetches → "stale data on return from background").
 
     return session;
   } catch (e) {

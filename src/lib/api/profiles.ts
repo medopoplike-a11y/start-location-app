@@ -35,23 +35,45 @@ export const deleteUserByAdmin = async (id: string) => {
   return true;
 };
 
-export const subscribeToProfiles = (callback: (payload: any) => void) => {
-  const channel = supabase.channel('global:profiles');
+export const subscribeToProfiles = (
+  callback: (payload: any) => void,
+  opts: { role?: 'admin' | 'driver' | 'vendor'; userId?: string } = {}
+) => {
+  const { role = 'admin', userId } = opts;
+  // Use a per-role/per-user channel name so each client gets its own server-side
+  // filter — no more cross-talk where drivers receive other users' profile changes.
+  const channelName =
+    role === 'admin'
+      ? 'global:profiles'
+      : `profiles:${role}:${userId || 'anon'}`;
 
-  return channel
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+  // Server-side filter: non-admins only get changes for their OWN row. This
+  // dramatically cuts realtime traffic and prevents stale/foreign data from
+  // leaking into driver/vendor UIs.
+  const filter = role !== 'admin' && userId ? `id=eq.${userId}` : undefined;
+
+  const channel = supabase.channel(channelName);
+
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'profiles', filter },
+    (payload) => {
       const oldData = payload.old as any;
       const newData = payload.new as any;
       if (
-        !oldData || 
-        oldData.is_online !== newData.is_online || 
+        !oldData ||
+        oldData.is_online !== newData.is_online ||
         JSON.stringify(oldData.location) !== JSON.stringify(newData.location) ||
         oldData.is_locked !== newData.is_locked
       ) {
         callback({ ...payload, source: 'postgres' });
       }
-    })
-    .on('broadcast', { event: 'location_update' }, ({ payload }) => {
+    }
+  );
+
+  // Driver-location broadcast is only useful for the admin live map.
+  if (role === 'admin') {
+    channel.on('broadcast', { event: 'location_update' }, ({ payload }) => {
       callback({
         eventType: 'UPDATE',
         new: {
@@ -59,10 +81,12 @@ export const subscribeToProfiles = (callback: (payload: any) => void) => {
           name: payload.name,
           location: payload.location,
           is_online: true,
-          last_location_update: new Date().toISOString()
+          last_location_update: new Date().toISOString(),
         },
-        source: 'broadcast'
+        source: 'broadcast',
       });
-    })
-    .subscribe();
+    });
+  }
+
+  return channel.subscribe();
 };

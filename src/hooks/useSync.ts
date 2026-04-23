@@ -109,6 +109,8 @@ export const useSync = (
     newChannels.push(orderChannel);
 
     // ─── 2. Profiles channel ──────────────────────────────────────────────────
+    // V17.4.7: Server-side filter — non-admins only listen to their OWN profile.
+    // Admin still gets the global stream (needed for live map / driver registry).
     const profileChannel = subscribeToProfiles((payload) => {
       const changedProfile = payload.new || payload.payload?.new;
       const changedId = changedProfile?.id;
@@ -149,7 +151,7 @@ export const useSync = (
       if (!isAdmin && !isOwnProfile && isLocationOnlyUpdate) return;
 
       triggerUpdate({ source: 'profiles', event: payload.eventType, table: 'profiles', payload });
-    });
+    }, { role, userId });
     newChannels.push(profileChannel);
 
     // ─── 3. Wallet & Settlements ──────────────────────────────────────────────
@@ -179,10 +181,9 @@ export const useSync = (
         console.log("useSync: MAINTENANCE MODE update:", msg.payload?.active);
         triggerUpdate({ source: 'broadcast', payload: { type: 'maintenance', ...msg.payload } });
       })
-      .on('broadcast', { event: 'app_wake_up' }, () => {
-        console.log("useSync: RADICAL WAKE-UP event received. Re-subscribing...");
-        subscribe(); 
-      })
+      // V17.4.7: Removed `app_wake_up` listener — it was being triggered by
+      // refreshAppSession() in the same client, causing a second cascading
+      // re-subscribe right after the visibility handler had already done one.
       .subscribe();
     newChannels.push(systemSyncChannel);
 

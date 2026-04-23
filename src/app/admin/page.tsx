@@ -631,26 +631,6 @@ function AdminContent() {
     return () => clearInterval(interval);
   }, [autoRetryEnabled, activeView, liveOrders, vendors, addActivity]);
 
-  // V17.2.7: Unified Sync Engine
-  useSync(user?.id, (payload) => {
-    console.log("[AdminSync] Global sync update received:", payload?.source);
-    
-    // 1. Immediate data refresh on relevant events
-    if (payload?.source === 'orders' || payload?.source === 'system_sync' || payload?.source === 'app_resume') {
-      fetchData(false); // Refresh live orders
-    }
-    
-    // 2. Handle global alerts
-    if (payload?.payload?.type === 'system_alert') {
-      toastSuccess(payload.payload.message);
-    }
-    
-    // 3. Handle location updates for the live map
-    if (payload?.source === 'location_update' && payload?.payload) {
-      updateDriverRegistry(payload.payload, 'realtime');
-    }
-  }, 'admin');
-
   // 8. Background Refresh Loop for Driver Status (Fallback)
   useEffect(() => {
     if (!mounted || activeView !== "operations") return;
@@ -682,6 +662,12 @@ function AdminContent() {
 
   const { lastSync, isSyncing, triggerUpdate } = useSync(user?.id, (payload) => {
     if (mounted && !authLoading && user) {
+
+      // ── Global system alerts ──
+      if (payload?.payload?.type === 'system_alert') {
+        toastSuccess(payload.payload.message);
+        return;
+      }
 
       // ── Real-time driver location broadcast (highest priority, no DB fetch needed) ──
       if (payload?.source === 'location_update') {
@@ -730,7 +716,7 @@ function AdminContent() {
       console.log(`[Admin-Sync] Structural change detected: ${payload?.source || payload?.table}. Fetching data...`);
       fetchData();
     }
-  }, true);
+  }, 'admin');
 
   useEffect(() => {
     setMounted(true);

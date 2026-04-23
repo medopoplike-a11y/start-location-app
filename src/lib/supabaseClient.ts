@@ -220,24 +220,40 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// V17.3.8: Safe Realtime Health Monitor
+// V17.4.7: Safe Realtime Health Monitor
+// The newer @supabase/realtime-js exposes connection events on the underlying
+// `conn` (Phoenix) socket, not on `realtime` directly — wiring `.on()` to
+// `realtime` itself throws "supabase.realtime.on is not a function". We attach
+// to the actual socket once it exists, and silently no-op if unavailable.
 if (typeof window !== 'undefined' && supabase.realtime) {
   try {
-    // Standard RealtimeClient events use .on()
-    supabase.realtime.on('open', () => {
-      console.log("[Realtime] Connection established successfully");
-      (window as any).__START_LOCATION_CONNECTED = true;
-    });
-
-    supabase.realtime.on('error', (err: any) => {
-      console.warn("[Realtime] Connection error, system will retry silently:", err);
-    });
-
-    supabase.realtime.on('close', () => {
-      console.log("[Realtime] Connection closed, preparing for smart reconnect");
-    });
-  } catch (e) {
-    console.warn("[Realtime] Monitor setup failed:", e);
+    const rt: any = supabase.realtime;
+    const attach = () => {
+      const sock = rt?.conn;
+      if (!sock || typeof sock.addEventListener !== 'function') return false;
+      sock.addEventListener('open', () => {
+        console.log("[Realtime] Connection established");
+        (window as any).__START_LOCATION_CONNECTED = true;
+      });
+      sock.addEventListener('close', () => {
+        console.log("[Realtime] Connection closed");
+        (window as any).__START_LOCATION_CONNECTED = false;
+      });
+      sock.addEventListener('error', (err: any) => {
+        console.warn("[Realtime] Connection error (will auto-retry):", err?.message || err);
+      });
+      return true;
+    };
+    // Try now; if the socket isn't open yet, retry briefly without spamming.
+    if (!attach()) {
+      let tries = 0;
+      const t = setInterval(() => {
+        tries += 1;
+        if (attach() || tries > 10) clearInterval(t);
+      }, 500);
+    }
+  } catch (_) {
+    // Silent — the monitor is purely informational and must never crash boot.
   }
 }
 

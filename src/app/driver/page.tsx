@@ -11,7 +11,7 @@ import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/li
 import { fetchOrders, updateOrderStatus } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabaseClient";
 import { requestAIAnalysis } from "@/lib/api/ai";
-import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, onAppResume, requestBatteryOptimizationExemption } from "@/lib/native-utils";
+import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, requestBatteryOptimizationExemption } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
@@ -165,18 +165,11 @@ export default function DriverApp() {
 
   const [showBatteryAlert, setShowBatteryAlert] = useState(false);
 
-  // V1.6.0: Radical Wake-up logic for Background persistence
-  useEffect(() => {
-    if (!driverId) return;
-    
-    console.log("App: Initializing Wake-up listener for Driver...");
-    const cleanup = onAppResume(() => {
-      console.log("App: Driver resumed, force refreshing data...");
-      manualSync();
-    });
-
-    return () => cleanup();
-  }, [driverId]);
+  // V17.4.7: Removed redundant onAppResume → manualSync wiring.
+  // useSync already handles app resume (visibility + Capacitor appStateChange)
+  // and triggers a fresh fetch via the page's onUpdate callback. Calling
+  // manualSync from a second listener caused 2-3 overlapping refreshes on every
+  // return-from-background, which produced the "stale/scattered data" feel.
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
@@ -819,7 +812,8 @@ export default function DriverApp() {
         isRefreshingRef.current = false;
         syncTimeoutRef.current = null;
       }
-    }, 1000); // 1 second debounce
+    }, 250); // V17.4.7: 250ms (was 1000ms) — useSync already debounces by 100ms,
+              // a long secondary debounce just made everything feel laggy.
   };
 
   // V17.2.7: Unified Sync Engine

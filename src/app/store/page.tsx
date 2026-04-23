@@ -19,7 +19,7 @@ import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/li
 import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus } from "@/lib/api/orders";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, onAppResume } from "@/lib/native-utils";
+import { getCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -76,18 +76,11 @@ function StoreContent() {
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // V1.6.0: Radical Wake-up logic for Background persistence
-  useEffect(() => {
-    if (!vendorId) return;
-    
-    console.log("App: Initializing Wake-up listener for Store...");
-    const cleanup = onAppResume(() => {
-      console.log("App: Store resumed, force refreshing data...");
-      updateData(vendorId);
-    });
-
-    return () => cleanup();
-  }, [vendorId]);
+  // V17.4.7: Removed redundant onAppResume → updateData wiring.
+  // useSync already handles app resume (visibility + Capacitor appStateChange)
+  // and triggers updateData via the page's onUpdate callback. The duplicate
+  // listener caused the store to fire 2-3 overlapping refreshes whenever the
+  // user returned from the background, surfacing momentarily-stale data.
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {
