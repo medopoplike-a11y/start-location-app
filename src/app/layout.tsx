@@ -39,7 +39,13 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          forcedTheme={undefined}
+          disableTransitionOnChange
+        >
           <AuthProvider>
             <AppWrapper>
               {children}
