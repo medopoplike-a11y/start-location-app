@@ -28,9 +28,7 @@ const nextConfig = {
     IS_BUILDING: process.env.BUILD_TYPE === 'static' ? 'true' : 'false',
     NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
-  turbopack: {
-    root: __dirname,
-  },
+  turbopack: {},
   webpack: (config) => {
     config.watchOptions = {
       ignored: ['**/android/**', '**/android/app/**'],

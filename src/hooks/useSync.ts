@@ -43,28 +43,6 @@ export const useSync = (
     // V17.1.0: Allow forcing an update even for 'initial_subscribe'
     if (payload?.source === 'initial_subscribe' && !payload?.force) return;
 
-    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-
-    syncTimeoutRef.current = setTimeout(() => {
-      if (!isMountedRef.current) return;
-      setIsSyncing(true);
-      if (onUpdateRef.current) onUpdateRef.current(payload);
-      setLastSync(new Date());
-      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 500);
-      syncTimeoutRef.current = null;
-    }, 100);
-  }, []);
-
-  /**
-   * DEBOUNCED SYNC — 100ms debounce for snappy real-time feel while still
-   * grouping burst updates (e.g. driver location flood) into a single render.
-   */
-  const triggerUpdate = useCallback((payload?: any) => {
-    if (!isMountedRef.current) return;
-    
-    // V17.1.0: Allow forcing an update even for 'initial_subscribe'
-    if (payload?.source === 'initial_subscribe' && !payload?.force) return;
-
     // V17.4.9: If it's a critical broadcast update, pass it through immediately
     // without waiting for the debounce to finish, to ensure zero-latency feel.
     if (payload?.source === 'system_sync' || payload?.source === 'new_order' || payload?.source === 'order_update') {
@@ -76,8 +54,11 @@ export const useSync = (
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
       if (!isMountedRef.current) return;
+      setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
+      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 500);
+      syncTimeoutRef.current = null;
     }, 100);
   }, []);
 
