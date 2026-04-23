@@ -825,12 +825,18 @@ export default function DriverApp() {
     console.log("[DriverSync] Global sync update received:", payload?.source);
 
     // 1. Reset locks on resume/focus
-    if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+    if (payload?.source === 'app_resume_start' || payload?.source === 'app_hard_resume' || payload?.source === 'visibility_change') {
       isRefreshingRef.current = false;
+      setIsRefreshing(true); // Show loader immediately for feedback
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
         syncTimeoutRef.current = null;
       }
+    }
+
+    if (payload?.source === 'app_hard_resume') {
+      // V17.5.0: Hard Sync - Clear orders to prevent data overlap from old state
+      setOrders([]);
     }
 
     // 2. Handle global alerts
@@ -839,7 +845,33 @@ export default function DriverApp() {
       return;
     }
 
-    // 3. Trigger data refresh
+    // V17.4.9: Snappy Partial Updates
+    // If we have the full order object in the payload, inject it into local state
+    // immediately to avoid an expensive fetch cycle.
+    if (payload?.order) {
+      console.log("[DriverSync] Partial update received for order:", payload.order.id);
+      setOrders(prev => {
+        const index = prev.findIndex(o => o.id === payload.order.id);
+        if (index > -1) {
+          // Update existing
+          const newOrders = [...prev];
+          newOrders[index] = { ...newOrders[index], ...payload.order };
+          return newOrders;
+        } else if (payload.order.status === 'pending' || payload.order.driver_id === driverId) {
+          // Add new if relevant
+          return [payload.order, ...prev];
+        }
+        return prev;
+      });
+      
+      // Still trigger a silent background sync to keep SQLite in sync
+      if (Capacitor.isNativePlatform()) {
+        dbService.saveOrder(payload.order).catch(() => {});
+      }
+      return; // Skip full manualSync
+    }
+
+    // 3. Trigger full data refresh for general events
     if (!isRefreshingRef.current) {
       manualSync(payload);
     }

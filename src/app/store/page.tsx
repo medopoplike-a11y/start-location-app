@@ -382,13 +382,18 @@ function StoreContent() {
     console.log("[StoreSync] Global sync update received:", payload?.source);
 
     // 1. Reset locks on resume/focus
-    if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+    if (payload?.source === 'app_resume_start' || payload?.source === 'app_hard_resume' || payload?.source === 'visibility_change') {
       isSyncingRef.current = false;
-      setIsSyncing(false);
+      setIsSyncing(true); // Show loader immediately for feedback
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+    }
+
+    if (payload?.source === 'app_hard_resume') {
+      // V17.5.0: Hard Sync - Clear orders to prevent data overlap from old state
+      setOrders([]);
     }
 
     // 2. Handle global alerts
@@ -397,7 +402,30 @@ function StoreContent() {
       return;
     }
 
-    // 3. Trigger data refresh
+    // V17.4.9: Snappy Partial Updates
+    if (payload?.order) {
+      console.log("[StoreSync] Partial update received for order:", payload.order.id);
+      
+      // Only accept if it belongs to this vendor
+      if (payload.order.vendor_id === vendorId) {
+        setOrders(prev => {
+          const index = prev.findIndex(o => o.id === payload.order.id);
+          if (index > -1) {
+            const newOrders = [...prev];
+            newOrders[index] = { ...newOrders[index], ...payload.order };
+            return newOrders;
+          }
+          return [payload.order, ...prev];
+        });
+
+        if (Capacitor.isNativePlatform()) {
+          dbService.saveOrder(payload.order).catch(() => {});
+        }
+        return;
+      }
+    }
+
+    // 3. Trigger full data refresh
     updateData(vendorId);
   }, 'vendor');
 

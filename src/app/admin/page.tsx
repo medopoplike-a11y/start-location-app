@@ -550,8 +550,14 @@ function AdminContent() {
 
     // On app resume or tab-focus, reset the fetching lock in case it got stuck
     // while the app was backgrounded (fetch interrupted on native platforms).
-    if (payload?.source === 'app_resume' || payload?.source === 'visibility_change') {
+    if (payload?.source === 'app_resume_start' || payload?.source === 'app_hard_resume' || payload?.source === 'visibility_change') {
       isDataFetchingRef.current = false;
+      setLoading(true); // Show loader immediately for feedback
+    }
+
+    if (payload?.source === 'app_hard_resume') {
+      // V17.5.0: Hard Sync - Clear orders to prevent data overlap from old state
+      setLiveOrders([]);
     }
     
     // V1.4.0: Optimized real-time location and status updates
@@ -666,6 +672,22 @@ function AdminContent() {
       // ── Global system alerts ──
       if (payload?.payload?.type === 'system_alert') {
         toastSuccess(payload.payload.message);
+        return;
+      }
+
+      // V17.4.9: Snappy Partial Order Updates
+      if (payload?.order) {
+        console.log("[AdminSync] Partial update received for order:", payload.order.id);
+        setLiveOrders(prev => {
+          const index = prev.findIndex(o => o.id_full === payload.order.id);
+          const mappedOrder = mapOrderData(payload.order);
+          if (index > -1) {
+            const newOrders = [...prev];
+            newOrders[index] = { ...newOrders[index], ...mappedOrder };
+            return newOrders;
+          }
+          return [mappedOrder, ...prev];
+        });
         return;
       }
 

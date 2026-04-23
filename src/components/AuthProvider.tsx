@@ -119,7 +119,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // 1. Initial Session Load
+  useEffect(() => {
+    // V17.5.0: Hard Sync & Background Stability
     const initAuth = async () => {
       try {
         console.log("[AuthV16.9.3] Standard session check...");

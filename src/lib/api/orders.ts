@@ -60,7 +60,12 @@ export const fetchOrders = async (options: {
 
   // Persist fresh remote results into the local cache (native only).
   if (Capacitor.isNativePlatform() && data && data.length > 0) {
-    Promise.all(data.map((o) => dbService.saveOrder(o).catch(() => {}))).catch(() => {});
+    // V17.4.9: Sequential persistence to avoid SQLite busy errors in high-load
+    (async () => {
+      for (const o of data) {
+        await dbService.saveOrder(o).catch(() => {});
+      }
+    })();
   }
 
   return data;
@@ -77,19 +82,25 @@ export const updateOrderStatus = async (orderId: string, status: string, driverI
     .from('orders')
     .update(updates)
     .eq('id', orderId)
-    .select()
+    .select('*, vendor:vendor_id(full_name, phone, location, area), driver:driver_id(full_name, phone)')
     .single();
 
   if (error) throw error;
 
-  // Unified Broadcast for real-time sync
+  // Unified Broadcast for real-time sync - V17.4.9: Include full order data
   const channel = supabase.channel('system_sync');
   await channel.subscribe(async (subStatus) => {
     if (subStatus === 'SUBSCRIBED') {
       await channel.send({
         type: 'broadcast',
         event: 'sync-update',
-        payload: { orderId, status, updatedAt: updates.status_updated_at }
+        payload: { 
+          source: 'order_update',
+          orderId, 
+          status, 
+          updatedAt: updates.status_updated_at,
+          order: data // Include the full order object to skip re-fetching
+        }
       });
       supabase.removeChannel(channel);
     }
@@ -102,10 +113,28 @@ export const createOrder = async (orderData: any) => {
   const { data, error } = await supabase
     .from('orders')
     .insert([orderData])
-    .select()
+    .select('*, vendor:vendor_id(full_name, phone, location, area), driver:driver_id(full_name, phone)')
     .single();
 
   if (error) throw error;
+
+  // V17.4.9: Broadcast new order to all relevant listeners (especially drivers for pending orders)
+  const channel = supabase.channel('system_sync');
+  await channel.subscribe(async (subStatus) => {
+    if (subStatus === 'SUBSCRIBED') {
+      await channel.send({
+        type: 'broadcast',
+        event: 'sync-update',
+        payload: { 
+          source: 'new_order',
+          orderId: data.id,
+          order: data
+        }
+      });
+      supabase.removeChannel(channel);
+    }
+  });
+
   return data;
 };
 

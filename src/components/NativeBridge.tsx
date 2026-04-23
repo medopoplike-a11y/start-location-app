@@ -32,15 +32,15 @@ export const NativeBridge = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
-      // V17.3.9: HARD RESET GUARD - Clear stale sessions on version upgrade
+      // V17.4.9: HARD RESET GUARD - Clear stale sessions on version upgrade
       // This prevents "Ghost Logins" and "Empty Systems" caused by Android Auto Backup
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value: lastBootVersion } = await Preferences.get({ key: 'app_last_boot_version' });
-        const CURRENT_VERSION = "17.3.9";
+        const CURRENT_VERSION = "17.5.0";
 
         if (lastBootVersion !== CURRENT_VERSION) {
-          console.log(`NativeBridge: [V17.3.9] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
+          console.log(`NativeBridge: [V17.5.0] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
           
           // Only clear auth-related data to avoid losing important user settings
           const sessionKey = 'start-location-v1-session';
