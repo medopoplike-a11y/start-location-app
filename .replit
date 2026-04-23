@@ -1,7 +1,8 @@
-modules = ["nodejs-20", "bash"]
+modules = ["bash", "nodejs-22"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]
+stack = "BEST_EFFORT_FALLBACK"
 
 [nix]
 channel = "stable-25_05"
