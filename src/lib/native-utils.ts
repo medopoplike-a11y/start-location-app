@@ -373,7 +373,9 @@ export const checkForAutoUpdate = async (force = false) => {
 
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.4.4";
+    // V17.4.5: Now read from the build-injected NEXT_PUBLIC_APP_VERSION so we
+    // never have to edit two places when bumping. Falls back to "0.0.0" if missing.
+    const hardcodedVersion = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
     // Already on this version
     if (compareVersions(normalizedDbVersion, hardcodedVersion) === 0 && !force) {

@@ -134,7 +134,7 @@ const LoginPage = () => {
       } else {
         setStatus("");
         const { showNativeToast } = await import("@/lib/native-utils");
-        await showNativeToast("تطبيقك يعمل بأحدث إصدار مستقر (V17.3.9)");
+        await showNativeToast(`تطبيقك يعمل بأحدث إصدار مستقر (${VERSION})`);
       }
     } catch (e: any) {
       setError(`فشل التحديث: ${e.message || "حاول مرة أخرى"}`);
@@ -143,8 +143,11 @@ const LoginPage = () => {
     }
   };
 
-  const VERSION = "V17.3.9";
-  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v17.3.9.apk`)}`;
+  // V17.4.5: Version is read from package.json at build time via next.config.mjs.
+  // Any future bump to package.json automatically appears here — no manual edits.
+  const RAW_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
+  const VERSION = `V${RAW_VERSION}`;
+  const apkUrlV = `${FALLBACK_APK_URL.replace('start-location.apk', `start-location-v${RAW_VERSION}.apk`)}`;
 
   const router = useRouter();
   const { user, profile } = useAuth();
