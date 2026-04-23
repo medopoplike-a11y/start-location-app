@@ -19,7 +19,7 @@ import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/li
 import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus } from "@/lib/api/orders";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, onAppResume, startBackgroundTracking, stopBackgroundTracking } from "@/lib/native-utils";
+import { getCache, onAppResume } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -116,7 +116,6 @@ function StoreContent() {
   const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
   const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
   const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
-  const backgroundWatcherRef = useRef<string | null>(null);
   
   // V1.4.2: Store AI States
   const [showStoreAI, setShowStoreAI] = useState(false);
@@ -231,31 +230,12 @@ function StoreContent() {
     }
   };
 
-  // V1.8.0: Radical Background Sync for Store
-  useEffect(() => {
-    let isMounted = true;
-    const startSync = async () => {
-      if (!vendorId || !Capacitor.isNativePlatform() || !isMounted) return;
-      
-      if (!backgroundWatcherRef.current) {
-        const bId = await startBackgroundTracking(vendorId, vendorName, 'vendor');
-        if (isMounted && bId) {
-          backgroundWatcherRef.current = bId;
-          console.log("Store: Background sync started", bId);
-        }
-      }
-    };
-    
-    startSync();
-    
-    return () => {
-      isMounted = false;
-      if (backgroundWatcherRef.current) {
-        stopBackgroundTracking(backgroundWatcherRef.current);
-        backgroundWatcherRef.current = null;
-      }
-    };
-  }, [vendorId]);
+  // V17.4.3: Removed continuous background GPS tracking for stores.
+  // The store is a fixed location — it should NOT be tracked continuously.
+  // Location is updated ONCE manually from the Settings screen via
+  // `handleUpdateLocation` (single getCurrentPosition call).
+  // Realtime order delivery still works through useSync (Supabase channels).
+  // No background watcher, no permanent notification, no constant DB writes.
 
   const [formData, setFormData] = useState({
     customer: "",

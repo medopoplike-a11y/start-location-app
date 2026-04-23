@@ -373,7 +373,7 @@ export const checkForAutoUpdate = async (force = false) => {
 
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.4.2";
+    const hardcodedVersion = "17.4.3";
 
     // Already on this version
     if (compareVersions(normalizedDbVersion, hardcodedVersion) === 0 && !force) {
@@ -474,6 +474,15 @@ const getFreshAccessToken = async (): Promise<string> => {
 
 export const startBackgroundTracking = async (userId: string, name?: string, role: 'driver' | 'vendor' | 'admin' = 'driver', onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   if (!isNative() || !userId) return null;
+
+  // V17.4.3: HARD GUARD — only drivers get continuous background GPS tracking.
+  // Vendors (stores) are fixed locations and update manually; admins don't need GPS.
+  // This prevents any caller from accidentally re-enabling battery-draining
+  // background location for non-driver roles.
+  if (role !== 'driver') {
+    console.log(`[BG-Tracking] Skipped for role="${role}" — only drivers are tracked continuously.`);
+    return null;
+  }
 
   try {
     const plugins = (Capacitor as unknown as { Plugins?: Record<string, any> }).Plugins;
