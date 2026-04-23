@@ -202,15 +202,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   realtime: {
     params: {
-      events_per_second: 20, // V17.2.0: Higher frequency for critical logistics
+      // V17.4.0: Reduced from 20 → 5 to lower realtime server pressure.
+      // 5 events/sec is more than enough for logistics order updates and prevents
+      // the connection from being throttled or dropped under burst load.
+      events_per_second: 5,
     },
-    // V17.2.0: MAXIMUM REALTIME AGGRESSION
     config: {
-      broadcast: { self: true, ack: true },
+      // V17.4.0: STABILITY OVER AGGRESSION
+      // - self:false → don't receive your own broadcasts (was doubling traffic)
+      // - ack:false  → no per-broadcast acknowledgment (was adding round-trips)
+      // For driver location pings, occasional loss is acceptable; the next ping
+      // arrives in <5s anyway. This dramatically reduces network chatter.
+      broadcast: { self: false, ack: false },
       presence: { key: 'user' },
     },
-    // Tight timeouts to force reconnection faster if network drops
-    timeout: 20000, // V17.3.7: Increased to 20s for better stability on slow networks
+    timeout: 30000, // V17.4.0: 30s to tolerate brief mobile network stalls without dropping
   }
 });
 

@@ -205,19 +205,29 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     isMountedRef.current = true;
     subscribe();
 
-    // Heartbeat every 60 seconds — forces a data refresh and checks connection
+    // V17.4.0: Silent heartbeat every 120s.
+    // - Doubled interval (60s → 120s) to halve background load.
+    // - No more forced UI refresh every minute (caused needless re-renders + flicker).
+    // - Only re-connect on disconnect; do NOT tear down all 5 channels unless we
+    //   were actually disconnected for 2 consecutive checks (debounce).
+    let consecutiveDownChecks = 0;
     const heartbeat = setInterval(() => {
-      console.log("useSync: Heartbeat — checking connection and forcing refresh");
-      
-      // V17.0.8: Aggressive Reconnection Logic
-      if (!supabase.realtime.isConnected()) {
-        console.warn("useSync: Realtime disconnected, attempting to reconnect...");
-        supabase.realtime.connect();
-        subscribe(); // Full re-subscribe
+      const live = supabase.realtime.isConnected();
+      if (live) {
+        consecutiveDownChecks = 0;
+        return; // healthy → do nothing, no re-render, no log spam
       }
-      
-      triggerUpdate({ source: 'heartbeat' });
-    }, 60 * 1000);
+      consecutiveDownChecks += 1;
+      console.warn(`useSync: Heartbeat detected disconnect (#${consecutiveDownChecks})`);
+      // First detection: try a soft reconnect only.
+      try { supabase.realtime.connect(); } catch (_) {}
+      // Only do a full re-subscribe after 2 consecutive failures (≥2 minutes down).
+      if (consecutiveDownChecks >= 2) {
+        console.warn("useSync: Persistent disconnect — full re-subscribe");
+        subscribe();
+        consecutiveDownChecks = 0;
+      }
+    }, 120 * 1000);
 
     return () => {
       isMountedRef.current = false;
@@ -230,7 +240,10 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
   // ─── Visibility / App-state listeners ─────────────────────────────────────
   useEffect(() => {
     let lastResumeTime = 0;
-    const RESUME_COOLDOWN = 2000; // 2s cooldown to prevent double-resume logic
+    // V17.4.0: Increased from 2s → 8s. Prevents the resume logic from firing
+    // multiple times when a user quickly switches between apps or when the OS
+    // sends overlapping visibility/focus/appState/network events.
+    const RESUME_COOLDOWN = 8000;
 
     const handleResume = async (source: string) => {
       const now = Date.now();
@@ -275,10 +288,12 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
       }
     };
 
-    const handleFocus = () => triggerUpdate({ source: 'focus' });
-
+    // V17.4.0: Removed the `focus` listener entirely.
+    // It was firing a triggerUpdate on every window/tab focus change, causing
+    // unnecessary refetches whenever the user tapped on the app. The
+    // `visibilitychange` listener already covers the meaningful case
+    // (app coming back to foreground), and Capacitor's appStateChange covers native.
     window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
 
     let appStateListener: any;
     let networkListener: any;
@@ -307,7 +322,6 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
       if (appStateListener) appStateListener.remove();
       if (networkListener) networkListener.remove();
     };

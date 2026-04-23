@@ -16,15 +16,30 @@ export const SyncIndicator = ({ lastSync, isSyncing = false, onReset }: SyncIndi
   const [isConnected, setIsConnected] = useState(true);
 
   useEffect(() => {
+    // V17.4.0: Stability — poll every 3s instead of 1s to reduce battery/CPU drain.
+    // Add hysteresis: only flip to "disconnected" after 8 consecutive seconds of being
+    // disconnected, so brief network blips don't flash the red indicator.
+    let consecutiveDisconnectMs = 0;
+    const POLL_MS = 3000;
+    const DISCONNECT_THRESHOLD_MS = 8000;
+
     const interval = setInterval(() => {
       const seconds = Math.floor((new Date().getTime() - lastSync.getTime()) / 1000);
       if (seconds < 5) setTimeAgo("الآن");
       else if (seconds < 60) setTimeAgo(`منذ ${seconds} ثانية`);
       else setTimeAgo(`منذ ${Math.floor(seconds / 60)} دقيقة`);
-      
-      // V17.0.8: Check real-time connection status
-      setIsConnected(supabase.realtime.isConnected());
-    }, 1000);
+
+      const live = supabase.realtime.isConnected();
+      if (live) {
+        consecutiveDisconnectMs = 0;
+        setIsConnected(true);
+      } else {
+        consecutiveDisconnectMs += POLL_MS;
+        if (consecutiveDisconnectMs >= DISCONNECT_THRESHOLD_MS) {
+          setIsConnected(false);
+        }
+      }
+    }, POLL_MS);
     return () => clearInterval(interval);
   }, [lastSync]);
 
