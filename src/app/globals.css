@@ -68,7 +68,11 @@
     overflow-y: auto;
     overflow-x: hidden;
     touch-action: pan-y; /* CRITICAL: Allows vertical scrolling from any point */
-    background-color: #020617;
+    /* V17.4.7: REMOVED hardcoded `background-color: #020617;` here.
+       It was overriding `var(--page-bg)` from line 52, freezing the page
+       on the dark color regardless of theme. As a result the app always
+       LOOKED dark and the toggle button changed nothing visible.
+       Now the CSS variable defined in :root (light) / .dark (dark) wins. */
     min-height: 100vh;
     height: auto;
     width: 100%;
