@@ -373,7 +373,7 @@ export const checkForAutoUpdate = async (force = false) => {
 
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.4.3";
+    const hardcodedVersion = "17.4.4";
 
     // Already on this version
     if (compareVersions(normalizedDbVersion, hardcodedVersion) === 0 && !force) {
@@ -505,13 +505,17 @@ export const startBackgroundTracking = async (userId: string, name?: string, rol
       return null;
     }
 
-    // 2. ADAPTIVE Background Config (V17.3.9 - Network Aware)
+    // V17.4.4: Natural-pace tracking — admin still gets live view but the
+    // network and battery are no longer hammered.
     let lastDbUpdate = 0;
-    // Drivers: 5s (balanced), Others: 20s
-    const DB_UPDATE_INTERVAL = role === 'driver' ? 5000 : 20000; 
-    
+    const DB_UPDATE_INTERVAL = 8000;          // DB write at most every 8s
+    let lastBroadcast = 0;
+    const BROADCAST_INTERVAL = 4000;          // Realtime broadcast every 4s
+    let lastLogInsert = 0;
+    const LOG_INSERT_INTERVAL = 30 * 1000;    // History row every 30s (not 5s)
+
     let lastHeartbeatUpdate = 0;
-    const HEARTBEAT_DB_INTERVAL = 90 * 1000; // 1.5 minutes for heartbeat
+    const HEARTBEAT_DB_INTERVAL = 90 * 1000;  // 1.5 minutes for heartbeat
 
     const bgMessage = role === 'driver' 
       ? "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق"
@@ -521,28 +525,31 @@ export const startBackgroundTracking = async (userId: string, name?: string, rol
       ? "ستارت: تتبع الموقع (وضع الاستمرارية)"
       : "ستارت: مزامنة البيانات (وضع الاستمرارية)";
 
-    // Start the main watcher
+    // V17.4.4: Driver tracking is continuous but at a NATURAL pace.
+    // - GPS sample every 5s (was 1s) — admin sees a smooth live trail without spam
+    // - 8m distance filter — won't fire on every step or GPS jitter
+    // - 20m stationary radius — silent when driver is parked at a stop
     const mainWatcherId = await BackgroundGeolocation.addWatcher(
       {
         backgroundMessage: bgMessage,
         backgroundTitle: bgTitle,
         requestPermissions: true,
-        staleLocationInterval: 3000,
-        distanceFilter: role === 'driver' ? 1 : 10, 
+        staleLocationInterval: 10000,
+        distanceFilter: 8,
         persist: true,
-        forceAccuracy: role === 'driver',
-        stationaryRadius: role === 'driver' ? 1 : 20,
+        forceAccuracy: true,
+        stationaryRadius: 20,
         notificationTitle: bgTitle,
         notificationText: bgMessage,
         notificationIconColor: "#f97316",
-        notificationImportance: 5,
+        notificationImportance: 4,
         priority: 2,
-        interval: role === 'driver' ? 1000 : 10000,
-        fastestInterval: 500,
-        activitiesInterval: 3000,
+        interval: 5000,
+        fastestInterval: 3000,
+        activitiesInterval: 10000,
         stopOnTerminate: false,
         startOnBoot: true,
-        heartbeatInterval: 20,
+        heartbeatInterval: 60,
         enableHeadless: true
       },
       async (location: any, error: any) => {
@@ -566,8 +573,11 @@ export const startBackgroundTracking = async (userId: string, name?: string, rol
           };
           if (onUpdate) onUpdate(loc);
 
-          // Only drivers broadcast location
-          if (role === 'driver') {
+          // V17.4.4: Throttle realtime broadcasts to BROADCAST_INTERVAL (4s).
+          // Without this, GPS callbacks (every 5s natively but burst-prone) could
+          // flood the realtime channel with multiple drivers broadcasting at once.
+          if (role === 'driver' && now - lastBroadcast >= BROADCAST_INTERVAL) {
+            lastBroadcast = now;
             sendLocationBroadcast(userId, loc, name);
           }
 
@@ -617,8 +627,12 @@ export const startBackgroundTracking = async (userId: string, name?: string, rol
                 headers
               })
             );
-            
-            if (location?.latitude) {
+
+            // V17.4.4: Insert location_logs row only every 30s (was every 5s).
+            // location_logs is a history table for trip replay — 30s granularity
+            // is more than enough and keeps DB writes manageable across many drivers.
+            if (location?.latitude && now - lastLogInsert >= LOG_INSERT_INTERVAL) {
+              lastLogInsert = now;
               requests.push(
                 CapacitorHttp.post({
                   url: `${SUPABASE_URL}/rest/v1/location_logs`,
