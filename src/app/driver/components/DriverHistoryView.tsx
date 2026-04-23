@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp, Eye, User } from "lucide-react";
-import type { DBDriverOrder } from "../types";
+import type { Order } from "../types";
 
 interface DriverHistoryViewProps {
-  history: DBDriverOrder[];
+  history: Order[];
   onPreviewImage?: (url: string) => void;
 }
 
@@ -18,8 +18,8 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
 
   const now = new Date();
 
-  const filtered = history.filter((o) => {
-    const updatedAt = o.status_updated_at || o.created_at;
+  const filtered = (Array.isArray(history) ? history : []).filter((o) => {
+    const updatedAt = o.statusUpdatedAt || (o as any).created_at;
     if (!updatedAt) return filter === "today";
     const d = new Date(updatedAt);
     if (filter === "today") {
@@ -194,9 +194,9 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">تفاصيل التوصيل</p>
                             
                             {/* Check for multi-customers (Sikka) */}
-                            {order.customer_details?.customers && order.customer_details.customers.length > 0 ? (
+                            {order.customers && order.customers.length > 0 ? (
                               <div className="space-y-3">
-                                {order.customer_details.customers.map((c: any, i: number) => (
+                                {order.customers.map((c: any, i: number) => (
                                   <div key={i} className="flex items-start gap-2 border-r-2 border-sky-200 pr-2">
                                     <div className="flex-1">
                                       <p className="text-[11px] font-black text-slate-800">{c.name}</p>
@@ -215,37 +215,35 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
                                   <User className="w-3.5 h-3.5 text-slate-400" />
-                                  {order.customer_details?.name || order.customer || "عميل"}
+                                  {order.customer || "عميل"}
                                 </div>
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
                                   <MapPin className="w-3.5 h-3.5 text-red-400" />
-                                  {order.customer_details?.address || order.address}
+                                  {order.address}
                                 </div>
                               </div>
                             )}
                           </div>
                           
-                          {!order.customer_details?.customers && (
-                            <div className="flex items-center gap-2 shrink-0 mr-2">
-                              {order.customer_details?.customers?.[0]?.invoice_url && (
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onPreviewImage?.(order.customer_details.customers[0].invoice_url!);
-                                  }}
-                                  className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
-                                >
-                                  <img src={order.customer_details.customers[0].invoice_url} className="w-full h-full object-cover" alt="Inv" />
-                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Eye size={12} className="text-white" />
-                                  </div>
-                                </button>
-                              )}
-                              <a href={`tel:${order.customer_details?.phone || order.customerPhone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
-                                <Phone size={14} />
-                              </a>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2 shrink-0 mr-2">
+                            {order.customers?.[0]?.invoice_url && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onPreviewImage?.(order.customers![0].invoice_url!);
+                                }}
+                                className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                              >
+                                <img src={order.customers[0].invoice_url} className="w-full h-full object-cover" alt="Inv" />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Eye size={12} className="text-white" />
+                                </div>
+                              </button>
+                            )}
+                            <a href={`tel:${order.customerPhone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                              <Phone size={14} />
+                            </a>
+                          </div>
                         </div>
                       </div>
 

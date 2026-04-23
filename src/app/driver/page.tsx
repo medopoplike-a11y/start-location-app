@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from "react";
+import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -26,9 +26,59 @@ import DriverWalletView from "./components/DriverWalletView";
 import DriverHistoryView from "./components/DriverHistoryView";
 import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
-import { Wallet, X, Loader2, Settings, Bot, MapPin, Send, Mic, MessageSquare } from "lucide-react";
+import { Wallet, X, Loader2, Settings, Bot, MapPin, Send, Mic, MessageSquare, AlertCircle } from "lucide-react";
+
+// V17.7.8: Standard Class Error Boundary for radical stability
+class DriverErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("DriverErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center" dir="rtl">
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+            <AlertCircle className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-black text-white mb-2">عذراً، حدث خطأ في الواجهة</h1>
+          <p className="text-slate-400 text-sm mb-8 leading-relaxed max-w-md">
+            حدث خطأ غير متوقع أثناء عرض واجهة الطيار. تم عزل الخطأ لضمان عدم انهيار التطبيق بالكامل.
+          </p>
+          <div className="flex flex-col w-full gap-3 max-w-xs">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-900/20 active:scale-95 transition-all"
+            >
+              إعادة محاولة التشغيل
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default function DriverApp() {
+  return (
+    <DriverErrorBoundary>
+      <DriverPageContent />
+    </DriverErrorBoundary>
+  );
+}
+
+function DriverPageContent() {
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
   
   const { user, profile: authProfile, loading: authLoading } = useAuth();
@@ -233,8 +283,8 @@ export default function DriverApp() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [lastLocationUpdate, setLastLocationUpdate] = useState<number>(0);
-  const [activeDebtOrders, setActiveDebtOrders] = useState<DBDriverOrder[]>([]);
-  const [todayHistory, setTodayHistory] = useState<DBDriverOrder[]>([]);
+  const [activeDebtOrders, setActiveDebtOrders] = useState<Order[]>([]);
+  const [todayHistory, setTodayHistory] = useState<Order[]>([]);
   const [isSurgeActive, setIsSurgeActive] = useState(false);
   const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
   const [mapMode, setMapMode] = useState(false); // New state for Full Map Mode
