@@ -7,7 +7,7 @@ import { SplashScreen } from "@capacitor/splash-screen";
 import { Keyboard, KeyboardStyle } from "@capacitor/keyboard";
 import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
-import { checkForAutoUpdate, showNativeToast } from "@/lib/native-utils";
+import { checkAppUpdate, showNativeToast } from "@/lib/native-utils";
 import { dbService } from "@/lib/db-service";
 
 export const NativeBridge = () => {
@@ -107,8 +107,8 @@ export const NativeBridge = () => {
       // The downloaded bundle is applied on the next cold start of the app.
       setTimeout(async () => {
         try {
-          const update = await checkForAutoUpdate(false);
-          if (update.available && update.downloaded) {
+          const update = await checkAppUpdate("17.6.2", false);
+          if (update.available && (update as any).downloaded) {
             console.log(`[NativeBridge] OTA update queued for next launch: ${update.version}`);
             await showNativeToast(update.updateMessage || 'تم تحميل تحديث جديد. سيُطبَّق عند فتح التطبيق القادم.');
           }
