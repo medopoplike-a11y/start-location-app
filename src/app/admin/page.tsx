@@ -417,7 +417,7 @@ function AdminContent() {
 
   const mapOrderData = useCallback((o: any) => {
     const rawProfiles = o.vendor || o.profiles;
-    const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+    const vendorProfile = (Array.isArray(rawProfiles) ? rawProfiles[0] : rawProfiles) || {};
     const vName = vendorProfile.full_name || o.vendor_full_name || "محل غير معروف";
     return {
       id: o.id.slice(0, 8), 
@@ -460,7 +460,7 @@ function AdminContent() {
         if (typedData.length > 0) {
           setActivities(typedData.slice(0, 5).map((o) => {
             const rawProfiles = o.vendor || o.profiles;
-            const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+            const vendorProfile = (Array.isArray(rawProfiles) ? rawProfiles[0] : rawProfiles) || {};
             const vName = vendorProfile.full_name || o.vendor_full_name || "محل";
             return {
               id: o.id, type: 'order', text: `طلب جديد من ${vName} بقيمة ${o.financials?.order_value} ج.م`,

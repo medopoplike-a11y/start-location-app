@@ -120,11 +120,11 @@ const LoginPage = () => {
     setStatus("جاري البحث عن تحديثات...");
     
     try {
-      const { checkForAutoUpdate, showNativeToast } = await import("@/lib/native-utils");
+      const { checkAppUpdate, showNativeToast } = await import("@/lib/native-utils");
       // V17.2.7: Force check but handle UI feedback better
-      const update = await checkForAutoUpdate(true);
+      const update = await checkAppUpdate(RAW_VERSION, true);
       
-      if (update.available && update.downloaded) {
+      if (update.available && (update as any).downloaded) {
         setStatus("تم العثور على تحديث! جاري التثبيت...");
         await showNativeToast(update.updateMessage || "جاري تثبيت التحديث وإعادة التشغيل...");
         setTimeout(async () => {

@@ -700,14 +700,17 @@ function StoreContent() {
         setCompanyCommission(dbBalance);
       } else if (walletRes.status === 'rejected') {
         console.warn(`[Store-Diag] Wallet query failed or not found:`, walletRes.reason);
-        // حساب احتياطي فقط في حال فشل جلب بيانات المحفظة
-        const fallbackCommission = dbOrders.value
-          .filter((o: any) => o.status === 'delivered')
-          .reduce((sum: number, o: any) => {
-            const vndComm = o.financials?.vendor_commission || 0;
-            const vndIns = o.financials?.vendor_insurance || (o.financials?.insurance_fee ? o.financials.insurance_fee / 2 : 0);
-            return sum + vndComm + vndIns;
-          }, 0);
+        // حساب احتياطي فقط في حال فشل جلب بيانات المحفظة وصحة بيانات الطلبات
+        let fallbackCommission = 0;
+        if (dbOrders.status === 'fulfilled' && dbOrders.value) {
+          fallbackCommission = dbOrders.value
+            .filter((o: any) => o.status === 'delivered')
+            .reduce((sum: number, o: any) => {
+              const vndComm = o.financials?.vendor_commission || 0;
+              const vndIns = o.financials?.vendor_insurance || (o.financials?.insurance_fee ? o.financials.insurance_fee / 2 : 0);
+              return sum + vndComm + vndIns;
+            }, 0);
+        }
         setCompanyCommission(fallbackCommission);
       }
 
@@ -797,16 +800,16 @@ function StoreContent() {
       invoiceUrl: db.invoice_url,
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
-      customers: customerDetails.customers,
-      financials: db.financials ? {
+      customers: customerDetails.customers || [],
+      financials: {
         order_value: Number(financials.order_value || 0),
         delivery_fee: Number(financials.delivery_fee || 0),
         system_commission: Number((financials as any).system_commission || 0),
         vendor_commission: Number((financials as any).vendor_commission || 0),
         driver_earnings: Number((financials as any).driver_earnings || 0),
-        insurance_fee: Number((financials as any).insurance_fee || 0),
+        insurance_fee: Number((financials as any).insurance_fee || (financials as any).vendor_insurance || 0),
         prep_time: String((financials as any).prep_time || "15"),
-      } : undefined,
+      },
     };
   };
 

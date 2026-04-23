@@ -619,8 +619,8 @@ export default function DriverApp() {
       ]);
       
       const seen = new Set<string>();
-      const merged = [...active, ...pending, ...completedToday].filter((o) => {
-        if (seen.has(o.id)) return false;
+      const merged = [...(active || []), ...(pending || []), ...(completedToday || [])].filter((o) => {
+        if (!o || seen.has(o.id)) return false;
         seen.add(o.id);
         return true;
       });
@@ -677,7 +677,7 @@ export default function DriverApp() {
     
     // Robustly handle joined profile data
     const rawProfiles = db.profiles || db.vendor || db.profile;
-    const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+    const vendorProfile = (Array.isArray(rawProfiles) ? rawProfiles[0] : rawProfiles) || {};
     
     // Fallback to top-level fields if join data is missing
     const vendorName = vendorProfile.full_name || db.vendor_name || "محل غير معروف";
@@ -721,12 +721,13 @@ export default function DriverApp() {
       orderValue: db.financials?.order_value || 0,
       customers: db.customer_details?.customers || [],
       financials: {
-        order_value: db.financials?.order_value,
-        delivery_fee: db.financials?.delivery_fee,
-        system_commission: db.financials?.system_commission,
-        driver_earnings: db.financials?.driver_earnings,
-        driver_insurance: db.financials?.driver_insurance,
-        prep_time: db.financials?.prep_time,
+        order_value: Number(db.financials?.order_value) || 0,
+        delivery_fee: Number(db.financials?.delivery_fee) || 0,
+        system_commission: Number(db.financials?.system_commission) || 0,
+        vendor_commission: Number(db.financials?.vendor_commission) || 0,
+        driver_earnings: Number(db.financials?.driver_earnings) || 0,
+        insurance_fee: Number(db.financials?.insurance_fee || db.financials?.driver_insurance) || 0,
+        prep_time: db.financials?.prep_time || "15",
       },
     };
   }
