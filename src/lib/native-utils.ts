@@ -408,12 +408,10 @@ export const checkAppUpdate = async (currentVersion = '17.7.2', force = false) =
       
       console.log('[Native-OTA] Download complete. Bundle ready:', bundle.id);
 
-      // V17.7.1: Strict Persistence - set() instead of next()
-      // To ensure the update STICKS and doesn't rollback, we must use set()
-      // which switches the active bundle immediately. The subsequent reload
-      // is handled safely because NativeBridge only triggers this 5s after boot.
-      await CapacitorUpdater.set({ id: bundle.id });
+      // V17.7.3: Set preference BEFORE calling set() to ensure it persists 
+      // even if set() triggers an immediate reload.
       await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
+      await CapacitorUpdater.set({ id: bundle.id });
 
       console.log('[Native-OTA] Update applied and persisting:', bundle.id);
 

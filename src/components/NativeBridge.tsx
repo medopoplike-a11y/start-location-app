@@ -32,28 +32,41 @@ export const NativeBridge = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
+      // V17.7.3: Notify Capgo that the app has successfully booted this bundle.
+      // This prevents the "Infinite Rollback Loop" where the plugin thinks the
+      // new version crashed and reverts to the previous one on next launch.
+      try {
+        const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+        await CapacitorUpdater.notifyAppReady();
+        console.log("NativeBridge: Capgo notified of successful boot.");
+      } catch (e) {
+        console.warn('NativeBridge: Capgo notification failed', e);
+      }
+
       // V17.4.9: HARD RESET GUARD - Clear stale sessions on version upgrade
       // This prevents "Ghost Logins" and "Empty Systems" caused by Android Auto Backup
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value: lastBootVersion } = await Preferences.get({ key: 'app_last_boot_version' });
-        const CURRENT_VERSION = "17.7.2";
+        const CURRENT_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
         if (lastBootVersion !== CURRENT_VERSION) {
-          console.log(`NativeBridge: [V17.7.2] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
-          
-          // Only clear auth-related data to avoid losing important user settings
-          const sessionKey = 'start-location-v1-session';
-          await Preferences.remove({ key: sessionKey });
-          const { keys } = await Preferences.keys();
-          for (const key of keys) {
-            if (key.includes('auth-token') || key.includes('supabase') || key.includes('session')) {
-              await Preferences.remove({ key });
+          if (lastBootVersion) {
+            console.log(`NativeBridge: [${CURRENT_VERSION}] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
+            
+            // Only clear auth-related data to avoid losing important user settings
+            const sessionKey = 'start-location-v1-session';
+            await Preferences.remove({ key: sessionKey });
+            const { keys } = await Preferences.keys();
+            for (const key of keys) {
+              if (key.includes('auth-token') || key.includes('supabase') || key.includes('session')) {
+                await Preferences.remove({ key });
+              }
             }
+            console.log("NativeBridge: Safety cleanup complete.");
           }
           
           await Preferences.set({ key: 'app_last_boot_version', value: CURRENT_VERSION });
-          console.log("NativeBridge: Safety cleanup complete.");
         }
       } catch (e) {
         console.warn('NativeBridge: Version guard failed', e);
@@ -107,7 +120,8 @@ export const NativeBridge = () => {
       // The downloaded bundle is applied on the next cold start of the app.
       setTimeout(async () => {
         try {
-          const update = await checkAppUpdate("17.6.2", false);
+          const CURRENT_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
+          const update = await checkAppUpdate(CURRENT_VERSION, false);
           if (update.available && (update as any).downloaded) {
             console.log(`[NativeBridge] OTA update queued for next launch: ${update.version}`);
             await showNativeToast(update.updateMessage || 'تم تحميل تحديث جديد. سيُطبَّق عند فتح التطبيق القادم.');
