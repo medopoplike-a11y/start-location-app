@@ -3,6 +3,16 @@ name: Start Location Build & Deploy
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force all clients to update immediately (interrupts active users)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   build-and-deploy:
@@ -124,15 +134,10 @@ jobs:
             exit 1
           fi
 
-      - name: Upload to Supabase & Update DB
-        run: |
-          node scripts/upload-to-supabase.mjs
-          node scripts/update-ota-version.mjs
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Deploy to Vercel
+      # STEP 1: Deploy the WEB version (browser users) to Vercel FIRST.
+      # This is also what serves any APIs the new mobile OTA bundle may depend on,
+      # so it must succeed before mobile clients are notified of the new version.
+      - name: Deploy web to Vercel (browser users + APIs)
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 15
@@ -150,5 +155,21 @@ jobs:
           NO_UPDATE_CHECK: 1
           NODE_OPTIONS: "--max-old-space-size=4096"
 
+      # STEP 2: Upload binaries (APK + OTA bundle) to Supabase Storage. Mobile clients still don't see the new version yet.
+      - name: Upload APK & OTA bundle to Supabase Storage
+        run: node scripts/upload-to-supabase.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      # STEP 3: The "switch flip". Only after Vercel + Storage are confirmed do we tell mobile clients a new version exists.
+      # Skipped automatically if package.json version hasn't changed (no spurious updates per commit).
+      - name: Flip app_config (notify mobile clients)
+        run: node scripts/update-ota-version.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
+
       - name: Notify Build Complete
-        run: echo "✅ Build complete — APK and OTA uploaded to Supabase, web deployed to Vercel. All users will receive the update automatically."
+        run: echo "✅ Build complete — Web deployed to Vercel, APK + OTA uploaded to Supabase, app_config flipped. Mobile clients will pick up the update on their next poll."
