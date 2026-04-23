@@ -816,7 +816,9 @@ export default function DriverApp() {
               // a long secondary debounce just made everything feel laggy.
   };
 
-  // V17.6.3: Memoized Driver ID to prevent re-subscriptions in useSync
+  const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
+
+  // V17.7.0: Memoized Driver ID to prevent re-subscriptions in useSync
   const memoizedUserId = useMemo(() => driverId || undefined, [driverId]);
 
   // V17.2.7: Unified Sync Engine
@@ -886,6 +888,46 @@ export default function DriverApp() {
     }
   }, 'driver');
 
+  // Sound notification logic
+  useEffect(() => {
+    // Only proceed if we have a previous count and new orders were actually added
+    if (lastOrderCount !== null && orders.length > lastOrderCount) {
+      // Since orders are sorted by created_at DESC, new orders are at the beginning
+      const newOrders = orders.slice(0, orders.length - lastOrderCount);
+      const hasNewPending = newOrders.some(o => o.status === 'pending');
+      
+      if (hasNewPending) {
+        console.log("DriverPage: New pending order detected, playing sound...");
+        try {
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+          audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
+          
+          if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+            Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+          }
+        } catch (e) {}
+      }
+    }
+    setLastOrderCount(orders.length);
+  }, [orders.length]);
+
+  // Handle Camera Restore after OS kills activity
+  useEffect(() => {
+    const checkRestoredResult = async () => {
+      if (typeof window === 'undefined' || !Capacitor.isNativePlatform()) return;
+      
+      const { App } = await import("@capacitor/app");
+      await App.addListener('appRestoredResult', async (result) => {
+        if (result.pluginId === 'Camera' && result.methodName === 'getPhoto' && result.data) {
+          console.log("DriverPage: Restored Camera result detected!");
+          // Driver doesn't usually upload photos in this specific view but 
+          // keeping the infrastructure for future proofing/stability.
+        }
+      });
+    };
+    checkRestoredResult();
+  }, []);
+
   const toggleActive = async () => {
     if (actionLoading) return;
 
@@ -898,7 +940,7 @@ export default function DriverApp() {
       setActionLoading(true);
       
       // 1. Update UI and Local State immediately for responsiveness (Optimistic)
-      // V17.6.3: Skip full re-render if possible, just update the toggle
+      // V17.7.0: Skip full re-render if possible, just update the toggle
       setIsActive(newStatus);
       
       if (typeof window !== "undefined") {
@@ -911,7 +953,7 @@ export default function DriverApp() {
       
       // 2. Background DB Update (V0.9.74 - NON-BLOCKING UI)
       if (driverId) {
-        // V17.6.3: Use a silent update that doesn't trigger a global sync event 
+        // V17.7.0: Use a silent update that doesn't trigger a global sync event 
         // back to this client to prevent the 'Reload' feel.
         supabase.from('profiles').update({ 
           is_online: newStatus,
@@ -921,7 +963,7 @@ export default function DriverApp() {
         });
       }
       
-      // V17.6.3: Reduced unlock delay to 400ms for snappier feel
+      // V17.7.0: Reduced unlock delay to 400ms for snappier feel
       setTimeout(() => setActionLoading(false), 400);
       
     } catch (err) {

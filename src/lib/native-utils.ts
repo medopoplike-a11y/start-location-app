@@ -337,9 +337,9 @@ const compareVersions = (a: string, b: string): number => {
 };
 
 /**
- * V17.6.3: Full Stability Audit
+ * V17.7.0: Full Stability Audit
  */
-export const checkAppUpdate = async (currentVersion = '17.6.3', force = false) => {
+export const checkAppUpdate = async (currentVersion = '17.7.0', force = false) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
   if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
 
