@@ -259,6 +259,7 @@ export const useSync = (
     const HARD_SYNC_THRESHOLD = 5 * 60 * 1000; 
     const RESUME_COOLDOWN = 8000;
 
+    // V17.6.1: Full Socket Teardown & OS Port Release
     const handleResume = async (source: string) => {
       const now = Date.now();
       const backgroundDuration = backgroundTimeRef.current > 0 ? now - backgroundTimeRef.current : 0;
@@ -273,7 +274,7 @@ export const useSync = (
       // 1. Immediate UI refresh (Non-blocking)
       setIsSyncing(true);
       
-      // V17.6.0: Emit 'cache_first_refresh' to pages to show local data immediately
+      // V17.6.1: Emit 'cache_first_refresh' to pages to show local data immediately
       triggerUpdate({ 
         source: 'app_resume_start',
         isHardSync,
@@ -286,22 +287,25 @@ export const useSync = (
         try {
           const { refreshAppSession } = await import('@/lib/native-utils');
           
-          // V17.6.0: Strict Timeout for Session Refresh (5s)
-          // Prevents the app from hanging if the user is in a dead zone
+          // V17.6.1: Parallelized healing with safety timeouts
           const sessionPromise = refreshAppSession();
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session refresh timed out")), 5000));
           
           await Promise.race([sessionPromise, timeoutPromise]).catch(e => console.warn("useSync: Session refresh slow/failed", e));
 
-          // V17.6.0: Aggressive Realtime Reset
-          console.log("useSync: Re-establishing Realtime Socket...");
-          try {
-            // Forcefully teardown all channels and socket
-            cleanupChannels();
+          // V17.6.1: Forceful Channel & Socket Teardown
+          console.log("useSync: Performing radical socket reset...");
+          cleanupChannels();
+          
+          // If the socket reports connected but we've been gone for 5 mins, it's a ghost connection
+          if (supabase.realtime.isConnected() && isHardSync) {
             supabase.realtime.disconnect();
-            await new Promise(r => setTimeout(r, 800)); // Give OS time to release port
+          }
+
+          if (!supabase.realtime.isConnected()) {
+            await new Promise(r => setTimeout(r, 500));
             supabase.realtime.connect();
-          } catch (_) {}
+          }
 
           // Re-subscribe and trigger full remote fetch
           await subscribe();

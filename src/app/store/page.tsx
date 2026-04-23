@@ -394,7 +394,7 @@ function StoreContent() {
     }
 
     if (payload?.isHardSync && payload?.source === 'app_resume_start') {
-      // V17.6.0: Cache-first Strategy
+      // V17.6.1: Cache-first Strategy
       setOrders([]); 
     }
 

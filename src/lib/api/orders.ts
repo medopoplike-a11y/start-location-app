@@ -29,7 +29,7 @@ export const fetchOrders = async (options: {
     if (localOrders && localOrders.length > 0) {
       console.log('[OrdersAPI] Local-first: returning', localOrders.length, 'cached orders');
       
-      // V17.6.0: If we specifically asked for cache first, return it immediately.
+      // V17.6.1: If we specifically asked for cache first, return it immediately.
       // The background sync will happen anyway in useSync.ts.
       if (options.preferCache === true) {
         return localOrders;

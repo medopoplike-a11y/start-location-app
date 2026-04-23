@@ -336,7 +336,10 @@ const compareVersions = (a: string, b: string): number => {
   return 0;
 };
 
-export const checkForAutoUpdate = async (force = false) => {
+/**
+ * V17.6.1: Full Stability Audit
+ */
+export const checkAppUpdate = async (currentVersion = '17.6.1', force = false) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
   if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
 
@@ -708,7 +711,7 @@ export const startForegroundTracking = async (userId: string, name?: string, onU
     const { Geolocation } = await import('@capacitor/geolocation');
     
     let lastSentTs = 0;
-    // V17.6.0: Industrial-Grade Background Resilience
+    // V17.6.1: Industrial-Grade Background Resilience
     // Stationary: 10s, Moving: 5s, Fast (>2m/s): 3s
     const getDynamicInterval = (speed: number) => {
       if (speed > 2) return 3000;

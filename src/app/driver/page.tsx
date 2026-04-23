@@ -446,7 +446,7 @@ export default function DriverApp() {
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
-        // V17.6.0: Balanced web tracking interval (5 seconds)
+        // V17.6.1: Balanced web tracking interval (5 seconds)
         if (now - lastLocationUpdate < 5000) return;
         
         const newLocation = { 
@@ -837,7 +837,7 @@ export default function DriverApp() {
     }
 
     if (payload?.isHardSync && payload?.source === 'app_resume_start') {
-      // V17.6.0: If hard sync is needed, show cached data first while clearing stale state
+      // V17.6.1: If hard sync is needed, show cached data first while clearing stale state
       setOrders([]); // Clear memory, fetchOrders(preferCache: true) will refill it from SQLite
     }
 

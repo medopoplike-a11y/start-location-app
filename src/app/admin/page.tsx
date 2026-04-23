@@ -558,7 +558,7 @@ function AdminContent() {
     }
 
     if (payload?.isHardSync && payload?.source === 'app_resume_start') {
-      // V17.6.0: Hard Sync - Clear orders to prevent data overlap from old state
+      // V17.6.1: Hard Sync - Clear orders to prevent data overlap from old state
       setLiveOrders([]);
     }
     
