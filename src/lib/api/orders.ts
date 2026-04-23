@@ -9,21 +9,30 @@ import { Capacitor } from '@capacitor/core';
  * The single source of truth for order operations across all roles.
  */
 
-export const fetchOrders = async (options: { 
-  role?: 'admin' | 'driver' | 'vendor', 
-  userId?: string, 
+export const fetchOrders = async (options: {
+  role?: 'admin' | 'driver' | 'vendor',
+  userId?: string,
   status?: string[],
-  limit?: number 
+  limit?: number,
+  /** When true (native only), return local cache instantly without awaiting remote. */
+  preferCache?: boolean,
 } = {}) => {
-  // V17.0.7: Local-First Strategy
-  // Try to return local orders immediately for speed, then sync from remote
+  // V17.4.8: True Local-First Strategy on native platforms.
+  // If we have a cache, return it immediately and refresh in background.
   if (Capacitor.isNativePlatform()) {
-    const localOrders = await dbService.getLocalOrders();
+    const localOrders = await dbService.getLocalOrders({
+      role: options.role,
+      userId: options.userId,
+      status: options.status,
+      limit: options.limit,
+    });
     if (localOrders && localOrders.length > 0) {
-      console.log('[OrdersAPI] Returning local cache first');
-      // Still perform background sync
+      console.log('[OrdersAPI] Local-first: returning', localOrders.length, 'cached orders');
+      // Always trigger a background sync so the next call has fresher data.
       dbService.syncFromRemote().catch(() => {});
-      // return localOrders; // We could return here, but for now we let it fall through to get fresh data
+      if (options.preferCache !== false) {
+        return localOrders;
+      }
     }
   }
 
@@ -48,6 +57,12 @@ export const fetchOrders = async (options: {
 
   const { data, error } = await query;
   if (error) throw error;
+
+  // Persist fresh remote results into the local cache (native only).
+  if (Capacitor.isNativePlatform() && data && data.length > 0) {
+    Promise.all(data.map((o) => dbService.saveOrder(o).catch(() => {}))).catch(() => {});
+  }
+
   return data;
 };
 
