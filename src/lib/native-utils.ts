@@ -337,9 +337,9 @@ const compareVersions = (a: string, b: string): number => {
 };
 
 /**
- * V17.7.0: Full Stability Audit
+ * V17.7.1: Full Stability Audit
  */
-export const checkAppUpdate = async (currentVersion = '17.7.0', force = false) => {
+export const checkAppUpdate = async (currentVersion = '17.7.1', force = false) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
   if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
 
@@ -408,13 +408,14 @@ export const checkAppUpdate = async (currentVersion = '17.7.0', force = false) =
       
       console.log('[Native-OTA] Download complete. Bundle ready:', bundle.id);
 
-      // Use next() instead of set() — critical difference:
-      // set()  → switches bundle and restarts the app IMMEDIATELY (causes reload loop)
-      // next() → marks bundle to be used on the NEXT cold start (no restart, no loop)
-      await CapacitorUpdater.next({ id: bundle.id });
+      // V17.7.1: Strict Persistence - set() instead of next()
+      // To ensure the update STICKS and doesn't rollback, we must use set()
+      // which switches the active bundle immediately. The subsequent reload
+      // is handled safely because NativeBridge only triggers this 5s after boot.
+      await CapacitorUpdater.set({ id: bundle.id });
       await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
 
-      console.log('[Native-OTA] Bundle queued for next launch:', bundle.id);
+      console.log('[Native-OTA] Update applied and persisting:', bundle.id);
 
       return {
         available: true,
@@ -422,7 +423,7 @@ export const checkAppUpdate = async (currentVersion = '17.7.0', force = false) =
         bundleId: bundle.id,
         downloaded: true,
         forceUpdate: !!config.force_update,
-        updateMessage: String(config.update_message || 'تم تحميل تحديث جديد. سيُطبَّق عند فتح التطبيق القادم.')
+        updateMessage: String(config.update_message || 'تم تثبيت التحديث الجديد بنجاح. سيتم تفعيله الآن.')
       };
     } catch (downloadError: any) {
       console.error('[Native-OTA] Download failed:', downloadError);
