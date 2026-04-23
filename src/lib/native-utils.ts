@@ -373,7 +373,7 @@ export const checkForAutoUpdate = async (force = false) => {
 
     const normalizedDbVersion = dbVersion.replace(/^V/i, '').trim();
     const normalizedAppliedVersion = (appliedVersion || '').replace(/^V/i, '').trim();
-    const hardcodedVersion = "17.3.9";
+    const hardcodedVersion = "17.4.0";
 
     // Already on this version
     if (compareVersions(normalizedDbVersion, hardcodedVersion) === 0 && !force) {
