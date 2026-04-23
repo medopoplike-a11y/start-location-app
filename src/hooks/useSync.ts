@@ -82,6 +82,13 @@ export const useSync = (
 
     console.log("useSync: Establishing real-time streams for:", userId);
 
+    // V17.7.2: Enhanced Reconnection Logic
+    // Ensure socket is actually connected before subscribing
+    if (!supabase.realtime.isConnected()) {
+      console.log("useSync: Socket disconnected, attempting recovery...");
+      supabase.realtime.connect();
+    }
+
     const newChannels: RealtimeChannel[] = [];
 
     // ─── 1. Orders channel ────────────────────────────────────────────────────
@@ -159,7 +166,13 @@ export const useSync = (
     newChannels.push(settlementChannel);
 
     // ─── 4. System sync — instant cross-interface coordination ───────────────────
-    const systemSyncChannel = supabase.channel('system_sync');
+    const systemSyncChannel = supabase.channel('system_sync', {
+      config: {
+        broadcast: { self: false },
+        presence: { key: userId },
+      }
+    });
+
     systemSyncChannel
       .on('broadcast', { event: 'sync-update' }, (msg) => {
         // V17.4.9: Handle structured broadcast updates (new_order, order_update)
@@ -178,7 +191,17 @@ export const useSync = (
         console.log("useSync: MAINTENANCE MODE update:", msg.payload?.active);
         triggerUpdate({ source: 'broadcast', payload: { type: 'maintenance', ...msg.payload } });
       })
-      .subscribe();
+      .subscribe((status) => {
+        // V17.7.2: Smart Channel Recovery
+        if (status === 'SUBSCRIBED') {
+          console.log("useSync: System sync channel active");
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.warn(`useSync: Channel ${status}, scheduling retry...`);
+          setTimeout(() => {
+            if (isMountedRef.current) subscribe();
+          }, 5000);
+        }
+      });
     newChannels.push(systemSyncChannel);
 
     // ─── 5. Admin-only: driver location broadcasts ────────────────────────────
