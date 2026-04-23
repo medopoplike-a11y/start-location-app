@@ -37,10 +37,10 @@ export const NativeBridge = () => {
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value: lastBootVersion } = await Preferences.get({ key: 'app_last_boot_version' });
-        const CURRENT_VERSION = "17.6.1";
+        const CURRENT_VERSION = "17.6.2";
 
         if (lastBootVersion !== CURRENT_VERSION) {
-          console.log(`NativeBridge: [V17.6.1] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
+          console.log(`NativeBridge: [V17.6.2] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
           
           // Only clear auth-related data to avoid losing important user settings
           const sessionKey = 'start-location-v1-session';

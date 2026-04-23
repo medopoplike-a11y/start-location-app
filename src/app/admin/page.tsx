@@ -415,6 +415,25 @@ function AdminContent() {
     }
   }, []);
 
+  const mapOrderData = useCallback((o: any) => {
+    const rawProfiles = o.vendor || o.profiles;
+    const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
+    const vName = vendorProfile.full_name || o.vendor_full_name || "محل غير معروف";
+    return {
+      id: o.id.slice(0, 8), 
+      id_full: o.id, 
+      vendor: vName, 
+      customer: o.customer_details?.name || "عميل",
+      status: translateStatus(o.status), 
+      driver: o.driver_id ? "تم التعيين" : null, 
+      driver_id: o.driver_id,
+      amount: o.financials?.order_value || 0, 
+      delivery_fee: o.financials?.delivery_fee || 0,
+      created_at: o.created_at, 
+      customers: o.customer_details?.customers
+    };
+  }, [translateStatus]);
+
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
       const data = await fetchAdminOrders({ 
@@ -436,21 +455,11 @@ function AdminContent() {
           setAllOrders(typedData);
         }
         setCache('admin_orders', typedData);
-        const live = typedData.filter((o) => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').map((o) => {
-          const rawProfiles = (o as any).profiles;
-          const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
-          const vName = vendorProfile.full_name || o.vendor_full_name || "محل غير معروف";
-          return {
-            id: o.id.slice(0, 8), id_full: o.id, vendor: vName, customer: o.customer_details?.name || "عميل",
-            status: translateStatus(o.status), driver: o.driver_id ? "تم التعيين" : null, driver_id: o.driver_id,
-            amount: o.financials?.order_value || 0, delivery_fee: o.financials?.delivery_fee || 0,
-            created_at: o.created_at, customers: o.customer_details?.customers
-          };
-        });
+        const live = typedData.filter((o) => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').map(mapOrderData);
         setLiveOrders(live);
         if (typedData.length > 0) {
           setActivities(typedData.slice(0, 5).map((o) => {
-            const rawProfiles = (o as any).profiles;
+            const rawProfiles = o.vendor || o.profiles;
             const vendorProfile = Array.isArray(rawProfiles) ? rawProfiles[0] : (rawProfiles || {});
             const vName = vendorProfile.full_name || o.vendor_full_name || "محل";
             return {
@@ -461,7 +470,7 @@ function AdminContent() {
         }
       }
     } catch (err) { console.error("Admin: Error fetching orders:", err); }
-  }, [translateStatus]);
+  }, [translateStatus, mapOrderData]);
 
   const fetchSettlements = useCallback(async () => {
     // V1.3.0: Fetching settlements with detailed profile information
