@@ -121,8 +121,8 @@ const LoginPage = () => {
     
     try {
       const { checkAppUpdate, showNativeToast } = await import("@/lib/native-utils");
-      // V17.2.7: Force check but handle UI feedback better
-      const update = await checkAppUpdate(RAW_VERSION, true);
+      // V17.7.6: Force check and use immediate: true for immediate reload on login screen
+      const update = await checkAppUpdate(RAW_VERSION, true, true);
       
       if (update.available && (update as any).downloaded) {
         setStatus("تم العثور على تحديث! جاري التثبيت...");

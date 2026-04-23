@@ -337,9 +337,12 @@ const compareVersions = (a: string, b: string): number => {
 };
 
 /**
- * V17.7.2: Full Stability Audit
+ * V17.7.6: Full Stability Audit
+ * @param currentVersion The current app version to compare against
+ * @param force If true, forces a check and uses set() for immediate reload
+ * @param immediate If true, uses set() for immediate reload. If false, uses next() for next launch.
  */
-export const checkAppUpdate = async (currentVersion = '17.7.2', force = false) => {
+export const checkAppUpdate = async (currentVersion = '17.7.2', force = false, immediate = true) => {
   if (!isNative()) return { available: false, reason: 'NOT_NATIVE' };
   if (isChecking) return { available: false, reason: 'ALREADY_CHECKING' };
 
@@ -408,12 +411,18 @@ export const checkAppUpdate = async (currentVersion = '17.7.2', force = false) =
       
       console.log('[Native-OTA] Download complete. Bundle ready:', bundle.id);
 
-      // V17.7.3: Set preference BEFORE calling set() to ensure it persists 
-      // even if set() triggers an immediate reload.
-      await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
-      await CapacitorUpdater.set({ id: bundle.id });
-
-      console.log('[Native-OTA] Update applied and persisting:', bundle.id);
+      // V17.7.6: Use set() for immediate reload (login page) 
+      // or next() for background updates (NativeBridge)
+      if (immediate) {
+        await Preferences.set({ key: 'last_applied_ota_version', value: dbVersion });
+        await CapacitorUpdater.set({ id: bundle.id });
+        console.log('[Native-OTA] Update applied (IMMEDIATE):', bundle.id);
+      } else {
+        await CapacitorUpdater.next({ id: bundle.id });
+        console.log('[Native-OTA] Update queued (NEXT LAUNCH):', bundle.id);
+        // We don't set last_applied_ota_version here because it hasn't actually
+        // been applied to the running app yet.
+      }
 
       return {
         available: true,
