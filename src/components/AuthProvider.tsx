@@ -119,22 +119,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-  useEffect(() => {
     // V17.5.0: Hard Sync & Background Stability
     const initAuth = async () => {
       try {
-        console.log("[AuthV16.9.3] Standard session check...");
+        console.log("[AuthV17.5.0] Standard session check...");
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
           await updateState(session, "init");
         } else {
-          console.log("[AuthV16.9.3] No session found, setting loading false");
+          console.log("[AuthV17.5.0] No session found, setting loading false");
           loadingRef.current = false;
           setLoading(false);
         }
       } catch (e) {
-        console.error("[AuthV16.9.3] Init error", e);
+        console.error("[AuthV17.5.0] Init error", e);
         if (active) {
             loadingRef.current = false;
             setLoading(false);
@@ -143,19 +142,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     // V17.3.9: Emergency Splash Timeout
-      // If we are stuck in "Connecting to system" for more than 10 seconds, 
-      // release the loader so the user can see the login page and diagnostics.
-      const splashTimeout = setTimeout(() => {
-        if (loadingRef.current && active) {
-          console.warn("[AuthV17.3.9] Splash timeout reached. Forcing loader release.");
-          loadingRef.current = false;
-          setLoading(false);
-        }
-      }, 10000);
+    const splashTimeout = setTimeout(() => {
+      if (loadingRef.current && active) {
+        console.warn("[AuthV17.3.9] Splash timeout reached. Forcing loader release.");
+        loadingRef.current = false;
+        setLoading(false);
+      }
+    }, 10000);
 
     // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthV16.9.3] Auth event: ${event}`);
+      console.log(`[AuthV17.5.0] Auth event: ${event}`);
       if (!active) return;
 
       if (event === 'SIGNED_OUT') {
@@ -177,7 +174,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       clearTimeout(splashTimeout);
       subscription.unsubscribe();
     };
-  }, []); // REMOVED DEPENDENCIES - Effect must only run ONCE on mount
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading }}>
