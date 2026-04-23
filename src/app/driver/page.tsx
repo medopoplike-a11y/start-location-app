@@ -852,16 +852,17 @@ export default function DriverApp() {
     // immediately to avoid an expensive fetch cycle.
     if (payload?.order) {
       console.log("[DriverSync] Partial update received for order:", payload.order.id);
+      const mappedOrder = mapDBOrderToUI(payload.order);
       setOrders(prev => {
-        const index = prev.findIndex(o => o.id === payload.order.id);
+        const index = prev.findIndex(o => o.id === mappedOrder.id);
         if (index > -1) {
           // Update existing
           const newOrders = [...prev];
-          newOrders[index] = { ...newOrders[index], ...payload.order };
+          newOrders[index] = { ...newOrders[index], ...mappedOrder };
           return newOrders;
-        } else if (payload.order.status === 'pending' || payload.order.driver_id === driverId) {
+        } else if (mappedOrder.status === 'pending' || mappedOrder.driver_id === driverId) {
           // Add new if relevant
-          return [payload.order, ...prev];
+          return [mappedOrder, ...prev];
         }
         return prev;
       });

@@ -410,14 +410,15 @@ function StoreContent() {
       
       // Only accept if it belongs to this vendor
       if (payload.order.vendor_id === vendorId) {
+        const mappedOrder = mapDBOrderToUI(payload.order);
         setOrders(prev => {
-          const index = prev.findIndex(o => o.id === payload.order.id);
+          const index = prev.findIndex(o => o.id === mappedOrder.id);
           if (index > -1) {
             const newOrders = [...prev];
-            newOrders[index] = { ...newOrders[index], ...payload.order };
+            newOrders[index] = { ...newOrders[index], ...mappedOrder };
             return newOrders;
           }
-          return [payload.order, ...prev];
+          return [mappedOrder, ...prev];
         });
 
         if (Capacitor.isNativePlatform()) {
