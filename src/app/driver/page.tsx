@@ -673,63 +673,98 @@ export default function DriverApp() {
   }, []);
 
   function mapDBOrderToUI(db: any): Order {
-    const distanceValue = db.distance || 2.5;
-    
-    // Robustly handle joined profile data
-    const rawProfiles = db.profiles || db.vendor || db.profile;
-    const vendorProfile = (Array.isArray(rawProfiles) ? rawProfiles[0] : rawProfiles) || {};
-    
-    // Fallback to top-level fields if join data is missing
-    const vendorName = vendorProfile.full_name || db.vendor_name || "محل غير معروف";
-    const vendorPhone = vendorProfile.phone || db.vendor_phone || "";
-    const vendorArea = vendorProfile.area || db.vendor_area || "";
-    
-    // Safely parse location if it's a string
-    let vendorCoords = vendorProfile.location || db.vendor_location || null;
-    if (typeof vendorCoords === 'string') {
-      try { vendorCoords = JSON.parse(vendorCoords); } catch { vendorCoords = null; }
-    }
-    
-    let customerCoords = db.customer_details?.coords || null;
-    if (typeof customerCoords === 'string') {
-      try { customerCoords = JSON.parse(customerCoords); } catch { customerCoords = null; }
-    }
+    try {
+      if (!db) throw new Error("Null order data");
+      const distanceValue = Number(db.distance) || 2.5;
+      
+      // Robustly handle joined profile data
+      const rawProfiles = db.profiles || db.vendor || db.profile;
+      const vendorProfile = (Array.isArray(rawProfiles) ? rawProfiles[0] : rawProfiles) || {};
+      
+      // Fallback to top-level fields if join data is missing
+      const vendorName = vendorProfile.full_name || db.vendor_name || "محل غير معروف";
+      const vendorPhone = vendorProfile.phone || db.vendor_phone || "";
+      const vendorArea = vendorProfile.area || db.vendor_area || "";
+      
+      // Safely parse location if it's a string
+      let vendorCoords = vendorProfile.location || db.vendor_location || null;
+      if (typeof vendorCoords === 'string') {
+        try { vendorCoords = JSON.parse(vendorCoords); } catch { vendorCoords = null; }
+      }
+      
+      let customerCoords = db.customer_details?.coords || null;
+      if (typeof customerCoords === 'string') {
+        try { customerCoords = JSON.parse(customerCoords); } catch { customerCoords = null; }
+      }
 
-    return {
-      id: db.id,
-      vendor: vendorName,
-      vendorId: db.vendor_id,
-      driverId: db.driver_id,
-      vendorPhone: vendorPhone,
-      vendorArea: vendorArea,
-      customer: db.customer_details?.name || "عميل غير معروف",
-      customerPhone: db.customer_details?.phone || "",
-      address: db.customer_details?.address || "عنوان غير محدد",
-      distanceValue: distanceValue,
-      distance: `${distanceValue} كم`,
-      fee: `${db.financials?.delivery_fee || 0} ج.م`,
-      status: db.status,
-      coords: vendorCoords,
-      vendorCoords,
-      customerCoords,
-      prepTime: db.financials?.prep_time || "15",
-      isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
-      priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : (db.status === 'pending' ? 3 : 4)),
-      statusUpdatedAt: db.status_updated_at || db.created_at || undefined,
-      vendorCollectedAt: db.vendor_collected_at,
-      driverConfirmedAt: db.driver_confirmed_at,
-      orderValue: db.financials?.order_value || 0,
-      customers: db.customer_details?.customers || [],
-      financials: {
-        order_value: Number(db.financials?.order_value) || 0,
-        delivery_fee: Number(db.financials?.delivery_fee) || 0,
-        system_commission: Number(db.financials?.system_commission) || 0,
-        vendor_commission: Number(db.financials?.vendor_commission) || 0,
-        driver_earnings: Number(db.financials?.driver_earnings) || 0,
-        insurance_fee: Number(db.financials?.insurance_fee || db.financials?.driver_insurance) || 0,
-        prep_time: db.financials?.prep_time || "15",
-      },
-    };
+      // Ensure coords are numbers if they exist (V17.7.5 Stability Fix)
+      const ensureCoords = (c: any) => {
+        if (!c || typeof c !== 'object') return null;
+        const lat = Number(c.lat || c.latitude);
+        const lng = Number(c.lng || c.longitude);
+        if (isNaN(lat) || isNaN(lng)) return null;
+        return { lat, lng };
+      };
+
+      const finalVendorCoords = ensureCoords(vendorCoords);
+      const finalCustomerCoords = ensureCoords(customerCoords);
+
+      return {
+        id: db.id || String(Math.random()),
+        vendor: vendorName,
+        vendorId: db.vendor_id || "",
+        driverId: db.driver_id || "",
+        vendorPhone: vendorPhone,
+        vendorArea: vendorArea,
+        customer: db.customer_details?.name || "عميل غير معروف",
+        customerPhone: db.customer_details?.phone || "",
+        address: db.customer_details?.address || "عنوان غير محدد",
+        distanceValue: distanceValue,
+        distance: `${distanceValue} كم`,
+        fee: `${db.financials?.delivery_fee || 0} ج.م`,
+        status: db.status || "pending",
+        coords: finalVendorCoords,
+        vendorCoords: finalVendorCoords,
+        customerCoords: finalCustomerCoords,
+        prepTime: String(db.financials?.prep_time || "15"),
+        isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
+        priority: db.status === 'in_transit' ? 1 : (db.status === 'assigned' ? 2 : (db.status === 'pending' ? 3 : 4)),
+        statusUpdatedAt: db.status_updated_at || db.created_at || undefined,
+        vendorCollectedAt: db.vendor_collected_at,
+        driverConfirmedAt: db.driver_confirmed_at,
+        orderValue: Number(db.financials?.order_value) || 0,
+        customers: db.customer_details?.customers || [],
+        financials: {
+          order_value: Number(db.financials?.order_value) || 0,
+          delivery_fee: Number(db.financials?.delivery_fee) || 0,
+          system_commission: Number(db.financials?.system_commission) || 0,
+          vendor_commission: Number(db.financials?.vendor_commission) || 0,
+          driver_earnings: Number(db.financials?.driver_earnings) || 0,
+          insurance_fee: Number(db.financials?.insurance_fee || db.financials?.driver_insurance) || 0,
+          prep_time: String(db.financials?.prep_time || "15"),
+        },
+      };
+    } catch (e) {
+      console.error("mapDBOrderToUI failed for order:", db?.id, e);
+      return {
+        id: db?.id || "error",
+        vendor: "خطأ في البيانات",
+        vendorId: "",
+        driverId: "",
+        customer: "خطأ",
+        address: "خطأ",
+        distanceValue: 0,
+        distance: "0 كم",
+        fee: "0",
+        status: "pending",
+        coords: null,
+        vendorCoords: null,
+        customerCoords: null,
+        prepTime: "0",
+        isPickedUp: false,
+        priority: 4
+      } as Order;
+    }
   }
 
   async function fetchActiveDebtOrders(currentDriverId: string) {
@@ -743,9 +778,12 @@ export default function DriverApp() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      const mapped = (data || []).map(mapDBOrderToUI);
-      setActiveDebtOrders(mapped as any);
-      setCache('driver_active_debt_orders', mapped);
+      if (data) {
+        // V17.7.5: Robust mapping for active debt orders
+        const mapped = (data || []).map(mapDBOrderToUI).filter(o => o.id !== 'error');
+        setActiveDebtOrders(mapped as any);
+        setCache('driver_active_debt_orders', mapped);
+      }
     } catch (err) {
       console.error("fetchActiveDebtOrders error:", err);
     }
@@ -755,14 +793,19 @@ export default function DriverApp() {
     try {
       // V0.9.92: Fetch more history (last 50 orders) instead of just today
       const { data, error } = await supabase.from('orders')
-        .select('*')
+        .select('*, vendor:vendor_id(full_name, phone, location, area)')
         .eq('driver_id', currentDriverId)
         .in('status', ['delivered', 'cancelled'])
         .order('status_updated_at', { ascending: false })
         .limit(50);
       
       if (error) throw error;
-      if (data) setTodayHistory(data as any);
+      if (data) {
+        // V17.7.5: Map history through unified mapper to ensure UI stability
+        const mapped = (data as any[]).map(mapDBOrderToUI);
+        setTodayHistory(mapped as any);
+        setCache('driver_today_history', mapped);
+      }
     } catch (err) {
       console.error("DriverPage: fetchHistory failed", err);
     }
@@ -1268,6 +1311,25 @@ export default function DriverApp() {
       setRequestingSettlement(false);
     }
   };
+
+  // V17.7.5: Robust Error Recovery
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center" dir="rtl">
+        <AlertCircle className="w-16 h-16 text-red-500 mb-6 opacity-50" />
+        <h1 className="text-xl font-black text-white mb-2">عذراً، حدث خطأ غير متوقع</h1>
+        <p className="text-slate-400 text-xs mb-8">واجه النظام مشكلة تقنية مفاجئة في واجهة الطيار.</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="w-full max-w-xs bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all"
+        >
+          إعادة محاولة التشغيل
+        </button>
+      </div>
+    );
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-[#f3f4f6] p-6 space-y-8" dir="rtl">
