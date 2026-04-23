@@ -127,6 +127,31 @@ export const deleteOrder = async (orderId: string) => {
   return true;
 };
 
+/**
+ * V17.4.9 — Vendor confirms cash collection from driver.
+ * Sets `vendor_collected_at`, which fires the `handle_order_financials` DB trigger
+ * to decrement the driver's `wallets.debt`. The `.is(... null)` guard makes the
+ * call idempotent — re-clicking does not double-apply.
+ *
+ * NOTE: Before this fix, the store page called an undefined `vendorCollectDebt`
+ * which threw a ReferenceError, the optimistic UI was reverted, and the driver's
+ * debt was never cleared on the server — leaving stale debts forever.
+ */
+export const vendorCollectDebt = async (orderId: string) => {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      vendor_collected_at: nowIso,
+      status_updated_at: nowIso,
+    })
+    .eq('id', orderId)
+    .is('vendor_collected_at', null)
+    .select()
+    .maybeSingle();
+  return { data, error };
+};
+
 export const deleteAdminOrder = async (orderId: string) => {
   // Use RPC for safe deletion of order by admin (logs, financials, etc.)
   const { error } = await supabase.rpc('delete_order_by_admin', { p_order_id: orderId });

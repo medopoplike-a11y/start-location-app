@@ -16,7 +16,7 @@ import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials } from "@/lib/pricing";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
-import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus } from "@/lib/api/orders";
+import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus, vendorCollectDebt } from "@/lib/api/orders";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache } from "@/lib/native-utils";
