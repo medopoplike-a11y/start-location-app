@@ -230,7 +230,7 @@ export default function DriverApp() {
     return () => clearInterval(interval);
   }, [driverId, orders, toastSuccess]);
 
-  const [isRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [lastLocationUpdate, setLastLocationUpdate] = useState<number>(0);
   const [activeDebtOrders, setActiveDebtOrders] = useState<DBDriverOrder[]>([]);
