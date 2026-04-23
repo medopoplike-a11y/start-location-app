@@ -33,6 +33,20 @@ export const useSync = (
 
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const cleanupChannels = useCallback(() => {
+    if (channelsRef.current.length > 0) {
+      console.log(`useSync: Cleaning up ${channelsRef.current.length} channels...`);
+      channelsRef.current.forEach((channel) => {
+        try {
+          supabase.removeChannel(channel);
+        } catch (e) {
+          console.error("useSync: Error removing channel", e);
+        }
+      });
+      channelsRef.current = [];
+    }
+  }, []);
+
   /**
    * DEBOUNCED SYNC — 100ms debounce for snappy real-time feel while still
    * grouping burst updates (e.g. driver location flood) into a single render.
