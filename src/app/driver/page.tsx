@@ -428,10 +428,12 @@ export default function DriverApp() {
           fetchTodayHistory(currentDriverId)
         ]);
       } catch (e) {
-        console.error("Driver initialization failed", e);
-      } finally {
-        setLoading(false);
-      }
+      console.error("Driver initialization failed", e);
+      // V17.7.7: Radical recovery - if initialization fails, unblock UI but log error
+      setLoading(false);
+    } finally {
+      setLoading(false);
+    }
     };
 
     setup();
@@ -533,19 +535,17 @@ export default function DriverApp() {
       const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
       if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
 
-      let finalBalance = 0;
-      let finalOverallBalance = 0;
-      let finalDebt = 0;
+      // V17.7.7: Industrial-grade numeric sanitation
+      const finalBalance = Number(walletData?.system_balance || 0);
+      const finalOverallBalance = Number(walletData?.balance || 0);
+      const finalDebt = Number(walletData?.debt || 0);
+      
       let finalFees = 0;
-
-      if (walletData) {
-        finalBalance = Number(walletData.system_balance) || 0;
-        finalOverallBalance = Number(walletData.balance) || 0;
-        finalDebt = Number(walletData.debt) || 0;
-      }
-
-      if (todayOrders) {
-        finalFees = todayOrders.reduce((acc, o) => acc + (Number(o.financials?.driver_earnings) || 0), 0);
+      if (todayOrders && Array.isArray(todayOrders)) {
+        finalFees = todayOrders.reduce((acc, o) => {
+          const earnings = Number(o?.financials?.driver_earnings || 0);
+          return acc + (isNaN(earnings) ? 0 : earnings);
+        }, 0);
       }
 
       setSystemBalance(finalBalance);

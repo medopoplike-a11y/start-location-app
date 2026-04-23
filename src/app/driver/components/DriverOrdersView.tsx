@@ -243,23 +243,24 @@ export default function DriverOrdersView({
     <div className="fixed inset-0 z-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* 1. Full Screen Map Background */}
       <div className="absolute inset-0 z-0">
-        {isActive && driverLocation ? (
+        {isActive && driverLocation && !isNaN(driverLocation.lat) && !isNaN(driverLocation.lng) ? (
           <LiveMap
             drivers={[{ 
               id: driverId || "me", 
               name: "أنا", 
-              ...driverLocation, 
+              lat: driverLocation.lat,
+              lng: driverLocation.lng,
               isOnline: true,
               status: activeOrders.length > 0 ? 'busy' : 'available'
             }]}
-            vendors={vendorMarkers}
-            orders={orderMarkers}
+            vendors={vendorMarkers.filter(v => !isNaN(v.lat) && !isNaN(v.lng))}
+            orders={orderMarkers.filter(o => !isNaN(o.lat) && !isNaN(o.lng))}
             center={mapCenter}
             zoom={16}
             className="h-full w-full"
             driverMode={true}
             isNavigating={isNavigating}
-            navigationTarget={navigationTarget}
+            navigationTarget={navigationTarget && !isNaN(navigationTarget.lat) && !isNaN(navigationTarget.lng) ? navigationTarget : null}
           />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-400 p-8 text-center">
