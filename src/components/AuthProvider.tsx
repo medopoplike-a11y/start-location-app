@@ -119,21 +119,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // V17.6.2: Industrial Stability
+    // V17.6.3: Industrial Stability
     const initAuth = async () => {
       try {
-        console.log("[AuthV17.6.2] Standard session check...");
+        console.log("[AuthV17.6.3] Standard session check...");
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
           await updateState(session, "init");
         } else {
-          console.log("[AuthV17.6.2] No session found, setting loading false");
+          console.log("[AuthV17.6.3] No session found, setting loading false");
           loadingRef.current = false;
           setLoading(false);
         }
       } catch (e) {
-        console.error("[AuthV17.6.2] Init error", e);
+        console.error("[AuthV17.6.3] Init error", e);
         if (active) {
             loadingRef.current = false;
             setLoading(false);
@@ -141,10 +141,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // V17.6.2: Emergency Splash Timeout
+    // V17.6.3: Emergency Splash Timeout
     const splashTimeout = setTimeout(() => {
       if (loadingRef.current && active) {
-        console.warn("[AuthV17.6.2] Splash timeout reached. Forcing loader release.");
+        console.warn("[AuthV17.6.3] Splash timeout reached. Forcing loader release.");
         loadingRef.current = false;
         setLoading(false);
       }
@@ -152,7 +152,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthV17.6.2] Auth event: ${event}`);
+      console.log(`[AuthV17.6.3] Auth event: ${event}`);
       if (!active) return;
 
       if (event === 'SIGNED_OUT') {

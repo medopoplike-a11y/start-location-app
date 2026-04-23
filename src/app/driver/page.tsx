@@ -816,8 +816,11 @@ export default function DriverApp() {
               // a long secondary debounce just made everything feel laggy.
   };
 
+  // V17.6.3: Memoized Driver ID to prevent re-subscriptions in useSync
+  const memoizedUserId = useMemo(() => driverId || undefined, [driverId]);
+
   // V17.2.7: Unified Sync Engine
-  useSync(driverId || undefined, (payload) => {
+  useSync(memoizedUserId, (payload) => {
     // V17.4.6: Explicit 'driver' role so order subscription only fires for
     // this driver's own orders — eliminates flood from other drivers/vendors.
     if (!driverId) return;
@@ -856,6 +859,9 @@ export default function DriverApp() {
       setOrders(prev => {
         const index = prev.findIndex(o => o.id === mappedOrder.id);
         if (index > -1) {
+          // Skip update if data is identical (Render Optimization)
+          if (JSON.stringify(prev[index]) === JSON.stringify(mappedOrder)) return prev;
+          
           // Update existing
           const newOrders = [...prev];
           newOrders[index] = { ...newOrders[index], ...mappedOrder };
@@ -892,6 +898,7 @@ export default function DriverApp() {
       setActionLoading(true);
       
       // 1. Update UI and Local State immediately for responsiveness (Optimistic)
+      // V17.6.3: Skip full re-render if possible, just update the toggle
       setIsActive(newStatus);
       
       if (typeof window !== "undefined") {
@@ -904,21 +911,18 @@ export default function DriverApp() {
       
       // 2. Background DB Update (V0.9.74 - NON-BLOCKING UI)
       if (driverId) {
-        // We perform the update with a timeout but don't AWAIT it to prevent UI freeze
-        withTimeout('toggleActive.dbUpdate', 
-          supabase.from('profiles').update({ 
-            is_online: newStatus,
-            updated_at: new Date().toISOString()
-          }).eq('id', driverId),
-          10000
-        ).catch(err => {
-          console.warn("Online toggle: DB update failed in background", err);
-          // Heartbeat or next sync will eventually fix the DB state
+        // V17.6.3: Use a silent update that doesn't trigger a global sync event 
+        // back to this client to prevent the 'Reload' feel.
+        supabase.from('profiles').update({ 
+          is_online: newStatus,
+          updated_at: new Date().toISOString()
+        }).eq('id', driverId).then(({ error }) => {
+          if (error) console.warn("Online toggle: DB update failed", error);
         });
       }
       
-      // Small delay for visual feedback, then unlock
-      setTimeout(() => setActionLoading(false), 1000);
+      // V17.6.3: Reduced unlock delay to 400ms for snappier feel
+      setTimeout(() => setActionLoading(false), 400);
       
     } catch (err) {
       console.error("Online toggle: Fatal error", err);
