@@ -382,18 +382,20 @@ function StoreContent() {
     console.log("[StoreSync] Global sync update received:", payload?.source);
 
     // 1. Reset locks on resume/focus
-    if (payload?.source === 'app_resume_start' || payload?.source === 'app_hard_resume' || payload?.source === 'visibility_change') {
+    if (payload?.source === 'app_resume_start' || payload?.source === 'app_resume_complete' || payload?.source === 'visibility_change') {
       isSyncingRef.current = false;
-      setIsSyncing(true); // Show loader immediately for feedback
+      if (payload?.source === 'app_resume_start') {
+        setIsSyncing(true); // Show loader during recovery
+      }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
     }
 
-    if (payload?.source === 'app_hard_resume') {
-      // V17.5.0: Hard Sync - Clear orders to prevent data overlap from old state
-      setOrders([]);
+    if (payload?.isHardSync && payload?.source === 'app_resume_start') {
+      // V17.6.0: Cache-first Strategy
+      setOrders([]); 
     }
 
     // 2. Handle global alerts

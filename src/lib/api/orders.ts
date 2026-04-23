@@ -28,11 +28,15 @@ export const fetchOrders = async (options: {
     });
     if (localOrders && localOrders.length > 0) {
       console.log('[OrdersAPI] Local-first: returning', localOrders.length, 'cached orders');
-      // Always trigger a background sync so the next call has fresher data.
-      dbService.syncFromRemote().catch(() => {});
-      if (options.preferCache !== false) {
+      
+      // V17.6.0: If we specifically asked for cache first, return it immediately.
+      // The background sync will happen anyway in useSync.ts.
+      if (options.preferCache === true) {
         return localOrders;
       }
+      
+      // Always trigger a background sync for non-blocking UI update.
+      dbService.syncFromRemote().catch(() => {});
     }
   }
 

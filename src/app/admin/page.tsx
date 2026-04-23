@@ -550,13 +550,15 @@ function AdminContent() {
 
     // On app resume or tab-focus, reset the fetching lock in case it got stuck
     // while the app was backgrounded (fetch interrupted on native platforms).
-    if (payload?.source === 'app_resume_start' || payload?.source === 'app_hard_resume' || payload?.source === 'visibility_change') {
+    if (payload?.source === 'app_resume_start' || payload?.source === 'app_resume_complete' || payload?.source === 'visibility_change') {
       isDataFetchingRef.current = false;
-      setLoading(true); // Show loader immediately for feedback
+      if (payload?.source === 'app_resume_start') {
+        setLoading(true); // Show loader during recovery
+      }
     }
 
-    if (payload?.source === 'app_hard_resume') {
-      // V17.5.0: Hard Sync - Clear orders to prevent data overlap from old state
+    if (payload?.isHardSync && payload?.source === 'app_resume_start') {
+      // V17.6.0: Hard Sync - Clear orders to prevent data overlap from old state
       setLiveOrders([]);
     }
     

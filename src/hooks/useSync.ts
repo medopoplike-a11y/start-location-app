@@ -258,31 +258,45 @@ export const useSync = (
       
       // 1. Immediate UI refresh (Non-blocking)
       setIsSyncing(true);
+      
+      // V17.6.0: Emit 'cache_first_refresh' to pages to show local data immediately
       triggerUpdate({ 
-        source: isHardSync ? 'app_hard_resume' : 'app_resume_start',
-        backgroundDuration 
+        source: 'app_resume_start',
+        isHardSync,
+        backgroundDuration,
+        preferCache: true // Hint to use SQLite first
       });
 
-      // 2. Perform healing in background without blocking the UI thread
+      // 2. Perform healing in background
       (async () => {
         try {
           const { refreshAppSession } = await import('@/lib/native-utils');
           
-          // V17.5.0: Radical Re-connection - Reset socket state entirely
-          if (!supabase.realtime.isConnected()) {
-            console.log("useSync: Resetting socket state...");
-            try { supabase.realtime.disconnect(); } catch (_) {}
-            await new Promise(r => setTimeout(r, 500));
-            supabase.realtime.connect();
-          }
-
-          // Parallelize session refresh and channel rebuild
-          await Promise.all([
-            refreshAppSession().catch(e => console.warn("useSync: Session refresh failed", e)),
-            subscribe()
-          ]);
+          // V17.6.0: Strict Timeout for Session Refresh (5s)
+          // Prevents the app from hanging if the user is in a dead zone
+          const sessionPromise = refreshAppSession();
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session refresh timed out")), 5000));
           
-          triggerUpdate({ source: 'app_resume_complete', isHardSync });
+          await Promise.race([sessionPromise, timeoutPromise]).catch(e => console.warn("useSync: Session refresh slow/failed", e));
+
+          // V17.6.0: Aggressive Realtime Reset
+          console.log("useSync: Re-establishing Realtime Socket...");
+          try {
+            // Forcefully teardown all channels and socket
+            cleanupChannels();
+            supabase.realtime.disconnect();
+            await new Promise(r => setTimeout(r, 800)); // Give OS time to release port
+            supabase.realtime.connect();
+          } catch (_) {}
+
+          // Re-subscribe and trigger full remote fetch
+          await subscribe();
+          
+          triggerUpdate({ 
+            source: 'app_resume_complete', 
+            isHardSync,
+            preferCache: false // Now we want fresh remote data
+          });
         } catch (e) {
           console.error("useSync: Resume healing failed", e);
         } finally {

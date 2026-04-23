@@ -708,7 +708,7 @@ export const startForegroundTracking = async (userId: string, name?: string, onU
     const { Geolocation } = await import('@capacitor/geolocation');
     
     let lastSentTs = 0;
-    // V17.5.0: Hard Sync & Background Stability
+    // V17.6.0: Industrial-Grade Background Resilience
     // Stationary: 10s, Moving: 5s, Fast (>2m/s): 3s
     const getDynamicInterval = (speed: number) => {
       if (speed > 2) return 3000;

@@ -825,18 +825,20 @@ export default function DriverApp() {
     console.log("[DriverSync] Global sync update received:", payload?.source);
 
     // 1. Reset locks on resume/focus
-    if (payload?.source === 'app_resume_start' || payload?.source === 'app_hard_resume' || payload?.source === 'visibility_change') {
+    if (payload?.source === 'app_resume_start' || payload?.source === 'app_resume_complete' || payload?.source === 'visibility_change') {
       isRefreshingRef.current = false;
-      setIsRefreshing(true); // Show loader immediately for feedback
+      if (payload?.source === 'app_resume_start') {
+        setIsRefreshing(true); // Show loader during recovery
+      }
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
         syncTimeoutRef.current = null;
       }
     }
 
-    if (payload?.source === 'app_hard_resume') {
-      // V17.5.0: Hard Sync - Clear orders to prevent data overlap from old state
-      setOrders([]);
+    if (payload?.isHardSync && payload?.source === 'app_resume_start') {
+      // V17.6.0: If hard sync is needed, show cached data first while clearing stale state
+      setOrders([]); // Clear memory, fetchOrders(preferCache: true) will refill it from SQLite
     }
 
     // 2. Handle global alerts
