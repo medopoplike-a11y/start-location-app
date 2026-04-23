@@ -141,10 +141,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // V17.3.9: Emergency Splash Timeout
+    // V17.6.0: Emergency Splash Timeout
     const splashTimeout = setTimeout(() => {
       if (loadingRef.current && active) {
-        console.warn("[AuthV17.3.9] Splash timeout reached. Forcing loader release.");
+        console.warn("[AuthV17.6.0] Splash timeout reached. Forcing loader release.");
         loadingRef.current = false;
         setLoading(false);
       }

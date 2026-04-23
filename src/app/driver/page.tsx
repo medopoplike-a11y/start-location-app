@@ -446,7 +446,7 @@ export default function DriverApp() {
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
-        // V17.3.9: Balanced web tracking interval (5 seconds)
+        // V17.6.0: Balanced web tracking interval (5 seconds)
         if (now - lastLocationUpdate < 5000) return;
         
         const newLocation = { 
