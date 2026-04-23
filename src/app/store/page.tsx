@@ -382,6 +382,8 @@ function StoreContent() {
 
   // V17.2.7: Unified Sync Engine
   useSync(vendorId || undefined, (payload) => {
+    // V17.4.6: Explicit 'vendor' role so order subscription is scoped to
+    // this vendor's orders only — no more cross-talk with drivers/other stores.
     if (!vendorId) return;
     
     console.log("[StoreSync] Global sync update received:", payload?.source);
@@ -404,7 +406,7 @@ function StoreContent() {
 
     // 3. Trigger data refresh
     updateData(vendorId);
-  });
+  }, 'vendor');
 
   // Sound notification logic
   useEffect(() => {

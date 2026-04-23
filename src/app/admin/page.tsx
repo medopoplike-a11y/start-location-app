@@ -649,7 +649,7 @@ function AdminContent() {
     if (payload?.source === 'location_update' && payload?.payload) {
       updateDriverRegistry(payload.payload, 'realtime');
     }
-  }, true); // isAdmin = true
+  }, 'admin');
 
   // 8. Background Refresh Loop for Driver Status (Fallback)
   useEffect(() => {

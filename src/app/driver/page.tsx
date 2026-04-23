@@ -824,6 +824,8 @@ export default function DriverApp() {
 
   // V17.2.7: Unified Sync Engine
   useSync(driverId || undefined, (payload) => {
+    // V17.4.6: Explicit 'driver' role so order subscription only fires for
+    // this driver's own orders — eliminates flood from other drivers/vendors.
     if (!driverId) return;
 
     console.log("[DriverSync] Global sync update received:", payload?.source);
@@ -847,7 +849,7 @@ export default function DriverApp() {
     if (!isRefreshingRef.current) {
       manualSync(payload);
     }
-  });
+  }, 'driver');
 
   const toggleActive = async () => {
     if (actionLoading) return;

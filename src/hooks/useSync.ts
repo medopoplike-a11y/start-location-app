@@ -8,7 +8,19 @@ import { subscribeToWallets, subscribeToSettlements } from "@/lib/api/wallets";
 import { supabase } from "@/lib/supabaseClient";
 import { cleanupBroadcastChannel } from "@/lib/native-utils";
 
-export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isAdmin: boolean = false) => {
+export const useSync = (
+  userId?: string,
+  onUpdate?: (payload?: any) => void,
+  // V17.4.6: Accept the actual role so order subscriptions are properly scoped.
+  // Backwards-compat: a boolean `true` is treated as 'admin' to avoid breaking
+  // any callers that may still pass `isAdmin`.
+  roleOrIsAdmin: 'admin' | 'vendor' | 'driver' | boolean = 'admin',
+) => {
+  const role: 'admin' | 'vendor' | 'driver' =
+    typeof roleOrIsAdmin === 'boolean'
+      ? (roleOrIsAdmin ? 'admin' : 'admin')
+      : roleOrIsAdmin;
+  const isAdmin = role === 'admin';
   const [lastSync, setLastSync] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
   const onUpdateRef = useRef(onUpdate);
@@ -81,11 +93,16 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     // FIX: subscribeToOrders(callback, filterId?) — callback MUST be the first arg.
     // Previous code had arguments swapped which silently broke all real-time order
     // updates for vendors, drivers, and admins.
+    // V17.4.6: Pass the actual role so subscribeToOrders applies the correct
+    // postgres filter (vendor_id=eq.X for vendors, driver_id=eq.X for drivers).
+    // Without this, every vendor/driver was receiving ALL order changes in the
+    // system, causing massive cross-talk between unrelated user interfaces.
     const orderChannel = subscribeToOrders(
       (payload: any) => {
         triggerUpdate({ source: 'orders', event: payload?.eventType, payload });
       },
-      isAdmin ? undefined : userId   // filterId: undefined = all orders (admin), userId = own orders
+      isAdmin ? undefined : userId,
+      role,
     );
     // NOTE: subscribeToOrders already calls .subscribe() internally.
     // Do NOT call .subscribe() again — that would cause a duplicate subscription.
@@ -198,7 +215,7 @@ export const useSync = (userId?: string, onUpdate?: (payload?: any) => void, isA
     // V17.1.0: Force an immediate UI update after subscription to ensure 
     // the page fetches data even if no real-time event has occurred yet.
     triggerUpdate({ source: 'initial_subscribe', force: true });
-  }, [userId, isAdmin, triggerUpdate, cleanupChannels]);
+  }, [userId, role, isAdmin, triggerUpdate, cleanupChannels]);
 
   // ─── Initial subscription + heartbeat ─────────────────────────────────────
   useEffect(() => {
