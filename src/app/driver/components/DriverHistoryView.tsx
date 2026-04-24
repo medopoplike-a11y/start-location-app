@@ -19,9 +19,12 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
   const now = new Date();
 
   const filtered = (Array.isArray(history) ? history : []).filter((o) => {
-    const updatedAt = o.statusUpdatedAt || (o as any).created_at;
+    if (!o) return false;
+    const updatedAt = o.statusUpdatedAt || (o as any).status_updated_at || (o as any).created_at;
     if (!updatedAt) return filter === "today";
     const d = new Date(updatedAt);
+    if (isNaN(d.getTime())) return filter === "today";
+    
     if (filter === "today") {
       return d.toDateString() === now.toDateString();
     } else if (filter === "15days") {
@@ -36,7 +39,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
   });
 
   // V1.3.2: Exclude cancelled orders from earnings and totals
-  const successfulOrders = filtered.filter(o => o.status === 'delivered');
+  const successfulOrders = filtered.filter(o => o && o.status === 'delivered');
   const totalEarnings = successfulOrders.reduce((acc, o) => acc + (o.financials?.driver_earnings || 0), 0);
   const totalDeliveryFees = successfulOrders.reduce((acc, o) => acc + (o.financials?.delivery_fee || 0), 0);
   const totalOrderValue = successfulOrders.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0);
@@ -45,7 +48,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
   const commissionRate = 0.15;
   const commissionPerOrder = 1;
   const totalCommission = successfulOrders.reduce(
-    (acc, o) => acc + (o.financials?.delivery_fee || 0) * commissionRate + commissionPerOrder,
+    (acc, o) => acc + ((o.financials?.delivery_fee || 0) * commissionRate) + commissionPerOrder,
     0
   );
 
@@ -130,15 +133,16 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
           {/* Order List */}
           <div className="space-y-3">
             {filtered.map((order: any, idx) => {
-              const vendorName = order.vendor?.full_name || order.vendor_name || "محل غير معروف";
-              const vendorPhone = order.vendor?.phone || order.vendor_phone || "";
+              if (!order) return null;
+              const vendorName = order.vendor?.full_name || order.vendor_name || order.vendor || "محل غير معروف";
+              const vendorPhone = order.vendor?.phone || order.vendor_phone || order.vendorPhone || "";
               const earnings = order.financials?.driver_earnings || 0;
-              const orderValue = order.financials?.order_value || 0;
+              const orderValue = order.financials?.order_value || order.orderValue || 0;
               const deliveryFee = order.financials?.delivery_fee || 0;
-              const commission = deliveryFee * commissionRate + commissionPerOrder;
-              const settled = !!order.vendor_collected_at;
+              const commission = (deliveryFee * commissionRate) + commissionPerOrder;
+              const settled = !!(order.vendor_collected_at || order.vendorCollectedAt);
               const isExpanded = expandedId === order.id;
-              const updatedAt = order.status_updated_at || order.created_at;
+              const updatedAt = order.statusUpdatedAt || order.status_updated_at || order.created_at;
               const isCancelled = order.status === 'cancelled';
 
               return (

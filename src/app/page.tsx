@@ -31,7 +31,7 @@ export default function MainShell() {
   // 3. Authenticated -> Show Role-based View
   // V17.2.7: Ensure we have a profile before choosing the dashboard.
   // If user exists but profile is null, it means we are in the middle of a fetch.
-  // V17.8.9: Added safety timeout for profile recovery to prevent stuck loader on resume.
+  // V17.9.0: Added safety timeout for profile recovery to prevent stuck loader on resume.
   const [profileTimeout, setProfileTimeout] = useState(false);
   useEffect(() => {
     if (user && !profile) {
@@ -46,7 +46,7 @@ export default function MainShell() {
     return <AppLoader />;
   }
 
-  // V17.8.9: Fallback to user metadata role if profile fetch failed or timed out
+  // V17.9.0: Fallback to user metadata role if profile fetch failed or timed out
   const role = profile?.role || user?.user_metadata?.role || "driver";
 
   switch (role) {

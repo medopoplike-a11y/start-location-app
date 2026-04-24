@@ -791,7 +791,7 @@ function DriverPageContent() {
         vendorCollectedAt: db.vendor_collected_at,
         driverConfirmedAt: db.driver_confirmed_at,
         orderValue: Number(db.financials?.order_value) || 0,
-        customers: db.customer_details?.customers || [],
+        customers: (db.customer_details?.customers || []).filter((c: any) => c && typeof c === 'object'),
         financials: {
           order_value: Number(db.financials?.order_value) || 0,
           delivery_fee: Number(db.financials?.delivery_fee) || 0,

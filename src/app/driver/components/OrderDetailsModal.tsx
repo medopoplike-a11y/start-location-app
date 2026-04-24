@@ -67,8 +67,8 @@ export default function OrderDetailsModal({
   const currentStep = statusConfig[order.status]?.step ?? 0;
   const config = statusConfig[order.status] ?? statusConfig.pending;
 
-  const totalOrderValue = order.customers?.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0) || 0;
-  const totalDeliveryFee = order.customers?.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0) || 0;
+  const totalOrderValue = (order.customers || []).reduce((acc, c) => acc + (Number(c?.orderValue) || 0), 0);
+  const totalDeliveryFee = (order.customers || []).reduce((acc, c) => acc + (Number(c?.deliveryFee) || 0), 0);
 
   const handleAction = async () => {
     if (loading) return;

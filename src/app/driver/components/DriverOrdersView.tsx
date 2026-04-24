@@ -17,7 +17,9 @@ import {
   Layers,
   Map as MapIcon,
   Maximize2,
-  CheckCircle2
+  CheckCircle2,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";
@@ -378,16 +380,16 @@ export default function DriverOrdersView({
 
                           <div className="flex flex-col gap-2">
                             <div className="grid grid-cols-2 gap-2 mb-1">
-                              <div className="bg-slate-100 dark:bg-slate-700/50 p-2 rounded-xl text-center">
-                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">قيمة الطلب</p>
-                                <p className="text-[10px] font-black text-slate-900 dark:text-white">{(order.customers?.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0) || 0).toFixed(2)} ج.م</p>
-                              </div>
-                              <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-xl text-center">
-                                <p className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-1">ربحك الصافي</p>
-                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{(order.financials?.driver_earnings || 0).toFixed(2)} ج.م</p>
-                              </div>
+                               <div className="bg-slate-100 dark:bg-slate-700/50 p-2 rounded-xl text-center">
+                                 <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">قيمة الطلب</p>
+                                 <p className="text-[10px] font-black text-slate-900 dark:text-white">{(order.customers?.reduce((acc, c) => acc + (Number(c?.orderValue) || 0), 0) || 0).toFixed(2)} ج.م</p>
+                               </div>
+                               <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-xl text-center">
+                                 <p className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-1">ربحك الصافي</p>
+                                 <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{(order.financials?.driver_earnings || 0).toFixed(2)} ج.م</p>
+                               </div>
                             </div>
-                            
+
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setSelectedOrder(order)}
