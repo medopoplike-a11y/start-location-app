@@ -1173,10 +1173,8 @@ function DriverPageContent() {
   }, [isActive, autoAccept, driverId]);
 
   const handleAcceptOrder = async (orderId: string) => {
-    if (!driverId) {
-      toastError("فشل تحديد هوية الطيار. يرجى إعادة تسجيل الدخول.");
-      return;
-    }
+    if (!driverId || actionLoading) return;
+    setActionLoading(true);
     
     // 1. Check current customer count (limit to 3)
     const currentCustomersCount = orders
@@ -1209,11 +1207,14 @@ function DriverPageContent() {
       setOrders(originalOrders);
       toastError(err.message || "فشل قبول الطلب. حاول مرة أخرى.");
       console.error("handleAcceptOrder error:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handlePickupOrder = async (orderId: string) => {
-    if (!driverId) return;
+    if (!driverId || actionLoading) return;
+    setActionLoading(true);
 
     // Optimistic Update
     const originalOrders = [...orders];
@@ -1248,11 +1249,14 @@ function DriverPageContent() {
       setOrders(originalOrders);
       // V1.0.3: More descriptive error message from DB if available
       toastError(err.message || "فشل تحديث الحالة. حاول مرة أخرى.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleDeliverOrder = async (orderId: string) => {
-    if (!driverId) return;
+    if (!driverId || actionLoading) return;
+    setActionLoading(true);
 
     // Optimistic Update: Remove from active orders
     const originalOrders = [...orders];
@@ -1285,6 +1289,8 @@ function DriverPageContent() {
       console.error("DriverPage: handleDeliverOrder failed", err);
       setOrders(originalOrders);
       toastError(err.message || "فشل إتمام الطلب. حاول مرة أخرى.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1317,9 +1323,21 @@ function DriverPageContent() {
 
       if (fetchError) throw fetchError;
 
+      // Create updated customers list based on DB data to avoid overwriting other updates
+      const dbCustomers = freshOrder.customer_details?.customers || [];
+      const updatedCustomers = [...dbCustomers];
+      
+      if (updatedCustomers[customerIndex]) {
+        updatedCustomers[customerIndex] = {
+          ...updatedCustomers[customerIndex],
+          status: 'delivered',
+          deliveredAt: new Date().toISOString()
+        };
+      }
+
       const updatedDetails = {
         ...(freshOrder.customer_details || {}),
-        customers: newCustomers
+        customers: updatedCustomers
       };
 
       const { error } = await supabase.from('orders').update({ 
@@ -1327,7 +1345,11 @@ function DriverPageContent() {
       }).eq('id', orderId);
 
       if (error) throw error;
-      toastSuccess(`تم تسليم العميل ${newCustomers[customerIndex].name} بنجاح`);
+      
+      // Update local state with the final confirmed data
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: updatedCustomers } : o));
+      
+      toastSuccess(`تم تسليم العميل ${updatedCustomers[customerIndex]?.name || ""} بنجاح`);
     } catch (err: any) {
       console.error('Deliver customer failed:', err);
       // Rollback UI on error

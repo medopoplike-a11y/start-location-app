@@ -96,5 +96,5 @@ CI/CD: GitHub Actions (Auto-Deploy to Vercel Enabled)
 
 **Status:** 🟢 Active & Deployed  
 **Last Updated:** 2026-04-24  
-**Version:** 17.8.6-GOLD-STABLE
+**Version:** 17.8.7-GOLD-STABLE
 

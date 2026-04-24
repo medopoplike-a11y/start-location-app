@@ -53,10 +53,10 @@ export default function WalletView({ companyCommission, balance, settlementHisto
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">المحفظة المالية</h2>
 
       {/* Commission Card */}
-      <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800">
+      <div className="bg-gray-900 dark:bg-black text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800 dark:border-slate-900">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -124,17 +124,17 @@ export default function WalletView({ companyCommission, balance, settlementHisto
       </div>
 
       {/* Balance Card */}
-      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden group hover:border-orange-200 transition-all">
+      <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-gray-100 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-200 dark:hover:border-orange-900 transition-all">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="w-4 h-4 text-orange-500" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">مستحقاتك لدى الطيارين</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-slate-500">مستحقاتك لدى الطيارين</p>
           </div>
-          <h3 className="text-4xl font-black text-gray-900 flex items-baseline gap-2">
+          <h3 className="text-4xl font-black text-gray-900 dark:text-white flex items-baseline gap-2">
             {balance.toLocaleString()} 
-            <span className="text-lg font-bold text-gray-300">ج.م</span>
+            <span className="text-lg font-bold text-gray-300 dark:text-slate-700">ج.م</span>
           </h3>
-          <p className="text-[10px] text-gray-400 font-bold mt-3 leading-relaxed">
+          <p className="text-[10px] text-gray-400 dark:text-slate-500 font-bold mt-3 leading-relaxed">
             هذه هي إجمالي قيمة الأوردرات التي استلمها الطيارين من المحل ولم يقوموا بتسليمها لك بعد.
           </p>
         </div>
@@ -143,17 +143,17 @@ export default function WalletView({ companyCommission, balance, settlementHisto
       {/* Settlements */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900 pr-2">طلبات التسوية</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white pr-2">طلبات التسوية</h3>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
+        <div className="flex bg-gray-100 dark:bg-slate-950 p-1 rounded-2xl gap-1">
           {(["today", "15days", "month"] as FilterPeriod[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${
-                filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"
+                filter === f ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm" : "text-gray-400 dark:text-slate-600"
               }`}
             >
               {filterLabels[f]}
@@ -162,29 +162,29 @@ export default function WalletView({ companyCommission, balance, settlementHisto
         </div>
 
         {filteredSettlements.length === 0 ? (
-          <div className="bg-gray-50 p-8 rounded-[32px] text-center border border-dashed border-gray-200">
-            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات تسوية في هذه الفترة</p>
+          <div className="bg-gray-50 dark:bg-slate-950 p-8 rounded-[32px] text-center border border-dashed border-gray-200 dark:border-slate-800">
+            <p className="text-xs text-gray-400 dark:text-slate-600 font-bold">لا توجد طلبات تسوية في هذه الفترة</p>
           </div>
         ) : (
           <div className="space-y-3">
             {filteredSettlements.map((s) => (
-              <div key={s.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+              <div key={s.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      s.status === "تم السداد" ? "bg-green-50 text-green-600" : "bg-orange-50 text-orange-600"
+                      s.status === "تم السداد" ? "bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400" : "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400"
                     }`}
                   >
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-800">تسوية مديونية</p>
-                    <p className="text-[10px] text-gray-400 font-bold">{s.date}</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-slate-200">تسوية مديونية</p>
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 font-bold">{s.date}</p>
                   </div>
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-black text-gray-900">{s.amount} ج.م</p>
-                  <p className={`text-[10px] font-bold ${s.status === "تم السداد" ? "text-green-600" : "text-orange-600"}`}>
+                  <p className="text-sm font-black text-gray-900 dark:text-white">{s.amount} ج.م</p>
+                  <p className={`text-[10px] font-bold ${s.status === "تم السداد" ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`}>
                     {s.status}
                   </p>
                 </div>

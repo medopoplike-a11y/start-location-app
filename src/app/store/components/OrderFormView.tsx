@@ -286,25 +286,26 @@ export default function OrderFormView({
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 mr-1 uppercase tracking-tighter">سعر التوصيل</label>
+                            <label className="text-[9px] font-black text-gray-400 dark:text-slate-500 mr-1 uppercase tracking-tighter">سعر التوصيل</label>
                             <input 
                               type="text" 
                               inputMode="decimal"
                               dir="rtl"
                               value={cust.deliveryFee} 
                               onChange={(e) => updateCustomer(idx, 'deliveryFee', e.target.value)} 
-                              className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm text-right" 
+                              className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-orange-500 font-black text-sm shadow-sm text-right" 
                               placeholder="٣٠" 
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-orange-600 mr-1 uppercase tracking-tighter">وقت التحضير</label>
+                            <label className="text-[9px] font-black text-orange-600 dark:text-orange-400 mr-1 uppercase tracking-tighter">وقت التحضير</label>
                             <input 
                               type="text" 
                               inputMode="numeric"
+                              dir="rtl"
                               value={cust.prepTime} 
                               onChange={(e) => updateCustomer(idx, 'prepTime', e.target.value)} 
-                              className="w-full bg-orange-50/50 p-4 rounded-2xl border border-orange-100 text-orange-700 outline-none focus:ring-2 ring-orange-300 font-black text-sm shadow-sm" 
+                              className="w-full bg-orange-50/50 dark:bg-orange-950/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-900/30 text-orange-700 dark:text-orange-400 outline-none focus:ring-2 ring-orange-300 font-black text-sm shadow-sm text-right" 
                               placeholder="15" 
                             />
                           </div>
@@ -312,7 +313,7 @@ export default function OrderFormView({
 
                         <div className="pt-2">
                           {(cust.invoiceUrl || cust.localPreview) && (
-                            <div className="mb-2 relative rounded-xl overflow-hidden border border-gray-100 aspect-[3/4] max-h-48 bg-gray-50 shadow-sm group/preview mx-auto w-32 flex items-center justify-center">
+                            <div className="mb-2 relative rounded-xl overflow-hidden border border-gray-100 dark:border-slate-800 aspect-[3/4] max-h-48 bg-gray-50 dark:bg-slate-950 shadow-sm group/preview mx-auto w-32 flex items-center justify-center">
                               <img 
                                 src={cust.localPreview || cust.invoiceUrl} 
                                 className="w-full h-full object-contain cursor-pointer relative z-10" 
@@ -329,7 +330,7 @@ export default function OrderFormView({
                                   onPreviewImage?.(cust.localPreview || cust.invoiceUrl!);
                                 }}
                               />
-                              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300 z-0">
+                              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300 dark:text-slate-700 z-0">
                                 <Camera size={24} className="opacity-20" />
                                 <span className="text-[8px] mt-1 font-bold">صورة الفاتورة</span>
                               </div>
@@ -347,8 +348,8 @@ export default function OrderFormView({
                             disabled={isSaving || cust.isUploading}
                             className={`w-full p-3 rounded-xl border border-dashed transition-all flex items-center justify-center gap-2 ${
                               cust.invoiceUrl 
-                                ? "bg-green-50 border-green-200 text-green-600" 
-                                : "bg-gray-50 border-gray-200 text-gray-400 hover:border-orange-200 hover:text-orange-500"
+                                ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30 text-green-600 dark:text-green-400" 
+                                : "bg-gray-50 dark:bg-slate-950 border-gray-200 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-orange-200 dark:hover:border-orange-900 hover:text-orange-500"
                             }`}
                           >
                             <Camera size={16} className={!cust.invoiceUrl && !cust.isUploading ? "animate-pulse" : ""} />
@@ -368,7 +369,7 @@ export default function OrderFormView({
           {activeCustomers.length < 5 && (
             <button 
               onClick={addCustomer}
-              className="w-full py-5 rounded-[32px] border-2 border-dashed border-gray-300 text-gray-500 font-black text-sm flex items-center justify-center gap-3 hover:border-orange-400 hover:text-orange-600 hover:bg-white transition-all active:scale-95 shadow-sm bg-white/50"
+              className="w-full py-5 rounded-[32px] border-2 border-dashed border-gray-300 dark:border-slate-800 text-gray-500 dark:text-slate-500 font-black text-sm flex items-center justify-center gap-3 hover:border-orange-400 dark:hover:border-orange-900 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-white dark:hover:bg-slate-900 transition-all active:scale-95 shadow-sm bg-white/50 dark:bg-slate-900/50"
             >
               <Plus size={20} />
               إضافة عميل آخر للسكة (حتى 5 عملاء)
@@ -377,27 +378,27 @@ export default function OrderFormView({
         </div>
 
         {/* General Settings Section */}
-        <div className="bg-white p-6 rounded-[40px] border border-gray-100 space-y-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-[40px] border border-gray-100 dark:border-slate-800 space-y-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500">
+            <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl flex items-center justify-center text-indigo-500 dark:text-indigo-400">
               <MapPin size={20} />
             </div>
             <div>
-              <p className="text-xs font-black text-gray-900">إعدادات السكة العامة</p>
-              <p className="text-[10px] font-bold text-gray-400">Notes & Location</p>
+              <p className="text-xs font-black text-gray-900 dark:text-white">إعدادات السكة العامة</p>
+              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500">Notes & Location</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="group">
-              <label className="text-[10px] font-black text-gray-400 mr-2 mb-1 block uppercase">ملاحظات عامة للطيار</label>
+              <label className="text-[10px] font-black text-gray-400 dark:text-slate-500 mr-2 mb-1 block uppercase">ملاحظات عامة للطيار</label>
               <input 
                 type="text" 
                 dir="rtl"
                 disabled={isSaving} 
                 value={formData.notes} 
                 onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })} 
-                className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-100 text-gray-900 outline-none focus:ring-2 ring-indigo-300 font-bold text-sm text-right" 
+                className="w-full bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 ring-indigo-300 font-bold text-sm text-right" 
                 placeholder="مثال: يرجى الاتصال عند الوصول" 
               />
             </div>
@@ -407,8 +408,8 @@ export default function OrderFormView({
               disabled={isSaving} 
               className={`w-full p-5 rounded-2xl font-black text-xs flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-60 shadow-md ${
                 formData.customerCoords 
-                  ? "bg-emerald-500 text-white shadow-emerald-100" 
-                  : "bg-white text-gray-600 border border-gray-200"
+                  ? "bg-emerald-500 text-white shadow-emerald-100 dark:shadow-none" 
+                  : "bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-800"
               }`}
             >
               <MapPin size={20} />
@@ -418,7 +419,7 @@ export default function OrderFormView({
         </div>
 
         {/* Financial Summary Dashboard */}
-        <div className="bg-gray-900 p-8 rounded-[48px] text-white space-y-6 shadow-2xl shadow-slate-300 relative overflow-hidden">
+        <div className="bg-gray-900 dark:bg-black p-8 rounded-[48px] text-white space-y-6 shadow-2xl shadow-slate-300 dark:shadow-none relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/10 rounded-full -ml-16 -mb-16 blur-3xl" />
           

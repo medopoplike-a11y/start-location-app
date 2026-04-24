@@ -47,16 +47,16 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">سجل العمليات</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">سجل العمليات</h2>
 
       {/* Filter Tabs */}
-      <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
+      <div className="flex bg-gray-100 dark:bg-slate-950 p-1 rounded-2xl gap-1">
         {(["today", "week", "month"] as FilterPeriod[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${
-              filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"
+              filter === f ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm" : "text-gray-400 dark:text-slate-600"
             }`}
           >
             {filterLabels[f]}
@@ -67,15 +67,15 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
       {/* Summary */}
       {filtered.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-green-50 border border-green-100 rounded-[20px] p-4 text-center">
+          <div className="bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 rounded-[20px] p-4 text-center">
             <CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
-            <p className="text-[9px] font-bold text-green-600 uppercase">مكتمل</p>
-            <p className="text-xl font-black text-green-700">{totalDelivered}</p>
+            <p className="text-[9px] font-bold text-green-600 dark:text-green-400 uppercase">مكتمل</p>
+            <p className="text-xl font-black text-green-700 dark:text-green-400">{totalDelivered}</p>
           </div>
-          <div className="bg-sky-50 border border-sky-100 rounded-[20px] p-4 text-center">
+          <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/30 rounded-[20px] p-4 text-center">
             <Package className="w-5 h-5 text-sky-500 mx-auto mb-1" />
-            <p className="text-[9px] font-bold text-sky-600 uppercase">إجمالي المبيعات</p>
-            <p className="text-xl font-black text-sky-700">{totalValue.toLocaleString()} ج.م</p>
+            <p className="text-[9px] font-bold text-sky-600 dark:text-sky-400 uppercase">إجمالي المبيعات</p>
+            <p className="text-xl font-black text-sky-700 dark:text-sky-400">{totalValue.toLocaleString()} ج.م</p>
           </div>
         </div>
       )}
@@ -83,9 +83,9 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
       {/* Order List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-gray-50 p-10 rounded-[32px] text-center border border-dashed border-gray-200">
-            <History className="w-8 h-8 text-gray-200 mx-auto mb-3" />
-            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات في هذه الفترة</p>
+          <div className="bg-gray-50 dark:bg-slate-950 p-10 rounded-[32px] text-center border border-dashed border-gray-200 dark:border-slate-800">
+            <History className="w-8 h-8 text-gray-200 dark:text-slate-800 mx-auto mb-3" />
+            <p className="text-xs text-gray-400 dark:text-slate-600 font-bold">لا توجد طلبات في هذه الفترة</p>
           </div>
         ) : (
           filtered.map((order) => {
@@ -95,7 +95,7 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
             return (
               <div
                 key={order.id}
-                className="bg-white rounded-[24px] border border-gray-100 overflow-hidden shadow-sm"
+                className="bg-white dark:bg-slate-900 rounded-[24px] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm"
               >
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}
@@ -104,70 +104,70 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        isDelivered ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                        isDelivered ? "bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400" : "bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400"
                       }`}
                     >
                       {isDelivered ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-800">{order.customer}</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-slate-200">{order.customer}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] text-gray-400 font-bold">#{order.id.slice(0, 8)}</span>
-                        <span className="text-[9px] text-gray-400">•</span>
-                        <span className="text-[9px] text-gray-400 font-bold">{order.time}</span>
+                        <span className="text-[9px] text-gray-400 dark:text-slate-500 font-bold">#{order.id.slice(0, 8)}</span>
+                        <span className="text-[9px] text-gray-400 dark:text-slate-500">•</span>
+                        <span className="text-[9px] text-gray-400 dark:text-slate-500 font-bold">{order.time}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-left">
-                      <p className="text-sm font-black text-gray-900">{order.amount}</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white">{order.amount}</p>
                       <span
-                        className={`text-[9px] font-bold ${isDelivered ? "text-green-600" : "text-red-600"}`}
+                        className={`text-[9px] font-bold ${isDelivered ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
                       >
                         {translateStatus(order.status)}
                       </span>
                     </div>
                     {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <ChevronUp className="w-4 h-4 text-gray-400 dark:text-slate-600 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-gray-400 dark:text-slate-600 flex-shrink-0" />
                     )}
                   </div>
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-1 border-t border-gray-50 space-y-3">
+                  <div className="px-4 pb-4 pt-1 border-t border-gray-50 dark:border-slate-800 space-y-3">
                     {/* Customer Info */}
-                    <div className="bg-gray-50 rounded-[16px] p-3 space-y-2">
-                      <p className="text-[10px] font-black text-gray-500 uppercase">بيانات العميل</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-700 font-bold">
+                    <div className="bg-gray-50 dark:bg-slate-950 p-3 space-y-2 rounded-[16px]">
+                      <p className="text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase">بيانات العميل</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300 font-bold">
                         <MapPin className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
                         {order.address}
                       </div>
                       {order.phone && (
                         <a
                           href={`tel:${order.phone}`}
-                          className="flex items-center gap-2 text-xs text-sky-600 font-bold"
+                          className="flex items-center gap-2 text-xs text-sky-600 dark:text-sky-400 font-bold"
                         >
                           <Phone className="w-3.5 h-3.5 flex-shrink-0" />
                           {order.phone}
                         </a>
                       )}
                       {(order as any).notes && (
-                        <p className="text-[10px] text-gray-500">ملاحظات: {(order as any).notes}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-slate-500">ملاحظات: {(order as any).notes}</p>
                       )}
                     </div>
 
                     {/* Driver Info */}
                     {order.driver && (
-                      <div className="bg-sky-50 rounded-[16px] p-3 space-y-2">
-                        <p className="text-[10px] font-black text-sky-600 uppercase">الطيار</p>
+                      <div className="bg-sky-50 dark:bg-sky-950/20 rounded-[16px] p-3 space-y-2">
+                        <p className="text-[10px] font-black text-sky-600 dark:text-sky-400 uppercase">الطيار</p>
                         <div className="flex items-center gap-2">
-                          <Truck className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
-                          <p className="text-xs font-bold text-sky-800">{order.driver}</p>
+                          <Truck className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+                          <p className="text-xs font-bold text-sky-800 dark:text-sky-200">{order.driver}</p>
                           {order.driverPhone && (
                             <a href={`tel:${order.driverPhone}`} className="mr-auto">
-                              <Phone className="w-4 h-4 text-sky-400" />
+                              <Phone className="w-4 h-4 text-sky-400 dark:text-sky-500" />
                             </a>
                           )}
                         </div>
@@ -184,7 +184,7 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
                               e.stopPropagation();
                               onPreviewImage?.(cust.invoice_url!);
                             }}
-                            className="relative w-12 h-12 rounded-xl overflow-hidden border border-orange-100 shadow-sm group/mini bg-white/50 active:scale-95 transition-transform"
+                            className="relative w-12 h-12 rounded-xl overflow-hidden border border-orange-100 dark:border-orange-900 shadow-sm group/mini bg-white/50 dark:bg-slate-800/50 active:scale-95 transition-transform"
                           >
                             <img 
                               src={cust.invoice_url} 

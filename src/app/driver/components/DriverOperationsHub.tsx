@@ -47,9 +47,9 @@ export default function DriverOperationsHub({
     <div className="space-y-6">
       {/* View Switcher - SIMPLIFIED (NO HISTORY) */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex p-1 bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl w-fit shadow-sm">
+        <div className="flex p-1 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl w-fit shadow-sm">
           <div
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black bg-slate-900 text-white shadow-lg shadow-slate-200"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black bg-slate-900 dark:bg-slate-800 text-white shadow-lg shadow-slate-200 dark:shadow-none"
           >
             <Truck className="w-4 h-4" />
             المهام والطلبات
@@ -62,9 +62,9 @@ export default function DriverOperationsHub({
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border ${isActive ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
-            <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? "text-emerald-600" : "text-slate-400"}`}>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border ${isActive ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30" : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800"}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"}`} />
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
               {isActive ? "Online" : "Offline"}
             </span>
           </div>

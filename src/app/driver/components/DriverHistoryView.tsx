@@ -58,23 +58,23 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+        <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
           <History className="w-5 h-5 text-sky-500" />
           سجل التوصيلات
         </h2>
-        <span className="bg-sky-100 text-sky-700 text-xs font-black px-3 py-1.5 rounded-full border border-sky-200">
+        <span className="bg-sky-100 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 text-xs font-black px-3 py-1.5 rounded-full border border-sky-200 dark:border-sky-900/50">
           {filtered.length} طلب
         </span>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+      <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl gap-1">
         {(["today", "15days", "month"] as FilterPeriod[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${
-              filter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
+              filter === f ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm" : "text-slate-400 dark:text-slate-600"
             }`}
           >
             {filterLabels[f]}
@@ -83,44 +83,44 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white p-10 rounded-[40px] shadow-sm text-center border border-gray-100">
-          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Clock className="w-8 h-8 text-slate-200" />
+        <div className="bg-white dark:bg-slate-900 p-10 rounded-[40px] shadow-sm text-center border border-gray-100 dark:border-slate-800">
+          <div className="w-16 h-16 bg-slate-50 dark:bg-slate-950 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-slate-200 dark:text-slate-800" />
           </div>
-          <p className="text-sm text-gray-400 font-bold">لا توجد توصيلات في هذه الفترة</p>
+          <p className="text-sm text-gray-400 dark:text-slate-600 font-bold">لا توجد توصيلات في هذه الفترة</p>
         </div>
       ) : (
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-green-50 border border-green-100 rounded-[24px] p-4 text-center">
+            <div className="bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 rounded-[24px] p-4 text-center">
               <TrendingUp className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <p className="text-[9px] font-bold text-green-600 uppercase">صافي أرباحك</p>
-              <p className="text-lg font-black text-green-700">{(totalEarnings || 0).toFixed(2)} ج.م</p>
+              <p className="text-[9px] font-bold text-green-600 dark:text-green-400 uppercase">صافي أرباحك</p>
+              <p className="text-lg font-black text-green-700 dark:text-green-400">{(totalEarnings || 0).toFixed(2)} ج.م</p>
             </div>
-            <div className="bg-sky-50 border border-sky-100 rounded-[24px] p-4 text-center">
+            <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/30 rounded-[24px] p-4 text-center">
               <Banknote className="w-5 h-5 text-sky-500 mx-auto mb-1" />
-              <p className="text-[9px] font-bold text-sky-600 uppercase">إجمالي المبالغ</p>
-              <p className="text-lg font-black text-sky-700">{(totalOrderValue || 0).toLocaleString()} ج.م</p>
+              <p className="text-[9px] font-bold text-sky-600 dark:text-sky-400 uppercase">إجمالي المبالغ</p>
+              <p className="text-lg font-black text-sky-700 dark:text-sky-400">{(totalOrderValue || 0).toLocaleString()} ج.م</p>
             </div>
           </div>
 
           {/* Commission Summary */}
-          <div className="bg-orange-50 border border-orange-100 rounded-[24px] p-4">
+          <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 rounded-[24px] p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-black text-orange-700">عمولة الشركة المستحقة (يومي)</p>
-              <span className="text-base font-black text-orange-600">{(totalCommission || 0).toFixed(2)} ج.م</span>
+              <p className="text-[11px] font-black text-orange-700 dark:text-orange-400">عمولة الشركة المستحقة (يومي)</p>
+              <span className="text-base font-black text-orange-600 dark:text-orange-500">{(totalCommission || 0).toFixed(2)} ج.م</span>
             </div>
             <div className="space-y-1.5">
-              <div className="flex justify-between text-[10px] text-orange-600 font-bold">
+              <div className="flex justify-between text-[10px] text-orange-600 dark:text-orange-500 font-bold">
                 <span>نسبة على سعر التوصيل ({((commissionRate || 0) * 100).toFixed(0)}%)</span>
                 <span>{(totalDeliveryFees * (commissionRate || 0)).toFixed(2)} ج.م</span>
               </div>
-              <div className="flex justify-between text-[10px] text-orange-600 font-bold">
+              <div className="flex justify-between text-[10px] text-orange-600 dark:text-orange-500 font-bold">
                 <span>رسوم ثابتة ({filtered.length} × {commissionPerOrder} ج.م)</span>
                 <span>{(filtered.length * (commissionPerOrder || 0)).toFixed(2)} ج.م</span>
               </div>
-              <div className="flex justify-between text-[10px] text-orange-800 font-black border-t border-orange-200 pt-1.5 mt-1">
+              <div className="flex justify-between text-[10px] text-orange-800 dark:text-orange-400 font-black border-t border-orange-200 dark:border-orange-900/50 pt-1.5 mt-1">
                 <span>إجمالي رسوم التوصيل</span>
                 <span>{(totalDeliveryFees || 0).toFixed(2)} ج.م</span>
               </div>
@@ -147,22 +147,22 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.04 }}
-                  className={`bg-white rounded-[28px] border shadow-sm overflow-hidden ${isCancelled ? 'border-red-100 opacity-80' : 'border-gray-100'}`}
+                  className={`bg-white dark:bg-slate-900 rounded-[28px] border shadow-sm overflow-hidden ${isCancelled ? 'border-red-100 dark:border-red-900/30 opacity-80' : 'border-gray-100 dark:border-slate-800'}`}
                 >
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : order.id)}
                     className="w-full p-5 flex items-center justify-between text-right"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${isCancelled ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
-                        {isCancelled ? <XCircle className="w-5 h-5 text-red-500" /> : <CheckCircle className="w-5 h-5 text-green-500" />}
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${isCancelled ? 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/30' : 'bg-green-50 dark:bg-green-950/20 border-green-100 dark:border-green-900/30'}`}>
+                        {isCancelled ? <XCircle className="w-5 h-5 text-red-500 dark:text-red-400" /> : <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <Store className="w-3 h-3 text-slate-400" />
-                          <p className="text-sm font-black text-slate-900">{vendorName}</p>
+                          <Store className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                          <p className="text-sm font-black text-slate-900 dark:text-white">{vendorName}</p>
                         </div>
-                        <p className="text-[9px] text-slate-400 font-bold">
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold">
                           #{order.id.slice(0, 8)}
                           {updatedAt && ` • ${new Date(updatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}`}
                         </p>
@@ -172,44 +172,44 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                       <div className="text-left">
                         <span
                           className={`text-[9px] font-black px-2.5 py-1 rounded-full border ${
-                            isCancelled ? "bg-red-50 text-red-700 border-red-100" :
+                            isCancelled ? "bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border-red-100 dark:border-red-900/30" :
                             settled
-                              ? "bg-green-50 text-green-700 border-green-100"
-                              : "bg-amber-50 text-amber-700 border-amber-100"
+                              ? "bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900/30"
+                              : "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/30"
                           }`}
                         >
                           {isCancelled ? "ملغي" : (settled ? "تمت التسوية" : "بانتظار المحل")}
                         </span>
                       </div>
                       {isExpanded ? (
-                        <ChevronUp className="w-4 h-4 text-slate-400" />
+                        <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-600" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                        <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-600" />
                       )}
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="px-5 pb-5 pt-1 border-t border-slate-50 space-y-3">
+                    <div className="px-5 pb-5 pt-1 border-t border-slate-50 dark:border-slate-800 space-y-3">
                       {/* Customer info */}
-                      <div className="bg-slate-50 rounded-[16px] p-3 space-y-1.5 relative">
+                      <div className="bg-slate-50 dark:bg-slate-950 rounded-[16px] p-3 space-y-1.5 relative">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="text-[10px] font-black text-slate-500 uppercase mb-2">تفاصيل التوصيل</p>
+                            <p className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase mb-2">تفاصيل التوصيل</p>
                             
                             {/* Check for multi-customers (Sikka) */}
                             {order.customers && order.customers.length > 0 ? (
                               <div className="space-y-3">
                                 {order.customers.map((c: any, i: number) => (
-                                  <div key={i} className="flex items-start gap-2 border-r-2 border-sky-200 pr-2">
+                                  <div key={i} className="flex items-start gap-2 border-r-2 border-sky-200 dark:border-sky-900/50 pr-2">
                                     <div className="flex-1">
-                                      <p className="text-[11px] font-black text-slate-800">{c.name}</p>
-                                      <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                      <p className="text-[11px] font-black text-slate-800 dark:text-slate-200">{c.name}</p>
+                                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                         <MapPin className="w-2.5 h-2.5 text-red-400" />
                                         {c.address}
                                       </p>
                                     </div>
-                                    <a href={`tel:${c.phone}`} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-sky-500 shadow-sm">
+                                    <a href={`tel:${c.phone}`} className="w-7 h-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center text-sky-500 dark:text-sky-400 shadow-sm">
                                       <Phone size="12" />
                                     </a>
                                   </div>
@@ -217,11 +217,11 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                               </div>
                             ) : (
                               <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
                                   <User className="w-3.5 h-3.5 text-slate-400" />
                                   {order.customer || "عميل"}
                                 </div>
-                                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
                                   <MapPin className="w-3.5 h-3.5 text-red-400" />
                                   {order.address}
                                 </div>
@@ -236,7 +236,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                                   e.stopPropagation();
                                   onPreviewImage?.(order.customers![0].invoice_url!);
                                 }}
-                                className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                                className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
                               >
                                 <img src={order.customers[0].invoice_url} className="w-full h-full object-cover" alt="Inv" />
                                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -244,7 +244,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                                 </div>
                               </button>
                             )}
-                            <a href={`tel:${order.customerPhone}`} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                            <a href={`tel:${order.customerPhone}`} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                               <Phone size={14} />
                             </a>
                           </div>
@@ -276,7 +276,7 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
                         <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-center">
                           <p className="text-xs font-black text-red-600">هذا الطلب تم إلغاؤه ولم يتم احتساب أي أرباح أو مديونيات</p>
                         </div>
-                      )}"}]}
+                      )}
 
                       {/* Vendor contact */}
                       {vendorPhone && (
