@@ -1,0 +1,175 @@
+name: Start Location Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force all clients to update immediately (interrupts active users)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Get App Version
+        id: get_version
+        run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Next.js Static Export
+        run: npm run build:mobile
+        env:
+          BUILD_TYPE: static
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_ADMIN_EMAILS: ${{ secrets.NEXT_PUBLIC_ADMIN_EMAILS }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_APP_VERSION: ${{ env.APP_VERSION }}
+
+      - name: Create OTA Bundle
+        run: node scripts/create-ota-bundle.js
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Install Android SDK 36
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "platform-tools" 2>/dev/null || true
+          echo "✅ Android SDK 36 ready"
+
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+
+      - name: Prepare Keystore
+        id: signing_check
+        run: |
+          mkdir -p android/app
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ "${#ANDROID_KEYSTORE_BASE64}" -gt 100 ]; then
+            node -e "const fs = require('fs'); fs.writeFileSync('android/app/release-key.keystore', Buffer.from(process.env.ANDROID_KEYSTORE_BASE64, 'base64'));"
+            echo "✅ Keystore restored from secret"
+            echo "store_password=$RELEASE_STORE_PASSWORD" >> $GITHUB_ENV
+            echo "key_alias=$RELEASE_KEY_ALIAS" >> $GITHUB_ENV
+            echo "key_password=$RELEASE_KEY_PASSWORD" >> $GITHUB_ENV
+          else
+            echo "⚠️ No keystore secret found — generating a fresh release keystore..."
+            STORE_PASS="StartLocation@2025"
+            KEY_ALIAS="start-release"
+            KEY_PASS="StartLocation@2025"
+            keytool -genkeypair -v \
+              -keystore android/app/release-key.keystore \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$STORE_PASS" \
+              -keypass "$KEY_PASS" \
+              -dname "CN=Start Location, OU=Mobile, O=Start, L=SA, ST=SA, C=SA" 2>/dev/null
+            echo "✅ Fresh keystore generated"
+            echo "store_password=$STORE_PASS" >> $GITHUB_ENV
+            echo "key_alias=$KEY_ALIAS" >> $GITHUB_ENV
+            echo "key_password=$KEY_PASS" >> $GITHUB_ENV
+            # Print base64 so it can be saved as a secret for future consistent builds
+            echo "📋 Save this as ANDROID_KEYSTORE_BASE64 secret for consistent future builds:"
+            base64 -w 0 android/app/release-key.keystore
+            echo ""
+          fi
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Build Android APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          export RELEASE_STORE_FILE="$(pwd)/app/release-key.keystore"
+          export RELEASE_STORE_PASSWORD="${{ env.store_password }}"
+          export RELEASE_KEY_ALIAS="${{ env.key_alias }}"
+          export RELEASE_KEY_PASSWORD="${{ env.key_password }}"
+          ./gradlew assembleRelease --no-daemon --max-workers=2 --console=plain --warning-mode=none -Dorg.gradle.jvmargs="-Xmx4g"
+          echo "✅ APK build complete"
+
+      - name: Prepare Final Assets
+        run: |
+          mkdir -p build-out
+          if [ -f "dist/update.zip" ]; then
+            cp dist/update.zip build-out/update.zip
+            echo "✅ OTA bundle ready"
+          fi
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" build-out/start-location.apk
+            APK_SIZE=$(du -sh "$APK_PATH" | cut -f1)
+            echo "✅ APK ready: $APK_PATH ($APK_SIZE)"
+          else
+            echo "❌ No APK found!"
+            exit 1
+          fi
+
+      # STEP 1: Deploy the WEB version (browser users) to Vercel FIRST.
+      # This is also what serves any APIs the new mobile OTA bundle may depend on,
+      # so it must succeed before mobile clients are notified of the new version.
+      - name: Deploy web to Vercel (browser users + APIs)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_on: error
+          command: |
+            npx vercel pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
+            npx vercel build --prod --token ${{ secrets.VERCEL_TOKEN }}
+            npx vercel deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TELEMETRY_DISABLED: 1
+          NEXT_TELEMETRY_DISABLED: 1
+          NO_UPDATE_CHECK: 1
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      # STEP 2: Upload binaries (APK + OTA bundle) to Supabase Storage. Mobile clients still don't see the new version yet.
+      - name: Upload APK & OTA bundle to Supabase Storage
+        run: node scripts/upload-to-supabase.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      # STEP 3: The "switch flip". Only after Vercel + Storage are confirmed do we tell mobile clients a new version exists.
+      # Skipped automatically if package.json version hasn't changed (no spurious updates per commit).
+      - name: Flip app_config (notify mobile clients)
+        run: node scripts/update-ota-version.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
+
+      - name: Notify Build Complete
+        run: echo "✅ Build complete — Web deployed to Vercel, APK + OTA uploaded to Supabase, app_config flipped. Mobile clients will pick up the update on their next poll."

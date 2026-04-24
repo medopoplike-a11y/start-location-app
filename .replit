@@ -1,0 +1,56 @@
+modules = ["bash", "nodejs-22"]
+[agent]
+expertMode = true
+integrations = ["javascript_database:1.0.0"]
+stack = "BEST_EFFORT_FALLBACK"
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_APP_VERSION = "1.9.0"
+NEXT_PUBLIC_BUILD_TYPE = "production"
+NEXT_PUBLIC_CAPGO_APP_ID = "com.start.location"
+NEXT_PUBLIC_AUTO_UPDATE_ENABLED = "true"
+NEXT_PUBLIC_UPDATE_CHECK_INTERVAL = "1800000"
+DEBUG_MODE = "false"
+VERBOSE_LOGGING = "false"
+NEXT_PUBLIC_ADMIN_EMAILS = "medopoplike@gmail.com"
+NEXT_PUBLIC_SUPABASE_URL = "https://sdpjvorettivpdviytqo.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcGp2b3JldHRpdnBkdml5dHFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODI2MDIsImV4cCI6MjA4OTQ1ODYwMn0.Ti0wZbQHBQwFCBZlCdSaar7JUZm7k7sYUbvr9H2MsZ4"
+NEXT_PUBLIC_APP_URL = "https://start-location-app.vercel.app"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npm", "run", "start"]
+build = ["npm", "run", "build"]
