@@ -588,7 +588,15 @@ function DriverPageContent() {
       // V17.7.7: Industrial-grade numeric sanitation
       const finalBalance = Number(walletData?.system_balance || 0);
       const finalOverallBalance = Number(walletData?.balance || 0);
-      const finalDebt = Number(walletData?.debt || 0);
+      
+      // V1.2.1: Use uncollectedOrders sum for real-time accuracy, fallback to wallet debt
+      let finalDebt = Number(walletData?.debt || 0);
+      if (uncollectedOrders && Array.isArray(uncollectedOrders)) {
+        const ordersSum = uncollectedOrders.reduce((acc, o) => acc + Number(o.financials?.order_value || 0), 0);
+        if (ordersSum > 0 || uncollectedOrders.length === 0) {
+          finalDebt = ordersSum;
+        }
+      }
       
       let finalFees = 0;
       if (todayOrders && Array.isArray(todayOrders)) {

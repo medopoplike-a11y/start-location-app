@@ -9,16 +9,26 @@ interface WalletsViewProps {
   wallets: WalletRow[];
   onResetUser: (userId: string, userName: string) => void;
   onRefresh?: () => void;
+  onRecalculate?: () => Promise<void>;
 }
 
-export default function WalletsView({ users = [], wallets = [], onResetUser, onRefresh }: WalletsViewProps) {
+export default function WalletsView({ users = [], wallets = [], onResetUser, onRefresh, onRecalculate }: WalletsViewProps) {
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isRecalculating, setIsRecalculating] = React.useState(false);
 
   const handleRefresh = async () => {
     if (onRefresh) {
       setIsRefreshing(true);
       await onRefresh();
       setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    if (onRecalculate) {
+      setIsRecalculating(true);
+      await onRecalculate();
+      setIsRecalculating(false);
     }
   };
 
@@ -87,14 +97,25 @@ export default function WalletsView({ users = [], wallets = [], onResetUser, onR
         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h3 className="font-black text-slate-900 dark:text-white">تفاصيل كافة المحافظ</h3>
-            <button 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-blue-600 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
-              title="تحديث البيانات"
-            >
-              <RefreshCcw size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-blue-600 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                title="تحديث البيانات"
+              >
+                <RefreshCcw size={16} />
+              </button>
+              <button 
+                onClick={handleRecalculate}
+                disabled={isRecalculating}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-black text-[10px] hover:bg-blue-100 transition-all ${isRecalculating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="إعادة حساب كافة المديونيات"
+              >
+                <RefreshCcw size={14} className={isRecalculating ? 'animate-spin' : ''} />
+                إعادة حساب شاملة
+              </button>
+            </div>
           </div>
           <div className="flex gap-2">
             <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-500">الكل: {(mergedData || []).length}</span>

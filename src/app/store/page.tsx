@@ -618,18 +618,6 @@ function StoreContent() {
     };
   }, [user, authProfile, authLoading, router]);
 
-  useEffect(() => {
-    if (!orders || !Array.isArray(orders)) return;
-    const pendingCollection = orders.reduce((acc, order) => {
-      if ((order.status === "delivered" || order.status === "in_transit") && !order.vendorCollectedAt) {
-        const amount = Number(order.amount?.replace(/[^0-9.-]+/g, "") || 0);
-        return acc + (isNaN(amount) ? 0 : amount);
-      }
-      return acc;
-    }, 0);
-    setBalance(pendingCollection);
-  }, [orders]);
-
   const abortControllerRef = useRef<AbortController | null>(null);
   // Use a ref as the authoritative lock so resets take effect synchronously
   // (React state updates are async and can't unblock a guard in the same call).
@@ -655,12 +643,17 @@ function StoreContent() {
     }, 12000);
 
     try {
-      const [dbOrders, walletRes, settlementsRes, driversRes, profileRes] = await Promise.allSettled([
+      const [dbOrders, walletRes, settlementsRes, driversRes, profileRes, uncollectedRes] = await Promise.allSettled([
         getVendorOrders({ role: 'vendor', userId: uid }),
         supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
         supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
-        supabase.from('profiles').select('*').eq('id', uid).single()
+        supabase.from('profiles').select('*').eq('id', uid).single(),
+        supabase.from('orders')
+          .select('financials')
+          .eq('vendor_id', uid)
+          .in('status', ['in_transit', 'delivered'])
+          .is('vendor_collected_at', null)
       ]);
 
       if (profileRes.status === 'fulfilled' && profileRes.value.data) {
@@ -691,6 +684,14 @@ function StoreContent() {
         setOrders(dbOrders.value.map(mapDBOrderToUI));
       } else if (dbOrders.status === 'rejected') {
         console.error(`[Store-Diag] Orders query failed:`, dbOrders.reason);
+      }
+
+      // V1.2.1: Robust uncollected balance calculation from database
+      if (uncollectedRes.status === 'fulfilled' && uncollectedRes.value.data) {
+        const total = uncollectedRes.value.data.reduce((acc, o: any) => {
+          return acc + Number(o.financials?.order_value || 0);
+        }, 0);
+        setBalance(total);
       }
 
       // القيمة الأساسية لمديونية الشركة تأتي من جدول المحافظ لأنه يخصم التسويات المدفوعة سابقاً

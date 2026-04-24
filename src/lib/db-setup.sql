@@ -787,6 +787,36 @@ BEGIN
         END IF;
     END IF;
 
+    -- 5. عند إلغاء الطلب (Cancelled) - عكس العمليات المالية (جديد V1.2.1)
+    IF (new.status = 'cancelled' AND (old.status IS DISTINCT FROM 'cancelled')) THEN
+        -- أ. عكس المديونية إذا كان الطلب لم يحصل بعد وكان قد خرج للتوصيل
+        IF (old.status IN ('in_transit', 'delivered') AND old.vendor_collected_at IS NULL) THEN
+            IF new.driver_id IS NOT NULL THEN
+                UPDATE public.wallets 
+                SET debt = GREATEST(0, COALESCE(debt, 0) - COALESCE(order_val, 0)),
+                    updated_at = NOW()
+                WHERE user_id = new.driver_id;
+            END IF;
+        END IF;
+
+        -- ب. عكس الأرباح والعمولات إذا كان قد تم توصيله
+        IF (old.status = 'delivered') THEN
+            IF new.driver_id IS NOT NULL THEN
+                UPDATE public.wallets 
+                SET balance = balance - COALESCE(drv_earnings, 0),
+                    system_balance = system_balance - (COALESCE(sys_comm, 0) + COALESCE(drv_ins, 0)),
+                    updated_at = NOW()
+                WHERE user_id = new.driver_id;
+            END IF;
+            IF new.vendor_id IS NOT NULL THEN
+                UPDATE public.wallets 
+                SET system_balance = system_balance - (COALESCE(vnd_comm, 0) + COALESCE(vnd_ins, 0)),
+                    updated_at = NOW()
+                WHERE user_id = new.vendor_id;
+            END IF;
+        END IF;
+    END IF;
+
     RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -823,7 +853,7 @@ BEGIN
         UPDATE public.wallets 
         SET 
             system_balance = system_balance - new.amount,
-            created_at = NOW()
+            updated_at = NOW()
         WHERE user_id = new.user_id;
     END IF;
     RETURN new;
@@ -835,6 +865,87 @@ DROP TRIGGER IF EXISTS on_settlement_approval ON public.settlements;
 CREATE TRIGGER on_settlement_approval
   AFTER UPDATE ON public.settlements
   FOR EACH ROW EXECUTE PROCEDURE public.handle_settlement_approval();
+
+-- V1.2.2: Industrial Grade Wallet Recalculation (The Ultimate Fixer)
+CREATE OR REPLACE FUNCTION public.recalculate_all_wallets()
+RETURNS JSONB AS $$
+DECLARE
+    result JSONB;
+BEGIN
+    -- 1. تصفير كافة المحافظ أولاً (نقطة بداية نظيفة)
+    UPDATE public.wallets SET balance = 0, debt = 0, system_balance = 0;
+
+    -- 2. إعادة حساب مديونية الطيارين (الطلبات التي لم يتم تحصيلها بعد)
+    -- المديونية تشمل الطلبات في الطريق أو التي وصلت ولم يسدد الطيار ثمنها للمحل
+    WITH driver_debts AS (
+        SELECT 
+            driver_id, 
+            SUM(COALESCE((financials->>'order_value')::FLOAT, 0)) as total_debt
+        FROM public.orders
+        WHERE driver_id IS NOT NULL 
+          AND status IN ('in_transit', 'delivered')
+          AND vendor_collected_at IS NULL
+        GROUP BY driver_id
+    )
+    UPDATE public.wallets w
+    SET debt = d.total_debt, updated_at = NOW()
+    FROM driver_debts d
+    WHERE w.user_id = d.driver_id;
+
+    -- 3. إعادة حساب أرباح الطيارين وعمولاتهم (الطلبات التي تم توصيلها بنجاح فقط)
+    WITH driver_financials AS (
+        SELECT 
+            driver_id,
+            SUM(COALESCE((financials->>'driver_earnings')::FLOAT, 0)) as total_earnings,
+            SUM(
+                COALESCE((financials->>'system_commission')::FLOAT, 0) + 
+                COALESCE((financials->>'driver_insurance')::FLOAT, COALESCE((financials->>'insurance_fee')::FLOAT, 0) / 2)
+            ) as total_sys_comm
+        FROM public.orders
+        WHERE driver_id IS NOT NULL AND status = 'delivered'
+        GROUP BY driver_id
+    )
+    UPDATE public.wallets w
+    SET 
+        balance = f.total_earnings,
+        system_balance = system_balance + f.total_sys_comm,
+        updated_at = NOW()
+    FROM driver_financials f
+    WHERE w.user_id = f.driver_id;
+
+    -- 4. إعادة حساب عمولات المحلات (الطلبات التي تم توصيلها بنجاح فقط)
+    WITH vendor_financials AS (
+        SELECT 
+            vendor_id,
+            SUM(
+                COALESCE((financials->>'vendor_commission')::FLOAT, 0) + 
+                COALESCE((financials->>'vendor_insurance')::FLOAT, COALESCE((financials->>'insurance_fee')::FLOAT, 0) / 2)
+            ) as total_sys_comm
+        FROM public.orders
+        WHERE vendor_id IS NOT NULL AND status = 'delivered'
+        GROUP BY vendor_id
+    )
+    UPDATE public.wallets w
+    SET system_balance = system_balance + v.total_sys_comm, updated_at = NOW()
+    FROM vendor_financials v
+    WHERE w.user_id = v.vendor_id;
+
+    -- 5. خصم كافة التسويات المعتمدة (Approved Settlements)
+    WITH approved_settlements AS (
+        SELECT user_id, SUM(amount) as total_settled
+        FROM public.settlements
+        WHERE status = 'approved'
+        GROUP BY user_id
+    )
+    UPDATE public.wallets w
+    SET system_balance = system_balance - s.total_settled, updated_at = NOW()
+    FROM approved_settlements s
+    WHERE w.user_id = s.user_id;
+
+    result := jsonb_build_object('success', true, 'message', 'تم إعادة حساب كافة المحافظ بنجاح بناءً على الطلبات والتسويات الحالية');
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- دالة لتصفير بيانات مستخدم معين (مطعم أو طيار)
 CREATE OR REPLACE FUNCTION reset_user_data_admin(target_user_id UUID)
@@ -1005,9 +1116,9 @@ BEGIN
   END IF;
 END $$;
 
--- إدراج البيانات الافتراضية إذا لم تكن موجودة (V17.8.1)
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة (V17.8.2)
 INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
-VALUES (1, 'V17.8.1', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
+VALUES (1, 'V17.8.2', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
 ON CONFLICT (id) DO UPDATE SET 
     latest_version = EXCLUDED.latest_version,
     updated_at = NOW();

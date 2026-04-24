@@ -914,6 +914,22 @@ function AdminContent() {
     }
   }, [settlements, addActivity, fetchData]);
 
+  const handleRecalculateWallets = useCallback(async () => {
+    if (!confirm("هل أنت متأكد من إعادة حساب كافة المحافظ؟ سيتم مسح القيم الحالية وحسابها بدقة من واقع الطلبات والتسويات.")) return;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('recalculate_all_wallets');
+      if (error) throw error;
+      toastSuccess((data as any).message || "تم إعادة حساب المحافظ بنجاح");
+      addActivity("تم إعادة حساب كافة المحافظ يدوياً");
+      fetchData(true);
+    } catch (err: any) {
+      toastError(`فشل إعادة الحساب: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [addActivity, fetchData, toastSuccess, toastError]);
+
   const handleResetUser = useCallback(async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟ سيتم حذف الطلبات المكتملة وتصفير المحفظة.`)) return;
     setActionLoading(true);
@@ -1473,6 +1489,7 @@ function AdminContent() {
                 wallets={wallets} 
                 onResetUser={handleResetUser}
                 onRefresh={fetchProfiles}
+                onRecalculate={handleRecalculateWallets}
               />
             )}
 
