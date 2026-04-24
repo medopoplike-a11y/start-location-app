@@ -498,8 +498,8 @@ function DriverPageContent() {
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
         const now = Date.now();
-        // V17.6.1: Balanced web tracking interval (5 seconds)
-        if (now - lastLocationUpdate < 5000) return;
+        // V17.8.0: Faster web tracking interval (2 seconds) for smoother map movement.
+        if (now - lastLocationUpdate < 2000) return;
         
         const newLocation = { 
           lat: position.coords.latitude, 
@@ -906,8 +906,7 @@ function DriverPageContent() {
         isRefreshingRef.current = false;
         syncTimeoutRef.current = null;
       }
-    }, 250); // V17.4.7: 250ms (was 1000ms) — useSync already debounces by 100ms,
-              // a long secondary debounce just made everything feel laggy.
+    }, 100); // V17.8.0: 100ms for ultra-low latency updates.
   };
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
@@ -1063,8 +1062,8 @@ function DriverPageContent() {
         });
       }
       
-      // V17.7.9: Reduced unlock delay for snappier feel
-      setTimeout(() => setActionLoading(false), 300);
+      // V17.8.0: Ultra-fast unlock delay for zero-lag feel
+      setTimeout(() => setActionLoading(false), 100);
       
     } catch (err) {
       console.error("Online toggle: Fatal error", err);

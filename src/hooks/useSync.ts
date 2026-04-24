@@ -48,8 +48,8 @@ export const useSync = (
   }, []);
 
   /**
-   * DEBOUNCED SYNC — 100ms debounce for snappy real-time feel while still
-   * grouping burst updates (e.g. driver location flood) into a single render.
+   * DEBOUNCED SYNC — 50ms debounce for ultra-snappy real-time feel while still
+   * grouping burst updates into a single render.
    */
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
@@ -57,9 +57,8 @@ export const useSync = (
     // V17.1.0: Allow forcing an update even for 'initial_subscribe'
     if (payload?.source === 'initial_subscribe' && !payload?.force) return;
 
-    // V17.4.9: If it's a critical broadcast update, pass it through immediately
-    // without waiting for the debounce to finish, to ensure zero-latency feel.
-    if (payload?.source === 'system_sync' || payload?.source === 'new_order' || payload?.source === 'order_update') {
+    // V17.4.9: Critical updates are processed INSTANTLY without any debounce.
+    if (payload?.source === 'system_sync' || payload?.source === 'new_order' || payload?.source === 'order_update' || payload?.source === 'location_update') {
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
       return;
@@ -71,9 +70,9 @@ export const useSync = (
       setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 500);
+      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 300);
       syncTimeoutRef.current = null;
-    }, 100);
+    }, 50);
   }, []);
 
   const subscribe = useCallback(() => {
