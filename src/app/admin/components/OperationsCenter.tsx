@@ -24,6 +24,7 @@ import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
 import OrdersView from "./OrdersView";
 import SystemControlView from "./SystemControlView";
+import AIMonitorView from "./AIMonitorView";
 import type { LiveOrderItem, DriverCard, ActivityItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
@@ -41,6 +42,7 @@ interface OperationsCenterProps {
   autoRetryEnabled: boolean;
   maintenanceMode: boolean;
   actionLoading: boolean;
+  stats?: any[];
   onToggleAutoRetry: (val: boolean) => void;
   onToggleMaintenance: (val: boolean) => void;
   onLockAllDrivers: () => void;
@@ -64,6 +66,7 @@ export default function OperationsCenter({
   autoRetryEnabled,
   maintenanceMode,
   actionLoading,
+  stats,
   onToggleAutoRetry,
   onToggleMaintenance,
   onLockAllDrivers,
@@ -75,7 +78,7 @@ export default function OperationsCenter({
   onCancelOrder,
   onUpdateStatus
 }: OperationsCenterProps) {
-  const [activeTab, setActiveTab] = useState<"operations" | "monitor" | "system">("operations");
+  const [activeTab, setActiveTab] = useState<"operations" | "monitor" | "system" | "ai">("operations");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
@@ -184,45 +187,83 @@ export default function OperationsCenter({
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col overflow-hidden">
-      {/* Top Unified Navigation */}
-      <div className="flex items-center justify-between mb-4 bg-white/50 dark:bg-slate-900/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setActiveTab("operations")}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-              activeTab === "operations" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            غرفة العمليات المدمجة
-          </button>
-          <button 
-            onClick={() => setActiveTab("monitor")}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-              activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            المراقبة التفصيلية
-          </button>
-          <button 
-            onClick={() => setActiveTab("system")}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-              activeTab === "system" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            إعدادات النظام
-          </button>
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-black">
+      {/* Top Action Bar */}
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-30 shadow-sm">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+                <Zap size={20} />
+             </div>
+             <div>
+                <h1 className="text-lg font-black text-slate-900 dark:text-white">مركز القيادة الموحد</h1>
+                <div className="flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                   <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">System Pulse: Active</span>
+                </div>
+             </div>
+          </div>
+          
+          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setActiveTab("operations")}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === "operations" ? "bg-amber-500 text-white shadow-lg shadow-amber-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              المراقبة والخريطة الحية
+            </button>
+            <button 
+              onClick={() => setActiveTab("monitor")}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              إدارة المهام
+            </button>
+            <button 
+              onClick={() => setActiveTab("ai")}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === "ai" ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              الذكاء الاصطناعي
+            </button>
+            <button 
+              onClick={() => setActiveTab("system")}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === "system" ? "bg-slate-900 dark:bg-slate-800 text-white shadow-lg shadow-slate-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              التحكم في النظام
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4 px-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-slate-500 uppercase">{activeDriversCount} كابتن متصل</span>
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-2xl border border-slate-100 dark:border-slate-800">
+             <div className="text-center px-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase">الطلبات النشطة</p>
+                <p className="text-sm font-black text-amber-600">{liveOrders.length}</p>
+             </div>
+             <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
+             <div className="text-center px-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase">الطيارين المتصلين</p>
+                <p className="text-sm font-black text-emerald-600">{onlineDrivers.length}</p>
+             </div>
           </div>
-          <button onClick={onRefresh} disabled={actionLoading} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+          
+          <button 
+            onClick={onRefresh}
+            disabled={actionLoading}
+            className="p-3 bg-white dark:bg-slate-800 text-slate-400 hover:text-blue-500 rounded-xl border border-slate-100 dark:border-slate-800 transition-all shadow-sm active:scale-95"
+          >
             <RefreshCw className={`w-4 h-4 ${actionLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
@@ -461,14 +502,28 @@ export default function OperationsCenter({
                 onUpdateStatus={onUpdateStatus}
               />
             </motion.div>
+          ) : activeTab === "ai" ? (
+            <motion.div key="ai" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
+              <AIMonitorView 
+                stats={stats}
+                allOrders={allOrders}
+                onlineDrivers={onlineDrivers}
+              />
+            </motion.div>
           ) : (
             <motion.div key="system" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
               <SystemControlView 
+                autoRetryEnabled={autoRetryEnabled}
+                onToggleAutoRetry={onToggleAutoRetry}
                 maintenanceMode={maintenanceMode}
+                drivers={drivers}
+                actionLoading={actionLoading}
                 onToggleMaintenance={onToggleMaintenance}
                 onLockAllDrivers={onLockAllDrivers}
                 onUnlockAllDrivers={onUnlockAllDrivers}
                 onGlobalReset={onGlobalReset}
+                onRefresh={onRefresh}
+                onBroadcastMessage={onBroadcastMessage}
               />
             </motion.div>
           )}

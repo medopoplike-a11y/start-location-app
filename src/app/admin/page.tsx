@@ -27,18 +27,11 @@ import {
 import dynamic from 'next/dynamic';
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-const DashboardView = dynamic(() => import("./components/DashboardView"), { 
-  ssr: false,
-  loading: () => <AppLoader />
-});
-const SettlementsView = dynamic(() => import("./components/SettlementsView"), { ssr: false });
-const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: false });
-const ReportsView = dynamic(() => import("./components/ReportsView"), { ssr: false });
-const UserManagementView = dynamic(() => import("./components/UserManagementView"), { ssr: false });
 const OperationsCenter = dynamic(() => import("./components/OperationsCenter"), { ssr: false });
-const OrderHistoryView = dynamic(() => import("./components/OrderHistoryView"), { ssr: false });
-const AccountsView = dynamic(() => import('./AccountsView'), { ssr: false });
-const WalletsView = dynamic(() => import('./components/WalletsView'), { ssr: false });
+const OrderManagementHub = dynamic(() => import("./components/OrderManagementHub"), { ssr: false });
+const FleetHub = dynamic(() => import("./components/FleetHub"), { ssr: false });
+const FinancialHub = dynamic(() => import("./components/FinancialHub"), { ssr: false });
+const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: false });
 const AIMonitorView = dynamic(() => import('./components/AIMonitorView'), { 
   ssr: false,
   loading: () => <AppLoader />
@@ -1416,38 +1409,6 @@ function AdminContent() {
             </div>
           )}
           <Suspense fallback={<AppLoader />}>
-            {activeView === "dashboard" && (
-              <DashboardView 
-                activityLog={activityLog} 
-                stats={stats} 
-                onlineDrivers={onlineDrivers} 
-                vendors={vendors} 
-                allOrders={allOrders}
-                systemHealth={systemHealth}
-                onHeatmapAnalysis={handleHeatmapAnalysis}
-                actionLoading={actionLoading}
-              />
-            )}
-            {activeView === "ai-monitor" && (
-              <AIMonitorView 
-                stats={stats}
-                allOrders={allOrders}
-                onlineDrivers={onlineDrivers}
-              />
-            )}
-            {activeView === "order-history" && (
-              <OrderHistoryView
-                orders={allOrders}
-                onEditOrder={(order) => {
-                  alert("ميزة التعديل التفصيلي قيد التطوير - يمكنك استخدام تغيير الحالة من مركز العمليات حالياً");
-                }}
-                onDeleteOrder={handleDeleteAdminOrder}
-                onCreateOrder={() => {
-                  alert("يرجى إنشاء الطلبات من حساب المطعم لضمان دقة البيانات المالية حالياً");
-                }}
-              />
-            )}
-
             {activeView === "operations" && (
               <OperationsCenter
                 liveOrders={liveOrders}
@@ -1459,6 +1420,7 @@ function AdminContent() {
                 autoRetryEnabled={autoRetryEnabled}
                 maintenanceMode={appConfig?.maintenance_mode || false}
                 actionLoading={actionLoading}
+                stats={stats}
                 onToggleAutoRetry={setAutoRetryEnabled}
                 onToggleMaintenance={handleToggleMaintenance}
                 onToggleShiftLock={handleToggleShiftLock}
@@ -1473,11 +1435,25 @@ function AdminContent() {
               />
             )}
 
-            {activeView === "users" && (
-              <UserManagementView
+            {activeView === "orders" && (
+              <OrderManagementHub
+                liveOrders={liveOrders}
+                allOrders={allOrders}
+                activities={activities}
+                onCancelOrder={handleCancelOrder}
+                onUpdateStatus={handleUpdateOrderStatusManual}
+                onDeleteOrder={handleDeleteAdminOrder}
+                onCreateOrder={() => alert("يرجى إنشاء الطلبات من حساب المطعم حالياً")}
+                onRefreshData={handleRefresh}
+              />
+            )}
+
+            {activeView === "fleet" && (
+              <FleetHub
                 drivers={drivers}
                 vendors={vendors}
                 users={allUsers}
+                wallets={wallets}
                 onAddDriver={() => setShowAddDriver(true)}
                 onAddVendor={() => setShowAddVendor(true)}
                 onUpdateVendorBilling={handleUpdateProfileBilling}
@@ -1486,25 +1462,26 @@ function AdminContent() {
                 onDeleteUser={handleDeleteUser}
                 onToggleShiftLock={handleToggleShiftLock}
                 onResetUser={handleResetUser}
+                onRefreshData={handleRefresh}
+                onRecalculateWallets={handleRecalculateWallets}
               />
             )}
 
-            {activeView === "reports" && (
-              <ReportsView allOrders={allOrders} />
-            )}
-
-            {activeView === "wallets" && (
-              <WalletsView 
-                users={allUsers} 
-                wallets={wallets} 
-                onResetUser={handleResetUser}
-                onRefresh={fetchProfiles}
-                onRecalculate={handleRecalculateWallets}
+            {activeView === "financials" && (
+              <FinancialHub
+                settlements={settlements}
+                allOrders={allOrders}
+                onSettlementAction={handleSettlementAction}
+                onRefresh={handleRefresh}
               />
             )}
 
-            {activeView === "settlements" && (
-              <SettlementsView settlements={settlements} onSettlementAction={handleSettlementAction} />
+            {activeView === "ai-monitor" && (
+              <AIMonitorView 
+                stats={stats}
+                allOrders={allOrders}
+                onlineDrivers={onlineDrivers}
+              />
             )}
 
             {activeView === "settings" && appConfig && (

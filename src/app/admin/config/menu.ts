@@ -6,32 +6,34 @@ import {
   Users, 
   Wallet, 
   BarChart3, 
-  Settings 
+  Settings,
+  ShieldCheck,
+  Truck,
+  Store,
+  Map as MapIcon,
+  Bot
 } from "lucide-react";
 
 export const menuGroups = [
   {
-    title: "التشغيل والعمليات",
+    title: "غرفة العمليات الموحدة",
     items: [
-      { id: "operations", label: "مركز العمليات الموحد", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
-      { id: "order-history", label: "سجل الطلبات والفواتير", icon: FileText },
-      { id: "dashboard", label: "الإحصائيات المباشرة", icon: LayoutDashboard },
-      { id: "ai-monitor", label: "المراقب الذكي (AI)", icon: Zap, color: "text-purple-500", bg: "bg-purple-50" },
+      { id: "operations", label: "مركز القيادة والتحكم", icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
+      { id: "orders", label: "إدارة جميع الطلبات", icon: FileText },
+      { id: "ai-monitor", label: "المراقب الذكي (AI)", icon: Bot, color: "text-purple-500", bg: "bg-purple-50" },
     ]
   },
   {
-    title: "الإدارة والبيانات",
+    title: "إدارة الأطراف والمالية",
     items: [
-      { id: "users", label: "المستخدمين", icon: Users },
-      { id: "wallets", label: "مراقبة المحافظ", icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
-      { id: "settlements", label: "التسويات المالية", icon: FileText },
-      { id: "reports", label: "التقارير المالية", icon: BarChart3 },
+      { id: "fleet", label: "الأسطول والشركاء", icon: Truck },
+      { id: "financials", label: "التسويات والتقارير", icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
     ]
   },
   {
-    title: "الإعدادات",
+    title: "إعدادات النظام",
     items: [
-      { id: "settings", label: "إعدادات النظام", icon: Settings },
+      { id: "settings", label: "الإعدادات العامة", icon: Settings },
     ]
   }
 ];

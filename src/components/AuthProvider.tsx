@@ -168,7 +168,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initAuth();
 
-    // V17.8.8: App Resume Handler - Re-verify session when returning from background
+    // V17.8.9: App Resume Handler - Re-verify session when returning from background
     // This prevents being stuck on the loader if the session became stale.
     let appStateListener: any;
     const setupResumeListener = async () => {
@@ -176,7 +176,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { App } = await import("@capacitor/app");
         appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
           if (isActive) {
-            console.log("[AuthV17.8.8] App foregrounded, re-verifying session...");
+            console.log("[AuthV17.8.9] App foregrounded, re-verifying session...");
             initAuth();
           }
         });
