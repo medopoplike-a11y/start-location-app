@@ -138,7 +138,7 @@ jobs:
       # This is also what serves any APIs the new mobile OTA bundle may depend on,
       # so it must succeed before mobile clients are notified of the new version.
       - name: Deploy web to Vercel (browser users + APIs)
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 15
           max_attempts: 3
