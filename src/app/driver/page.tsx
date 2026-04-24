@@ -1284,6 +1284,10 @@ function DriverPageContent() {
     const order = orders.find(o => o.id === orderId);
     if (!order || !order.customers) return;
 
+    // V17.8.1: Stability Guard - Prevent double action
+    if (actionLoading) return;
+    setActionLoading(true);
+
     const newCustomers = [...order.customers];
     newCustomers[customerIndex] = {
       ...newCustomers[customerIndex],
@@ -1295,20 +1299,34 @@ function DriverPageContent() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: newCustomers } : o));
 
     try {
-      // V0.9.77: Optimized - update directly without intermediate select if possible
-      // or at least handle backgrounding better
+      // V17.8.1: ATOMIC UPDATE - Fetch fresh customer_details from DB to prevent data loss
+      // if multiple drivers or sync events are happening.
+      const { data: freshOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('customer_details')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const updatedDetails = {
+        ...(freshOrder.customer_details || {}),
+        customers: newCustomers
+      };
+
       const { error } = await supabase.from('orders').update({ 
-        customer_details: {
-          ...order.customer_details,
-          customers: newCustomers
-        } 
+        customer_details: updatedDetails
       }).eq('id', orderId);
 
       if (error) throw error;
       toastSuccess(`تم تسليم العميل ${newCustomers[customerIndex].name} بنجاح`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Deliver customer failed:', err);
-      toastError("فشل تحديث حالة العميل");
+      // Rollback UI on error
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: order.customers } : o));
+      toastError("فشل تحديث حالة العميل: " + (err.message || "خطأ غير معروف"));
+    } finally {
+      setActionLoading(false);
     }
   };
 
