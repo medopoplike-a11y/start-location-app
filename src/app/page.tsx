@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { AppLoader } from "@/components/AppLoader";
 import LoginPage from "./login/page";
@@ -30,9 +31,9 @@ export default function MainShell() {
   // 3. Authenticated -> Show Role-based View
   // V17.2.7: Ensure we have a profile before choosing the dashboard.
   // If user exists but profile is null, it means we are in the middle of a fetch.
-  // V17.8.7: Added safety timeout for profile recovery to prevent stuck loader on resume.
-  const [profileTimeout, setProfileTimeout] = React.useState(false);
-  React.useEffect(() => {
+  // V17.8.8: Added safety timeout for profile recovery to prevent stuck loader on resume.
+  const [profileTimeout, setProfileTimeout] = useState(false);
+  useEffect(() => {
     if (user && !profile) {
       const timer = setTimeout(() => setProfileTimeout(true), 8000);
       return () => clearTimeout(timer);
@@ -45,7 +46,7 @@ export default function MainShell() {
     return <AppLoader />;
   }
 
-  // V17.8.7: Fallback to user metadata role if profile fetch failed or timed out
+  // V17.8.8: Fallback to user metadata role if profile fetch failed or timed out
   const role = profile?.role || user?.user_metadata?.role || "driver";
 
   switch (role) {
