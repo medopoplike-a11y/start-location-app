@@ -266,136 +266,113 @@ function AdminContent() {
   const LOCATION_STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
 
   const processProfiles = useCallback((profiles: ProfileRow[], walletsData?: WalletRow[]) => {
-    // Process ALL profiles for registry first
+    // V1.5.0: Industrial Batch Update Strategy
+    // 1. Process all drivers for registry first (batching updates to avoid state race conditions)
+    const registryUpdates: OnlineDriver[] = [];
+    const driversList: DriverCard[] = [];
+    const vendorsList: VendorCard[] = [];
+
+    const activeWallets = walletsData || wallets || [];
+    const currentOnlineDriversMap = new Map(onlineDriversRef.current.map(d => [d.id, d]));
+
     profiles.forEach(p => {
-      if ((p.role || '').toLowerCase() === 'driver') {
+      const role = (p.role || '').toLowerCase();
+      
+      if (role === 'driver') {
         let loc = p.location;
         if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
         const normalizedLoc = typeof loc === "object" && loc !== null ? loc : null;
         
-        const lastUpdateStr = p.last_location_update || p.updated_at;
-        const lastUpdateTs = lastUpdateStr ? new Date(lastUpdateStr).getTime() : 0;
-        
+        const lastSeenStr = p.last_location_update || p.updated_at;
+        const dbLastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
         const hasCoords = normalizedLoc && normalizedLoc.lat != null && normalizedLoc.lng != null;
 
-        // Skip locations that are stale (older than 12 h) unless the driver is currently online.
-        // This prevents the admin map from showing drivers at positions from days ago on login.
-        const locationIsFresh = lastUpdateTs > 0 && (Date.now() - lastUpdateTs) < LOCATION_STALE_MS;
+        const locationIsFresh = lastUpdateTs > 0 && (Date.now() - dbLastUpdateTs) < LOCATION_STALE_MS;
+        const ONLINE_STALE_MS = 30 * 60 * 1000;
+        const isActuallyOnline = !!p.is_online && dbLastUpdateTs > 0 && (Date.now() - dbLastUpdateTs) < ONLINE_STALE_MS;
 
-        // FIX: A driver is "actually online" only if is_online=true AND the location was updated
-        // recently (within 30 minutes). This prevents showing drivers who closed the app days ago
-        // but still have is_online=true in the DB (because the app was killed without a clean logout).
-        const ONLINE_STALE_MS = 30 * 60 * 1000; // 30 minutes
-        const isActuallyOnline = p.is_online && lastUpdateTs > 0 && (Date.now() - lastUpdateTs) < ONLINE_STALE_MS;
+        // Registry Management
+        const existingRegistry = currentOnlineDriversMap.get(p.id);
+        const registryIsNewer = existingRegistry && (existingRegistry.lastSeenTimestamp || 0) > dbLastUpdateTs;
         
-        if (hasCoords && (isActuallyOnline || locationIsFresh)) {
-          updateDriverRegistry({
+        const lat = registryIsNewer ? existingRegistry!.lat : (normalizedLoc?.lat || 0);
+        const lng = registryIsNewer ? existingRegistry!.lng : (normalizedLoc?.lng || 0);
+        const lastTs = registryIsNewer ? existingRegistry!.lastSeenTimestamp : dbLastUpdateTs;
+        const isOnline = isActuallyOnline || (existingRegistry?.is_online && (Date.now() - (existingRegistry.lastSeenTimestamp || 0) < ONLINE_STALE_MS));
+
+        if (lat !== 0 && lng !== 0 && (isOnline || locationIsFresh)) {
+          registryUpdates.push({
+            ...existingRegistry,
             id: p.id,
             name: p.full_name || "غير معروف",
-            lat: normalizedLoc!.lat!,
-            lng: normalizedLoc!.lng!,
-            lastSeenTimestamp: lastUpdateTs,
-            is_online: isActuallyOnline,
-            status: isActuallyOnline ? 'available' : undefined,
+            lat,
+            lng,
+            lastSeenTimestamp: lastTs,
+            is_online: !!isOnline,
+            status: isOnline ? 'available' : 'offline',
+            path: existingRegistry?.path || [],
             rating: p.rating || 0
-          }, 'db');
+          });
         }
+
+        // Card Management
+        const w = activeWallets.find((wal) => wal.user_id === p.id);
+        let relativeTime = "غير متوفر";
+        const mins = Math.floor((Date.now() - (lastTs || 0)) / 60000);
+        if (mins < 1) relativeTime = "الآن";
+        else if (lastTs! > 0) {
+          if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
+          else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
+          else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
+        }
+
+        driversList.push({ 
+          id: p.id.slice(0, 8), 
+          id_full: p.id, 
+          name: p.full_name || "بدون اسم", 
+          status: p.is_locked ? "محظور" : (isOnline ? "متصل" : "غير متصل"), 
+          lastSeen: relativeTime,
+          lastSeenTimestamp: lastTs || 0,
+          isShiftLocked: !!p.is_locked, 
+          isOnline: !!isOnline, 
+          earnings: w?.balance || 0, 
+          debt: (w?.debt || 0) + (w?.system_balance || 0), 
+          totalOrders: 0,
+          email: p.email, 
+          phone: p.phone, 
+          max_active_orders: p.max_active_orders || 3, 
+          billing_type: p.billing_type || 'commission', 
+          commission_value: p.commission_value || 15, 
+          monthly_salary: p.monthly_salary || 0, 
+          rating: p.rating || 0,
+          location: { lat, lng, ts: lastTs || 0 }
+        });
+      } else if (role === 'vendor') {
+        const w = activeWallets.find((wal) => wal.user_id === p.id);
+        let loc = p.location;
+        if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
+        vendorsList.push({ 
+          id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location: (typeof loc === "object" && loc !== null ? loc : null),
+          email: p.email, phone: p.phone, commission_type: (p as any).commission_type, commission_value: (p as any).commission_value, billing_type: (p as any).billing_type || 'commission', monthly_salary: (p as any).monthly_salary || 0, rating: p.rating || 0
+        });
       }
     });
+
+    // Final State Application (Atomic)
+    setOnlineDrivers(registryUpdates);
+    setDrivers(driversList);
+    setVendors(vendorsList);
 
     const users = profiles.map((u) => ({
       id: u.id, email: u.email || "", full_name: u.full_name || "غير مسجل", phone: u.phone || "غير مسجل", area: u.area || "غير محدد", vehicle_type: u.vehicle_type || "غير محدد", national_id: u.national_id || "غير مسجل", role: (u.role || 'driver').toLowerCase(), created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير متوفر'
     }));
     setAllUsers(users);
 
-    const activeWallets = walletsData || wallets || [];
-
-    const driversFromProfiles = profiles.filter((p) => (p.role || '').toLowerCase() === 'driver');
-    const driverCards = driversFromProfiles.map((p) => {
-      const w = activeWallets.find((wal) => wal.user_id === p.id);
-      const lastSeenStr = p.last_location_update || p.updated_at;
-      const dbLastUpdateTs = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
-      
-      // V0.9.72: Registry-First Strategy - Single Source of Truth for position
-      const registryEntry = onlineDriversRef.current.find(od => od.id === p.id);
-      
-      // V1.0.1: Improved Online Logic - Use registry if exists and fresh, otherwise DB
-      const registryIsFresh = registryEntry && (Date.now() - (registryEntry.lastSeenTimestamp || 0) < 15 * 60 * 1000); // 15 mins
-      const isActuallyOnline = !!registryEntry?.is_online || (!!p.is_online && (Date.now() - dbLastUpdateTs < 30 * 60 * 1000));
-
-      let relativeTime = "غير متوفر";
-      const finalLastUpdateTs = Math.max(dbLastUpdateTs, registryEntry?.lastSeenTimestamp || 0);
-      const mins = Math.floor((Date.now() - finalLastUpdateTs) / 60000);
-
-      if (registryEntry?.lastSeen === "الآن" || mins < 1) {
-        relativeTime = "الآن";
-      } else if (finalLastUpdateTs > 0) {
-        if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
-        else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
-        else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
-      }
-
-      const isOnlineValue = isActuallyOnline;
-
-      // V0.9.72: CRITICAL - Prefer the registry location ALWAYS if it exists and is newer
-      let currentLocation = p.location;
-      const currentInState = drivers.find(d => d.id_full === p.id);
-      
-      if (registryEntry && (registryEntry.lat != null && registryEntry.lng != null) && (registryEntry.lastSeenTimestamp || 0) >= dbLastUpdateTs) {
-        currentLocation = { 
-          lat: registryEntry.lat, 
-          lng: registryEntry.lng, 
-          ts: registryEntry.lastSeenTimestamp || Date.now() 
-        };
-      } else if (currentInState?.location?.ts && currentInState.location.ts > dbLastUpdateTs) {
-        // Fallback to existing state if it's newer than DB (prevents jumping back to 6-day-old DB data)
-        currentLocation = currentInState.location;
-      } else if (typeof currentLocation === 'string') {
-        try { currentLocation = JSON.parse(currentLocation); } catch { currentLocation = null; }
-      }
-
-      return { 
-        id: p.id.slice(0, 8), 
-        id_full: p.id, 
-        name: p.full_name || "بدون اسم", 
-        status: p.is_locked ? "محظور" : (isOnlineValue ? "متصل" : "غير متصل"), 
-        lastSeen: relativeTime,
-        lastSeenTimestamp: finalLastUpdateTs,
-        isShiftLocked: !!p.is_locked, 
-        isOnline: isOnlineValue, 
-        earnings: w?.balance || 0, 
-        debt: (w?.debt || 0) + (w?.system_balance || 0), 
-        totalOrders: 0,
-        email: p.email, 
-        phone: p.phone, 
-        max_active_orders: p.max_active_orders || 3, 
-        billing_type: p.billing_type || 'commission', 
-        commission_value: p.commission_value || 15, 
-        monthly_salary: p.monthly_salary || 0, 
-        rating: p.rating || 0,
-        location: currentLocation 
-      };
-    });
-    setDrivers(driverCards);
-
-    const vendorsFromProfiles = profiles.filter((p) => (p.role || '').toLowerCase() === 'vendor');
-    const vendorCards = vendorsFromProfiles.map((p) => {
-      const w = activeWallets.find((wal) => wal.user_id === p.id);
-      let loc = p.location;
-      if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-      const location = typeof loc === "object" && loc !== null ? loc : null;
-      return { 
-        id: p.id.slice(0, 8), id_full: p.id, name: p.full_name || "بدون اسم", type: "محل", orders: 0, balance: (w?.debt || 0) + (w?.system_balance || 0), status: "نشط", location,
-        email: p.email, phone: p.phone, commission_type: (p as any).commission_type, commission_value: (p as any).commission_value, billing_type: (p as any).billing_type || 'commission', monthly_salary: (p as any).monthly_salary || 0, rating: p.rating || 0
-      };
-    });
-    setVendors(vendorCards);
-
     if (walletsData) {
       setWallets(walletsData);
       setTotalSystemDebt(walletsData.reduce((acc, w) => acc + (w.system_balance || 0), 0));
     }
-  }, [updateDriverRegistry, onlineDrivers, wallets]); // V0.9.87: Re-added onlineDrivers to trigger UI refresh on presence changes
+  }, [wallets]); // Removed onlineDrivers and drivers from deps to prevent infinite loop V1.5.0 // V0.9.87: Re-added onlineDrivers to trigger UI refresh on presence changes
 
   const addActivity = useCallback((text: string) => {
     setActivityLog(prev => [{
@@ -686,6 +663,19 @@ function AdminContent() {
         return;
       }
 
+      // V17.7.0: Smarter Resume Handling
+      if (payload?.source === 'app_resume_start') {
+        // Show loading only for hard sync
+        if (payload.isHardSync) setLoading(true);
+        return;
+      }
+
+      if (payload?.source === 'app_resume_complete') {
+        fetchData(payload.isHardSync); // Full history only on hard sync
+        setLoading(false);
+        return;
+      }
+
       // V17.4.9: Snappy Partial Order Updates
       if (payload?.order) {
         console.log("[AdminSync] Partial update received for order:", payload.order.id);
@@ -724,7 +714,7 @@ function AdminContent() {
         if (newData) {
           updateDriverRegistry({
             id: newData.id,
-            name: newData.full_name, // V1.2.6: Pass name on profile update
+            name: newData.full_name,
             lat: newData.location?.lat,
             lng: newData.location?.lng,
             is_online: newData.is_online,
@@ -746,6 +736,8 @@ function AdminContent() {
       }
 
       // ── Structural changes (orders, wallets, etc.) → full refresh ──
+      // V17.7.0: Debounce structural refreshes
+      if (isDataFetchingRef.current) return;
       console.log(`[Admin-Sync] Structural change detected: ${payload?.source || payload?.table}. Fetching data...`);
       fetchData();
     }

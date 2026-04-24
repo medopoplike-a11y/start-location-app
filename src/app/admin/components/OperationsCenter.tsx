@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Activity, 
@@ -79,6 +79,44 @@ export default function OperationsCenter({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
+
+  // V1.5.0: Memoized Map Data to prevent heavy re-renders
+  const mapDrivers = useMemo(() => onlineDrivers.map(d => ({
+    id: d.id,
+    name: d.name || "كابتن",
+    lat: d.lat,
+    lng: d.lng,
+    isOnline: d.is_online,
+    status: d.status,
+    path: d.path,
+    lastSeenTimestamp: d.lastSeenTimestamp
+  })), [onlineDrivers]);
+
+  const mapOrders = useMemo(() => allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
+    const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
+    const v = vendors.find(v => v.id_full === o.vendor_id);
+    const vendorLat = v?.location?.lat;
+    const vendorLng = v?.location?.lng;
+    const customerLat = o.customer_details?.coords?.lat;
+    const customerLng = o.customer_details?.coords?.lng;
+
+    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
+    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
+
+    if (finalLat == null || finalLng == null) return null;
+
+    return {
+      id: o.id,
+      name: o.vendor_full_name || "محل",
+      lat: finalLat,
+      lng: finalLng,
+      targetLat: (o.status === 'assigned' ? vendorLat : customerLat) || undefined,
+      targetLng: (o.status === 'assigned' ? vendorLng : customerLng) || undefined,
+      status: o.status === 'pending' ? 'بانتظار التعيين' : (o.status === 'assigned' ? 'تم التعيين' : 'في الطريق'),
+    };
+  }).filter((o): o is NonNullable<typeof o> => o !== null), [allOrders, onlineDrivers, vendors]);
+
+  const mapVendors = useMemo(() => vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : []), [vendors]);
 
   const pendingOrders = allOrders.filter(o => o.status === "pending" || o.status === "assigned" || o.status === "in_transit");
   
@@ -203,43 +241,9 @@ export default function OperationsCenter({
               {/* 1. Main Map Area (Integrated) */}
               <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                 <LiveMap
-                  drivers={onlineDrivers.map(d => ({
-                    id: d.id,
-                    name: d.name || "كابتن",
-                    lat: d.lat,
-                    lng: d.lng,
-                    isOnline: d.is_online,
-                    status: d.status,
-                    path: d.path,
-                    lastSeenTimestamp: d.lastSeenTimestamp
-                  }))}
-                  vendors={vendors.flatMap((v) => (v.location?.lat != null && v.location?.lng != null) ? [{ id: v.id_full, name: v.name, lat: v.location.lat, lng: v.location.lng, details: `طلبات: ${v.orders}` }] : [])}
-                  orders={allOrders.filter(o => (o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit')).map(o => {
-                    // V0.9.78: CRITICAL FIX - Use the real-time onlineDrivers registry for order tracking
-                    // instead of the static drivers list which only updates on full refresh.
-                    const assignedDriver = o.driver_id ? onlineDrivers.find(d => d.id === o.driver_id) : null;
-                    const v = vendors.find(v => v.id_full === o.vendor_id);
-                    const vendorLat = v?.location?.lat;
-                    const vendorLng = v?.location?.lng;
-                    const customerLat = o.customer_details?.coords?.lat;
-                    const customerLng = o.customer_details?.coords?.lng;
-
-                    // Use driver's live location if assigned/in_transit, otherwise fallback to vendor/customer
-                    let finalLat = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lat ?? vendorLat ?? customerLat) : (vendorLat ?? customerLat);
-                    let finalLng = (o.status === 'assigned' || o.status === 'in_transit') ? (assignedDriver?.lng ?? vendorLng ?? customerLng) : (vendorLng ?? customerLng);
-
-                    if (finalLat == null || finalLng == null) return null;
-
-                    return {
-                      id: o.id,
-                      name: o.vendor_full_name || "محل",
-                      lat: finalLat,
-                      lng: finalLng,
-                      targetLat: (o.status === 'assigned' ? vendorLat : customerLat) || undefined,
-                      targetLng: (o.status === 'assigned' ? vendorLng : customerLng) || undefined,
-                      status: o.status === 'pending' ? 'بانتظار التعيين' : (o.status === 'assigned' ? 'تم التعيين' : 'في الطريق'),
-                    };
-                  }).filter((o): o is NonNullable<typeof o> => o !== null)}
+                  drivers={mapDrivers}
+                  vendors={mapVendors}
+                  orders={mapOrders}
                   zoom={13}
                   className="h-full w-full"
                 />

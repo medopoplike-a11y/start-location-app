@@ -290,52 +290,54 @@ export const useSync = (
       if (now - lastResumeTime < RESUME_COOLDOWN) return;
       lastResumeTime = now;
 
+      // V17.7.0: Smarter Sync Thresholds
+      // Short background ( < 30s): Just verify socket, no full refresh needed
+      // Medium background (30s - 5m): Soft sync (refresh session + reconnect if needed)
+      // Long background ( > 5m): Hard sync (radical reset)
       const isHardSync = backgroundDuration > HARD_SYNC_THRESHOLD;
+      const isSoftSync = backgroundDuration > 30 * 1000;
+      
       console.log(`useSync: App Resume (${source}) — duration: ${Math.round(backgroundDuration/1000)}s, hardSync: ${isHardSync}`);
       
       // 1. Immediate UI refresh (Non-blocking)
       setIsSyncing(true);
       
-      // V17.6.1: Emit 'cache_first_refresh' to pages to show local data immediately
       triggerUpdate({ 
         source: 'app_resume_start',
         isHardSync,
         backgroundDuration,
-        preferCache: true // Hint to use SQLite first
+        preferCache: true 
       });
 
-      // 2. Perform healing in background
+      // 2. Perform healing
       (async () => {
         try {
-          const { refreshAppSession } = await import('@/lib/native-utils');
-          
-          // V17.6.1: Parallelized healing with safety timeouts
-          const sessionPromise = refreshAppSession();
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session refresh timed out")), 5000));
-          
-          await Promise.race([sessionPromise, timeoutPromise]).catch(e => console.warn("useSync: Session refresh slow/failed", e));
-
-          // V17.6.1: Forceful Channel & Socket Teardown
-          console.log("useSync: Performing radical socket reset...");
-          cleanupChannels();
-          
-          // If the socket reports connected but we've been gone for 5 mins, it's a ghost connection
-          if (supabase.realtime.isConnected() && isHardSync) {
-            supabase.realtime.disconnect();
+          if (isSoftSync || isHardSync) {
+            const { refreshAppSession } = await import('@/lib/native-utils');
+            await Promise.race([
+              refreshAppSession(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000))
+            ]).catch(() => {});
           }
 
-          if (!supabase.realtime.isConnected()) {
-            await new Promise(r => setTimeout(r, 500));
+          // V17.7.0: Only reset socket if really needed
+          const isSocketDead = !supabase.realtime.isConnected();
+          
+          if (isHardSync || isSocketDead) {
+            console.log("useSync: Resetting socket...");
+            cleanupChannels();
+            if (supabase.realtime.isConnected()) supabase.realtime.disconnect();
+            await new Promise(r => setTimeout(r, 300));
             supabase.realtime.connect();
           }
 
-          // Re-subscribe and trigger full remote fetch
+          // Always re-subscribe on resume to ensure we haven't missed channel updates
           await subscribe();
           
           triggerUpdate({ 
             source: 'app_resume_complete', 
             isHardSync,
-            preferCache: false // Now we want fresh remote data
+            preferCache: false 
           });
         } catch (e) {
           console.error("useSync: Resume healing failed", e);

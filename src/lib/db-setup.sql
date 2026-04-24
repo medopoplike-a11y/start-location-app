@@ -787,6 +787,18 @@ BEGIN
         END IF;
     END IF;
 
+    -- 4b. عند تغيير الطيار والطلب في الطريق (Driver Re-assignment) - جديد V1.2.3
+    IF (new.status = 'in_transit' AND old.status = 'in_transit' AND new.driver_id IS DISTINCT FROM old.driver_id) THEN
+        -- خصم المديونية من الطيار القديم
+        IF old.driver_id IS NOT NULL THEN
+            UPDATE public.wallets SET debt = GREATEST(0, COALESCE(debt, 0) - COALESCE(order_val, 0)), updated_at = NOW() WHERE user_id = old.driver_id;
+        END IF;
+        -- إضافة المديونية للطيار الجديد
+        IF new.driver_id IS NOT NULL THEN
+            UPDATE public.wallets SET debt = COALESCE(debt, 0) + COALESCE(order_val, 0), updated_at = NOW() WHERE user_id = new.driver_id;
+        END IF;
+    END IF;
+
     -- 5. عند إلغاء الطلب (Cancelled) - عكس العمليات المالية (جديد V1.2.1)
     IF (new.status = 'cancelled' AND (old.status IS DISTINCT FROM 'cancelled')) THEN
         -- أ. عكس المديونية إذا كان الطلب لم يحصل بعد وكان قد خرج للتوصيل
@@ -1116,9 +1128,9 @@ BEGIN
   END IF;
 END $$;
 
--- إدراج البيانات الافتراضية إذا لم تكن موجودة (V17.8.2)
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة (V17.8.3)
 INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
-VALUES (1, 'V17.8.2', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
+VALUES (1, 'V17.8.3', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
 ON CONFLICT (id) DO UPDATE SET 
     latest_version = EXCLUDED.latest_version,
     updated_at = NOW();
