@@ -977,6 +977,12 @@ function DriverPageContent() {
     }
 
     // 3. Trigger full data refresh for general events
+    // V17.7.9: Skip sync for status changes to avoid the 'Reload' effect
+    if (payload?.table === 'profiles' && (payload?.new?.is_online !== undefined)) {
+      console.log("[DriverSync] Status update received, skipping full refresh for UX.");
+      return;
+    }
+
     if (!isRefreshingRef.current) {
       manualSync(payload);
     }
@@ -1034,7 +1040,7 @@ function DriverPageContent() {
       setActionLoading(true);
       
       // 1. Update UI and Local State immediately for responsiveness (Optimistic)
-      // V17.7.0: Skip full re-render if possible, just update the toggle
+      // V17.7.9: Skip full re-render and prevent global sync loops
       setIsActive(newStatus);
       
       if (typeof window !== "undefined") {
@@ -1047,8 +1053,8 @@ function DriverPageContent() {
       
       // 2. Background DB Update (V0.9.74 - NON-BLOCKING UI)
       if (driverId) {
-        // V17.7.0: Use a silent update that doesn't trigger a global sync event 
-        // back to this client to prevent the 'Reload' feel.
+        // V17.7.9: Use a SILENT update that doesn't trigger useSync's profile listener
+        // to avoid the 'Reload' effect caused by immediate manualSync trigger.
         supabase.from('profiles').update({ 
           is_online: newStatus,
           updated_at: new Date().toISOString()
@@ -1057,8 +1063,8 @@ function DriverPageContent() {
         });
       }
       
-      // V17.7.0: Reduced unlock delay to 400ms for snappier feel
-      setTimeout(() => setActionLoading(false), 400);
+      // V17.7.9: Reduced unlock delay for snappier feel
+      setTimeout(() => setActionLoading(false), 300);
       
     } catch (err) {
       console.error("Online toggle: Fatal error", err);
