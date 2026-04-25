@@ -309,17 +309,35 @@ export const useSync = (
     window.addEventListener('supabase-realtime-recovered', handleSocketRecovered);
 
     // V17.9.9: Persistent heartbeat channel to avoid resource leaks
-    const heartbeat = setInterval(() => {
+    const heartbeat = setInterval(async () => {
       // V19.0.5: Network Intelligence - Only run heartbeat if online and visible
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
       const now = Date.now();
 
       if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isOnline) {
+        // V19.0.7: PLATINUM Adaptive Sync
+        // Check battery status if supported to adjust sync frequency
+        let isLowBattery = false;
+        try {
+          if ('getBattery' in navigator) {
+            const battery: any = await (navigator as any).getBattery();
+            isLowBattery = battery.level < 0.2 && !battery.charging;
+          }
+        } catch (e) {}
+
         // V19.0.6: Ghost Connection Detection
         // If no message received for 5 minutes, trigger a soft background refresh
         const silenceDuration = now - lastMessageTimeRef.current;
         if (silenceDuration > 5 * 60 * 1000) {
           console.log(`useSync: Ghost connection detected (${Math.round(silenceDuration/1000)}s silence), refreshing...`);
+          
+          // V19.0.7: Deep Reset Recovery
+          // If silence is extreme (> 15m), force a full client reset
+          if (silenceDuration > 15 * 60 * 1000) {
+            console.warn("useSync: Extreme silence detected, triggering Deep Reset Recovery...");
+            forceReconnectRealtime();
+          }
+          
           triggerUpdate({ source: 'ghost_refresh', force: true });
         }
 
@@ -335,6 +353,9 @@ export const useSync = (
         const isConnected = supabase.realtime.isConnected();
         
         if (isConnected) {
+          // If low battery, skip 50% of heartbeat pings to save energy
+          if (isLowBattery && Math.random() > 0.5) return;
+
           // V18.0.1: Only ping if we have an active heartbeat channel
           if (heartbeatChannelRef.current) {
             heartbeatChannelRef.current.send({
