@@ -223,19 +223,28 @@ export const useSync = (
         triggerUpdate({ source: 'broadcast', payload: { type: 'maintenance', ...msg.payload } });
       })
       .subscribe((status) => {
-        // V17.7.2: Smart Channel Recovery with Exponential Backoff
+        // V19.0.5: Premium Jittered Backoff Recovery
         if (status === 'SUBSCRIBED') {
           console.log("useSync: System sync channel active");
           (window as any).__systemSyncRetryCount = 0;
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          // Skip retry if we are explicitly offline
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            console.log("useSync: System is offline, pausing recovery.");
+            return;
+          }
+
           const retryCount = ((window as any).__systemSyncRetryCount || 0) + 1;
           (window as any).__systemSyncRetryCount = retryCount;
           
-          const delay = Math.min(retryCount * 2000, 30000); // Backoff up to 30s
-          console.warn(`useSync: Channel ${status}, retry #${retryCount} in ${delay}ms`);
+          // Exponential backoff with jitter: (2^retry * 1000) + random(1000)
+          const jitter = Math.random() * 1000;
+          const delay = Math.min(Math.pow(2, retryCount) * 1000 + jitter, 60000); 
+          
+          console.warn(`useSync: Channel ${status}, PREMIUM retry #${retryCount} in ${Math.round(delay)}ms`);
           
           setTimeout(() => {
-            if (isMountedRef.current) subscribe();
+            if (isMountedRef.current && navigator.onLine) subscribe();
           }, delay);
         }
       });
@@ -297,7 +306,9 @@ export const useSync = (
 
     // V17.9.9: Persistent heartbeat channel to avoid resource leaks
     const heartbeat = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      // V19.0.5: Network Intelligence - Only run heartbeat if online and visible
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isOnline) {
         const isConnected = supabase.realtime.isConnected();
         
         if (isConnected) {
@@ -317,23 +328,35 @@ export const useSync = (
           }
         } else if (userId) {
           // V18.0.1: Be more conservative with force reconnect
-          // Only force if we've been disconnected for more than one heartbeat cycle
           const now = Date.now();
           const lastReconnect = (window as any).__lastForceReconnect || 0;
           if (now - lastReconnect > 60000) { // 60s cooldown
-            console.warn("[useSyncV18.0.1] Heartbeat detected dead socket, forcing reconnect");
+            console.warn("[useSyncV19.0.5] Heartbeat detected dead socket, forcing reconnect");
             (window as any).__lastForceReconnect = now;
             forceReconnectRealtime();
           }
         }
       }
-    }, 30 * 1000); // V18.0.1: Back to 30s to reduce noise
+    }, 30 * 1000);
+
+    // V19.0.5: Global Network State Listeners
+    const handleOnline = () => {
+      console.log("useSync: System back online, re-syncing...");
+      subscribe();
+    };
+    const handleOffline = () => {
+      console.warn("useSync: System offline, standing by.");
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
       isMountedRef.current = false;
       clearInterval(heartbeat);
       window.removeEventListener('app-resume-sync', handleResumeSync);
       window.removeEventListener('supabase-realtime-recovered', handleSocketRecovered);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       cleanupChannels();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
