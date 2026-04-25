@@ -28,6 +28,7 @@ export const useSync = (
   const heartbeatChannelRef = useRef<RealtimeChannel | null>(null);
   const isMountedRef = useRef(true);
   const isSubscribingRef = useRef(false);
+  const lastMessageTimeRef = useRef(Date.now());
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -70,6 +71,9 @@ export const useSync = (
    */
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
+    
+    // V19.0.6: Track last message time to detect ghost connections
+    lastMessageTimeRef.current = Date.now();
     
     // V17.1.0: Allow forcing an update even for 'initial_subscribe'
     if (payload?.source === 'initial_subscribe' && !payload?.force) return;
@@ -308,7 +312,26 @@ export const useSync = (
     const heartbeat = setInterval(() => {
       // V19.0.5: Network Intelligence - Only run heartbeat if online and visible
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      const now = Date.now();
+
       if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isOnline) {
+        // V19.0.6: Ghost Connection Detection
+        // If no message received for 5 minutes, trigger a soft background refresh
+        const silenceDuration = now - lastMessageTimeRef.current;
+        if (silenceDuration > 5 * 60 * 1000) {
+          console.log(`useSync: Ghost connection detected (${Math.round(silenceDuration/1000)}s silence), refreshing...`);
+          triggerUpdate({ source: 'ghost_refresh', force: true });
+        }
+
+        // V19.0.6: Active Session Guard
+        // Refresh session every 2 hours to ensure long-shift stability
+        const lastSessionRefresh = (window as any).__lastSessionRefresh || 0;
+        if (now - lastSessionRefresh > 2 * 60 * 60 * 1000) {
+          (window as any).__lastSessionRefresh = now;
+          console.log("useSync: Proactive session refresh for long-shift stability");
+          supabase.auth.refreshSession().catch(() => {});
+        }
+
         const isConnected = supabase.realtime.isConnected();
         
         if (isConnected) {
