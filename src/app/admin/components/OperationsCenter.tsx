@@ -54,6 +54,7 @@ interface OperationsCenterProps {
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => Promise<void>;
   onCancelOrder?: (orderId: string) => Promise<void>;
   onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
+  onIntegrityCheck?: () => void;
 }
 
 export default function OperationsCenter({
@@ -77,7 +78,8 @@ export default function OperationsCenter({
   onAssign,
   onToggleShiftLock,
   onCancelOrder,
-  onUpdateStatus
+  onUpdateStatus,
+  onIntegrityCheck
 }: OperationsCenterProps) {
   const [activeTab, setActiveTab] = useState<"operations" | "monitor" | "system" | "ai">("operations");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -525,6 +527,7 @@ export default function OperationsCenter({
                 onGlobalReset={onGlobalReset}
                 onRefresh={onRefresh}
                 onBroadcastMessage={onBroadcastMessage}
+                onIntegrityCheck={onIntegrityCheck}
               />
             </motion.div>
           )}

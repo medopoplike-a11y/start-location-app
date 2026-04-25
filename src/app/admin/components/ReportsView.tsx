@@ -133,6 +133,53 @@ export default function ReportsView({ allOrders = [] }: ReportsViewProps) {
         />
       </div>
 
+      {/* Visual Analytics - Simple Bar Chart */}
+      <div className="bg-white border border-slate-100 p-8 rounded-[32px] shadow-sm">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="text-lg font-black text-slate-900">تحليل الأداء البصري</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Order Volume Distribution</p>
+          </div>
+          <PieChart className="w-5 h-5 text-slate-300" />
+        </div>
+
+        <div className="flex items-end justify-between gap-2 h-48 px-4 border-b border-slate-100 pb-2">
+          {[...Array(7)].map((_, i) => {
+            const day = new Date();
+            day.setDate(day.getDate() - (6 - i));
+            const count = allOrders.filter(o => 
+              new Date(o.created_at).toDateString() === day.toDateString()
+            ).length;
+            const max = Math.max(...[...Array(7)].map((_, j) => {
+              const d = new Date();
+              d.setDate(d.getDate() - (6 - j));
+              return allOrders.filter(o => new Date(o.created_at).toDateString() === d.toDateString()).length;
+            }), 1);
+            const height = (count / max) * 100;
+
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                <div className="relative w-full flex justify-center">
+                  <motion.div 
+                    initial={{ height: 0 }}
+                    animate={{ height: `${height}%` }}
+                    className="w-8 md:w-12 bg-indigo-500/10 border-t-4 border-indigo-500 rounded-t-xl group-hover:bg-indigo-500 group-hover:shadow-lg group-hover:shadow-indigo-100 transition-all duration-300"
+                  />
+                  {count > 0 && (
+                    <div className="absolute -top-8 bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      {count}
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {day.toLocaleDateString('ar-EG', { weekday: 'short' })}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Charts / Visual Section (Placeholder for now) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[40px] p-8 shadow-sm">

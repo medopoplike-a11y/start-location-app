@@ -34,6 +34,18 @@ export const resetAllSystemDataAdmin = async () => {
   return true;
 };
 
+/**
+ * Runs a comprehensive system integrity check and repairs common issues:
+ * - Missing wallets for profiles
+ * - Missing financial records for orders
+ * - Incorrect balance calculations
+ */
+export const runSystemIntegrityCheck = async () => {
+  const { data, error } = await supabase.rpc('fix_system_data_integrity');
+  if (error) throw error;
+  return data;
+};
+
 export const broadcastAlert = async (message: string) => {
   const channel = supabase.channel('system_sync');
   await channel.subscribe(async (status) => {

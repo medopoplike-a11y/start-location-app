@@ -16,6 +16,7 @@ import {
   Truck,
   Menu,
   X,
+  Search,
   ChevronRight,
   LogOut,
   Wallet,
@@ -43,7 +44,7 @@ import { KeepAwake } from "@capacitor-community/keep-awake";
 import { fetchOrders as fetchAdminOrders, updateOrderStatus, deleteAdminOrder } from "@/lib/api/orders";
 import { fetchProfiles as fetchAdminProfiles, toggleLock as toggleDriverLock, updateProfile as updateProfileBilling, deleteUserByAdmin } from "@/lib/api/profiles";
 import { fetchWallets as fetchAdminWallets, updateWallet as updateAdminWallet } from "@/lib/api/wallets";
-import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, broadcastAlert } from "@/lib/api/admin";
+import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, broadcastAlert, runSystemIntegrityCheck } from "@/lib/api/admin";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
@@ -81,6 +82,8 @@ function AdminContent() {
   const [activeView, setActiveView] = useState("operations");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [autoRetryEnabled, setAutoRetryEnabled] = useState(true);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
@@ -933,6 +936,21 @@ function AdminContent() {
     }
   }, [addActivity, fetchData, toastSuccess, toastError]);
 
+  const handleIntegrityCheck = useCallback(async () => {
+    if (!confirm("هل تود إجراء فحص شامل لسلامة بيانات النظام وإصلاح الأخطاء الشائعة؟")) return;
+    setActionLoading(true);
+    try {
+      await runSystemIntegrityCheck();
+      toastSuccess("تم اكتمال الفحص", "تم التحقق من سلامة البيانات وإصلاح أي خلل مكتشف");
+      addActivity("تم إجراء فحص وإصلاح لسلامة بيانات النظام");
+      fetchData(true);
+    } catch (e) {
+      toastError("فشل الفحص", getErrorMessage(e));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [addActivity, fetchData, toastSuccess, toastError, getErrorMessage]);
+
   const handleResetUser = useCallback(async (userId: string, userName: string) => {
     if (!confirm(`هل أنت متأكد من تصفير كافة بيانات ${userName}؟ سيتم حذف الطلبات المكتملة وتصفير المحفظة.`)) return;
     setActionLoading(true);
@@ -1202,6 +1220,25 @@ function AdminContent() {
     { title: "أرباح النظام", value: formatCurrency(totalProfits), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },
   ], [allOrders.length, drivers, insuranceFund, totalSystemDebt, totalProfits, formatCurrency]);
 
+  const searchResults = useMemo(() => {
+    if (!globalSearch || globalSearch.length < 2) return { users: [], orders: [] };
+    const query = globalSearch.toLowerCase();
+    
+    const filteredUsers = allUsers.filter(u => 
+      u.full_name?.toLowerCase().includes(query) || 
+      u.phone?.includes(query) ||
+      u.email?.toLowerCase().includes(query)
+    ).slice(0, 5);
+
+    const filteredOrders = allOrders.filter(o => 
+      o.id.toLowerCase().includes(query) ||
+      o.vendor_full_name?.toLowerCase().includes(query) ||
+      o.customer_details?.name?.toLowerCase().includes(query)
+    ).slice(0, 5);
+
+    return { users: filteredUsers, orders: filteredOrders };
+  }, [globalSearch, allUsers, allOrders]);
+
   // Diagnostic Info for Debugging
   const [showSyncDebug, setShowSyncDebug] = useState(false);
   const connectionInfo = useMemo(() => {
@@ -1341,6 +1378,99 @@ function AdminContent() {
               </p>
             </div>
           </div>
+          
+          <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
+            <div className="relative w-full group">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="بحث سريع عن طلب، كابتن، أو متجر..."
+                value={globalSearch}
+                onChange={(e) => {
+                  setGlobalSearch(e.target.value);
+                  setShowSearchResults(true);
+                }}
+                onFocus={() => setShowSearchResults(true)}
+                className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-2.5 pr-11 pl-4 text-xs font-bold outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all"
+              />
+              
+              <AnimatePresence>
+                {showSearchResults && globalSearch.length >= 2 && (
+                  <>
+                    <motion.div 
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-40" onClick={() => setShowSearchResults(false)} 
+                    />
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-2xl z-50 overflow-hidden"
+                    >
+                      <div className="p-2 max-h-[400px] overflow-y-auto">
+                        {searchResults.users.length === 0 && searchResults.orders.length === 0 && (
+                          <div className="p-8 text-center">
+                            <p className="text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</p>
+                          </div>
+                        )}
+                        
+                        {searchResults.users.length > 0 && (
+                          <div className="mb-2">
+                            <p className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">المستخدمين</p>
+                            {searchResults.users.map(u => (
+                              <button 
+                                key={u.id}
+                                onClick={() => {
+                                  setActiveView("fleet");
+                                  setShowSearchResults(false);
+                                  setGlobalSearch("");
+                                }}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-right"
+                              >
+                                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600 font-black text-xs">
+                                  {u.full_name?.[0]}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-black text-slate-900 dark:text-white">{u.full_name}</p>
+                                  <p className="text-[10px] font-bold text-slate-400">{u.role === 'driver' ? 'كابتن' : 'متجر'} • {u.phone}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {searchResults.orders.length > 0 && (
+                          <div>
+                            <p className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">الطلبات</p>
+                            {searchResults.orders.map(o => (
+                              <button 
+                                key={o.id}
+                                onClick={() => {
+                                  setActiveView("orders");
+                                  setShowSearchResults(false);
+                                  setGlobalSearch("");
+                                }}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-right"
+                              >
+                                <div className="w-8 h-8 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600">
+                                  <Truck className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-black text-slate-900 dark:text-white">طلب #{o.id}</p>
+                                  <p className="text-[10px] font-bold text-slate-400">{o.vendor_full_name} • {formatCurrency(o.financials?.order_value || 0)}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowSyncDebug(!showSyncDebug)}
@@ -1432,6 +1562,7 @@ function AdminContent() {
                 onAssign={handleAssignOrder}
                 onCancelOrder={handleCancelOrder}
                 onUpdateStatus={handleUpdateOrderStatusManual}
+                onIntegrityCheck={handleIntegrityCheck}
               />
             )}
 

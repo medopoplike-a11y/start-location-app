@@ -25,7 +25,9 @@ export const useSync = (
   const [isSyncing, setIsSyncing] = useState(false);
   const onUpdateRef = useRef(onUpdate);
   const channelsRef = useRef<RealtimeChannel[]>([]);
+  const heartbeatChannelRef = useRef<RealtimeChannel | null>(null);
   const isMountedRef = useRef(true);
+  const isSubscribingRef = useRef(false);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -33,16 +35,31 @@ export const useSync = (
 
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const cleanupChannels = useCallback(() => {
+  const cleanupChannels = useCallback(async () => {
+    // V18.0.0: Clean up heartbeat channel first
+    if (heartbeatChannelRef.current) {
+      try {
+        await supabase.removeChannel(heartbeatChannelRef.current);
+        heartbeatChannelRef.current = null;
+      } catch (e) {
+        console.error("useSync: Error removing heartbeat channel", e);
+      }
+    }
+
     if (channelsRef.current.length > 0) {
-      console.log(`useSync: Cleaning up ${channelsRef.current.length} channels...`);
-      channelsRef.current.forEach((channel) => {
+      const count = channelsRef.current.length;
+      console.log(`useSync: Cleaning up ${count} channels...`);
+      
+      // V17.9.8: Use Promise.all to ensure cleanup is handled as cleanly as possible
+      const cleanupPromises = channelsRef.current.map(async (channel) => {
         try {
-          supabase.removeChannel(channel);
+          await supabase.removeChannel(channel);
         } catch (e) {
           console.error("useSync: Error removing channel", e);
         }
       });
+      
+      await Promise.all(cleanupPromises);
       channelsRef.current = [];
     }
   }, []);
@@ -76,20 +93,25 @@ export const useSync = (
     }, 40); // V17.9.7: Reduced from 50ms to 40ms for aggregate latency reduction
   }, []);
 
-  const subscribe = useCallback(() => {
-    if (!userId) return;
-    cleanupChannels();
+  const subscribe = useCallback(async () => {
+    if (!userId || isSubscribingRef.current) return;
+    
+    isSubscribingRef.current = true;
+    try {
+      await cleanupChannels();
 
-    console.log("useSync: Establishing real-time streams for:", userId);
+      console.log("useSync: Establishing real-time streams for:", userId);
 
-    // V17.7.2: Enhanced Reconnection Logic
-    // Ensure socket is actually connected before subscribing
-    if (!supabase.realtime.isConnected()) {
-      console.log("useSync: Socket disconnected, attempting recovery...");
-      supabase.realtime.connect();
-    }
+      // V17.7.2: Enhanced Reconnection Logic
+      // Ensure socket is actually connected before subscribing
+      if (!supabase.realtime.isConnected()) {
+        console.log("useSync: Socket disconnected, attempting recovery...");
+        supabase.realtime.connect();
+        // Wait a bit for connection
+        await new Promise(r => setTimeout(r, 1000));
+      }
 
-    const newChannels: RealtimeChannel[] = [];
+      const newChannels: RealtimeChannel[] = [];
 
     // ─── 1. Orders channel ────────────────────────────────────────────────────
     // V17.4.9: Enhanced callback to pass the actual record for partial updates
@@ -233,6 +255,9 @@ export const useSync = (
     // V17.1.0: Force an immediate UI update after subscription to ensure 
     // the page fetches data even if no real-time event has occurred yet.
     triggerUpdate({ source: 'initial_subscribe', force: true });
+    } finally {
+      isSubscribingRef.current = false;
+    }
   }, [userId, role, isAdmin, triggerUpdate, cleanupChannels]);
 
   // ─── Initial subscription + heartbeat + resume recovery ───────────────────
@@ -247,23 +272,32 @@ export const useSync = (
     };
     window.addEventListener('app-resume-sync', handleResumeSync);
 
-    // V17.9.5: Silent heartbeat every 180s.
-    // - Increased interval (120s → 180s) to further reduce background load.
-    // - We only heartbeat if the app is active to save battery.
+    // V17.9.9: Persistent heartbeat channel to avoid resource leaks
     const heartbeat = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && supabase.realtime.isConnected()) {
-        console.log("[useSyncV17.9.5] Heartbeat ping");
-        supabase.channel('heartbeat').send({
-          type: 'broadcast',
-          event: 'ping',
-          payload: { ts: Date.now(), userId }
-        }).catch(() => {});
-      } else if (!supabase.realtime.isConnected() && userId) {
-        // V17.9.5: If heartbeat finds socket dead, force recovery
-        console.warn("[useSyncV17.9.5] Heartbeat detected dead socket, forcing reconnect");
-        forceReconnectRealtime();
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        if (supabase.realtime.isConnected()) {
+          console.log("[useSyncV17.9.9] Heartbeat ping");
+          
+          if (!heartbeatChannelRef.current) {
+            heartbeatChannelRef.current = supabase.channel(`heartbeat:${userId || 'anon'}`);
+            heartbeatChannelRef.current.subscribe();
+          }
+          
+          heartbeatChannelRef.current.send({
+            type: 'broadcast',
+            event: 'ping',
+            payload: { ts: Date.now(), userId }
+          }).catch(() => {
+            // If send fails, the channel might be stale
+            heartbeatChannelRef.current = null;
+          });
+        } else if (userId) {
+          // V17.9.8: If heartbeat finds socket dead while visible, force recovery
+          console.warn("[useSyncV17.9.9] Heartbeat detected dead socket, forcing reconnect");
+          forceReconnectRealtime();
+        }
       }
-    }, 180 * 1000);
+    }, 30 * 1000); // V17.9.9: 30s for faster detection
 
     return () => {
       isMountedRef.current = false;

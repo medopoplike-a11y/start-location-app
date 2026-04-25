@@ -229,35 +229,68 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // V17.4.7: Safe Realtime Health Monitor
+// V17.9.8: ENHANCED PROACTIVE MONITORING
 // The newer @supabase/realtime-js exposes connection events on the underlying
-// `conn` (Phoenix) socket, not on `realtime` directly — wiring `.on()` to
-// `realtime` itself throws "supabase.realtime.on is not a function". We attach
-// to the actual socket once it exists, and silently no-op if unavailable.
+// `conn` (Phoenix) socket. We monitor this socket and force reconnection if it 
+// enters a stale or closed state while the app is active.
 if (typeof window !== 'undefined' && supabase.realtime) {
   try {
     const rt: any = supabase.realtime;
+    let reconnectTimer: any = null;
+
     const attach = () => {
       const sock = rt?.conn;
       if (!sock || typeof sock.addEventListener !== 'function') return false;
+      
+      // Remove any existing listeners if possible (Phoenix socket might not support this easily without private access)
+      // But we can prevent duplicate logic with a flag
+      if (sock.__START_LOCATION_MONITORED) return true;
+      sock.__START_LOCATION_MONITORED = true;
+
       sock.addEventListener('open', () => {
         console.log("[Realtime] Connection established");
         (window as any).__START_LOCATION_CONNECTED = true;
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
       });
+
       sock.addEventListener('close', () => {
-        console.log("[Realtime] Connection closed");
+        console.warn("[Realtime] Connection closed unexpectedly");
         (window as any).__START_LOCATION_CONNECTED = false;
+        
+        // V17.9.9: Faster recovery (1s instead of 2s) if visible
+        if (!reconnectTimer && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          reconnectTimer = setTimeout(() => {
+            console.log("[Realtime] Attempting proactive recovery after unexpected close...");
+            forceReconnectRealtime();
+          }, 1000);
+        }
       });
+
       sock.addEventListener('error', (err: any) => {
-        console.warn("[Realtime] Connection error (will auto-retry):", err?.message || err);
+        console.error("[Realtime] Socket error:", err?.message || err);
+        (window as any).__START_LOCATION_CONNECTED = false;
+        
+        // V17.9.9: Also attempt recovery on error if visible
+        if (!reconnectTimer && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          reconnectTimer = setTimeout(() => {
+            console.log("[Realtime] Attempting recovery after socket error...");
+            forceReconnectRealtime();
+          }, 2000);
+        }
       });
+
       return true;
     };
-    // Try now; if the socket isn't open yet, retry briefly without spamming.
+
+    // Initial attachment
     if (!attach()) {
       let tries = 0;
       const t = setInterval(() => {
         tries += 1;
-        if (attach() || tries > 10) clearInterval(t);
+        if (attach() || tries > 20) clearInterval(t);
       }, 500);
     }
   } catch (_) {
@@ -266,33 +299,43 @@ if (typeof window !== 'undefined' && supabase.realtime) {
 }
 
 /**
- * V17.9.4: RADICAL REALTIME RECOVERY
+ * V17.9.9: RADICAL REALTIME RECOVERY
  * Forcefully closes and re-establishes the Supabase Realtime socket.
  * Essential for recovering from long background sleeps on mobile.
  */
+let isReconnecting = false;
 export const forceReconnectRealtime = async () => {
-  if (typeof window === 'undefined' || !supabase.realtime) return;
+  if (typeof window === 'undefined' || !supabase.realtime || isReconnecting) return;
   
   try {
-    console.log("[RealtimeV17.9.4] Force Reconnect requested...");
+    isReconnecting = true;
+    console.log("[RealtimeV17.9.9] Force Reconnect requested...");
     
     // 1. Close current connection
     if (supabase.realtime.isConnected()) {
-      console.log("[RealtimeV17.9.4] Closing active socket...");
+      console.log("[RealtimeV17.9.9] Closing active socket...");
       supabase.realtime.disconnect();
     }
     
-    // 2. Wait a small buffer
-    await new Promise(r => setTimeout(r, 500));
+    // 2. Clear any monitored flags on the underlying socket so it can be re-monitored
+    const rt: any = supabase.realtime;
+    if (rt?.conn) {
+      rt.conn.__START_LOCATION_MONITORED = false;
+    }
+
+    // 3. Wait a small buffer
+    await new Promise(r => setTimeout(r, 800));
     
-    // 3. Re-establish
-    console.log("[RealtimeV17.9.4] Establishing fresh socket...");
+    // 4. Re-establish
+    console.log("[RealtimeV17.9.9] Establishing fresh socket...");
     supabase.realtime.connect();
     
     return true;
   } catch (e) {
-    console.error("[RealtimeV17.9.4] Force Reconnect failed:", e);
+    console.error("[RealtimeV17.9.9] Force Reconnect failed:", e);
     return false;
+  } finally {
+    isReconnecting = false;
   }
 };
 

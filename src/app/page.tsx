@@ -7,9 +7,10 @@ import LoginPage from "./login/page";
 import DriverApp from "./driver/page";
 import StoreApp from "./store/page";
 import AdminDashboard from "./admin/page";
+import { setupPushNotifications } from "@/lib/push-notifications";
 
 /**
- * ─── UNIFIED SYSTEM SHELL (V17.7.2) ──────────────────────────────────────────
+ * ─── UNIFIED SYSTEM SHELL (V18.1.0) ──────────────────────────────────────────
  * The single entry point for all roles. 
  * Provides a seamless, reload-free experience across Admin, Store, and Driver.
  * ─────────────────────────────────────────────────────────────────────────────
@@ -17,6 +18,12 @@ import AdminDashboard from "./admin/page";
 
 export default function MainShell() {
   const { user, profile, loading } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setupPushNotifications().catch(err => console.warn('Push Setup skipped:', err));
+    }
+  }, [user]);
 
   // 1. Loading State
   if (loading) {

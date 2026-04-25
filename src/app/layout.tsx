@@ -11,6 +11,14 @@ const cairo = Cairo({ subsets: ["arabic"] });
 export const metadata: Metadata = {
   title: "Start Location",
   description: "Start Location Application",
+  manifest: "/manifest.json",
+  themeColor: "#4f46e5",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Start Location",
+  },
 };
 
 export default function RootLayout({
@@ -20,25 +28,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
-      </head>
+      <head />
       <body className={cairo.className}>
-        <Script id="kill-sw" strategy="beforeInteractive">
-          {`
-            try {
-              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                  for(let registration of registrations) {
-                    registration.unregister();
-                  }
-                });
-              }
-            } catch (e) {
-              console.warn('SW Cleanup failed:', e);
-            }
-          `}
-        </Script>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

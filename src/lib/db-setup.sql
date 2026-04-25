@@ -1,6 +1,15 @@
 -- 0. تفعيل الإضافات المطلوبة
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- دالة لتحديث التوقيت تلقائياً لجميع الجداول (Utility Function)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- V1.3.0: Settlements with User Profiles View for easier querying
 CREATE OR REPLACE VIEW public.settlements_with_profiles AS
 SELECT 
@@ -37,7 +46,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   commission_value FLOAT DEFAULT 0,
   billing_type TEXT CHECK (billing_type IN ('commission', 'fixed_salary')) DEFAULT 'commission',
   monthly_salary FLOAT DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- التأكد من وجود أعمدة إضافية في حال كان الجدول موجوداً مسبقاً
@@ -137,7 +147,8 @@ CREATE TABLE IF NOT EXISTS location_logs (
   speed FLOAT DEFAULT 0,
   heading FLOAT DEFAULT 0,
   accuracy FLOAT DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- تفعيل الحماية لجدول سجل المواقع
@@ -151,7 +162,8 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can view all logs') THEN
     CREATE POLICY "Admins can view all logs" ON location_logs FOR SELECT USING (
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 END $$;
@@ -266,7 +278,8 @@ CREATE TABLE IF NOT EXISTS wallets (
   debt FLOAT DEFAULT 0 NOT NULL,
   system_balance FLOAT DEFAULT 0 NOT NULL, -- مديونية الشركة (العمولة)
   debt_limit FLOAT DEFAULT 1000 NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- التأكد من وجود عمود system_balance في حال كان الجدول موجوداً
@@ -289,7 +302,8 @@ BEGIN
   -- السماح للأدمن بإدارة جميع المحافظ (جديد)
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can manage all wallets') THEN
     CREATE POLICY "Admins can manage all wallets" ON wallets FOR ALL USING (
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 END $$;
@@ -347,7 +361,8 @@ CREATE TABLE IF NOT EXISTS orders (
   vendor_phone TEXT,
   vendor_area TEXT,
   vendor_location JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- إضافة الأعمدة الجديدة في حال كان الجدول موجوداً
@@ -418,7 +433,8 @@ BEGIN
       status = 'pending' OR 
       auth.uid() = driver_id OR 
       auth.uid() = vendor_id OR 
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 
@@ -429,13 +445,15 @@ BEGIN
     USING (
       (status = 'pending' AND driver_id IS NULL) OR 
       auth.uid() = driver_id OR
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     )
     WITH CHECK (
       -- ضمان أن الطيار لا يمكنه تغيير driver_id لطيار آخر
       (status = 'assigned' AND (driver_id = auth.uid() OR driver_id IS NULL)) OR
       (auth.uid() = driver_id) OR
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 
@@ -445,15 +463,57 @@ BEGIN
     ON orders FOR INSERT 
     WITH CHECK (
       auth.uid() = vendor_id OR 
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 END $$;
 
 -- V1.3.2: PERFORMANCE & EFFICIENCY AUDIT - Adding critical indexes
+DO $$ 
+BEGIN 
+  -- إضافة عمود updated_at للجداول إذا كان مفقوداً
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='wallets') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wallets' AND column_name='updated_at') THEN
+    ALTER TABLE wallets ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='orders') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='updated_at') THEN
+    ALTER TABLE orders ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='profiles') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='updated_at') THEN
+    ALTER TABLE profiles ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='location_logs') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='location_logs' AND column_name='updated_at') THEN
+    ALTER TABLE location_logs ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='settlements') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='settlements' AND column_name='updated_at') THEN
+    ALTER TABLE settlements ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='ratings') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ratings' AND column_name='updated_at') THEN
+    ALTER TABLE ratings ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='order_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='order_messages' AND column_name='updated_at') THEN
+    ALTER TABLE order_messages ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
+-- ربط التريجرات لضمان تحديث التوقيت تلقائياً (المجموعة الأولى)
+DROP TRIGGER IF EXISTS update_wallets_updated_at ON wallets;
+CREATE TRIGGER update_wallets_updated_at BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_location_logs_updated_at ON location_logs;
+CREATE TRIGGER update_location_logs_updated_at BEFORE UPDATE ON location_logs FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON orders(driver_id);
 CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_orders_updated_at ON orders(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wallets_updated_at ON wallets(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_profiles_role_online ON profiles(role, is_online);
 CREATE INDEX IF NOT EXISTS idx_location_logs_user_ts ON location_logs(user_id, created_at DESC);
 
@@ -507,7 +567,10 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can view ai_insights' AND tablename = 'ai_insights') THEN
     CREATE POLICY "Admins can view ai_insights" ON ai_insights 
-    FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+    FOR ALL USING (
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    );
   END IF;
 END $$;
 
@@ -516,7 +579,10 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can view system_logs' AND tablename = 'system_logs') THEN
     CREATE POLICY "Admins can view system_logs" ON system_logs 
-    FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+    FOR SELECT USING (
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    );
   END IF;
 END $$;
 
@@ -622,8 +688,7 @@ BEGIN
   -- التحقق من الصلاحيات باستخدام بيانات JWT (أكثر استقراراً من البروفايل)
   IF (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   ) THEN
     RETURN QUERY SELECT * FROM profiles ORDER BY created_at DESC;
   ELSE
@@ -638,8 +703,7 @@ RETURNS SETOF wallets AS $$
 BEGIN
   IF (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   ) THEN
     RETURN QUERY SELECT * FROM wallets;
   ELSE
@@ -663,8 +727,7 @@ RETURNS TABLE (
 BEGIN
   IF (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   ) THEN
     RETURN QUERY 
     SELECT o.id, o.vendor_id, o.driver_id, o.status, o.customer_details, o.financials, o.created_at, p.full_name as vendor_full_name
@@ -684,7 +747,8 @@ CREATE TABLE IF NOT EXISTS settlements (
   amount FLOAT NOT NULL,
   status TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending' NOT NULL,
   method TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- تفعيل RLS لجدول التسويات
@@ -702,10 +766,15 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can manage all settlements') THEN
     CREATE POLICY "Admins can manage all settlements" ON settlements FOR ALL USING (
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 END $$;
+
+-- تفعيل تريجر التحديث التلقائي لجدول التسويات
+DROP TRIGGER IF EXISTS update_settlements_updated_at ON settlements;
+CREATE TRIGGER update_settlements_updated_at BEFORE UPDATE ON settlements FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- 9. إنشاء تريجرات لتحديث المحافظ تلقائياً (نظام المحاسبة المالي)
 
@@ -966,8 +1035,7 @@ BEGIN
   -- التحقق من صلاحيات الأدمن
   IF (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   ) THEN
     -- 1. حذف الطلبات المرتبطة
     DELETE FROM public.orders WHERE vendor_id = target_user_id OR driver_id = target_user_id;
@@ -995,8 +1063,7 @@ BEGIN
   -- 1. التحقق من صلاحيات الأدمن
   IF NOT (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   ) THEN
     RAISE EXCEPTION 'غير مصرح للآدمن فقط.';
   END IF;
@@ -1019,6 +1086,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 16. وظيفة تنظيف البيانات القديمة (Maintenance)
+-- تقوم بحذف سجلات المواقع القديمة لضمان بقاء قاعدة البيانات سريعة
+CREATE OR REPLACE FUNCTION public.cleanup_old_logs()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM public.location_logs WHERE created_at < NOW() - INTERVAL '3 days';
+  -- يمكن إضافة تنظيف لبيانات أخرى هنا مستقبلاً
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- منح الصلاحية للأدمن فقط لتشغيل التنظيف يدوياً إذا لزم الأمر
+GRANT EXECUTE ON FUNCTION public.cleanup_old_logs() TO authenticated;
+
 -- 15. نظام التقييمات (Ratings)
 CREATE TABLE IF NOT EXISTS ratings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -1029,6 +1109,7 @@ CREATE TABLE IF NOT EXISTS ratings (
   comment TEXT,
   type TEXT CHECK (type IN ('driver_to_vendor', 'vendor_to_driver')) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   -- ضمان عدم تكرار التقييم لنفس الطلب من نفس الطرف
   UNIQUE(order_id, from_id)
 );
@@ -1082,6 +1163,10 @@ CREATE TRIGGER on_new_rating
   AFTER INSERT OR UPDATE OR DELETE ON public.ratings
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_rating();
 
+-- تفعيل تريجر التحديث التلقائي لجدول التقييمات
+DROP TRIGGER IF EXISTS update_ratings_updated_at ON ratings;
+CREATE TRIGGER update_ratings_updated_at BEFORE UPDATE ON ratings FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 -- تفعيل Real-time للتقييمات
 DO $$ 
 BEGIN
@@ -1102,7 +1187,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_is_online ON profiles(is_online) WHERE i
 -- 10. جدول إعدادات التطبيق والتحديثات التلقائية
 CREATE TABLE IF NOT EXISTS app_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  latest_version TEXT NOT NULL DEFAULT '0.2.0',
+  latest_version TEXT NOT NULL DEFAULT 'V18.1.0',
   min_version TEXT NOT NULL DEFAULT '0.1.0',
   download_url TEXT,
   bundle_url TEXT,
@@ -1157,11 +1242,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='monthly_salary') THEN
     ALTER TABLE app_config ADD COLUMN monthly_salary FLOAT DEFAULT 0.0;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='updated_at') THEN
+    ALTER TABLE app_config ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
 END $$;
 
--- إدراج البيانات الافتراضية إذا لم تكن موجودة (V17.9.4)
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة (V18.1.0)
 INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
-VALUES (1, 'V17.9.4', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
+VALUES (1, 'V18.1.0', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
 ON CONFLICT (id) DO UPDATE SET 
     latest_version = EXCLUDED.latest_version,
     updated_at = NOW();
@@ -1179,10 +1267,15 @@ BEGIN
   -- السماح للأدمن فقط بتحديث الإعدادات
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can update app config' AND tablename = 'app_config') THEN
     CREATE POLICY "Admins can update app config" ON app_config FOR UPDATE USING (
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+      (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+      (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
     );
   END IF;
 END $$;
+
+-- تفعيل تريجر التحديث التلقائي لجدول الإعدادات
+DROP TRIGGER IF EXISTS update_app_config_updated_at ON app_config;
+CREATE TRIGGER update_app_config_updated_at BEFORE UPDATE ON app_config FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- دالة لتصفير كافة بيانات النظام (الطلبات والتسويات والمحافظ)
 CREATE OR REPLACE FUNCTION reset_all_system_data_admin()
@@ -1190,8 +1283,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
   IF (
     (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
-    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   ) THEN
     -- استخدام شرط لتجاوز حماية الحذف الشامل
     DELETE FROM public.orders WHERE id IS NOT NULL;
@@ -1288,33 +1380,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- د. تحديث رقم النسخة في الإعدادات للإصدار الأخير النظيف
 UPDATE public.app_config 
-SET latest_version = 'V17.3.9', updated_at = NOW() 
+SET latest_version = 'V18.0.0', updated_at = NOW() 
 WHERE id = 1;
-
--- ح. إصلاحات استقرار جدول المحافظ (جديد V1.0.5)
-DO $$ 
-BEGIN 
-  -- إضافة عمود updated_at المفقود في جدول المحافظ
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wallets' AND column_name='updated_at') THEN
-    ALTER TABLE wallets ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-  END IF;
-END $$;
-
--- دالة لتحديث التوقيت تلقائياً
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- ربط التريجر بجدول المحافظ
-DROP TRIGGER IF EXISTS update_wallets_updated_at ON wallets;
-CREATE TRIGGER update_wallets_updated_at
-    BEFORE UPDATE ON wallets
-    FOR EACH ROW
-    EXECUTE PROCEDURE update_updated_at_column();
 
 -- ط. دالة إتمام الطلب (RPC) لتجاوز مشاكل التحديث في الواجهة
 CREATE OR REPLACE FUNCTION complete_order_driver(p_order_id UUID, p_driver_id UUID)
@@ -1494,7 +1561,8 @@ CREATE TABLE IF NOT EXISTS order_messages (
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
   sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- تفعيل RLS للرسائل
@@ -1506,7 +1574,12 @@ BEGIN
     CREATE POLICY "Users can view messages for their orders" ON order_messages FOR SELECT USING (
       EXISTS (
         SELECT 1 FROM orders 
-        WHERE id = order_id AND (driver_id = auth.uid() OR vendor_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+        WHERE id = order_id AND (
+          driver_id = auth.uid() OR 
+          vendor_id = auth.uid() OR 
+          (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+          (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+        )
       )
     );
   END IF;
@@ -1516,7 +1589,12 @@ BEGIN
       auth.uid() = sender_id AND
       EXISTS (
         SELECT 1 FROM orders 
-        WHERE id = order_id AND (driver_id = auth.uid() OR vendor_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+        WHERE id = order_id AND (
+          driver_id = auth.uid() OR 
+          vendor_id = auth.uid() OR 
+          (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+          (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+        )
       )
     );
   END IF;
@@ -1529,6 +1607,10 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE order_messages;
   END IF;
 END $$;
+
+-- تفعيل تريجر التحديث التلقائي لجدول الرسائل
+DROP TRIGGER IF EXISTS update_order_messages_updated_at ON order_messages;
+CREATE TRIGGER update_order_messages_updated_at BEFORE UPDATE ON order_messages FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- 13. تحسين نظام تحديث بيانات المستخدمين وتزامنها بين Auth و Profiles
 -- أ. دالة لتحديث بيانات الملف الشخصي تلقائياً عند تحديث بيانات المستخدم في Auth
@@ -1679,4 +1761,72 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- SELECT fix_system_data_integrity();
+
+-- 18. نظام سجل التدقيق (Audit Logging System)
+-- تتبع كافة الحركات الحساسة في النظام
+CREATE TABLE IF NOT EXISTS system_audit_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  admin_id UUID REFERENCES profiles(id),
+  action TEXT NOT NULL,
+  target_table TEXT,
+  target_id TEXT,
+  old_data JSONB,
+  new_data JSONB,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- تفعيل RLS لسجل التدقيق
+ALTER TABLE system_audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- الأدمن فقط من يمكنه رؤية السجلات
+CREATE POLICY "Admins can view audit logs" ON system_audit_logs
+FOR SELECT USING (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+);
+
+-- دالة مساعدة لتسجيل الحركات (Internal Use)
+CREATE OR REPLACE FUNCTION log_system_action(
+  p_action TEXT,
+  p_target_table TEXT DEFAULT NULL,
+  p_target_id TEXT DEFAULT NULL,
+  p_old_data JSONB DEFAULT NULL,
+  p_new_data JSONB DEFAULT NULL
+) RETURNS UUID AS $$
+DECLARE
+  v_log_id UUID;
+BEGIN
+  INSERT INTO system_audit_logs (admin_id, action, target_table, target_id, old_data, new_data)
+  VALUES (auth.uid(), p_action, p_target_table, p_target_id, p_old_data, p_new_data)
+  RETURNING id INTO v_log_id;
+  
+  RETURN v_log_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- تفعيل سجل التدقيق التلقائي لجدول الملفات الشخصية
+CREATE OR REPLACE FUNCTION audit_profile_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'UPDATE') THEN
+    IF (OLD.is_locked IS DISTINCT FROM NEW.is_locked OR OLD.role IS DISTINCT FROM NEW.role OR OLD.billing_type IS DISTINCT FROM NEW.billing_type) THEN
+      PERFORM log_system_action(
+        'PROFILE_UPDATE',
+        'profiles',
+        NEW.id::text,
+        jsonb_build_object('is_locked', OLD.is_locked, 'role', OLD.role, 'billing_type', OLD.billing_type),
+        jsonb_build_object('is_locked', NEW.is_locked, 'role', NEW.role, 'billing_type', NEW.billing_type)
+      );
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_audit_profile_changes ON profiles;
+CREATE TRIGGER trg_audit_profile_changes
+AFTER UPDATE ON profiles
+FOR EACH ROW EXECUTE PROCEDURE audit_profile_changes();
 

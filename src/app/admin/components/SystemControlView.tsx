@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Shield, AlertTriangle, Truck,
-  CheckCircle2, Activity, Lock, Unlock, RefreshCw, RotateCcw
+  CheckCircle2, Activity, Lock, Unlock, RefreshCw, RotateCcw, Zap
 } from "lucide-react";
 import type { DriverCard } from "../types";
 
@@ -21,6 +21,7 @@ interface SystemControlViewProps {
   onGlobalReset: () => void;
   onRefresh: () => void;
   onBroadcastMessage?: (msg: string) => void;
+  onIntegrityCheck?: () => void;
 }
 
 export default function SystemControlView({
@@ -35,6 +36,7 @@ export default function SystemControlView({
   onGlobalReset = () => {},
   onRefresh = () => {},
   onBroadcastMessage = () => {},
+  onIntegrityCheck = () => {},
 }: SystemControlViewProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [broadcastText, setBroadcastText] = useState("");
@@ -100,7 +102,7 @@ export default function SystemControlView({
           )}
         </motion.div>
 
-        {/* Maintenance Mode */}
+        {/* Maintenance Mode Control */}
         <motion.div
           className={`rounded-[28px] p-6 border-2 transition-all ${maintenanceMode ? "bg-red-50 border-red-300 shadow-lg shadow-red-50" : "bg-white border-slate-100"}`}
           whileHover={{ scale: 1.01 }}
@@ -111,8 +113,8 @@ export default function SystemControlView({
                 <Shield className={`w-6 h-6 ${maintenanceMode ? "text-white" : "text-slate-400"}`} />
               </div>
               <div>
-                <p className="font-black text-slate-900">وضع الصيانة الكاملة</p>
-                <p className="text-[11px] text-slate-400 font-bold mt-0.5">إغلاق التطبيق أمام جميع المستخدمين</p>
+                <p className="font-black text-slate-900">وضع الصيانة العام</p>
+                <p className="text-[11px] text-slate-400 font-bold mt-0.5">إيقاف استقبال الطلبات من كافة العملاء</p>
               </div>
             </div>
             <button
@@ -125,15 +127,65 @@ export default function SystemControlView({
               />
             </button>
           </div>
-          {maintenanceMode && (
-            <div className="bg-red-100 rounded-2xl p-3">
+          {maintenanceMode ? (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-red-100 rounded-2xl p-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-700" />
-                <p className="text-xs font-black text-red-700">وضع الصيانة نشط — لا يمكن لأي مستخدم تسجيل الدخول</p>
+                <p className="text-xs font-black text-red-700">النظام مغلق حالياً للصيانة</p>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <p className="text-xs font-black text-emerald-600">النظام متاح لجميع المستخدمين</p>
               </div>
             </div>
           )}
         </motion.div>
+      </div>
+
+      {/* Smart System Diagnosis & Fix */}
+      <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center">
+              <Shield className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">فحص وسلامة النظام</h3>
+              <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">System Integrity & Smart Repair</p>
+            </div>
+          </div>
+          <button
+            onClick={onIntegrityCheck}
+            disabled={actionLoading}
+            className="flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-2xl font-black transition-all shadow-xl shadow-indigo-200 dark:shadow-none"
+          >
+            {actionLoading ? (
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            ) : (
+              <Zap className="w-5 h-5" />
+            )}
+            تشغيل الفحص الذكي والإصلاح
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+          {[
+            { label: "فحص المحافظ", desc: "التأكد من وجود محفظة لكل مستخدم", icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" /> },
+            { label: "مراجعة الحسابات", desc: "تصحيح أرصدة المحافظ من واقع الطلبات", icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" /> },
+            { label: "هيكلة البيانات", desc: "إصلاح البيانات المالية الناقصة", icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" /> }
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+              <div className="mt-0.5">{item.icon}</div>
+              <div>
+                <p className="text-xs font-black text-slate-900 dark:text-white">{item.label}</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-0.5">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Fleet Quick Controls */}
