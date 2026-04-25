@@ -108,7 +108,7 @@ export default function OrderFormView({
     // V1.3.1: Radical Normalization (The "Safe" Way)
     // 1. Convert all Arabic/Persian digits to English digits for INTERNAL logic
     let result = String(val).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-                    .replace(/[۰-۹]/g, d => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
+                    .replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
     
     if (numericOnly) {
       // 2. Keep only digits and one period

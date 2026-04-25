@@ -918,8 +918,9 @@ function StoreContent() {
   };
 
   const normalizeArabicNumerals = (str: string) => {
-    return str.replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-              .replace(/[۰-۹]/g, (d) => "۰۱۲۳٤۵۶۷۸۹".indexOf(d).toString());
+    if (!str) return "";
+    return String(str).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+                      .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
   };
 
   const handleSaveOrder = async () => {
@@ -973,9 +974,9 @@ function StoreContent() {
             name: c.name,
             phone: c.phone,
             address: c.address,
-            orderValue: Number(c.orderValue),
-            deliveryFee: Number(c.deliveryFee),
-            prepTime: c.prepTime,
+            orderValue: Number(normalizeArabicNumerals(String(c.orderValue))),
+            deliveryFee: Number(normalizeArabicNumerals(String(c.deliveryFee))),
+            prepTime: normalizeArabicNumerals(String(c.prepTime)),
             status: 'pending' as const,
             invoice_url: c.invoiceUrl
           }))
@@ -1001,9 +1002,6 @@ function StoreContent() {
         return; 
       }
       if (data) {
-        const ui = mapDBOrderToUI(data as VendorDBOrder);
-        setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
-        
         // V1.5.5: Force immediate view reset and form cleanup
         setActiveView("store");
         setEditingOrder(null);
@@ -1013,6 +1011,9 @@ function StoreContent() {
           customers: [{ id: Math.random().toString(36).substring(2, 9), name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "" }]
         });
 
+        const ui = mapDBOrderToUI(data as VendorDBOrder);
+        setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
+        
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
         
         // Auto-assign in background

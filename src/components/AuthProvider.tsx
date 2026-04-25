@@ -168,7 +168,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initAuth();
 
-    // V17.9.3: Improved App Resume Handler - Re-verify session and reconnect Realtime
+    // V17.9.4: Improved App Resume Handler - Re-verify session and reconnect Realtime
     let appStateListener: any;
     const setupResumeListener = async () => {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
@@ -176,16 +176,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const { App } = await import("@capacitor/app");
           appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
             if (isActive && active) {
-              console.log("[AuthV17.9.3] App foregrounded, recovering session and realtime...");
+              console.log("[AuthV17.9.4] App foregrounded, recovering session and realtime...");
               
               try {
                 // 1. Force session refresh to ensure token is valid
                 const { data: { session }, error } = await supabase.auth.refreshSession();
                 if (error) {
-                  console.warn("[AuthV17.9.3] Session refresh failed on resume, falling back to initAuth", error);
+                  console.warn("[AuthV17.9.4] Session refresh failed on resume, falling back to initAuth", error);
                   if (active) await initAuth();
                 } else if (session && active) {
-                  console.log("[AuthV17.9.3] Session refreshed successfully");
+                  console.log("[AuthV17.9.4] Session refreshed successfully");
                   await updateState(session, "resume");
                 }
 
@@ -196,13 +196,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (active) window.dispatchEvent(new CustomEvent('app-resume-sync'));
                 
               } catch (e) {
-                console.error("[AuthV17.9.3] Error during resume recovery", e);
+                console.error("[AuthV17.9.4] Error during resume recovery", e);
                 if (active) await initAuth();
               }
             }
           });
         } catch (e) {
-          console.error("[AuthV17.9.3] Failed to setup resume listener", e);
+          console.error("[AuthV17.9.4] Failed to setup resume listener", e);
         }
       }
     };

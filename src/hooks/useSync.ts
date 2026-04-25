@@ -239,10 +239,10 @@ export const useSync = (
     isMountedRef.current = true;
     subscribe();
 
-    // V17.9.3: Listen for app-resume-sync event from AuthProvider
+    // V17.9.4: Listen for app-resume-sync event from AuthProvider
     const handleResumeSync = () => {
-      console.log("[Sync] App resume event detected - forcing re-subscription");
-      subscribe();
+      console.log("[useSyncV17.9.4] App resume sync triggered");
+      onUpdate?.({ source: 'app_resume_start' });
     };
     window.addEventListener('app-resume-sync', handleResumeSync);
 
@@ -328,7 +328,7 @@ export const useSync = (
             ]).catch(() => {});
           }
 
-          // V17.9.3: Radical Socket Recovery
+          // V17.9.4: Radical Socket Recovery
           // Always reconnect socket on resume if it's dead or if it's a hard sync
           const isSocketDead = !supabase.realtime.isConnected();
           if (isHardSync || isSocketDead) {

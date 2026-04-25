@@ -1047,7 +1047,7 @@ function DriverPageContent() {
       setActionLoading(true);
       
       // 1. Update UI and Local State immediately for responsiveness (Optimistic)
-      // V17.9.3: Automatically open map and trigger fresh sync when going online
+      // V17.9.4: Automatically open map and trigger fresh sync when going online
       setIsActive(newStatus);
       
       if (newStatus) {
