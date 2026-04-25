@@ -96,6 +96,15 @@ export const useSync = (
   const subscribe = useCallback(async () => {
     if (!userId || isSubscribingRef.current) return;
     
+    // V18.0.1: Add a cooldown to subscribe to prevent rapid re-subscription loops
+    const now = Date.now();
+    const lastSub = (window as any).__lastSubscribeTime || 0;
+    if (now - lastSub < 2000) {
+      console.log("useSync: Subscribe in cooldown, skipping loop");
+      return;
+    }
+    (window as any).__lastSubscribeTime = now;
+    
     isSubscribingRef.current = true;
     try {
       await cleanupChannels();
@@ -292,25 +301,33 @@ export const useSync = (
         const isConnected = supabase.realtime.isConnected();
         
         if (isConnected) {
-          if (!heartbeatChannelRef.current) {
+          // V18.0.1: Only ping if we have an active heartbeat channel
+          if (heartbeatChannelRef.current) {
+            heartbeatChannelRef.current.send({
+              type: 'broadcast',
+              event: 'ping',
+              payload: { ts: Date.now(), userId }
+            }).catch(() => {
+              heartbeatChannelRef.current = null;
+            });
+          } else {
+            // Create heartbeat channel only once, don't force reconnect if missing
             heartbeatChannelRef.current = supabase.channel(`heartbeat:${userId || 'anon'}`);
             heartbeatChannelRef.current.subscribe();
           }
-          
-          heartbeatChannelRef.current.send({
-            type: 'broadcast',
-            event: 'ping',
-            payload: { ts: Date.now(), userId }
-          }).catch(() => {
-            heartbeatChannelRef.current = null;
-          });
         } else if (userId) {
-          // V17.9.8: If heartbeat finds socket dead while visible, force recovery
-          console.warn("[useSyncV17.9.9] Heartbeat detected dead socket, forcing reconnect");
-          forceReconnectRealtime();
+          // V18.0.1: Be more conservative with force reconnect
+          // Only force if we've been disconnected for more than one heartbeat cycle
+          const now = Date.now();
+          const lastReconnect = (window as any).__lastForceReconnect || 0;
+          if (now - lastReconnect > 60000) { // 60s cooldown
+            console.warn("[useSyncV18.0.1] Heartbeat detected dead socket, forcing reconnect");
+            (window as any).__lastForceReconnect = now;
+            forceReconnectRealtime();
+          }
         }
       }
-    }, 20 * 1000); // V17.9.9: Reduced to 20s for even faster detection
+    }, 30 * 1000); // V18.0.1: Back to 30s to reduce noise
 
     return () => {
       isMountedRef.current = false;
