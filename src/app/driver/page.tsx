@@ -894,6 +894,13 @@ function DriverPageContent() {
       if (payload?.source === 'broadcast' && payload?.new?.id === driverId) return;
 
       isRefreshingRef.current = true;
+      setIsRefreshing(true); // V1.1.3: Update UI state
+
+      // V1.1.4: Safety Timeout to prevent stuck loader in case of hung promises
+      const safetyTimeout = setTimeout(() => {
+        isRefreshingRef.current = false;
+        setIsRefreshing(false);
+      }, 15000); // 15s safety net
       
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -920,7 +927,9 @@ function DriverPageContent() {
         
         await Promise.allSettled(tasks);
       } finally {
+        clearTimeout(safetyTimeout);
         isRefreshingRef.current = false;
+        setIsRefreshing(false); // V1.1.3: Unlock UI state
         syncTimeoutRef.current = null;
       }
     }, 50); // V17.9.7: Reduced from 100ms to 50ms for snappier response
@@ -944,6 +953,8 @@ function DriverPageContent() {
       isRefreshingRef.current = false;
       if (payload?.source === 'app_resume_start') {
         setIsRefreshing(true); // Show loader during recovery
+      } else {
+        setIsRefreshing(false); // V1.1.3: Ensure UI is unblocked on complete/focus
       }
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);

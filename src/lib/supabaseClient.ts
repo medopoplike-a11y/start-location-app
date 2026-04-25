@@ -304,11 +304,21 @@ if (typeof window !== 'undefined' && supabase.realtime) {
  * Essential for recovering from long background sleeps on mobile.
  */
 let isReconnecting = false;
+let lastReconnectTime = 0;
+const RECONNECT_COOLDOWN = 3000; // 3s cooldown between force-reconnects
+
 export const forceReconnectRealtime = async () => {
   if (typeof window === 'undefined' || !supabase.realtime || isReconnecting) return;
   
+  const now = Date.now();
+  if (now - lastReconnectTime < RECONNECT_COOLDOWN) {
+    console.log("[RealtimeV17.9.9] Reconnect in cooldown, skipping...");
+    return;
+  }
+  
   try {
     isReconnecting = true;
+    lastReconnectTime = now;
     console.log("[RealtimeV17.9.9] Force Reconnect requested...");
     
     // 1. Close current connection
@@ -323,12 +333,17 @@ export const forceReconnectRealtime = async () => {
       rt.conn.__START_LOCATION_MONITORED = false;
     }
 
-    // 3. Wait a small buffer
-    await new Promise(r => setTimeout(r, 800));
+    // 3. Wait a small buffer for OS to release port
+    await new Promise(r => setTimeout(r, 1000));
     
     // 4. Re-establish
     console.log("[RealtimeV17.9.9] Establishing fresh socket...");
     supabase.realtime.connect();
+    
+    // V17.9.9: Trigger a global sync event to notify all useSync hooks to re-subscribe
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-realtime-recovered'));
+    }
     
     return true;
   } catch (e) {

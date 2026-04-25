@@ -386,6 +386,8 @@ function StoreContent() {
       isSyncingRef.current = false;
       if (payload?.source === 'app_resume_start') {
         setIsSyncing(true); // Show loader during recovery
+      } else {
+        setIsSyncing(false); // V1.1.4: Ensure UI is unblocked on complete/focus
       }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();

@@ -214,14 +214,20 @@ export const useSync = (
         triggerUpdate({ source: 'broadcast', payload: { type: 'maintenance', ...msg.payload } });
       })
       .subscribe((status) => {
-        // V17.7.2: Smart Channel Recovery
+        // V17.7.2: Smart Channel Recovery with Exponential Backoff
         if (status === 'SUBSCRIBED') {
           console.log("useSync: System sync channel active");
+          (window as any).__systemSyncRetryCount = 0;
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.warn(`useSync: Channel ${status}, scheduling retry...`);
+          const retryCount = ((window as any).__systemSyncRetryCount || 0) + 1;
+          (window as any).__systemSyncRetryCount = retryCount;
+          
+          const delay = Math.min(retryCount * 2000, 30000); // Backoff up to 30s
+          console.warn(`useSync: Channel ${status}, retry #${retryCount} in ${delay}ms`);
+          
           setTimeout(() => {
             if (isMountedRef.current) subscribe();
-          }, 5000);
+          }, delay);
         }
       });
     newChannels.push(systemSyncChannel);
@@ -270,14 +276,22 @@ export const useSync = (
       console.log("[useSyncV17.9.4] App resume sync triggered");
       onUpdate?.({ source: 'app_resume_start' });
     };
+
+    // V17.9.9: Listen for global socket recovery event
+    const handleSocketRecovered = () => {
+      console.log("[useSyncV17.9.9] Socket recovered globally, re-subscribing...");
+      if (isMountedRef.current) subscribe();
+    };
+
     window.addEventListener('app-resume-sync', handleResumeSync);
+    window.addEventListener('supabase-realtime-recovered', handleSocketRecovered);
 
     // V17.9.9: Persistent heartbeat channel to avoid resource leaks
     const heartbeat = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        if (supabase.realtime.isConnected()) {
-          console.log("[useSyncV17.9.9] Heartbeat ping");
-          
+        const isConnected = supabase.realtime.isConnected();
+        
+        if (isConnected) {
           if (!heartbeatChannelRef.current) {
             heartbeatChannelRef.current = supabase.channel(`heartbeat:${userId || 'anon'}`);
             heartbeatChannelRef.current.subscribe();
@@ -288,7 +302,6 @@ export const useSync = (
             event: 'ping',
             payload: { ts: Date.now(), userId }
           }).catch(() => {
-            // If send fails, the channel might be stale
             heartbeatChannelRef.current = null;
           });
         } else if (userId) {
@@ -297,12 +310,13 @@ export const useSync = (
           forceReconnectRealtime();
         }
       }
-    }, 30 * 1000); // V17.9.9: 30s for faster detection
+    }, 20 * 1000); // V17.9.9: Reduced to 20s for even faster detection
 
     return () => {
       isMountedRef.current = false;
       clearInterval(heartbeat);
       window.removeEventListener('app-resume-sync', handleResumeSync);
+      window.removeEventListener('supabase-realtime-recovered', handleSocketRecovered);
       cleanupChannels();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
@@ -367,15 +381,15 @@ export const useSync = (
           // Always re-subscribe on resume to ensure we haven't missed channel updates
           await subscribe();
           
+        } catch (e) {
+          console.error("useSync: Resume healing failed", e);
+        } finally {
+          setIsSyncing(false);
           triggerUpdate({ 
             source: 'app_resume_complete', 
             isHardSync,
             preferCache: false 
           });
-        } catch (e) {
-          console.error("useSync: Resume healing failed", e);
-        } finally {
-          setIsSyncing(false);
         }
       })();
     };
