@@ -988,6 +988,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- دالة لحذف مستخدم نهائياً من النظام (Auth + Profile + Data)
+CREATE OR REPLACE FUNCTION delete_user_by_admin(p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- 1. التحقق من صلاحيات الأدمن
+  IF NOT (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin' OR
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin' OR
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  ) THEN
+    RAISE EXCEPTION 'غير مصرح للآدمن فقط.';
+  END IF;
+
+  -- 2. حذف كافة البيانات المرتبطة في الجداول العامة
+  DELETE FROM public.orders WHERE vendor_id = p_user_id OR driver_id = p_user_id;
+  DELETE FROM public.settlements WHERE user_id = p_user_id;
+  DELETE FROM public.ratings WHERE from_id = p_user_id OR to_id = p_user_id;
+  DELETE FROM public.wallets WHERE user_id = p_user_id;
+  DELETE FROM public.order_messages WHERE sender_id = p_user_id;
+  DELETE FROM public.location_logs WHERE driver_id = p_user_id;
+  
+  -- 3. حذف البروفايل
+  DELETE FROM public.profiles WHERE id = p_user_id;
+
+  -- 4. حذف المستخدم من نظام Auth (يتطلب SECURITY DEFINER)
+  DELETE FROM auth.users WHERE id = p_user_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 15. نظام التقييمات (Ratings)
 CREATE TABLE IF NOT EXISTS ratings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
