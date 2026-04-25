@@ -15,7 +15,7 @@ export const config = {
     emails: adminEmails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
   },
   features: {
-    pushNotifications: false, 
+    pushNotifications: true, // V19.0.1: Enabled (Requires google-services.json on Android)
   },
   isProduction: process.env.NODE_ENV === 'production',
   isConfigured: () => {

@@ -29,7 +29,7 @@ Thumbs.db
 # android generated/build artifacts
 android/.gradle/
 android/**/build/
-android/app/google-services.json
+# android/app/google-services.json
 android/local.properties
 
 # local Android signing

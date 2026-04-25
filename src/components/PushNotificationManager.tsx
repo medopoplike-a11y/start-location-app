@@ -4,13 +4,12 @@ import { useEffect } from 'react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabaseClient';
+import { config } from '@/lib/config';
 
 export default function PushNotificationManager({ userId }: { userId: string | null }) {
   useEffect(() => {
-    // Disable push notifications entirely for now to diagnose the crash
-    return;
-    
-    if (!userId || !Capacitor.isNativePlatform()) {
+    // V19.0.1: Check feature flag and platform
+    if (!userId || !Capacitor.isNativePlatform() || !config.features.pushNotifications) {
       return;
     }
 

@@ -8,6 +8,7 @@ import DriverApp from "./driver/page";
 import StoreApp from "./store/page";
 import AdminDashboard from "./admin/page";
 import { setupPushNotifications } from "@/lib/push-notifications";
+import { config } from "@/lib/config";
 
 /**
  * ─── UNIFIED SYSTEM SHELL (V19.0.0) ──────────────────────────────────────────
@@ -36,8 +37,11 @@ export default function MainShell() {
   }, [user, profile, profileTimeout]);
 
   useEffect(() => {
-    if (user) {
+    // V19.0.1: Check feature flag before initializing push notifications
+    if (user && config.features.pushNotifications) {
       setupPushNotifications().catch(err => console.warn('Push Setup skipped:', err));
+    } else if (user) {
+      console.log('MainShell: Push notifications are disabled in config');
     }
   }, [user]);
 
