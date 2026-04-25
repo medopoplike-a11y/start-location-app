@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, memo } from "react";
 import { Power, Menu, RefreshCw, Zap, ZapOff, Bot } from "lucide-react";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { motion } from "framer-motion";
@@ -21,7 +22,7 @@ interface DriverHeaderProps {
   onOpenAIHelp?: () => void; // V1.5.9: AI Help trigger
 }
 
-export default function DriverHeader({
+function DriverHeader({
   driverName,
   lastSyncTime,
   isRefreshing,
@@ -129,6 +130,6 @@ export default function DriverHeader({
       </div>
     </header>
   );
-});
+}
 
-export default DriverHeader;
+export default memo(DriverHeader);

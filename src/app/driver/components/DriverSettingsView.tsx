@@ -108,6 +108,4 @@ export default function DriverSettingsView({
       </div>
     </div>
   );
-});
-
-export default DriverSettingsView;
+}

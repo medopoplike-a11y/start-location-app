@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, memo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Truck, Wallet, LogOut, Settings, History, Bot } from "lucide-react";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -17,7 +18,7 @@ interface DriverDrawerProps {
   activeView?: string;
 }
 
-export default function DriverDrawer({
+function DriverDrawer({
   showDrawer,
   onClose,
   onSelectOrders,
@@ -144,6 +145,6 @@ export default function DriverDrawer({
       )}
     </AnimatePresence>
   );
-});
+}
 
-export default DriverDrawer;
+export default memo(DriverDrawer);

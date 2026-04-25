@@ -4,6 +4,8 @@ import { useState, memo } from "react";
 import { Wallet, AlertCircle, TrendingDown } from "lucide-react";
 import type { SettlementHistoryItem } from "../types";
 
+type FilterPeriod = "today" | "15days" | "month";
+
 interface WalletViewProps {
   companyCommission: number;
   balance: number;
@@ -21,7 +23,7 @@ interface WalletViewProps {
   onOpenSettlementModal: () => void;
 }
 
-const WalletView = memo(function WalletView({ companyCommission, balance, settlementHistory, commissionDetails, onOpenSettlementModal }: WalletViewProps) {
+function WalletView({ companyCommission, balance, settlementHistory, commissionDetails, onOpenSettlementModal }: WalletViewProps) {
   const [filter, setFilter] = useState<FilterPeriod>("15days");
 
   const filterLabels: Record<FilterPeriod, string> = {
@@ -194,3 +196,5 @@ const WalletView = memo(function WalletView({ companyCommission, balance, settle
     </div>
   );
 }
+
+export default WalletView;

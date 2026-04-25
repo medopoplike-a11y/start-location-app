@@ -244,6 +244,4 @@ export default function HistoryView({ orders, onPreviewImage }: HistoryViewProps
       </div>
     </div>
   );
-});
-
-export default HistoryView;
+}

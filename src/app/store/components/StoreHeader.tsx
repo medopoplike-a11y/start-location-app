@@ -107,6 +107,4 @@ export default function StoreHeader({
       </div>
     </header>
   );
-});
-
-export default StoreHeader;
+}

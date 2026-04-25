@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { History, CheckCircle, Clock, Banknote, Store, TrendingUp, MapPin, Phone, ChevronDown, ChevronUp, Eye, User, XCircle } from "lucide-react";
 import type { Order } from "../types";
@@ -302,6 +302,4 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
       )}
     </div>
   );
-});
-
-export default DriverHistoryView;
+}
