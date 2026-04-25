@@ -88,17 +88,15 @@ export default function DriverOperationsHub({
             orders={orders}
             autoAccept={autoAccept}
             onToggleAutoAccept={onToggleAutoAccept}
-            onAcceptOrder={handleAcceptOrder}
-            onPickupOrder={handlePickupOrder}
-            onDeliverOrder={handleDeliverOrder}
-            onConfirmPayment={handleConfirmPayment}
-            onDeliverCustomer={handleDeliverCustomer}
+            onAcceptOrder={onAcceptOrder}
+            onPickupOrder={onPickupOrder}
+            onDeliverOrder={onDeliverOrder}
+            onConfirmPayment={onConfirmPayment}
+            onDeliverCustomer={onDeliverCustomer}
             onPreviewImage={onPreviewImage}
           />
         </motion.div>
       </AnimatePresence>
     </div>
   );
-});
-
-export default DriverOperationsHub;
+}

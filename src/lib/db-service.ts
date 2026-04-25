@@ -109,7 +109,7 @@ class DatabaseService {
   }
 
   /**
-   * ─── INTELLIGENT SYNC ENGINE (V18.1.0) ─────────────────────────────────────
+   * ─── INTELLIGENT SYNC ENGINE (V19.0.0) ─────────────────────────────────────
    * Proactively repairs data gaps and manages offline/online state transitions.
    * ───────────────────────────────────────────────────────────────────────────
    */
@@ -120,7 +120,7 @@ class DatabaseService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('[SyncEngine-V18.1.0] Delta Sync Cycle starting...');
+      console.log('[SyncEngine-V19.0.0] Delta Sync Cycle starting...');
 
       // 1. Get the latest updated_at from local DB for Delta Sync
       const lastUpdateRes = await this.db.query('SELECT MAX(updated_at) as last_update FROM orders');
@@ -144,7 +144,7 @@ class DatabaseService {
       if (ordersError) throw ordersError;
 
       if (remoteOrders && remoteOrders.length > 0) {
-        console.log(`[SyncEngine-V18.1.0] Found ${remoteOrders.length} new/updated orders.`);
+        console.log(`[SyncEngine-V19.0.0] Found ${remoteOrders.length} new/updated orders.`);
         // Atomic transaction for high-speed local updates
         await this.db.execute('BEGIN TRANSACTION');
         try {
@@ -172,7 +172,7 @@ class DatabaseService {
         );
       }
 
-      console.log('✅ SyncEngine-V18.1.0: Delta Sync Complete');
+      console.log('✅ SyncEngine-V19.0.0: Delta Sync Complete');
     } catch (err) {
       console.warn('[SyncEngine] Delta Sync paused (Offline mode?)', err);
     }
@@ -300,7 +300,7 @@ class DatabaseService {
   }
 
   /**
-   * V18.1.0: OPTIMIZATION - SQLite Vacuuming
+   * V19.0.0: OPTIMIZATION - SQLite Vacuuming
    * Reclaims unused space and defragments the local database file.
    * Recommended after large deletions or once a week.
    */

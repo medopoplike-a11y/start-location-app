@@ -10,7 +10,7 @@ import AdminDashboard from "./admin/page";
 import { setupPushNotifications } from "@/lib/push-notifications";
 
 /**
- * ─── UNIFIED SYSTEM SHELL (V18.1.0) ──────────────────────────────────────────
+ * ─── UNIFIED SYSTEM SHELL (V19.0.0) ──────────────────────────────────────────
  * The single entry point for all roles. 
  * Provides a seamless, reload-free experience across Admin, Store, and Driver.
  * ─────────────────────────────────────────────────────────────────────────────
@@ -18,6 +18,22 @@ import { setupPushNotifications } from "@/lib/push-notifications";
 
 export default function MainShell() {
   const { user, profile, loading } = useAuth();
+
+  // V17.9.4: Added safety timeout for profile recovery to prevent stuck loader on resume.
+  const [profileTimeout, setProfileTimeout] = useState(false);
+  
+  useEffect(() => {
+    if (user && !profile) {
+      const timer = setTimeout(() => {
+        console.warn("[HomeV17.9.4] Profile recovery timed out, forcing mount");
+        setProfileTimeout(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else if (profileTimeout) {
+      // Only reset if it was previously true to avoid sync setState during render/effect
+      setTimeout(() => setProfileTimeout(false), 0);
+    }
+  }, [user, profile, profileTimeout]);
 
   useEffect(() => {
     if (user) {
@@ -38,20 +54,6 @@ export default function MainShell() {
   // 3. Authenticated -> Show Role-based View
   // V17.2.7: Ensure we have a profile before choosing the dashboard.
   // If user exists but profile is null, it means we are in the middle of a fetch.
-  // V17.9.4: Added safety timeout for profile recovery to prevent stuck loader on resume.
-  const [profileTimeout, setProfileTimeout] = useState(false);
-  useEffect(() => {
-    if (user && !profile) {
-      const timer = setTimeout(() => {
-        console.warn("[HomeV17.9.4] Profile recovery timed out, forcing mount");
-        setProfileTimeout(true);
-      }, 5000);
-      return () => clearTimeout(timer);
-    } else {
-      setProfileTimeout(false);
-    }
-  }, [user, profile]);
-
   if (user && !profile && !profileTimeout) {
     return <AppLoader />;
   }

@@ -1187,7 +1187,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_is_online ON profiles(is_online) WHERE i
 -- 10. جدول إعدادات التطبيق والتحديثات التلقائية
 CREATE TABLE IF NOT EXISTS app_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  latest_version TEXT NOT NULL DEFAULT 'V18.1.0',
+  latest_version TEXT NOT NULL DEFAULT 'V19.0.0',
   min_version TEXT NOT NULL DEFAULT '0.1.0',
   download_url TEXT,
   bundle_url TEXT,
@@ -1247,9 +1247,9 @@ BEGIN
   END IF;
 END $$;
 
--- إدراج البيانات الافتراضية إذا لم تكن موجودة (V18.1.0)
-INSERT INTO public.app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
-VALUES (1, 'V18.1.0', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
+-- إدراج البيانات الافتراضية إذا لم تكن موجودة (V19.0.0)
+INSERT INTO app_config (id, latest_version, min_version, download_url, driver_commission, vendor_commission)
+VALUES (1, 'V19.0.0', '0.1.0', 'https://github.com/medopoplike-a11y/start-location-app/releases', 15, 20)
 ON CONFLICT (id) DO UPDATE SET 
     latest_version = EXCLUDED.latest_version,
     updated_at = NOW();

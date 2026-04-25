@@ -1491,7 +1491,7 @@ function DriverPageContent() {
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 animate-spin-slow" />
                   <p className="text-[10px] font-black leading-tight">
-                    لضمان استمرار التتبع في الخلفية: يرجى تعطيل "تحسين البطارية" (Battery Optimization) لتطبيق ستارت من إعدادات الهاتف.
+                    لضمان استمرار التتبع في الخلفية: يرجى تعطيل &quot;تحسين البطارية&quot; (Battery Optimization) لتطبيق ستارت من إعدادات الهاتف.
                   </p>
                 </div>
                 <button onClick={dismissBatteryAlert} className="bg-white/20 p-1.5 rounded-lg">

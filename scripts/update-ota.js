@@ -1,6 +1,8 @@
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 // Simple script to update OTA version in Supabase
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";

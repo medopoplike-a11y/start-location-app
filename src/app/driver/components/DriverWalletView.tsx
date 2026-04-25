@@ -189,7 +189,7 @@ export default function DriverWalletView({
           <>
             <div className="bg-orange-50 dark:bg-orange-950/10 border border-orange-100 dark:border-orange-900/20 rounded-[24px] p-4">
               <p className="text-[11px] font-black text-orange-800 dark:text-orange-400 leading-relaxed">
-                يجب عليك تسليم مبلغ المديونية للمحل ثم الضغط على "تأكيد التسليم" حتى يتمكن المحل من تأكيد الاستلام.
+                يجب عليك تسليم مبلغ المديونية للمحل ثم الضغط على &quot;تأكيد التسليم&quot; حتى يتمكن المحل من تأكيد الاستلام.
               </p>
             </div>
             {safeOrdersList.map((order, idx) => {
