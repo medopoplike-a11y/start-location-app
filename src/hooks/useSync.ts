@@ -70,9 +70,10 @@ export const useSync = (
       setIsSyncing(true);
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 300);
+      // V17.9.7: Reduced feedback delay for snappier feel
+      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 150);
       syncTimeoutRef.current = null;
-    }, 50);
+    }, 40); // V17.9.7: Reduced from 50ms to 40ms for aggregate latency reduction
   }, []);
 
   const subscribe = useCallback(() => {
@@ -246,29 +247,23 @@ export const useSync = (
     };
     window.addEventListener('app-resume-sync', handleResumeSync);
 
-    // V17.4.0: Silent heartbeat every 120s.
-    // - Doubled interval (60s → 120s) to halve background load.
-    // - No more forced UI refresh every minute (caused needless re-renders + flicker).
-    // - Only re-connect on disconnect; do NOT tear down all 5 channels unless we
-    //   were actually disconnected for 2 consecutive checks (debounce).
-    let consecutiveDownChecks = 0;
+    // V17.9.5: Silent heartbeat every 180s.
+    // - Increased interval (120s → 180s) to further reduce background load.
+    // - We only heartbeat if the app is active to save battery.
     const heartbeat = setInterval(() => {
-      const live = supabase.realtime.isConnected();
-      if (live) {
-        consecutiveDownChecks = 0;
-        return; // healthy → do nothing, no re-render, no log spam
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && supabase.realtime.isConnected()) {
+        console.log("[useSyncV17.9.5] Heartbeat ping");
+        supabase.channel('heartbeat').send({
+          type: 'broadcast',
+          event: 'ping',
+          payload: { ts: Date.now(), userId }
+        }).catch(() => {});
+      } else if (!supabase.realtime.isConnected() && userId) {
+        // V17.9.5: If heartbeat finds socket dead, force recovery
+        console.warn("[useSyncV17.9.5] Heartbeat detected dead socket, forcing reconnect");
+        forceReconnectRealtime();
       }
-      consecutiveDownChecks += 1;
-      console.warn(`useSync: Heartbeat detected disconnect (#${consecutiveDownChecks})`);
-      // First detection: try a soft reconnect only.
-      try { supabase.realtime.connect(); } catch (_) {}
-      // Only do a full re-subscribe after 2 consecutive failures (≥2 minutes down).
-      if (consecutiveDownChecks >= 2) {
-        console.warn("useSync: Persistent disconnect — full re-subscribe");
-        subscribe();
-        consecutiveDownChecks = 0;
-      }
-    }, 120 * 1000);
+    }, 180 * 1000);
 
     return () => {
       isMountedRef.current = false;
@@ -277,7 +272,7 @@ export const useSync = (
       cleanupChannels();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, [userId, subscribe, cleanupChannels, triggerUpdate]);
+  }, [userId, subscribe, cleanupChannels, triggerUpdate, onUpdate]);
 
   // ─── Visibility / App-state listeners ─────────────────────────────────────
   useEffect(() => {

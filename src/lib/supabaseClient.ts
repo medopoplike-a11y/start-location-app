@@ -63,8 +63,15 @@ const NativeStorage = {
  * 2. NATIVE FETCH ADAPTER (CAPACITOR HTTP) - V16.6.1 HARDENED
  * This is the MAGIC that bypasses CORS and Web Locks API.
  */
+// V17.9.5: Cache CapacitorHttp to avoid repeated dynamic imports
+let cachedCapacitorHttp: any = null;
+
 const nativeFetch = async (url: string, options: any = {}) => {
-  const { CapacitorHttp } = await import('@capacitor/core');
+  if (!cachedCapacitorHttp) {
+    const { CapacitorHttp } = await import('@capacitor/core');
+    cachedCapacitorHttp = CapacitorHttp;
+  }
+  const CapacitorHttp = cachedCapacitorHttp;
   
   // V16.6.1: Improved URL joining to prevent double slashes or missing slashes
   const baseUrl = supabaseUrl.replace(/\/$/, '');
@@ -139,8 +146,9 @@ const nativeFetch = async (url: string, options: any = {}) => {
         method: options.method || 'GET',
         headers: headers,
         data: requestData,
-        connectTimeout: 10000,
-        readTimeout: 10000
+        // V17.9.7: Increased timeouts to 15s for better stability on weak networks
+        connectTimeout: 15000,
+        readTimeout: 15000
       });
 
       // V16.6.6: PostgREST usually returns array, if we get null/empty it might be RLS

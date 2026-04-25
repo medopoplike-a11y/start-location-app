@@ -470,4 +470,6 @@ export default function OrderFormView({
       </div>
     </div>
   );
-}
+});
+
+export default OrderFormView;

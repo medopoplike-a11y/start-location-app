@@ -129,4 +129,6 @@ export default function DriverHeader({
       </div>
     </header>
   );
-}
+});
+
+export default DriverHeader;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ListFilter, History, Search, Plus, Activity } from "lucide-react";
 import StoreView from "./StoreView";
@@ -31,7 +31,7 @@ interface StoreOrdersHubProps {
   quickUploadOrderId?: string | null;
 }
 
-export default function StoreOrdersHub({
+const StoreOrdersHub = memo(function StoreOrdersHub({
   orders,
   searchQuery,
   activeTab,
@@ -141,4 +141,6 @@ export default function StoreOrdersHub({
       </AnimatePresence>
     </div>
   );
-}
+});
+
+export default StoreOrdersHub;

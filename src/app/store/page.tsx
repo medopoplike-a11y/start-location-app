@@ -19,7 +19,7 @@ import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/li
 import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus, vendorCollectDebt } from "@/lib/api/orders";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache } from "@/lib/native-utils";
+import { getCache, setCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -394,8 +394,9 @@ function StoreContent() {
     }
 
     if (payload?.isHardSync && payload?.source === 'app_resume_start') {
-      // V17.6.1: Cache-first Strategy
-      setOrders([]); 
+      // V17.9.6: Removed setOrders([]) to prevent UI flickering.
+      // fetchOrders(preferCache: true) in updateData will handle refreshing from SQLite/Network
+      // without showing an empty list to the user.
     }
 
     // 2. Handle global alerts
@@ -619,46 +620,53 @@ function StoreContent() {
   }, [user, authProfile, authLoading, router]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Use a ref as the authoritative lock so resets take effect synchronously
-  // (React state updates are async and can't unblock a guard in the same call).
   const isSyncingRef = useRef(false);
+  const updateDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateData = async (uid: string) => {
     if (!uid || isSyncingRef.current) return;
     
-    // Abort previous request if any
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
+    // V17.9.6: Debounce updateData to prevent rapid overlapping fetches
+    if (updateDataTimeoutRef.current) clearTimeout(updateDataTimeoutRef.current);
+    
+    updateDataTimeoutRef.current = setTimeout(async () => {
+      if (!uid || isSyncingRef.current) return;
 
-    isSyncingRef.current = true;
-    setIsSyncing(true);
-    setLastSync(new Date());
+      // Abort previous request if any
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
 
-    const safetyTimeout = setTimeout(() => {
-      isSyncingRef.current = false;
-      setIsSyncing(false);
-      abortControllerRef.current = null;
-    }, 12000);
+      isSyncingRef.current = true;
+      setIsSyncing(true);
+      setLastSync(new Date());
 
-    try {
-      const [dbOrders, walletRes, settlementsRes, driversRes, profileRes, uncollectedRes] = await Promise.allSettled([
-        getVendorOrders({ role: 'vendor', userId: uid }),
-        supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
-        supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
-        supabase.from('profiles').select('*').eq('id', uid).single(),
-        supabase.from('orders')
-          .select('financials')
-          .eq('vendor_id', uid)
-          .in('status', ['in_transit', 'delivered'])
-          .is('vendor_collected_at', null)
-      ]);
+      const safetyTimeout = setTimeout(() => {
+        isSyncingRef.current = false;
+        setIsSyncing(false);
+        abortControllerRef.current = null;
+      }, 12000);
 
-      if (profileRes.status === 'fulfilled' && profileRes.value.data) {
+      try {
+        const [dbOrders, walletRes, settlementsRes, driversRes, profileRes, uncollectedRes] = await Promise.allSettled([
+          getVendorOrders({ role: 'vendor', userId: uid }),
+          supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
+          supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+          supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
+          supabase.from('profiles').select('*').eq('id', uid).single(),
+          supabase.from('orders')
+            .select('financials')
+            .eq('vendor_id', uid)
+            .in('status', ['in_transit', 'delivered'])
+            .is('vendor_collected_at', null)
+        ]);
+
+        if (profileRes.status === 'fulfilled' && profileRes.value.data) {
         const p = profileRes.value.data;
         setVendorName(p.full_name || "محل");
+        // V17.9.5: Cache vendor name
+        setCache('vendor_name', p.full_name || "محل").catch(() => {});
         
         let loc = p.location;
         if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
@@ -681,7 +689,10 @@ function StoreContent() {
         if (dbOrders.value.length === 0) {
             console.warn(`[Store-Diag] Warning: 0 orders found for vendor ${uid}. Possible RLS or ID mismatch.`);
         }
-        setOrders(dbOrders.value.map(mapDBOrderToUI));
+        const mappedOrders = dbOrders.value.map(mapDBOrderToUI);
+        setOrders(mappedOrders);
+        // V17.9.5: Cache orders for instant display next time
+        setCache('vendor_orders', mappedOrders).catch(() => {});
       } else if (dbOrders.status === 'rejected') {
         console.error(`[Store-Diag] Orders query failed:`, dbOrders.reason);
       }
@@ -692,6 +703,8 @@ function StoreContent() {
           return acc + Number(o.financials?.order_value || 0);
         }, 0);
         setBalance(total);
+        // V17.9.5: Cache balance
+        setCache('vendor_balance', total).catch(() => {});
       }
 
       // القيمة الأساسية لمديونية الشركة تأتي من جدول المحافظ لأنه يخصم التسويات المدفوعة سابقاً
@@ -748,7 +761,8 @@ function StoreContent() {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  };
+  }, 50); // V17.9.7: Added/Optimized debounce for snappier response
+};
 
   // --- Logic Helpers ---
   const handleCancelOrder = async (orderId: string) => {

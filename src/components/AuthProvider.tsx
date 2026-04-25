@@ -60,10 +60,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // V16.9.6: Minimal delay only for initial boot on native
+      // V17.9.5: Use cache for instant profile recovery
+      if (currentUser) {
+        try {
+          const cachedProfile = await getCache(`profile_${currentUser.id}`);
+          if (cachedProfile && !profileRef.current && active) {
+            console.log("[AuthV17.9.5] Profile recovered from cache");
+            profileRef.current = cachedProfile;
+            setProfile(cachedProfile);
+            // If we have a cached profile, we can unblock the UI immediately
+            setLoading(false);
+          }
+        } catch (e) {}
+      }
+
+      // V17.9.5: Removed arbitrary delay for native boot - using cache instead
+      /*
       if (source === 'init' && typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() !== 'web') {
         await new Promise(r => setTimeout(r, 400));
       }
+      */
 
       // V16.9.6: Set user IMMEDIATELY to unblock routing
       if (active) {
@@ -78,7 +94,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         while (retryCount < maxRetries && !p && active) {
           try {
             p = await getUserProfile(currentUser.id, currentUser.email);
-            if (p) break;
+            if (p) {
+              // V17.9.5: Update cache on successful fetch
+              await setCache(`profile_${currentUser.id}`, p);
+              break;
+            }
           } catch (e) {
             console.warn(`[AuthV17.1.1] Profile fetch attempt ${retryCount + 1} failed`, e);
           }

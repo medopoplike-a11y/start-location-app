@@ -152,4 +152,6 @@ export default function StoreDrawer({
       )}
     </AnimatePresence>
   );
-}
+});
+
+export default StoreDrawer;

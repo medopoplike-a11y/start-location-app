@@ -324,4 +324,6 @@ export default function DriverWalletView({
       )}
     </div>
   );
-}
+});
+
+export default DriverWalletView;

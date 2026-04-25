@@ -302,4 +302,6 @@ export default function DriverHistoryView({ history, onPreviewImage }: DriverHis
       )}
     </div>
   );
-}
+});
+
+export default DriverHistoryView;

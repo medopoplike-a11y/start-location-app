@@ -99,4 +99,6 @@ export default function DriverOperationsHub({
       </AnimatePresence>
     </div>
   );
-}
+});
+
+export default DriverOperationsHub;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import dynamic from "next/dynamic";
 import { 
   Store, 
@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";
 import OrderDetailsModal from "./OrderDetailsModal";
 import RatingModal from "@/components/RatingModal";
+import DriverOrderItem from "./DriverOrderItem";
 import { supabase } from "@/lib/supabaseClient";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), {
@@ -55,7 +56,7 @@ interface DriverOrdersViewProps {
   onToggleMapMode: () => void;
 }
 
-export default function DriverOrdersView({
+const DriverOrdersView = memo(function DriverOrdersView({
   todayDeliveryFees,
   vendorDebt,
   isActive,
@@ -360,85 +361,16 @@ export default function DriverOrdersView({
                   <motion.div key="active-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     {activeOrders.length > 0 ? (
                       activeOrders.map((order) => (
-                        <motion.div
+                        <DriverOrderItem
                           key={order.id}
-                          className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[28px] border border-slate-100 dark:border-slate-700/50"
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                                order.status === 'in_transit' ? "bg-indigo-500" : "bg-sky-500"
-                              }`}>
-                                {order.status === 'in_transit' ? <Truck className="text-white w-5 h-5" /> : <Store className="text-white w-5 h-5" />}
-                              </div>
-                              <div>
-                                <p className="text-xs font-black text-slate-900 dark:text-white leading-tight">{order.vendor}</p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1">{order.status === 'assigned' ? 'بانتظار الاستلام' : 'جاري التوصيل'}</p>
-                              </div>
-                            </div>
-                            <div className="text-right flex flex-col items-end gap-2">
-                              <p className="text-xs font-black text-emerald-600">{order.fee}</p>
-                              {order.status !== 'delivered' && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsNavigating(!isNavigating);
-                                  }}
-                                  className={`p-2 rounded-xl border transition-all ${
-                                    isNavigating 
-                                    ? "bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-100" 
-                                    : "bg-white dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700"
-                                  }`}
-                                  title="تفعيل/إلغاء التوجيه على الخريطة"
-                                >
-                                  <Navigation className={`w-3.5 h-3.5 ${isNavigating ? "animate-pulse" : ""}`} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-2">
-                            <div className="grid grid-cols-2 gap-2 mb-1">
-                               <div className="bg-slate-100 dark:bg-slate-700/50 p-2 rounded-xl text-center">
-                                 <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">قيمة الطلب</p>
-                                 <p className="text-[10px] font-black text-slate-900 dark:text-white">{(order.customers?.reduce((acc, c) => acc + (Number(c?.orderValue) || 0), 0) || 0).toFixed(2)} ج.م</p>
-                               </div>
-                               <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-xl text-center">
-                                 <p className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-1">ربحك الصافي</p>
-                                 <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{(order.financials?.driver_earnings || 0).toFixed(2)} ج.م</p>
-                               </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setSelectedOrder(order)}
-                                className="flex-1 bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl font-black text-[11px]"
-                              >
-                                إدارة الطلب
-                              </button>
-                              
-                              {/* V1.0.9: Quick Action Buttons on Card */}
-                              {order.status === 'assigned' && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handlePickup(order.id); }}
-                                  disabled={actionLoading}
-                                  className="flex-1 bg-sky-500 text-white py-3 rounded-xl font-black text-[11px] shadow-lg shadow-sky-100"
-                                >
-                                  {actionLoading ? "جاري..." : "تأكيد الاستلام"}
-                                </button>
-                              )}
-                              
-                              {order.status === 'in_transit' && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
-                                  className="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-black text-[11px] shadow-lg shadow-indigo-100"
-                                >
-                                  إنهاء السكة
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
+                          order={order}
+                          type="active"
+                          actionLoading={actionLoading}
+                          isNavigating={isNavigating}
+                          onToggleNavigation={() => setIsNavigating(!isNavigating)}
+                          onSelectOrder={setSelectedOrder}
+                          onPickup={handlePickup}
+                        />
                       ))
                     ) : (
                       <div className="text-center py-10">
@@ -453,22 +385,14 @@ export default function DriverOrdersView({
                   <motion.div key="available-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     {availableOrders.length > 0 ? (
                       availableOrders.map((order) => (
-                        <div key={order.id} className="bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm">
-                          <div className="flex justify-between items-center mb-3">
-                            <h4 className="font-black text-xs">{order.vendor}</h4>
-                            <span className="text-emerald-600 font-black text-xs">{order.fee}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-bold mb-3 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-red-400" /> {order.address}
-                          </p>
-                          <button
-                            onClick={() => handleAccept(order.id)}
-                            disabled={actionLoading}
-                            className="w-full bg-amber-500 text-white py-3 rounded-xl font-black text-[11px] shadow-lg shadow-amber-100"
-                          >
-                            {actionLoading ? "جاري القبول..." : "قبول الطلب فوراً"}
-                          </button>
-                        </div>
+                        <DriverOrderItem
+                          key={order.id}
+                          order={order}
+                          type="available"
+                          actionLoading={actionLoading}
+                          onAccept={handleAccept}
+                          onSelectOrder={setSelectedOrder}
+                        />
                       ))
                     ) : (
                       <div className="text-center py-10">
@@ -483,16 +407,13 @@ export default function DriverOrdersView({
                   <motion.div key="completed-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     {completedOrders.length > 0 ? (
                       completedOrders.map((order) => (
-                        <div key={order.id} className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-[28px] border border-emerald-100 dark:border-emerald-800/30">
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-black text-xs text-slate-900 dark:text-white">{order.vendor}</h4>
-                            <span className="text-emerald-600 font-black text-[10px] bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">مكتمل</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
-                            <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {order.customer}</p>
-                            <p className="font-black text-emerald-600">{order.fee}</p>
-                          </div>
-                        </div>
+                        <DriverOrderItem
+                          key={order.id}
+                          order={order}
+                          type="completed"
+                          actionLoading={false}
+                          onSelectOrder={setSelectedOrder}
+                        />
                       ))
                     ) : (
                       <div className="text-center py-10">
@@ -507,16 +428,13 @@ export default function DriverOrdersView({
                   <motion.div key="cancelled-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     {cancelledOrders.length > 0 ? (
                       cancelledOrders.map((order) => (
-                        <div key={order.id} className="bg-red-50/50 dark:bg-red-900/10 p-4 rounded-[28px] border border-red-100 dark:border-red-800/30">
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-black text-xs text-red-900 dark:text-red-100">{order.vendor}</h4>
-                            <span className="text-red-600 font-black text-[10px] bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full">ملغي</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
-                            <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {order.customer}</p>
-                            <p className="font-black text-red-600">{order.fee}</p>
-                          </div>
-                        </div>
+                        <DriverOrderItem
+                          key={order.id}
+                          order={order}
+                          type="cancelled"
+                          actionLoading={false}
+                          onSelectOrder={setSelectedOrder}
+                        />
                       ))
                     ) : (
                       <div className="text-center py-10">
@@ -567,4 +485,6 @@ export default function DriverOrdersView({
       />
     </div>
   );
-}
+});
+
+export default DriverOrdersView;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Wallet, AlertCircle, TrendingDown } from "lucide-react";
 import type { SettlementHistoryItem } from "../types";
 
@@ -21,9 +21,7 @@ interface WalletViewProps {
   onOpenSettlementModal: () => void;
 }
 
-type FilterPeriod = "today" | "15days" | "month";
-
-export default function WalletView({ companyCommission, balance, settlementHistory, commissionDetails, onOpenSettlementModal }: WalletViewProps) {
+const WalletView = memo(function WalletView({ companyCommission, balance, settlementHistory, commissionDetails, onOpenSettlementModal }: WalletViewProps) {
   const [filter, setFilter] = useState<FilterPeriod>("15days");
 
   const filterLabels: Record<FilterPeriod, string> = {

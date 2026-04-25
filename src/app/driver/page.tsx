@@ -607,21 +607,30 @@ function DriverPageContent() {
       }
 
       setSystemBalance(finalBalance);
-       setBalance(finalOverallBalance);
-       setVendorDebt(finalDebt);
-       setTodayDeliveryFees(finalFees);
- 
-       // V0.9.92: Re-add settlements data fetching
-       const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
-       if (settlementsData) {
-         const history = settlementsData.map(s => ({
-           id: s.id,
-           amount: s.amount,
-           status: s.status === 'approved' ? "تم السداد" : (s.status === 'pending' ? "جاري المراجعة" : "مرفوض"),
-           date: new Date(s.created_at).toLocaleDateString('ar-EG')
-         }));
-         setSettlementHistory(history);
-       }
+      setBalance(finalOverallBalance);
+      setVendorDebt(finalDebt);
+      setTodayDeliveryFees(finalFees);
+
+      // V17.9.5: Cache stats for instant display
+      setCache('driver_stats', {
+        vendorDebt: finalDebt,
+        todayDeliveryFees: finalFees,
+        systemBalance: finalBalance,
+        balance: finalOverallBalance
+      }).catch(() => {});
+
+      // V0.9.92: Re-add settlements data fetching
+      const { data: settlementsData } = await supabase.from('settlements').select('*').eq('user_id', currentDriverId).order('created_at', { ascending: false });
+      if (settlementsData) {
+        const history = settlementsData.map(s => ({
+          id: s.id,
+          amount: s.amount,
+          status: s.status === 'approved' ? "تم السداد" : (s.status === 'pending' ? "جاري المراجعة" : "مرفوض"),
+          date: new Date(s.created_at).toLocaleDateString('ar-EG')
+        }));
+        setSettlementHistory(history);
+        setCache('driver_settlements', history).catch(() => {});
+      }
 
     } catch (err) {
       console.error("DriverPage: fetchStats failed", err);
@@ -914,7 +923,7 @@ function DriverPageContent() {
         isRefreshingRef.current = false;
         syncTimeoutRef.current = null;
       }
-    }, 100); // V17.8.0: 100ms for ultra-low latency updates.
+    }, 50); // V17.9.7: Reduced from 100ms to 50ms for snappier response
   };
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
