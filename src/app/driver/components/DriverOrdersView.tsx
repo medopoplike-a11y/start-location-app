@@ -51,6 +51,8 @@ interface DriverOrdersViewProps {
   onConfirmPayment: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
+  mapMode: boolean;
+  onToggleMapMode: () => void;
 }
 
 export default function DriverOrdersView({
@@ -68,6 +70,8 @@ export default function DriverOrdersView({
   onConfirmPayment,
   onDeliverCustomer,
   onPreviewImage,
+  mapMode,
+  onToggleMapMode,
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -280,10 +284,25 @@ export default function DriverOrdersView({
       <motion.div 
         initial={false}
         animate={{ 
-          height: isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "240px" : "120px")
+          height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "240px" : "120px")) : "85%"
         }}
         className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] border-t border-slate-100 dark:border-slate-800 flex flex-col"
       >
+        {/* Map Mode Toggle Button - Floating above panel */}
+        <div className="absolute top-[-70px] right-6 z-30">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={onToggleMapMode}
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl backdrop-blur-xl border transition-all ${
+              mapMode 
+              ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/20" 
+              : "bg-white/90 dark:bg-slate-900/90 text-slate-500 border-white/20 dark:border-slate-800"
+            }`}
+          >
+            {mapMode ? <Maximize2 className="w-6 h-6" /> : <MapIcon className="w-6 h-6" />}
+          </motion.button>
+        </div>
+
         {/* Panel Handle & Tabs */}
         <div className="w-full flex flex-col items-center pt-3 shrink-0">
           <button 

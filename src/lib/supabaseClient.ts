@@ -257,4 +257,35 @@ if (typeof window !== 'undefined' && supabase.realtime) {
   }
 }
 
+/**
+ * V17.9.3: RADICAL REALTIME RECOVERY
+ * Forcefully closes and re-establishes the Supabase Realtime socket.
+ * Essential for recovering from long background sleeps on mobile.
+ */
+export const forceReconnectRealtime = async () => {
+  if (typeof window === 'undefined' || !supabase.realtime) return;
+  
+  try {
+    console.log("[RealtimeV17.9.3] Force Reconnect requested...");
+    
+    // 1. Close current connection
+    if (supabase.realtime.isConnected()) {
+      console.log("[RealtimeV17.9.3] Closing active socket...");
+      supabase.realtime.disconnect();
+    }
+    
+    // 2. Wait a small buffer
+    await new Promise(r => setTimeout(r, 500));
+    
+    // 3. Re-establish
+    console.log("[RealtimeV17.9.3] Establishing fresh socket...");
+    supabase.realtime.connect();
+    
+    return true;
+  } catch (e) {
+    console.error("[RealtimeV17.9.3] Force Reconnect failed:", e);
+    return false;
+  }
+};
+
 export default supabase;

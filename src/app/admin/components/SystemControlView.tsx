@@ -20,7 +20,7 @@ interface SystemControlViewProps {
   onUnlockAllDrivers: () => void;
   onGlobalReset: () => void;
   onRefresh: () => void;
-  onBroadcastMessage: (msg: string) => void;
+  onBroadcastMessage?: (msg: string) => void;
 }
 
 export default function SystemControlView({

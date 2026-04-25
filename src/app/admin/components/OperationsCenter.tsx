@@ -73,6 +73,7 @@ export default function OperationsCenter({
   onUnlockAllDrivers,
   onGlobalReset,
   onRefresh,
+  onBroadcastMessage,
   onAssign,
   onToggleShiftLock,
   onCancelOrder,

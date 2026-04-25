@@ -9,7 +9,7 @@ import { KeepAwake } from "@capacitor-community/keep-awake";
 import { Capacitor } from "@capacitor/core";
 import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
 import { fetchOrders, updateOrderStatus } from "@/lib/api/orders";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, startForegroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, requestBatteryOptimizationExemption } from "@/lib/native-utils";
 import { AppLoader } from "@/components/AppLoader";
@@ -1047,8 +1047,15 @@ function DriverPageContent() {
       setActionLoading(true);
       
       // 1. Update UI and Local State immediately for responsiveness (Optimistic)
-      // V17.7.9: Skip full re-render and prevent global sync loops
+      // V17.9.3: Automatically open map and trigger fresh sync when going online
       setIsActive(newStatus);
+      
+      if (newStatus) {
+        setMapMode(true);
+        // Force immediate sync and reconnection for radical reliability
+        manualSync();
+        forceReconnectRealtime().catch(() => {});
+      }
       
       if (typeof window !== "undefined") {
         if (Capacitor.isNativePlatform()) {
@@ -1071,7 +1078,7 @@ function DriverPageContent() {
       }
       
       // V17.8.0: Ultra-fast unlock delay for zero-lag feel
-      setTimeout(() => setActionLoading(false), 100);
+      setTimeout(() => setActionLoading(false), 300); // Slightly longer for stability
       
     } catch (err) {
       console.error("Online toggle: Fatal error", err);

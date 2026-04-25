@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
 import { getUserProfile, UserProfile } from "@/lib/auth";
 import { getCache, setCache } from "@/lib/native-utils";
 
@@ -168,18 +168,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initAuth();
 
-    // V17.9.0: App Resume Handler - Re-verify session when returning from background
-    // This prevents being stuck on the loader if the session became stale.
+    // V17.9.3: Improved App Resume Handler - Re-verify session and reconnect Realtime
     let appStateListener: any;
     const setupResumeListener = async () => {
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        const { App } = await import("@capacitor/app");
-        appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
-          if (isActive) {
-            console.log("[AuthV17.9.0] App foregrounded, re-verifying session...");
-            initAuth();
-          }
-        });
+        try {
+          const { App } = await import("@capacitor/app");
+          appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
+            if (isActive && active) {
+              console.log("[AuthV17.9.3] App foregrounded, recovering session and realtime...");
+              
+              try {
+                // 1. Force session refresh to ensure token is valid
+                const { data: { session }, error } = await supabase.auth.refreshSession();
+                if (error) {
+                  console.warn("[AuthV17.9.3] Session refresh failed on resume, falling back to initAuth", error);
+                  if (active) await initAuth();
+                } else if (session && active) {
+                  console.log("[AuthV17.9.3] Session refreshed successfully");
+                  await updateState(session, "resume");
+                }
+
+                // 2. Explicitly reconnect Realtime socket with radical recovery
+                if (active) await forceReconnectRealtime();
+                
+                // 3. Dispatch global event for other hooks (like useSync) to catch up
+                if (active) window.dispatchEvent(new CustomEvent('app-resume-sync'));
+                
+              } catch (e) {
+                console.error("[AuthV17.9.3] Error during resume recovery", e);
+                if (active) await initAuth();
+              }
+            }
+          });
+        } catch (e) {
+          console.error("[AuthV17.9.3] Failed to setup resume listener", e);
+        }
       }
     };
     setupResumeListener();

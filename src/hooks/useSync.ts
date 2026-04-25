@@ -5,7 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { subscribeToOrders } from "@/lib/api/orders";
 import { subscribeToProfiles } from "@/lib/api/profiles";
 import { subscribeToWallets, subscribeToSettlements } from "@/lib/api/wallets";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
 import { cleanupBroadcastChannel } from "@/lib/native-utils";
 
 export const useSync = (
@@ -234,10 +234,17 @@ export const useSync = (
     triggerUpdate({ source: 'initial_subscribe', force: true });
   }, [userId, role, isAdmin, triggerUpdate, cleanupChannels]);
 
-  // ─── Initial subscription + heartbeat ─────────────────────────────────────
+  // ─── Initial subscription + heartbeat + resume recovery ───────────────────
   useEffect(() => {
     isMountedRef.current = true;
     subscribe();
+
+    // V17.9.3: Listen for app-resume-sync event from AuthProvider
+    const handleResumeSync = () => {
+      console.log("[Sync] App resume event detected - forcing re-subscription");
+      subscribe();
+    };
+    window.addEventListener('app-resume-sync', handleResumeSync);
 
     // V17.4.0: Silent heartbeat every 120s.
     // - Doubled interval (60s → 120s) to halve background load.
@@ -266,6 +273,7 @@ export const useSync = (
     return () => {
       isMountedRef.current = false;
       clearInterval(heartbeat);
+      window.removeEventListener('app-resume-sync', handleResumeSync);
       cleanupChannels();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
@@ -320,15 +328,11 @@ export const useSync = (
             ]).catch(() => {});
           }
 
-          // V17.7.0: Only reset socket if really needed
+          // V17.9.3: Radical Socket Recovery
+          // Always reconnect socket on resume if it's dead or if it's a hard sync
           const isSocketDead = !supabase.realtime.isConnected();
-          
           if (isHardSync || isSocketDead) {
-            console.log("useSync: Resetting socket...");
-            cleanupChannels();
-            if (supabase.realtime.isConnected()) supabase.realtime.disconnect();
-            await new Promise(r => setTimeout(r, 300));
-            supabase.realtime.connect();
+            await forceReconnectRealtime();
           }
 
           // Always re-subscribe on resume to ensure we haven't missed channel updates
