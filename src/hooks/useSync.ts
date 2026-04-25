@@ -29,6 +29,7 @@ export const useSync = (
   const isMountedRef = useRef(true);
   const isSubscribingRef = useRef(false);
   const lastMessageTimeRef = useRef(Date.now());
+  const rttRef = useRef<number>(0);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -310,11 +311,31 @@ export const useSync = (
 
     // V17.9.9: Persistent heartbeat channel to avoid resource leaks
     const heartbeat = setInterval(async () => {
-      // V19.0.5: Network Intelligence - Only run heartbeat if online and visible
+      // V19.1.0: ULTIMATE Predictive Network Guard
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      const connection: any = typeof navigator !== 'undefined' ? (navigator as any).connection : null;
       const now = Date.now();
 
+      // V19.1.0: Adaptive sync based on connection quality (Effective Type)
+      let syncInterval = 30000;
+      if (connection) {
+        if (connection.effectiveType === '2g' || connection.saveData) {
+          syncInterval = 60000; // Slow down to save bandwidth on poor connection
+        } else if (connection.effectiveType === '4g') {
+          syncInterval = 20000; // Speed up on high-speed network
+        }
+      }
+
       if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isOnline) {
+        // V19.1.0: Smart Wake-up check
+        // If the tab was inactive and just became active, force a quick check
+        const lastCheck = (window as any).__lastHeartbeatCheck || 0;
+        if (now - lastCheck > syncInterval + 5000) {
+          console.log("useSync: Smart Wake-up triggered after dormancy");
+          triggerUpdate({ source: 'wakeup_sync', force: true });
+        }
+        (window as any).__lastHeartbeatCheck = now;
+
         // V19.0.7: PLATINUM Adaptive Sync
         // Check battery status if supported to adjust sync frequency
         let isLowBattery = false;
@@ -353,15 +374,19 @@ export const useSync = (
         const isConnected = supabase.realtime.isConnected();
         
         if (isConnected) {
-          // If low battery, skip 50% of heartbeat pings to save energy
-          if (isLowBattery && Math.random() > 0.5) return;
+          // If low battery or poor connection, skip 50% of heartbeat pings to save energy/bandwidth
+          if ((isLowBattery || connection?.effectiveType === '2g') && Math.random() > 0.5) return;
 
           // V18.0.1: Only ping if we have an active heartbeat channel
           if (heartbeatChannelRef.current) {
+            const pingStart = Date.now();
             heartbeatChannelRef.current.send({
               type: 'broadcast',
               event: 'ping',
-              payload: { ts: Date.now(), userId }
+              payload: { ts: pingStart, userId }
+            }).then(() => {
+              // Track RTT for network quality monitoring
+              rttRef.current = Date.now() - pingStart;
             }).catch(() => {
               heartbeatChannelRef.current = null;
             });
@@ -372,10 +397,9 @@ export const useSync = (
           }
         } else if (userId) {
           // V18.0.1: Be more conservative with force reconnect
-          const now = Date.now();
           const lastReconnect = (window as any).__lastForceReconnect || 0;
           if (now - lastReconnect > 60000) { // 60s cooldown
-            console.warn("[useSyncV19.0.5] Heartbeat detected dead socket, forcing reconnect");
+            console.warn("[useSyncV19.1.0] Heartbeat detected dead socket, forcing reconnect");
             (window as any).__lastForceReconnect = now;
             forceReconnectRealtime();
           }
