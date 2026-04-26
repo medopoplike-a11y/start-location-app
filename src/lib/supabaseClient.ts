@@ -349,4 +349,17 @@ export const forceReconnectRealtime = async () => {
   }
 };
 
+// V19.5.1: Global Network Status Monitor for radical stability
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    console.log("[NetworkMonitor] Online detected — triggering clean recovery...");
+    forceReconnectRealtime();
+  });
+  
+  window.addEventListener('offline', () => {
+    console.warn("[NetworkMonitor] Offline detected");
+    (window as any).__START_LOCATION_CONNECTED = false;
+  });
+}
+
 export default supabase;

@@ -465,7 +465,23 @@ function StoreContent() {
     }
 
     // 3. Trigger full data refresh
-    updateData(vendorId);
+    if (!isSyncingRef.current) {
+      // V19.5.1: If it's just a re-subscription, sync silently in the background
+      const isSilentSync = payload?.source === 'initial_subscribe' || payload?.source === 'wakeup_sync';
+      
+      if (isSilentSync) {
+        // Silent background sync - no loading state
+        getVendorOrders({ role: 'vendor', userId: vendorId }).then(dbOrders => {
+          if (dbOrders) {
+            const mappedOrders = dbOrders.map(mapDBOrderToUI);
+            setOrders(mappedOrders);
+            setCache('vendor_orders', mappedOrders).catch(() => {});
+          }
+        }).catch(() => {});
+      } else {
+        updateData(vendorId);
+      }
+    }
   }, 'vendor');
 
   // Sound notification logic

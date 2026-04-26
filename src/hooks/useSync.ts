@@ -79,13 +79,15 @@ export const useSync = (
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
     
-    // V19.0.6: Track last message time to detect ghost connections
+    // V19.5.1: Track last message time to detect ghost connections
     lastMessageTimeRef.current = Date.now();
     
     // V17.1.0: Allow forcing an update even for 'initial_subscribe'
     if (payload?.source === 'initial_subscribe' && !payload?.force) return;
 
-    // V17.4.9: Critical updates are processed INSTANTLY without any debounce.
+    // V19.5.1: Critical updates are processed INSTANTLY.
+    // We removed setIsSyncing(true) from here to prevent the UI from "flickering" 
+    // in sync mode during every small realtime update.
     if (payload?.source === 'system_sync' || payload?.source === 'new_order' || payload?.source === 'order_update' || payload?.source === 'location_update') {
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
@@ -95,13 +97,13 @@ export const useSync = (
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
       if (!isMountedRef.current) return;
-      setIsSyncing(true);
+      
+      // V19.5.1: silent background updates. 
+      // The pages manage their own loading states during manual syncs.
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
-      // V17.9.7: Reduced feedback delay for snappier feel
-      setTimeout(() => { if (isMountedRef.current) setIsSyncing(false); }, 150);
       syncTimeoutRef.current = null;
-    }, 40); // V17.9.7: Reduced from 50ms to 40ms for aggregate latency reduction
+    }, 100); // V19.5.1: Increased to 100ms to better batch rapid updates
   }, []);
 
   const subscribe = useCallback(async () => {
@@ -333,10 +335,10 @@ export const useSync = (
       }
 
       if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isOnline) {
-        // V19.1.0: Smart Wake-up check
-        // If the tab was inactive and just became active, force a quick check
+        // V19.5.1: Relaxed heartbeat and reconnection thresholds
+        // 30s is more stable for mobile networks than 15s.
         const lastCheck = (window as any).__lastHeartbeatCheck || 0;
-        if (now - lastCheck > syncInterval + 5000) {
+        if (now - lastCheck > syncInterval + 10000) {
           console.log("useSync: Smart Wake-up triggered after dormancy");
           triggerUpdate({ source: 'wakeup_sync', force: true });
         }
@@ -352,15 +354,12 @@ export const useSync = (
           }
         } catch (e) {}
 
-        // V19.0.6: Ghost Connection Detection
-        // If no message received for 5 minutes, trigger a soft background refresh
+        // V19.5.1: 10 minutes for ghost detection instead of 5
         const silenceDuration = now - lastMessageTimeRef.current;
-        if (silenceDuration > 5 * 60 * 1000) {
+        if (silenceDuration > 10 * 60 * 1000) {
           console.log(`useSync: Ghost connection detected (${Math.round(silenceDuration/1000)}s silence), refreshing...`);
           
-          // V19.0.7: Deep Reset Recovery
-          // If silence is extreme (> 15m), force a full client reset
-          if (silenceDuration > 15 * 60 * 1000) {
+          if (silenceDuration > 20 * 60 * 1000) {
             console.warn("useSync: Extreme silence detected, triggering Deep Reset Recovery...");
             forceReconnectRealtime();
           }
@@ -397,7 +396,7 @@ export const useSync = (
               
               // Calculate quality
               let quality: 'excellent' | 'good' | 'fair' | 'poor' = 'excellent';
-              if (rtt > 800) quality = 'poor'; // V19.5.0: Harder thresholds
+              if (rtt > 800) quality = 'poor'; 
               else if (rtt > 400) quality = 'fair';
               else if (rtt > 150) quality = 'good';
 
@@ -415,42 +414,26 @@ export const useSync = (
             heartbeatChannelRef.current.subscribe();
           }
         } else if (userId) {
-          // V19.5.0: Faster force reconnect (20s instead of 60s)
+          // V19.5.1: Increased force reconnect threshold to 45s to allow socket room to breathe
           const lastReconnect = (window as any).__lastForceReconnect || 0;
-          if (now - lastReconnect > 20000) { 
-            console.warn("[useSyncV19.5.0] Dead socket detected, forcing immediate reconnect");
+          if (now - lastReconnect > 45000) { 
+            console.warn("[useSyncV19.5.1] Dead socket detected, forcing immediate reconnect");
             (window as any).__lastForceReconnect = now;
             forceReconnectRealtime();
           }
         }
       }
-    }, 15 * 1000); // V19.5.0: Reduced from 30s to 15s for better responsiveness
+    }, 30 * 1000); // V19.5.1: Increased from 15s to 30s for stability
 
-    // V19.1.0: Predictive Network Guard - Listen for browser online/offline events
-    const handleOnline = () => {
-      console.log("PredictiveGuard: Network online detected");
-      isOnlineRef.current = true;
-      triggerUpdate();
-      subscribe();
-    };
-    const handleOffline = () => {
-      console.log("PredictiveGuard: Network offline detected. Switching to Survival Cache.");
-      isOnlineRef.current = false;
-      setNetworkHealth(prev => ({ ...prev, quality: 'poor', rtt: 9999 }));
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // V19.1.0: Predictive Network Guard - Pre-emptive reconnection if silence exceeds 60s
-    const silenceLimit = 60000;
+    // V19.5.1: Increased silence limit for Predictive Network Guard to 120s
+    const silenceLimit = 120000;
     const checkInterval = setInterval(() => {
       const silence = Date.now() - lastMessageTimeRef.current;
       if (silence > silenceLimit && isOnlineRef.current) {
         console.warn(`PredictiveGuard: Silence (${Math.round(silence/1000)}s) exceeds limit. Pre-emptive reconnect.`);
         subscribe();
       }
-    }, 15000);
+    }, 30000); // V19.5.1: Check every 30s instead of 15s
 
     return () => {
       isMountedRef.current = false;

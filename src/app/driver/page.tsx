@@ -1012,7 +1012,19 @@ function DriverPageContent() {
     }
 
     if (!isRefreshingRef.current) {
-      manualSync(payload);
+      // V19.5.1: If it's just a re-subscription, sync silently in the background
+      // to avoid annoying the user with constant loading indicators.
+      const isSilentSync = payload?.source === 'initial_subscribe' || payload?.source === 'wakeup_sync';
+      
+      if (isSilentSync) {
+        // Silent background sync
+        Promise.allSettled([
+          fetchOrders(driverId),
+          fetchStats(driverId)
+        ]).catch(() => {});
+      } else {
+        manualSync(payload);
+      }
     }
   }, 'driver');
 
