@@ -5,6 +5,7 @@ import { NativeBridge } from "./NativeBridge";
 import { useDynamicTheme } from "@/hooks/useDynamicTheme";
 import { App } from '@capacitor/app';
 import { forceReconnectRealtime } from "@/lib/supabaseClient";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
@@ -37,12 +38,24 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted) return (
+    <div className="min-h-screen bg-white dark:bg-slate-950" />
+  );
 
   return (
     <>
       <NativeBridge />
-      {children}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="app-content"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="min-h-screen"
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }

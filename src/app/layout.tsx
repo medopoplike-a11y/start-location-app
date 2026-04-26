@@ -6,16 +6,22 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
-import { motion, AnimatePresence } from "framer-motion";
 
 const cairo = Cairo({ subsets: ["arabic"] });
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#4f46e5",
+};
 
 export const metadata: Metadata = {
   title: "Start Location",
   description: "Start Location Application",
   manifest: "/manifest.json",
-  themeColor: "#4f46e5",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -42,16 +48,7 @@ export default function RootLayout({
           <AuthProvider>
             <ToastProvider>
               <AppWrapper>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="min-h-screen"
-                  >
-                    {children}
-                  </motion.div>
-                </AnimatePresence>
+                {children}
               </AppWrapper>
             </ToastProvider>
           </AuthProvider>
