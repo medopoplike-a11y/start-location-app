@@ -1,6 +1,6 @@
 /**
- * AI Voice Assistant Utility - V19.3.0
- * Handles Text-to-Speech (TTS) for critical app alerts and AI-driven voice feedback.
+ * AI Voice Utility - V19.4.0
+ * Handles all status change announcements and sound effects across the app.
  */
 
 export interface VoiceOptions {

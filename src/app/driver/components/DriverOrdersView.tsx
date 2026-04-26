@@ -125,7 +125,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
   const [isNavigating, setIsNavigating] = useState(false);
   const [aiRouteLoading, setAiRouteLoading] = useState(false);
   const [aiRouteResult, setAiRouteResult] = useState<string | null>(null);
-  const [showCelebration, setShowCelebration] = useState(false); // V19.3.0: Success Celebration State
+  const [showCelebration, setShowCelebration] = useState(false); // V19.4.0: Success Celebration State
   const toast = useToast();
 
   const handleOptimizeRoute = async () => {

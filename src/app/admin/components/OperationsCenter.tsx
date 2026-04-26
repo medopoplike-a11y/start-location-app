@@ -27,7 +27,7 @@ import {
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
 import { requestAIAnalysis } from "@/lib/api/ai";
-import { aiVoice } from "@/lib/utils/voice"; // V19.3.0: Import AI Voice
+import { aiVoice } from "@/lib/utils/voice"; // V19.4.0: Import AI Voice
 import OrdersView from "./OrdersView";
 import SystemControlView from "./SystemControlView";
 import AIMonitorView from "./AIMonitorView";
