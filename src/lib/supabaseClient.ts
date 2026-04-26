@@ -203,6 +203,7 @@ const nativeFetch = async (url: string, options: any = {}) => {
  * Standard Supabase client with native overrides.
  * V16.9.9: HARDENED REALTIME CONFIG
  */
+// V19.6.0: Ultra-Robust Realtime Configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // V17.1.3: RADICAL NATIVE STABILITY
@@ -217,19 +218,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     // Use CapacitorHttp to bypass CORS and improve reliability in native environment
     fetch: isNative ? nativeFetch : undefined,
+    headers: { 'x-application-name': 'start-location-app' },
   },
   realtime: {
     params: {
-      // V19.5.0: Balanced performance (10 events/sec)
-      // Optimized for smoother live tracking while maintaining server stability.
-      events_per_second: 10,
+      // V19.6.0: Increased for smoother updates
+      events_per_second: 20,
     },
     config: {
-      // V19.5.0: PROACTIVE BROADCASTS
+      // V19.6.0: Hardened Heartbeat and Reconnect settings
       broadcast: { self: false, ack: false },
       presence: { key: 'user' },
+      heartbeatIntervalMs: 15000, // Frequent heartbeats to keep connection alive
     },
-    timeout: 20000, // V19.5.0: Reduced to 20s for faster stall detection
+    timeout: 30000, // V19.6.0: 30s timeout
   }
 });
 

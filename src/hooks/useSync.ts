@@ -76,8 +76,29 @@ export const useSync = (
    * DEBOUNCED SYNC — 50ms debounce for ultra-snappy real-time feel while still
    * grouping burst updates into a single render.
    */
+  const lastSyncTimeRef = useRef<number>(Date.now());
+
+  // V19.6.0: Periodic Fallback Fetch (Safety Net)
+  // If no realtime events are received for 45 seconds, trigger a manual sync
+  useEffect(() => {
+    if (!userId || !onUpdate) return;
+    
+    const fallbackInterval = setInterval(() => {
+      const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+      if (timeSinceLastSync > 45000) { // 45 seconds of silence
+        console.log(`[SyncV19.6.0] Realtime silence detected (${Math.round(timeSinceLastSync/1000)}s). Triggering fallback fetch...`);
+        onUpdate({ source: 'ghost_refresh', isHardSync: false });
+        lastSyncTimeRef.current = Date.now();
+      }
+    }, 15000); // Check every 15s
+
+    return () => clearInterval(fallbackInterval);
+  }, [userId, onUpdate]);
+
   const triggerUpdate = useCallback((payload?: any) => {
     if (!isMountedRef.current) return;
+    
+    lastSyncTimeRef.current = Date.now(); // Update last activity timestamp
     
     // V19.5.1: Track last message time to detect ghost connections
     lastMessageTimeRef.current = Date.now();
@@ -450,6 +471,17 @@ export const useSync = (
       }
     }, 30000); // V19.5.1: Check every 30s instead of 15s
 
+    // V19.6.0: Auto-Reconnect on network state change
+    const handleNetworkChange = () => {
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        console.log("[SyncV19.6.0] Network online - forcing subscription repair");
+        import("@/lib/supabaseClient").then(({ forceReconnectRealtime }) => {
+          forceReconnectRealtime(true);
+        });
+      }
+    };
+    window.addEventListener('online', handleNetworkChange);
+
     return () => {
       isMountedRef.current = false;
       clearInterval(heartbeat);
@@ -458,6 +490,7 @@ export const useSync = (
       window.removeEventListener('supabase-realtime-recovered', handleSocketRecovered);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleNetworkChange);
       cleanupChannels();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
