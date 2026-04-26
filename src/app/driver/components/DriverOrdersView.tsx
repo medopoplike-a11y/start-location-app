@@ -29,8 +29,10 @@ import type { Order } from "../types";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import OrderDetailsModal from "./OrderDetailsModal";
 import RatingModal from "@/components/RatingModal";
+import { SuccessCelebration } from "@/components/SuccessCelebration";
 import DriverOrderItem from "./DriverOrderItem";
 import { supabase } from "@/lib/supabaseClient";
+import { aiVoice } from "@/lib/utils/voice"; // V19.3.0: Import AI Voice
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), {
   ssr: false,
@@ -40,6 +42,42 @@ const LiveMap = dynamic(() => import("@/components/LiveMap"), {
     </div>
   ),
 });
+
+function TabButton({ active, onClick, icon, label, count, color }: { 
+  active: boolean, 
+  onClick: () => void, 
+  icon: React.ReactNode, 
+  label: string, 
+  count: number,
+  color: 'blue' | 'amber' | 'emerald'
+}) {
+  const colorClasses = {
+    blue: active 
+      ? "bg-blue-600 text-white border-blue-400/30 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-500/10" 
+      : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500/30 dark:hover:border-blue-500/30",
+    amber: active 
+      ? "bg-amber-500 text-white border-amber-300/30 shadow-2xl shadow-amber-500/30 ring-4 ring-amber-500/10" 
+      : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-amber-500/30 dark:hover:border-amber-500/30",
+    emerald: active 
+      ? "bg-emerald-600 text-white border-emerald-400/30 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/10" 
+      : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 dark:hover:border-emerald-500/30"
+  };
+
+  return (
+    <motion.button 
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className={`flex-1 py-4 rounded-[24px] text-[12px] font-black transition-all flex items-center justify-center gap-2.5 border-2 backdrop-blur-xl ${colorClasses[color]}`}
+    >
+      {icon}
+      <span className="hidden sm:inline tracking-tight">{label}</span>
+      <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] ${active ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}>
+        {count}
+      </span>
+    </motion.button>
+  );
+}
 
 interface DriverOrdersViewProps {
   todayDeliveryFees: number;
@@ -86,6 +124,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
   const [isNavigating, setIsNavigating] = useState(false);
   const [aiRouteLoading, setAiRouteLoading] = useState(false);
   const [aiRouteResult, setAiRouteResult] = useState<string | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false); // V19.3.0: Success Celebration State
 
   const handleOptimizeRoute = async () => {
     if (aiRouteLoading || activeOrders.length < 2) return;
@@ -121,6 +160,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
     // Optimistic Update
     setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' } : o));
     try {
+      aiVoice.playSound('success'); // V19.3.0: Success sound
       await onAcceptOrder(orderId);
       setSelectedOrder(null);
     } catch (err) {
@@ -138,6 +178,8 @@ const DriverOrdersView = memo(function DriverOrdersView({
     setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true } : o));
     
     try {
+      aiVoice.announceStatusChange(orderId, 'picked_up'); // V19.3.0: AI Voice announcement
+      
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
         Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
@@ -162,12 +204,17 @@ const DriverOrdersView = memo(function DriverOrdersView({
     setLocalOrders(prev => prev.filter(o => o.id !== orderId));
     
     try {
+      aiVoice.announceStatusChange(orderId, 'delivered'); // V19.3.0: AI Voice announcement
+      
       if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
         const { Haptics, NotificationType } = await import("@capacitor/haptics");
         Haptics.notification({ type: NotificationType.Success }).catch(() => {});
       }
       
       await onDeliverOrder(orderId);
+      setShowCelebration(true); // V19.3.0: Trigger celebration
+      setTimeout(() => setShowCelebration(false), 3000); // Hide after 3s
+      
       setRatingOrder(selectedOrder);
       setSelectedOrder(null);
       setIsNavigating(false);
@@ -311,75 +358,65 @@ const DriverOrdersView = memo(function DriverOrdersView({
       <motion.div 
         initial={false}
         animate={{ 
-          height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "240px" : "120px")) : "85%"
+          height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "320px" : "180px")) : "85%"
         }}
-        className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] border-t border-slate-100 dark:border-slate-800 flex flex-col"
+        className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-t-[48px] shadow-[0_-20px_80px_rgba(0,0,0,0.15)] dark:shadow-none border-t border-white/40 dark:border-slate-800/50 flex flex-col transition-all duration-500"
       >
         {/* Map Mode Toggle Button - Floating above panel */}
-        <div className="absolute top-[-70px] right-6 z-30">
+        <div className="absolute top-[-85px] right-6 z-30">
           <motion.button
+            whileHover={{ scale: 1.05, y: -5 }}
             whileTap={{ scale: 0.9 }}
             onClick={onToggleMapMode}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl backdrop-blur-xl border transition-all ${
+            className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-2xl backdrop-blur-2xl border-2 transition-all duration-500 ${
               mapMode 
-              ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/20" 
-              : "bg-white/90 dark:bg-slate-900/90 text-slate-500 border-white/20 dark:border-slate-800"
+              ? "bg-blue-600 text-white border-blue-400/50 shadow-blue-500/40" 
+              : "bg-white/95 dark:bg-slate-900/95 text-slate-500 border-white dark:border-slate-800 shadow-slate-200/50 dark:shadow-none"
             }`}
           >
-            {mapMode ? <Maximize2 className="w-6 h-6" /> : <MapIcon className="w-6 h-6" />}
+            {mapMode ? <Maximize2 className="w-7 h-7" /> : <MapIcon className="w-7 h-7" />}
           </motion.button>
         </div>
 
         {/* Panel Handle & Tabs */}
-        <div className="w-full flex flex-col items-center pt-3 shrink-0">
-          <button 
+        <div className="w-full flex flex-col items-center pt-4 shrink-0">
+          <motion.button 
+            whileHover={{ scaleX: 1.2 }}
             onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-3"
+            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-6 transition-all"
           />
           
-          {/* Order Tabs - COMPACT VERSION */}
-          <div className="flex w-full px-6 gap-2 mb-4">
-            <button 
+          {/* Order Tabs - PREMIUM VERSION */}
+          <div className="flex w-full px-6 gap-3 mb-6">
+            <TabButton 
+              active={activeOrderTab === "active"} 
               onClick={() => { setActiveOrderTab("active"); setIsPanelExpanded(activeOrderTab !== "active" ? true : !isPanelExpanded); }}
-              className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black transition-all flex items-center justify-center gap-2 ${
-                activeOrderTab === "active" ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              النشطة ({activeOrders.length})
-            </button>
-            <button 
+              icon={<Zap className={`w-4 h-4 ${activeOrderTab === "active" ? "animate-pulse" : ""}`} />}
+              label="النشطة"
+              count={activeOrders.length}
+              color="blue"
+            />
+            <TabButton 
+              active={activeOrderTab === "available"} 
               onClick={() => { setActiveOrderTab("available"); setIsPanelExpanded(true); }}
-              className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black transition-all flex items-center justify-center gap-2 ${
-                activeOrderTab === "available" ? "bg-amber-500 text-white shadow-lg shadow-amber-100" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-              المتاحة ({availableOrders.length})
-            </button>
-            <button 
+              icon={<Maximize2 className="w-4 h-4" />}
+              label="المتاحة"
+              count={availableOrders.length}
+              color="amber"
+            />
+            <TabButton 
+              active={activeOrderTab === "completed"} 
               onClick={() => { setActiveOrderTab("completed"); setIsPanelExpanded(true); }}
-              className={`flex-1 py-2.5 rounded-2xl text-[9px] font-black transition-all flex items-center justify-center gap-1 ${
-                activeOrderTab === "completed" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <CheckCircle2 className="w-3 h-3" />
-              مكتمل ({completedOrders.length})
-            </button>
-            <button 
-              onClick={() => { setActiveOrderTab("cancelled"); setIsPanelExpanded(true); }}
-              className={`flex-1 py-2.5 rounded-2xl text-[9px] font-black transition-all flex items-center justify-center gap-1 ${
-                activeOrderTab === "cancelled" ? "bg-red-600 text-white shadow-lg shadow-red-100" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-              }`}
-            >
-              <XCircle className="w-3 h-3" />
-              ملغي ({cancelledOrders.length})
-            </button>
+              icon={<CheckCircle2 className="w-4 h-4" />}
+              label="مكتمل"
+              count={completedOrders.length}
+              color="emerald"
+            />
           </div>
         </div>
 
         {/* Panel Content */}
-        <div className="flex-1 overflow-y-auto px-4 pb-8">
+        <div className="flex-1 overflow-y-auto px-5 pb-10">
           {isActive ? (
             <div className="space-y-4 pt-2">
               <AnimatePresence mode="wait">
@@ -553,6 +590,13 @@ const DriverOrdersView = memo(function DriverOrdersView({
         title="تقييم المتجر"
         subtitle="كيف كانت تجربتك مع هذا المتجر في هذا الطلب؟"
         targetName={ratingOrder?.vendor || "المتجر"}
+      />
+
+      {/* V19.3.0: Success Celebration */}
+      <SuccessCelebration 
+        show={showCelebration} 
+        message="تم التوصيل بنجاح! 🎉" 
+        onComplete={() => setShowCelebration(false)}
       />
     </div>
   );

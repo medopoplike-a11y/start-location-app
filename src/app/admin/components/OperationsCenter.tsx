@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Activity, 
@@ -21,14 +21,18 @@ import {
   ChevronRight,
   Sparkles,
   Bot,
-  Loader2
+  Loader2,
+  BarChart3
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
 import { requestAIAnalysis } from "@/lib/api/ai";
+import { aiVoice } from "@/lib/utils/voice"; // V19.3.0: Import AI Voice
 import OrdersView from "./OrdersView";
 import SystemControlView from "./SystemControlView";
 import AIMonitorView from "./AIMonitorView";
+import AdminCharts from "./AdminCharts";
+import { PerformanceMonitor } from "./PerformanceMonitor";
 import type { LiveOrderItem, DriverCard, ActivityItem, OnlineDriver, VendorCard, AdminOrder } from "../types";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { 
@@ -85,13 +89,34 @@ export default function OperationsCenter({
   onUpdateStatus,
   onIntegrityCheck
 }: OperationsCenterProps) {
-  const [activeTab, setActiveTab] = useState<"operations" | "monitor" | "system" | "ai">("operations");
+  const [activeTab, setActiveTab] = useState<"operations" | "monitor" | "system" | "ai" | "charts">("operations");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
   
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const prevOrdersRef = useRef<LiveOrderItem[]>([]);
+
+  // V19.3.0: Voice Notifications for Admin
+  useEffect(() => {
+    if (prevOrdersRef.current.length > 0) {
+      // Check for new orders
+      const newOrders = liveOrders.filter(order => !prevOrdersRef.current.some(prev => prev.id === order.id));
+      newOrders.forEach(order => {
+        aiVoice.announceNewOrderAdmin(order.id, order.vendor || "متجر جديد");
+      });
+
+      // Check for status changes
+      liveOrders.forEach(order => {
+        const prevOrder = prevOrdersRef.current.find(prev => prev.id === order.id);
+        if (prevOrder && prevOrder.status !== order.status) {
+          aiVoice.announceStatusChange(order.id, order.status, 'admin');
+        }
+      });
+    }
+    prevOrdersRef.current = liveOrders;
+  }, [liveOrders]);
 
   const handleGenerateAiSummary = async () => {
     if (aiLoading) return;
@@ -221,24 +246,37 @@ export default function OperationsCenter({
       <AnimatePresence>
         {aiSummary && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-indigo-600 text-white"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.4 }}
+            className="px-8 pt-4"
           >
-            <div className="px-8 py-4 flex items-start gap-4 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0 relative z-10">
-                <Bot className="w-6 h-6" />
+            <div className="bg-gradient-to-r from-indigo-600 to-violet-700 text-white rounded-[32px] p-6 flex items-start gap-6 relative overflow-hidden shadow-2xl shadow-indigo-500/20 border border-white/20">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 animate-pulse" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-24 -mb-24" />
+              
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shrink-0 relative z-10 shadow-inner border border-white/20">
+                <Bot className="w-8 h-8" />
               </div>
+              
               <div className="flex-1 relative z-10">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-xs font-black uppercase tracking-wider opacity-80">التقرير التنفيذي الذكي</h3>
-                  <button onClick={() => setAiSummary(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-                    <X className="w-4 h-4" />
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-90">التقرير التنفيذي الذكي</h3>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
+                      <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-emerald-300">Live AI</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setAiSummary(null)} 
+                    className="p-2 hover:bg-white/10 rounded-xl transition-all hover:rotate-90"
+                  >
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap">
+                <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap text-indigo-50/90">
                   {aiSummary}
                 </p>
               </div>
@@ -268,21 +306,31 @@ export default function OperationsCenter({
           <div className="flex gap-2">
             <button 
               onClick={() => setActiveTab("operations")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all relative ${
                 activeTab === "operations" ? "bg-amber-500 text-white shadow-lg shadow-amber-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
               <LayoutGrid className="w-4 h-4" />
               المراقبة والخريطة الحية
+              {pendingOrdersCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-900 animate-bounce">
+                  {pendingOrdersCount}
+                </span>
+              )}
             </button>
             <button 
               onClick={() => setActiveTab("monitor")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all relative ${
                 activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
               <Activity className="w-4 h-4" />
               إدارة المهام
+              {liveOrders.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-400 text-white text-[8px] flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-900">
+                  {liveOrders.length}
+                </span>
+              )}
             </button>
             <button 
               onClick={() => setActiveTab("ai")}
@@ -292,6 +340,15 @@ export default function OperationsCenter({
             >
               <Zap className="w-4 h-4" />
               الذكاء الاصطناعي
+            </button>
+            <button 
+              onClick={() => setActiveTab("charts")}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === "charts" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              التحليلات
             </button>
             <button 
               onClick={() => setActiveTab("system")}
@@ -339,14 +396,18 @@ export default function OperationsCenter({
         </div>
       </div>
 
-      <div className="flex-1 flex gap-4 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* V19.3.0: Performance & Status Bar */}
+        <PerformanceMonitor />
+
         <AnimatePresence mode="wait">
           {activeTab === "operations" ? (
             <motion.div 
               key="ops"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
               className="flex-1 flex gap-4 w-full h-full overflow-hidden"
             >
               {/* 1. Main Map Area (Integrated) */}
@@ -428,9 +489,9 @@ export default function OperationsCenter({
                                     <p className={`text-[10px] font-bold ${isSelected ? "text-white/60" : "text-slate-400"}`}>{order.customer_details?.name || "عميل"}</p>
                                   </div>
                                   <span className={`text-[8px] font-black px-2 py-1 rounded-lg ${
-                                    order.status === 'pending' ? 'bg-amber-100 text-amber-600' :
-                                    order.status === 'assigned' ? 'bg-sky-100 text-sky-600' :
-                                    'bg-indigo-100 text-indigo-600'
+                                    order.status === 'pending' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                                    order.status === 'assigned' ? 'bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400' :
+                                    'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                                   }`}>
                                     {order.status === 'pending' ? 'بانتظار التعيين' : order.status === 'assigned' ? 'تم التعيين' : 'في الطريق'}
                                   </span>
@@ -564,7 +625,14 @@ export default function OperationsCenter({
               )}
             </motion.div>
           ) : activeTab === "monitor" ? (
-            <motion.div key="monitor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
+            <motion.div 
+              key="monitor" 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 overflow-y-auto"
+            >
               <OrdersView 
                 liveOrders={liveOrders} 
                 activities={activities}
@@ -573,15 +641,40 @@ export default function OperationsCenter({
               />
             </motion.div>
           ) : activeTab === "ai" ? (
-            <motion.div key="ai" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
+            <motion.div 
+              key="ai" 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 overflow-y-auto"
+            >
               <AIMonitorView 
                 stats={stats}
                 allOrders={allOrders}
                 onlineDrivers={onlineDrivers}
               />
             </motion.div>
+          ) : activeTab === "charts" ? (
+            <motion.div 
+              key="charts" 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-black/20"
+            >
+              <AdminCharts orders={allOrders} />
+            </motion.div>
           ) : (
-            <motion.div key="system" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
+            <motion.div 
+              key="system" 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 overflow-y-auto"
+            >
               <SystemControlView 
                 autoRetryEnabled={autoRetryEnabled}
                 onToggleAutoRetry={onToggleAutoRetry}

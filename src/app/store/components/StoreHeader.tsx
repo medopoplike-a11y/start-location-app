@@ -4,7 +4,7 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
-import { Menu, RefreshCw, Search, Bot } from "lucide-react";
+import { Menu, RefreshCw, Search, Bot, Zap, Store, Sparkles } from "lucide-react";
 import RatingBadge from "@/components/RatingBadge";
 
 interface StoreHeaderProps {
@@ -50,43 +50,68 @@ export default function StoreHeader({
   };
 
   return (
-    <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl h-20 px-4 shadow-sm flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 dark:border-slate-800">
-      <div className="flex items-center gap-3">
-        <button 
+    <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl h-24 px-6 shadow-xl shadow-slate-200/40 dark:shadow-none flex items-center justify-between sticky top-0 z-40 border-b border-white/20 dark:border-slate-800/50 transition-all duration-500">
+      <div className="flex items-center gap-4">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => {
             triggerHaptic();
             onOpenDrawer();
           }}
-          className="p-2.5 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-2xl transition-all border border-gray-100 dark:border-slate-700"
+          className="p-3.5 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 rounded-[20px] transition-all border border-slate-100 dark:border-slate-700 shadow-sm"
         >
-          <Menu className="w-5 h-5 text-gray-900 dark:text-slate-100" />
-        </button>
+          <Menu className="w-6 h-6 text-slate-900 dark:text-slate-100" />
+        </motion.button>
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-gray-900 dark:text-slate-100 leading-tight">{vendorName}</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-lg font-black text-slate-900 dark:text-white leading-none tracking-tight">{vendorName}</h1>
             {isSurgeActive && (
               <motion.div 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="bg-orange-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-bounce"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1.5 shadow-lg shadow-indigo-200 dark:shadow-none animate-pulse"
               >
-                <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
+                <Zap className="w-2.5 h-2.5 fill-current" />
                 SURGE
               </motion.div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <p className="text-[10px] text-gray-400 dark:text-slate-500">لوحة تحكم المحل</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+              <Store className="w-3 h-3" />
+              لوحة التحكم
+            </span>
             <RatingBadge rating={rating} count={ratingCount} size="sm" />
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} onReset={onResetSync} networkHealth={networkHealth} />
 
+        <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-1" />
+
         <ThemeToggle />
+        
+        {onOpenAI && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              triggerHaptic(ImpactStyle.Light);
+              onOpenAI();
+            }}
+            className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-2xl transition-all border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 shadow-sm shadow-indigo-100 dark:shadow-none relative"
+          >
+            <Bot className="w-5 h-5" />
+            <div className="absolute -top-1 -right-1">
+              <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+            </div>
+          </motion.button>
+        )}
 
         <motion.button
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9, rotate: 180 }}
           onClick={() => {
             triggerHaptic();
@@ -94,19 +119,19 @@ export default function StoreHeader({
           }}
           disabled={isSyncing}
           title="إعادة التزامن"
-          className="p-2 bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/40 rounded-xl transition-all border border-sky-100 dark:border-sky-800 text-sky-600 dark:text-sky-400 disabled:opacity-40"
+          className="p-2.5 bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/40 rounded-2xl transition-all border border-sky-100 dark:border-sky-800 text-sky-600 dark:text-sky-400 disabled:opacity-40 shadow-sm shadow-sky-100 dark:shadow-none"
         >
-          <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-5 h-5 ${isSyncing ? "animate-spin" : ""}`} />
         </motion.button>
 
-        <div className="relative group hidden sm:block">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
+        <div className="relative group hidden md:block">
+          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
           <input
             type="text"
-            placeholder="بحث..."
+            placeholder="بحث سريع..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-gray-100 dark:bg-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs border-none outline-none focus:ring-2 ring-orange-500/20 w-32 transition-all dark:text-slate-100"
+            className="bg-slate-100/50 dark:bg-slate-800/50 pr-11 pl-4 py-3 rounded-2xl text-[13px] font-bold border-none outline-none focus:ring-2 ring-indigo-500/20 w-48 focus:w-64 transition-all duration-300 dark:text-slate-100 placeholder:text-slate-400"
           />
         </div>
       </div>

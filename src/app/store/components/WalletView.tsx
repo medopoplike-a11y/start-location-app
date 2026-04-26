@@ -56,7 +56,7 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">المحفظة المالية</h2>
 
       {/* Commission Card */}
-      <div className="bg-gray-900 dark:bg-black text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800 dark:border-slate-900">
+      <div className="bg-gray-900 dark:bg-slate-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800 dark:border-slate-800">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -71,9 +71,9 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
 
           {/* Monthly Salary Info for Fixed Salary Users */}
           {billingType === 'fixed_salary' && (
-            <div className="mt-4 bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20">
+            <div className="mt-4 bg-purple-500/10 dark:bg-purple-500/20 rounded-2xl p-4 border border-purple-500/20 dark:border-purple-500/30">
               <div className="flex justify-between items-center text-[10px] font-black">
-                <span className="text-purple-300">الراتب الشهري الثابت</span>
+                <span className="text-purple-300 dark:text-purple-400">الراتب الشهري الثابت</span>
                 <span className="text-white">{(commissionDetails?.monthlySalary || 0).toLocaleString()} ج.م</span>
               </div>
             </div>
@@ -81,8 +81,8 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
 
           {/* Commission Breakdown */}
           {commissionDetails && (
-            <div className="mt-6 space-y-3 bg-white/5 rounded-[24px] p-5 border border-white/5 backdrop-blur-sm">
-              <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+            <div className="mt-6 space-y-3 bg-white/5 dark:bg-black/20 rounded-[24px] p-5 border border-white/5 dark:border-white/10 backdrop-blur-sm">
+              <div className="flex items-center gap-2 pb-2 border-b border-white/5 dark:border-white/10">
                 <AlertCircle className="w-3.5 h-3.5 text-orange-400" />
                 <p className="text-[10px] font-black text-white/60">
                   تفاصيل الحساب المالي (
@@ -105,7 +105,7 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
                   <span className="text-white/50">تأمين رحلة ({perOrder}ج ثابت)</span>
                   <span className="text-white">{(orderCount * perOrder).toFixed(2)} ج.م</span>
                 </div>
-                <div className="h-px bg-white/5 my-1" />
+                <div className="h-px bg-white/5 dark:bg-white/10 my-1" />
                 <div className="flex justify-between items-center text-[11px] font-black text-orange-400">
                   <span>إجمالي المديونية المتراكمة</span>
                   <span>{companyCommission.toLocaleString()} ج.م</span>

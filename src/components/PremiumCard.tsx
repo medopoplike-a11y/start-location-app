@@ -26,9 +26,9 @@ export const PremiumCard = ({
 }: PremiumCardProps) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
+      transition={{ duration: 0.4, delay }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
       className={`relative overflow-hidden bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-800 rounded-[32px] p-6 shadow-xl shadow-blue-900/5 dark:shadow-none group transition-all hover:shadow-blue-500/10 ${className}`}

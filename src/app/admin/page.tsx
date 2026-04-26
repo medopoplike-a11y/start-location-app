@@ -56,6 +56,7 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 import AISupportBot from "@/components/AISupportBot";
 import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
+import { aiVoice } from "@/lib/utils/voice";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import { useRef } from "react";
 
@@ -1112,6 +1113,9 @@ function AdminContent() {
     ));
 
     try {
+      // V19.3.0: Voice Feedback
+      aiVoice.playSound('success');
+      
       // Use the new atomic RPC to prevent race conditions even in manual mode
       const { data: rpcData, error: rpcError } = await supabase.rpc('assign_order_atomic', {
         p_order_id: orderId,
@@ -1143,6 +1147,9 @@ function AdminContent() {
     ));
 
     try {
+      // V19.3.0: Voice Feedback
+      aiVoice.announceStatusChange(orderId, 'cancelled');
+      
       const { error } = await updateOrderStatus(orderId, 'cancelled');
       if (error) throw error;
       addActivity(`تم إلغاء الطلب #${orderId.slice(0,8)}`);
@@ -1153,6 +1160,9 @@ function AdminContent() {
   }, [liveOrders, addActivity]);
 
   const handleUpdateOrderStatusManual = useCallback(async (orderId: string, status: any) => {
+    // V19.3.0: Voice Feedback
+    aiVoice.announceStatusChange(orderId, status);
+    
     const { error } = await updateOrderStatus(orderId, status);
     if (!error) {
       addActivity(`تعديل يدوي: حالة الطلب #${orderId.slice(0,8)} إلى ${translateStatus(status)}`);
@@ -1312,51 +1322,60 @@ function AdminContent() {
       {/* Sidebar - V1.0.0 GLASSMORPHISM DESIGN */}
       <motion.aside 
         initial={false} 
-        animate={{ width: sidebarOpen ? 280 : (isMobile ? 0 : 88), x: sidebarOpen ? 0 : (isMobile ? 280 : 0) }} 
-        className="drawer-glass fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500 border-l border-white/10 dark:border-slate-800/50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl shadow-2xl"
+        animate={{ width: sidebarOpen ? 300 : (isMobile ? 0 : 96), x: sidebarOpen ? 0 : (isMobile ? 300 : 0) }} 
+        className="fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500 border-l border-slate-200 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl shadow-2xl"
       >
-        <div className="p-6 flex items-center gap-4 border-b border-white/10 dark:border-slate-800/50 h-24">
-          <div className="flex-shrink-0 bg-white/50 dark:bg-slate-800/50 p-2 rounded-2xl backdrop-blur-md border border-white/40 dark:border-slate-700/40 shadow-sm">
-            <StartLogo className="w-10 h-10" />
-          </div>
+        <div className="p-8 flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 h-24">
+          <motion.div 
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            className="flex-shrink-0 bg-slate-900 dark:bg-white p-2.5 rounded-2xl shadow-lg shadow-slate-200 dark:shadow-none"
+          >
+            <StartLogo className="w-9 h-9 text-white dark:text-slate-900" />
+          </motion.div>
           {sidebarOpen && (
             <div className="flex flex-col">
-              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none tracking-tighter italic">START</h1>
-              <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase mt-1 tracking-widest">Management</span>
+              <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none tracking-tighter italic">START</h1>
+              <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mt-1 tracking-[0.2em]">Management Hub</span>
             </div>
           )}
         </div>
-        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+        <nav className="flex-1 p-6 space-y-8 overflow-y-auto">
           {menuGroups.map((group, idx) => (
-            <div key={idx} className="space-y-3">
+            <div key={idx} className="space-y-4">
               {sidebarOpen && (
-                <p className="px-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1 opacity-60">
+                <p className="px-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] mb-2 opacity-60">
                   {group.title}
                 </p>
               )}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {group.items.map(item => (
                   <button 
                     key={item.id} 
                     onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} 
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all relative group ${
+                    className={`w-full flex items-center gap-4 p-4 rounded-[20px] transition-all relative group overflow-hidden ${
                       activeView === item.id 
-                        ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" 
-                        : "text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
+                        ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-none" 
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     }`}
                   >
-                    <div className={`${activeView === item.id ? "text-white" : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-colors`}>
+                    {activeView === item.id && (
+                      <motion.div 
+                        layoutId="adminActiveNav"
+                        className="absolute inset-0 bg-indigo-600/10 dark:bg-indigo-600/20" 
+                      />
+                    )}
+                    <div className={`${activeView === item.id ? "text-white dark:text-slate-900" : "text-slate-400 group-hover:scale-110 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-all relative z-10`}>
                       <item.icon className="w-5 h-5" />
                     </div>
                     {sidebarOpen && (
-                      <span className="text-sm font-black flex-1 text-right">
+                      <span className="text-[13px] font-black flex-1 text-right relative z-10 tracking-tight">
                         {item.label}
                       </span>
                     )}
                     {item.id === 'operations' && liveOrders.filter(o => o.status === "جاري البحث").length > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                      <span className="relative z-10 flex h-5 w-5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-black text-white flex items-center justify-center">
+                        <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 text-[10px] font-black text-white flex items-center justify-center">
                           {liveOrders.filter(o => o.status === "جاري البحث").length}
                         </span>
                       </span>
@@ -1367,54 +1386,61 @@ function AdminContent() {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10 dark:border-slate-800/50">
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/20">
           <button 
             onClick={handleSignOut} 
-            className="w-full flex items-center gap-4 p-4 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
+            className="w-full flex items-center gap-4 p-4 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all group"
           >
             {sidebarOpen && <span className="text-sm font-black flex-1 text-right">تسجيل الخروج</span>}
-            <LogOut className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-red-50 dark:group-hover:bg-red-500/10 group-hover:scale-110 transition-all">
+              <LogOut className="w-5 h-5" />
+            </div>
           </button>
         </div>
       </motion.aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
-        <header className="glass-panel h-20 px-8 flex items-center justify-between sticky top-0 z-50 transition-all duration-500">
-          <div className="flex items-center gap-4">
-            <button 
+        <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl h-24 px-8 flex items-center justify-between sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800/50 transition-all duration-500 shadow-xl shadow-slate-200/40 dark:shadow-none">
+          <div className="flex items-center gap-6">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-white/40 dark:hover:bg-slate-800/40 rounded-xl transition-colors lg:hidden"
+              className="p-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 shadow-sm"
             >
               <Menu className="w-6 h-6 text-slate-600 dark:text-slate-400" />
-            </button>
+            </motion.button>
             <div className="flex flex-col">
-              <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2 italic">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tighter flex items-center gap-3 italic">
                 لوحة التحكم
-                <span className="premium-badge bg-blue-600 text-white px-2 py-0.5 rounded-lg text-[8px]">AD-ULTIMATE</span>
+                <span className="bg-indigo-600 text-white px-2.5 py-0.5 rounded-lg text-[9px] font-black shadow-lg shadow-indigo-200 dark:shadow-none tracking-widest">AD-ULTIMATE</span>
               </h1>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
-                Admin Control Center
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                V1.4.4-STABLE-OTA-FIX
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                RELEASE-READY
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
+                  System Active
+                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                  V1.5.0-STABLE
+                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                  {lastSync.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
             </div>
           </div>
           
-          <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
+          <div className="hidden md:flex flex-1 max-w-lg mx-12 relative">
             <div className="relative w-full group">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Search className="absolute right-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
               <input 
                 type="text" 
-                placeholder="بحث سريع عن طلب، كابتن، أو متجر..."
+                placeholder="بحث ذكي عن طلب، كابتن، أو متجر..."
                 value={globalSearch}
                 onChange={(e) => {
                   setGlobalSearch(e.target.value);
                   setShowSearchResults(true);
                 }}
                 onFocus={() => setShowSearchResults(true)}
-                className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-2.5 pr-11 pl-4 text-xs font-bold outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                className="w-full bg-slate-100/50 dark:bg-slate-800/50 border-none rounded-[20px] py-3.5 pr-12 pl-6 text-[13px] font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-slate-800 transition-all duration-300 placeholder:text-slate-400 dark:text-white"
               />
               
               <AnimatePresence>
@@ -1562,98 +1588,154 @@ function AdminContent() {
             </div>
           )}
           <Suspense fallback={<AppLoader />}>
+          <AnimatePresence mode="wait">
             {activeView === "operations" && (
-              <OperationsCenter
-                liveOrders={liveOrders}
-                drivers={drivers}
-                onlineDrivers={onlineDrivers}
-                vendors={vendors}
-                allOrders={allOrders}
-                activities={activities}
-                autoRetryEnabled={autoRetryEnabled}
-                maintenanceMode={appConfig?.maintenance_mode || false}
-                actionLoading={actionLoading}
-                stats={stats}
-                onToggleAutoRetry={setAutoRetryEnabled}
-                onToggleMaintenance={handleToggleMaintenance}
-                onToggleShiftLock={handleToggleShiftLock}
-                onLockAllDrivers={handleLockAllDrivers}
-                onUnlockAllDrivers={handleUnlockAllDrivers}
-                onGlobalReset={handleGlobalReset}
-                onRefresh={handleRefresh}
-                onBroadcastMessage={handleBroadcast}
-                onAssign={handleAssignOrder}
-                onCancelOrder={handleCancelOrder}
-                onUpdateStatus={handleUpdateOrderStatusManual}
-                onIntegrityCheck={handleIntegrityCheck}
-              />
+              <motion.div
+                key="operations"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <OperationsCenter
+                  liveOrders={liveOrders}
+                  drivers={drivers}
+                  onlineDrivers={onlineDrivers}
+                  vendors={vendors}
+                  allOrders={allOrders}
+                  activities={activities}
+                  autoRetryEnabled={autoRetryEnabled}
+                  maintenanceMode={appConfig?.maintenance_mode || false}
+                  actionLoading={actionLoading}
+                  stats={stats}
+                  onToggleAutoRetry={setAutoRetryEnabled}
+                  onToggleMaintenance={handleToggleMaintenance}
+                  onToggleShiftLock={handleToggleShiftLock}
+                  onLockAllDrivers={handleLockAllDrivers}
+                  onUnlockAllDrivers={handleUnlockAllDrivers}
+                  onGlobalReset={handleGlobalReset}
+                  onRefresh={handleRefresh}
+                  onBroadcastMessage={handleBroadcast}
+                  onAssign={handleAssignOrder}
+                  onCancelOrder={handleCancelOrder}
+                  onUpdateStatus={handleUpdateOrderStatusManual}
+                  onIntegrityCheck={handleIntegrityCheck}
+                />
+              </motion.div>
             )}
 
             {activeView === "orders" && (
-              <OrderManagementHub
-                liveOrders={liveOrders}
-                allOrders={allOrders}
-                activities={activities}
-                onlineDrivers={onlineDrivers}
-                onCancelOrder={handleCancelOrder}
-                onUpdateStatus={handleUpdateOrderStatusManual}
-                onDeleteOrder={handleDeleteAdminOrder}
-                onCreateOrder={() => alert("يرجى إنشاء الطلبات من حساب المطعم حالياً")}
-                onRefreshData={handleRefresh}
-              />
+              <motion.div
+                key="orders"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <OrderManagementHub
+                  liveOrders={liveOrders}
+                  allOrders={allOrders}
+                  activities={activities}
+                  onlineDrivers={onlineDrivers}
+                  onCancelOrder={handleCancelOrder}
+                  onUpdateStatus={handleUpdateOrderStatusManual}
+                  onDeleteOrder={handleDeleteAdminOrder}
+                  onCreateOrder={() => alert("يرجى إنشاء الطلبات من حساب المطعم حالياً")}
+                  onRefreshData={handleRefresh}
+                />
+              </motion.div>
             )}
 
             {activeView === "fleet" && (
-              <FleetHub
-                drivers={drivers}
-                vendors={vendors}
-                users={allUsers}
-                wallets={wallets}
-                onAddDriver={() => setShowAddDriver(true)}
-                onAddVendor={() => setShowAddVendor(true)}
-                onUpdateVendorBilling={handleUpdateProfileBilling}
-                onUpdateDriverBilling={handleUpdateProfileBilling}
-                onUpdateUserDetails={handleUpdateUserDetails}
-                onDeleteUser={handleDeleteUser}
-                onToggleShiftLock={handleToggleShiftLock}
-                onResetUser={handleResetUser}
-                onRefreshData={handleRefresh}
-                onRecalculateWallets={handleRecalculateWallets}
-              />
+              <motion.div
+                key="fleet"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <FleetHub
+                  drivers={drivers}
+                  vendors={vendors}
+                  users={allUsers}
+                  wallets={wallets}
+                  onAddDriver={() => setShowAddDriver(true)}
+                  onAddVendor={() => setShowAddVendor(true)}
+                  onUpdateVendorBilling={handleUpdateProfileBilling}
+                  onUpdateDriverBilling={handleUpdateProfileBilling}
+                  onUpdateUserDetails={handleUpdateUserDetails}
+                  onDeleteUser={handleDeleteUser}
+                  onToggleShiftLock={handleToggleShiftLock}
+                  onResetUser={handleResetUser}
+                  onRefreshData={handleRefresh}
+                  onRecalculateWallets={handleRecalculateWallets}
+                />
+              </motion.div>
             )}
 
             {activeView === "financials" && (
-              <FinancialHub
-                settlements={settlements}
-                allOrders={allOrders}
-                onSettlementAction={handleSettlementAction}
-                onRefresh={handleRefresh}
-              />
+              <motion.div
+                key="financials"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <FinancialHub
+                  settlements={settlements}
+                  allOrders={allOrders}
+                  onSettlementAction={handleSettlementAction}
+                  onRefresh={handleRefresh}
+                />
+              </motion.div>
             )}
 
             {activeView === "ai-monitor" && (
-              <AIMonitorView 
-                stats={stats}
-                allOrders={allOrders}
-                onlineDrivers={onlineDrivers}
-              />
+              <motion.div
+                key="ai-monitor"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <AIMonitorView 
+                  stats={stats}
+                  allOrders={allOrders}
+                  onlineDrivers={onlineDrivers}
+                />
+              </motion.div>
             )}
 
             {activeView === "settings" && appConfig && (
-              <SettingsView
-                appConfig={appConfig}
-                actionLoading={actionLoading}
-                setAppConfig={setAppConfig}
-                onSubmit={handleUpdateAppConfig}
-                onGlobalReset={handleGlobalReset}
-              />
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SettingsView
+                  appConfig={appConfig}
+                  actionLoading={actionLoading}
+                  setAppConfig={setAppConfig}
+                  onSubmit={handleUpdateAppConfig}
+                  onGlobalReset={handleGlobalReset}
+                />
+              </motion.div>
             )}
             {activeView === "settings" && !appConfig && (
-              <div className="bg-white p-8 rounded-[40px] text-center">
+              <motion.div
+                key="settings-loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="bg-white dark:bg-slate-900 p-8 rounded-[40px] text-center"
+              >
                 <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500 mb-4" />
                 <p className="text-slate-500 font-bold">جاري تحميل إعدادات النظام...</p>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
           </Suspense>
         </main>
       </div>
@@ -1661,8 +1743,20 @@ function AdminContent() {
       {/* Modals */}
       <AnimatePresence>
         {showAddDriver && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl relative border border-gray-100">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 10 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl relative border border-gray-100"
+            >
               <button onClick={() => setShowAddDriver(false)} className="absolute top-6 left-6 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-gray-900"><X className="w-5 h-5" /></button>
               <h2 className="text-2xl font-black text-gray-900 mb-8">إضافة طيار جديد</h2>
               <form onSubmit={handleAddDriver} className="space-y-6">
@@ -1676,8 +1770,20 @@ function AdminContent() {
           </motion.div>
         )}
         {showAddVendor && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl relative border border-gray-100">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 10 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl relative border border-gray-100"
+            >
               <button onClick={() => setShowAddVendor(false)} className="absolute top-6 left-6 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-gray-900"><X className="w-5 h-5" /></button>
               <h2 className="text-2xl font-black text-gray-900 mb-8">إضافة محل جديد</h2>
               <form onSubmit={handleAddVendor} className="space-y-6">

@@ -259,7 +259,7 @@ export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMon
                 className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}
               >
                 <div className={`max-w-[80%] flex gap-3 ${msg.role === 'user' ? 'flex-row' : 'flex-row-reverse'}`}>
-                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400'}`}>
                     {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                   </div>
                   <div className={`p-4 rounded-2xl text-sm font-bold leading-relaxed ${

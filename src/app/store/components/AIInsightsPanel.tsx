@@ -43,67 +43,100 @@ export default function AIInsightsPanel({ orders, vendorName }: AIInsightsPanelP
   };
 
   return (
-    <div className="mb-6">
+    <div className="mb-8">
       {!showPanel ? (
-        <button
+        <motion.button
+          whileHover={{ scale: 1.01, y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={generateInsight}
-          className="w-full p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[24px] text-white flex items-center justify-between shadow-lg shadow-indigo-100 dark:shadow-none hover:scale-[1.01] active:scale-[0.99] transition-all"
+          className="w-full p-6 bg-white/80 dark:bg-slate-900/40 backdrop-blur-3xl border border-slate-100 dark:border-slate-800/50 rounded-[40px] flex items-center justify-between shadow-2xl shadow-slate-200/20 dark:shadow-none group relative overflow-hidden"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
-              <Bot className="w-6 h-6 text-white" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+          
+          <div className="flex items-center gap-5 relative z-10">
+            <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-[22px] flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none group-hover:rotate-6 transition-transform">
+              <Bot className="w-8 h-8 text-white" />
             </div>
             <div className="text-right">
-              <p className="text-xs font-black">المساعد الذكي لـ {vendorName}</p>
-              <p className="text-[10px] text-white/80 font-bold">احصل على تحليلات وأسرار لزيادة مبيعاتك</p>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">المساعد الذكي لـ {vendorName}</p>
+              <p className="text-[15px] font-black text-slate-900 dark:text-white leading-tight">احصل على تحليلات النمو</p>
+              <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-bold mt-1">أسرار لزيادة مبيعاتك بنسبة 20%</p>
             </div>
           </div>
-          <Sparkles className="w-5 h-5 text-yellow-300 animate-pulse" />
-        </button>
+          <div className="relative z-10 p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl">
+            <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
+          </div>
+        </motion.button>
       ) : (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-800 rounded-[28px] border border-indigo-100 dark:border-indigo-900/30 overflow-hidden shadow-xl shadow-indigo-50/50"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-3xl rounded-[40px] border border-slate-100 dark:border-slate-800/50 overflow-hidden shadow-2xl shadow-slate-200/20 dark:shadow-none relative"
         >
-          <div className="p-5 border-b border-indigo-50 dark:border-indigo-900/20 flex items-center justify-between bg-indigo-50/30 dark:bg-indigo-900/10">
-            <div className="flex items-center gap-3">
-              <Bot className="w-5 h-5 text-indigo-500" />
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">التحليلات الذكية</h3>
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500">
+                <Bot className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">التحليلات الذكية</h3>
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">AI Engine V2.0</p>
+              </div>
             </div>
             <button 
               onClick={() => setShowPanel(false)}
-              className="text-[10px] font-black text-indigo-600 hover:text-indigo-700"
+              className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
-              إغلاق
+              <ChevronRight className="w-5 h-5 rotate-90" />
             </button>
           </div>
           
-          <div className="p-5">
+          <div className="p-8">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-4">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                <p className="text-xs font-bold text-slate-400">جاري تحليل بيانات متجرك...</p>
+              <div className="flex flex-col items-center justify-center py-12 gap-5">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin" />
+                  <Bot className="w-6 h-6 text-indigo-500 absolute inset-0 m-auto animate-pulse" />
+                </div>
+                <div className="text-center">
+                  <p className="text-[13px] font-black text-slate-900 dark:text-white">جاري معالجة البيانات</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Deep Learning Analysis...</p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="prose prose-sm dark:prose-invert">
-                  <p className="text-xs text-slate-600 dark:text-slate-300 font-bold leading-relaxed whitespace-pre-wrap">
+              <div className="space-y-6">
+                <div className="bg-slate-50/50 dark:bg-slate-950/40 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800/50 shadow-inner">
+                  <p className="text-[14px] text-slate-700 dark:text-slate-200 font-bold leading-relaxed whitespace-pre-wrap">
                     {insight}
                   </p>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 pt-4">
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex flex-col gap-1">
-                    <TrendingUp className="w-4 h-4 text-emerald-500" />
-                    <p className="text-[10px] font-black text-slate-900 dark:text-white">معدل النمو</p>
-                    <p className="text-[9px] text-emerald-600 font-bold">+12.5% هذا الشهر</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex flex-col gap-1">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    <p className="text-[10px] font-black text-slate-900 dark:text-white">وقت التجهيز</p>
-                    <p className="text-[9px] text-blue-600 font-bold">14 دقيقة في المتوسط</p>
-                  </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <motion.div 
+                    whileHover={{ y: -4 }}
+                    className="p-5 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-[28px] border border-emerald-500/10 flex flex-col gap-2 group/card"
+                  >
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500 group-hover/card:scale-110 transition-transform">
+                      <TrendingUp size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">معدل النمو</p>
+                      <p className="text-[13px] font-black text-emerald-600 dark:text-emerald-400 mt-1">+12.5% <span className="text-[9px] opacity-60">شهرياً</span></p>
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div 
+                    whileHover={{ y: -4 }}
+                    className="p-5 bg-blue-500/5 dark:bg-blue-500/10 rounded-[28px] border border-blue-500/10 flex flex-col gap-2 group/card"
+                  >
+                    <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500 group-hover/card:scale-110 transition-transform">
+                      <Clock size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">وقت التجهيز</p>
+                      <p className="text-[13px] font-black text-blue-600 dark:text-blue-400 mt-1">14 دقيقة <span className="text-[9px] opacity-60">متوسط</span></p>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             )}

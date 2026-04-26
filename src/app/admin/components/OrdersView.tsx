@@ -6,6 +6,7 @@ import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCir
 import type { ActivityItem, LiveOrderItem, OnlineDriver } from "../types";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { requestAIAnalysis } from "@/lib/api/ai";
+import { SuccessCelebration } from "@/components/SuccessCelebration";
 
 interface OrdersViewProps {
   liveOrders: LiveOrderItem[];
@@ -16,11 +17,11 @@ interface OrdersViewProps {
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string; dot: string; dbStatus: string }> = {
-  "جاري البحث":  { label: "جاري البحث",  icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />, bg: "bg-amber-50 border-amber-100",    text: "text-amber-700",   dot: "bg-amber-400",   dbStatus: "pending" },
-  "تم التعيين":  { label: "تم التعيين",  icon: <Circle className="w-3.5 h-3.5" />,               bg: "bg-sky-50 border-sky-100",        text: "text-sky-700",     dot: "bg-sky-500",     dbStatus: "assigned" },
-  "في الطريق":   { label: "في الطريق",   icon: <Truck className="w-3.5 h-3.5" />,                bg: "bg-indigo-50 border-indigo-100",  text: "text-indigo-700",  dot: "bg-indigo-500",  dbStatus: "in_transit" },
-  "تم التوصيل": { label: "تم التوصيل", icon: <CheckCircle className="w-3.5 h-3.5" />,           bg: "bg-emerald-50 border-emerald-100",text: "text-emerald-700", dot: "bg-emerald-500", dbStatus: "delivered" },
-  "ملغي":        { label: "ملغي",        icon: <XCircle className="w-3.5 h-3.5" />,               bg: "bg-red-50 border-red-100",        text: "text-red-700",     dot: "bg-red-400",     dbStatus: "cancelled" },
+  "جاري البحث":  { label: "جاري البحث",  icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />, bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20",    text: "text-amber-700 dark:text-amber-400",   dot: "bg-amber-400",   dbStatus: "pending" },
+  "تم التعيين":  { label: "تم التعيين",  icon: <Circle className="w-3.5 h-3.5" />,               bg: "bg-sky-50 dark:bg-sky-500/10 border-sky-100 dark:border-sky-500/20",        text: "text-sky-700 dark:text-sky-400",     dot: "bg-sky-500",     dbStatus: "assigned" },
+  "في الطريق":   { label: "في الطريق",   icon: <Truck className="w-3.5 h-3.5" />,                bg: "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-100 dark:border-indigo-500/20",  text: "text-indigo-700 dark:text-indigo-400",  dot: "bg-indigo-500",  dbStatus: "in_transit" },
+  "تم التوصيل": { label: "تم التوصيل", icon: <CheckCircle className="w-3.5 h-3.5" />,           bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20",text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500", dbStatus: "delivered" },
+  "ملغي":        { label: "ملغي",        icon: <XCircle className="w-3.5 h-3.5" />,               bg: "bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20",        text: "text-red-700 dark:text-red-400",     dot: "bg-red-400",     dbStatus: "cancelled" },
 };
 
 const statusFilters = ["الكل", "جاري البحث", "تم التعيين", "في الطريق", "تم التوصيل", "ملغي"];
@@ -32,6 +33,8 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [aiDispatchLoading, setAiDispatchLoading] = useState<string | null>(null);
   const [aiRecommendation, setAiRecommendation] = useState<{orderId: string, text: string} | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState("");
 
   const handleAiSuggestDriver = async (order: LiveOrderItem) => {
     if (aiDispatchLoading) return;
@@ -61,6 +64,10 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
     setCancellingId(orderId);
     try {
       await onCancelOrder(orderId);
+      // V19.3.0: Success Celebration for Cancellation
+      setCelebrationMessage(`تم إلغاء الطلب #${orderId.slice(0, 8)} بنجاح`);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
     } finally {
       setCancellingId(null);
     }
@@ -76,6 +83,11 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
     setUpdatingId(orderId);
     try {
       await onUpdateStatus(orderId, dbStatus);
+      setCelebrationMessage(`تم تحديث حالة الطلب إلى "${newStatus}" بنجاح!`);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
+    } catch (err) {
+      console.error("Update status error:", err);
     } finally {
       setUpdatingId(null);
     }
@@ -91,6 +103,11 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
 
   return (
     <div className="space-y-6">
+      <SuccessCelebration 
+        show={showCelebration} 
+        message={celebrationMessage} 
+        onComplete={() => setShowCelebration(false)} 
+      />
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-amber-500/10">

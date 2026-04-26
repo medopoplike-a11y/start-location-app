@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
-  Plus, AlertTriangle, X, Zap, Loader2, Bot, Send, Mic, MessageSquare
+  Plus, AlertTriangle, X, Zap, Loader2, Bot, Send, Mic, MessageSquare, Truck, CheckCircle2
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getCache, setCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
+import { SuccessCelebration } from "@/components/SuccessCelebration";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import { aiVoice } from "@/lib/utils/voice";
@@ -96,6 +97,10 @@ function StoreContent() {
   const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false); // V19.3.0: Success Celebration State
+  const [celebrationMessage, setCelebrationMessage] = useState(""); // V19.3.0: Dynamic Celebration Message
+  const [driverNotification, setDriverNotification] = useState<Order | null>(null); // V19.3.0: Driver Acceptance Notification State
+  const prevOrdersRef = useRef<Order[]>([]); // V19.3.0: Track previous orders for status changes
   const [savingSettings, setSavingSettings] = useState(false);
 
   // V17.4.7: Removed redundant onAppResume → updateData wiring.
@@ -489,6 +494,39 @@ function StoreContent() {
     setLastOrderCount(orders.length);
   }, [orders]);
 
+  // V19.3.0: Driver Acceptance Notification Logic
+  useEffect(() => {
+    if (prevOrdersRef.current.length > 0) {
+      orders.forEach(order => {
+        const prevOrder = prevOrdersRef.current.find(o => o.id === order.id);
+        if (prevOrder && prevOrder.status === 'pending' && (order.status === 'assigned' || order.status === 'in_transit')) {
+          console.log("StorePage: Driver accepted order:", order.id);
+          
+          // Trigger Notification
+          setDriverNotification(order);
+          
+          // AI Voice Announcement
+          if (order.driver) {
+            aiVoice.speak(`الكابتن ${order.driver} قبل الطلب رقم ${order.id.slice(0, 4)}`, { priority: 'medium' });
+          }
+
+          // Haptic Feedback
+          if (Capacitor.isNativePlatform()) {
+            import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
+              Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+            }).catch(() => {});
+          }
+
+          // Auto-hide notification after 8 seconds
+          setTimeout(() => {
+            setDriverNotification(prev => prev?.id === order.id ? null : prev);
+          }, 8000);
+        }
+      });
+    }
+    prevOrdersRef.current = orders;
+  }, [orders]);
+
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
   const [requestingSettlement, setRequestingSettlement] = useState(false);
@@ -807,6 +845,9 @@ function StoreContent() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
 
     try {
+      // V19.3.0: Voice and Sound Feedback
+      aiVoice.announceStatusChange(orderId, 'cancelled');
+      
       // V1.5.3: Use updateOrderStatus for cancellation instead of non-existent cancelOrder
       await updateOrderStatus(orderId, 'cancelled');
       success('تم إلغاء الطلب بنجاح');
@@ -1057,6 +1098,12 @@ function StoreContent() {
         const ui = mapDBOrderToUI(data as VendorDBOrder);
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
         
+        // V19.3.0: Voice and Sound Feedback
+        aiVoice.playSound('success');
+        
+        setShowCelebration(true); // V19.3.0: Trigger celebration
+        setTimeout(() => setShowCelebration(false), 3000);
+        
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
         
         // Auto-assign in background
@@ -1083,6 +1130,13 @@ function StoreContent() {
     // Optimistic Update
     const originalOrders = [...orders];
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, vendorCollectedAt: new Date().toISOString() } : o));
+    
+    // V19.3.0: Trigger Success Celebration
+    setCelebrationMessage(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح!`);
+    setShowCelebration(true);
+    aiVoice.playSound('success'); // V19.3.0: Voice Feedback
+    setTimeout(() => setShowCelebration(false), 3000);
+
     success(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح`);
 
     try {
@@ -1438,8 +1492,17 @@ function StoreContent() {
       {/* V19.3.0: AI Support Bot */}
       <AISupportBot role="vendor" context={{ orders: orders.slice(0, 5), vendorName }} />
 
-      <main className={`flex-1 overflow-y-auto ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
-        {activeView === "store" ? (
+      <main className={`flex-1 relative overflow-y-auto ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeView}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="h-full"
+          >
+            {activeView === "store" ? (
           <StoreOrdersHub
             orders={orders}
             searchQuery={searchQuery}
@@ -1459,9 +1522,11 @@ function StoreContent() {
             onQuickInvoiceUpload={handleQuickInvoiceUpload}
             uploadingInvoice={uploadingInvoice}
             quickUploadOrderId={quickUploadOrderId}
-            onPreviewImage={setPreviewUrl}
-            onRequestAIInsights={handleRequestStoreAI}
-          />
+              onPreviewImage={setPreviewUrl}
+              onRequestAIInsights={handleRequestStoreAI}
+              isSyncing={isSyncing}
+              lastSync={lastSync}
+            />
         ) : activeView === "wallet" ? (
           <WalletView
             companyCommission={companyCommission}
@@ -1507,7 +1572,9 @@ function StoreContent() {
             onSave={handleSaveOrder}
             onPreviewImage={setPreviewUrl}
           />
-        )}
+          )}
+        </motion.div>
+      </AnimatePresence>
       </main>
 
 {activeView === "store" && (
@@ -1687,6 +1754,57 @@ function StoreContent() {
           onOpenAI={handleRequestStoreAI}
         />
       )}
+
+      {/* V19.3.0: Success Celebration */}
+      <SuccessCelebration 
+        show={showCelebration} 
+        message={celebrationMessage || "تم إنشاء الطلب بنجاح! 🚀"} 
+        onComplete={() => setShowCelebration(false)}
+      />
+
+      {/* V19.3.0: Driver Acceptance Interactive Notification */}
+      <AnimatePresence>
+        {driverNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-24 left-4 right-4 z-[100] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] p-4 shadow-2xl shadow-slate-200 dark:shadow-none flex items-center gap-4"
+          >
+            <div className="w-14 h-14 bg-green-500/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Truck className="w-7 h-7 text-green-600" />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full">تم قبول الطلب</span>
+                <span className="text-[10px] font-bold text-slate-400">#{driverNotification.id.slice(0, 8)}</span>
+              </div>
+              <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
+                الكابتن {driverNotification.driver} في الطريق إليك
+              </h4>
+            </div>
+
+            <button
+              onClick={() => {
+                setDriverNotification(null);
+                setActiveView("store");
+                setActiveTab("active");
+              }}
+              className="bg-slate-900 dark:bg-slate-800 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-lg shadow-slate-200 dark:shadow-none hover:scale-105 active:scale-95 transition-all"
+            >
+              عرض
+            </button>
+            
+            <button 
+              onClick={() => setDriverNotification(null)}
+              className="p-2 text-slate-300 hover:text-slate-500 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

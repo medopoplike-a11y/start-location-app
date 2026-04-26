@@ -264,12 +264,12 @@ function ZoomBtn() {
       ].map(({ label, action }) => (
         <button key={label} onClick={action} style={{
           width: '40px', height: '40px',
-          background: 'rgba(255,255,255,0.95)',
-          border: '1px solid rgba(0,0,0,0.1)',
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
           borderRadius: '10px',
           fontSize: '22px', fontWeight: 900,
-          color: '#1e293b',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          color: 'var(--foreground)',
+          boxShadow: 'var(--card-shadow)',
           cursor: 'pointer', lineHeight: 1,
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
@@ -378,10 +378,10 @@ function AdminControls({
       {/* Theme buttons — top right */}
       <div style={{
         position: 'absolute', top: '12px', right: '12px', zIndex: 1000,
-        background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(8px)',
+        background: 'var(--glass-bg)', backdropFilter: 'blur(8px)',
         borderRadius: '12px', overflow: 'hidden',
-        border: '1px solid rgba(0,0,0,.08)',
-        boxShadow: '0 2px 10px rgba(0,0,0,.12)',
+        border: '1px solid var(--glass-border)',
+        boxShadow: 'var(--card-shadow)',
       }}>
         {(Object.keys(TILES) as Array<keyof typeof TILES>).map(t => (
           <button key={t} onClick={() => onTheme(t)} style={{
@@ -389,9 +389,9 @@ function AdminControls({
             padding: '6px 14px',
             fontSize: '10px', fontWeight: 900,
             background: theme === t ? '#2563eb' : 'transparent',
-            color: theme === t ? 'white' : '#475569',
+            color: theme === t ? 'white' : 'var(--foreground)',
             border: 'none', cursor: 'pointer',
-            borderBottom: '1px solid rgba(0,0,0,.06)',
+            borderBottom: '1px solid var(--glass-border)',
           }}>
             {t === 'standard' ? 'خريطة' : t === 'satellite' ? 'قمر' : 'مرور'}
           </button>
@@ -405,11 +405,11 @@ function AdminControls({
       }}>
         {totalCount > 0 && (
           <div style={{
-            background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(8px)',
+            background: 'var(--glass-bg)', backdropFilter: 'blur(8px)',
             borderRadius: '20px', padding: '5px 12px',
-            fontSize: '10px', fontWeight: 900, color: '#0f172a',
-            border: '1px solid rgba(0,0,0,.08)',
-            boxShadow: '0 2px 8px rgba(0,0,0,.1)',
+            fontSize: '10px', fontWeight: 900, color: 'var(--foreground)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex', alignItems: 'center', gap: '6px',
           }}>
             <span style={{
@@ -425,10 +425,10 @@ function AdminControls({
           <button onClick={() => onFollow(!following)} style={{
             padding: '7px 14px', borderRadius: '20px',
             fontSize: '10px', fontWeight: 900,
-            background: following ? '#2563eb' : 'rgba(255,255,255,.92)',
-            color: following ? 'white' : '#475569',
-            border: `1px solid ${following ? '#1d4ed8' : 'rgba(0,0,0,.08)'}`,
-            boxShadow: following ? '0 3px 10px rgba(37,99,235,.35)' : '0 2px 8px rgba(0,0,0,.1)',
+            background: following ? '#2563eb' : 'var(--glass-bg)',
+            color: following ? 'white' : 'var(--foreground)',
+            border: `1px solid ${following ? '#1d4ed8' : 'var(--glass-border)'}`,
+            boxShadow: following ? '0 3px 10px rgba(37,99,235,.35)' : 'var(--card-shadow)',
             cursor: 'pointer', backdropFilter: 'blur(8px)',
           }}>
             {following ? '🔴 إيقاف المتابعة' : '📍 متابعة تلقائية'}
@@ -447,21 +447,21 @@ function AutoRotateBtn({ active, onToggle }: { active: boolean; onToggle: () => 
       style={{
         position: 'absolute', bottom: '148px', right: '12px', zIndex: 1000,
         width: '40px', height: '40px',
-        background: active ? '#3b82f6' : 'rgba(255,255,255,.95)',
-        border: active ? '2px solid #1d4ed8' : '1px solid rgba(0,0,0,.1)',
+        background: active ? '#3b82f6' : 'var(--glass-bg)',
+        border: active ? '2px solid #1d4ed8' : '1px solid var(--glass-border)',
         borderRadius: '10px',
-        boxShadow: active ? '0 3px 12px rgba(59,130,246,.4)' : '0 2px 8px rgba(0,0,0,.15)',
+        boxShadow: active ? '0 3px 12px rgba(59,130,246,.4)' : 'var(--card-shadow)',
         cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyCenter: 'center',
       }}
       title={active ? 'إيقاف التدوير التلقائي' : 'تدوير تلقائي حسب الاتجاه'}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-        stroke={active ? 'white' : '#475569'} strokeWidth="2.5"
+        stroke={active ? 'white' : 'var(--foreground)'} strokeWidth="2.5"
         strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2L8 6h3v4a5 5 0 0 0 5 5h1"/>
         <path d="M16 18l4-4-4-4"/>
-        <circle cx="12" cy="12" r="2" fill={active ? 'white' : '#475569'} stroke="none"/>
+        <circle cx="12" cy="12" r="2" fill={active ? 'white' : 'var(--foreground)'} stroke="none"/>
       </svg>
     </button>
   );
@@ -506,22 +506,24 @@ function CompassBtn({ bearing, onReset }: { bearing: number; onReset: () => void
       style={{
         position: 'absolute', top: '12px', left: '12px', zIndex: 1000,
         width: '42px', height: '42px',
-        background: 'rgba(255,255,255,.95)',
-        border: '1px solid rgba(0,0,0,.1)',
+        background: 'var(--glass-bg)',
+        border: '1px solid var(--glass-border)',
         borderRadius: '50%',
-        boxShadow: '0 2px 10px rgba(0,0,0,.18)',
+        boxShadow: 'var(--card-shadow)',
         cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 0,
+        backdropFilter: 'blur(8px)',
       }}
-      title="إعادة ضبط الاتجاه للشمال"
+      title="إعادة ضبط الشمال"
     >
-      {/* Compass needle rotates to always point north */}
-      <svg width="24" height="24" viewBox="0 0 24 24"
-        style={{ transform: `rotate(${-currentBearing}deg)`, transition: 'transform .2s' }}>
-        <polygon points="12,3 15,12 12,10 9,12" fill="#ef4444" />
-        <polygon points="12,21 15,12 12,14 9,12" fill="#94a3b8" />
-      </svg>
+      <div style={{ 
+        transform: `rotate(${-currentBearing}deg)`, 
+        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
+      }}>
+        <div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '12px solid #ef4444' }} />
+        <div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '12px solid var(--foreground)', opacity: 0.8 }} />
+      </div>
     </button>
   );
 }

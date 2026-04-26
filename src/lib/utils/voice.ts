@@ -90,9 +90,39 @@ class VoiceAssistant {
   }
 
   /**
+   * Play a standard notification sound
+   */
+  public playSound(type: 'success' | 'alert' | 'notification' | 'error' = 'notification') {
+    if (!this.isEnabled) return;
+    
+    let url = "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"; // Default notification
+    
+    switch(type) {
+      case 'success':
+        url = "https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3";
+        break;
+      case 'alert':
+        url = "https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3";
+        break;
+      case 'error':
+        url = "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3";
+        break;
+    }
+
+    try {
+      const audio = new Audio(url);
+      audio.volume = 0.5;
+      audio.play().catch(e => console.warn("Audio play blocked by browser", e));
+    } catch (e) {
+      console.error("Audio playback error", e);
+    }
+  }
+
+  /**
    * Announce a new order to the driver
    */
   public announceNewOrder(orderId: string, area?: string) {
+    this.playSound('alert');
     const text = area 
       ? `طلب جديد في منطقة ${area}. رقم الطلب ${orderId.slice(-4)}`
       : `لديك طلب توصيل جديد. رقم الطلب ${orderId.slice(-4)}`;
@@ -102,15 +132,85 @@ class VoiceAssistant {
   /**
    * Announce order status change
    */
-  public announceStatusChange(orderId: string, status: string) {
+  public announceStatusChange(orderId: string, status: string, role: 'driver' | 'store' | 'admin' = 'driver') {
     let statusText = status;
-    switch(status) {
-      case 'picked_up': statusText = 'تم الاستلام'; break;
-      case 'delivered': statusText = 'تم التوصيل بنجاح'; break;
-      case 'cancelled': statusText = 'تم إلغاء الطلب'; break;
+    let soundType: 'success' | 'notification' | 'alert' = 'notification';
+
+    if (role === 'driver') {
+      switch(status) {
+        case 'picked_up': 
+          statusText = 'تم الاستلام من المتجر، بالتوفيق في الطريق'; 
+          soundType = 'success';
+          break;
+        case 'delivered': 
+          statusText = 'تم التوصيل بنجاح، مبروك يا كابتن'; 
+          soundType = 'success';
+          break;
+        case 'cancelled': 
+          statusText = 'تم إلغاء الطلب من قبل النظام'; 
+          soundType = 'alert';
+          break;
+        case 'assigned':
+          statusText = 'تم تعيين طلب جديد لك';
+          soundType = 'success';
+          break;
+      }
+    } else if (role === 'store') {
+      switch(status) {
+        case 'assigned': 
+          statusText = `تم قبول الطلب رقم ${orderId.slice(-4)} من قبل أحد الكباتن وهو في الطريق إليك`;
+          soundType = 'success';
+          break;
+        case 'delivered':
+          statusText = `الطلب رقم ${orderId.slice(-4)} وصل للعميل بسلام`;
+          soundType = 'success';
+          break;
+        case 'cancelled':
+          statusText = `تم إلغاء الطلب رقم ${orderId.slice(-4)}`;
+          soundType = 'alert';
+          break;
+        case 'picked_up':
+          statusText = `الكابتن استلم الطلب رقم ${orderId.slice(-4)} وهو في طريقه للعميل`;
+          soundType = 'notification';
+          break;
+      }
+    } else {
+      // Admin
+      switch(status) {
+        case 'delivered': statusText = `الطلب ${orderId.slice(-4)} تم توصيله`; break;
+        case 'cancelled': statusText = `الطلب ${orderId.slice(-4)} تم إلغاؤه`; break;
+        case 'assigned': statusText = `الطلب ${orderId.slice(-4)} تم تعيينه لكابتن`; break;
+        case 'in_transit': statusText = `الطلب ${orderId.slice(-4)} في الطريق الآن`; break;
+      }
     }
-    const text = `الطلب رقم ${orderId.slice(-4)} أصبح ${statusText}`;
-    this.speak(text);
+    
+    this.playSound(soundType);
+    const text = statusText;
+    this.speak(text, { priority: role === 'driver' ? 'high' : 'normal' });
+  }
+
+  /**
+   * Store specific: Driver accepted order
+   */
+  public announceDriverAccepted(driverName: string, orderId: string) {
+    this.playSound('success');
+    this.speak(`الكابتن ${driverName} قبل الطلب رقم ${orderId.slice(-4)} وهو في الطريق إليك`, { priority: 'high' });
+  }
+
+  /**
+   * Admin specific: Critical system alert
+   */
+  public announceSystemAlert(message: string) {
+    this.playSound('error');
+    this.speak(`تنبيه للنظام: ${message}`, { priority: 'high', rate: 0.85 });
+  }
+
+  /**
+   * Admin specific: New order received
+   */
+  public announceNewOrderAdmin(orderId: string, vendorName: string) {
+    this.playSound('notification');
+    this.speak(`وصل طلب جديد من ${vendorName}. رقم الطلب ${orderId.slice(-4)}`, { priority: 'normal' });
   }
 
   /**
