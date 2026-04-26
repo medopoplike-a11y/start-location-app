@@ -19,7 +19,7 @@ import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/li
 import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus, vendorCollectDebt } from "@/lib/api/orders";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
+import { getCache, setCache, triggerHaptic } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { SuccessCelebration } from "@/components/SuccessCelebration";
@@ -40,6 +40,7 @@ import StoreAccountModals from "./components/StoreAccountModals";
 import StoreDrawer from "./components/StoreDrawer";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
 import { formatTimeOnly } from "@/lib/utils/format";
+import { ListSkeleton, Skeleton } from "@/components/ui/Skeleton";
 
 export default function StoreApp() {
   return (
@@ -1220,6 +1221,7 @@ function StoreContent() {
     // V19.3.0: Trigger Success Celebration
     setCelebrationMessage(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح!`);
     setShowCelebration(true);
+    triggerHaptic(ImpactStyle.Medium);
     aiVoice.playSound('success'); // V19.3.0: Voice Feedback
     setTimeout(() => setShowCelebration(false), 3000);
 
@@ -1514,14 +1516,40 @@ function StoreContent() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 space-y-8 flex flex-col items-center justify-center transition-colors duration-500" dir="rtl">
-      <motion.div 
-        animate={{ rotate: 360 }} 
-        transition={{ duration: 2, repeat: Infinity, ease: "linear" }} 
-        className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" 
-      />
-      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">جاري تحميل لوحة المتجر...</h2>
-      <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 space-y-8" dir="rtl">
+      <div className="flex justify-between items-center mb-8">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24 rounded-lg" />
+          <Skeleton className="h-8 w-48 rounded-xl" />
+        </div>
+        <Skeleton className="h-12 w-12 rounded-2xl" />
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md p-5 rounded-[32px] border border-white/40 dark:border-slate-800 shadow-sm space-y-3">
+          <Skeleton className="w-10 h-10 rounded-xl" />
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-20 rounded-lg" />
+            <Skeleton className="h-3 w-16 rounded-lg" />
+          </div>
+        </div>
+        <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md p-5 rounded-[32px] border border-white/40 dark:border-slate-800 shadow-sm space-y-3">
+          <Skeleton className="w-10 h-10 rounded-xl" />
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-20 rounded-lg" />
+            <Skeleton className="h-3 w-16 rounded-lg" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex gap-3 overflow-hidden">
+          <Skeleton className="h-10 flex-1 rounded-2xl" />
+          <Skeleton className="h-10 flex-1 rounded-2xl" />
+          <Skeleton className="h-10 flex-1 rounded-2xl" />
+        </div>
+        <ListSkeleton count={3} />
+      </div>
     </div>
   );
 
@@ -1669,7 +1697,10 @@ function StoreContent() {
 
 {activeView === "store" && (
         <motion.button 
-          onClick={() => handleOpenForm()}
+          onClick={() => {
+            triggerHaptic(ImpactStyle.Heavy);
+            handleOpenForm();
+          }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-green-500 hover:bg-green-600 text-white w-48 h-16 rounded-3xl shadow-2xl shadow-green-200 flex items-center justify-center gap-3 font-black text-lg active:scale-95 transition-all z-40"

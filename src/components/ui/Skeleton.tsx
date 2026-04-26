@@ -49,7 +49,31 @@ export const OrderSkeleton = () => (
       <Skeleton className="h-12 rounded-[22px]" />
       <Skeleton className="h-12 rounded-[22px]" />
     </div>
-    <Skeleton className="h-12 w-full rounded-2xl" />
+  </div>
+);
+
+export const DriverStatsSkeleton = () => (
+  <div className="grid grid-cols-2 gap-4">
+    {[1, 2].map((i) => (
+      <div key={i} className="bg-white/50 backdrop-blur-md p-5 rounded-[32px] border border-white/40 shadow-sm space-y-3">
+        <div className="flex justify-between items-center">
+          <Skeleton className="w-10 h-10 rounded-xl" />
+          <Skeleton className="w-12 h-4 rounded-lg" />
+        </div>
+        <div className="space-y-1">
+          <Skeleton className="h-8 w-24 rounded-lg" />
+          <Skeleton className="h-3 w-16 rounded-lg" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+export const ListSkeleton = ({ count = 3 }: { count?: number }) => (
+  <div className="space-y-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <OrderSkeleton key={i} />
+    ))}
   </div>
 );
 

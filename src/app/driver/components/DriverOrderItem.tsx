@@ -4,6 +4,8 @@ import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { Truck, Store, Navigation, MapPin, Zap, CheckCircle2, XCircle, Bot, AlertCircle } from "lucide-react";
 import type { Order } from "../types";
+import { triggerHaptic } from "@/lib/native-utils";
+import { ImpactStyle } from "@capacitor/haptics";
 
 interface DriverOrderItemProps {
   order: Order;
@@ -52,9 +54,12 @@ const DriverOrderItem = memo(({
     return (
       <motion.div
         layout
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none overflow-hidden relative group"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ y: -2 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none overflow-hidden relative group cursor-pointer"
+        onClick={() => onSelectOrder(order)}
       >
         <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-blue-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
@@ -85,6 +90,7 @@ const DriverOrderItem = memo(({
                 whileTap={{ scale: 0.95 }}
                 onClick={(e) => {
                   e.stopPropagation();
+                  triggerHaptic(ImpactStyle.Light);
                   onToggleNavigation();
                 }}
                 className={`p-2.5 rounded-xl border transition-all shadow-lg ${
@@ -148,7 +154,11 @@ const DriverOrderItem = memo(({
               <motion.button
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={(e) => { e.stopPropagation(); onPickup(order.id); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  triggerHaptic(ImpactStyle.Medium);
+                  onPickup(order.id); 
+                }}
                 disabled={actionLoading}
                 className="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-sky-500/30 dark:shadow-none transition-all border-b-4 border-sky-800"
               >
@@ -160,7 +170,11 @@ const DriverOrderItem = memo(({
               <motion.button
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={(e) => { e.stopPropagation(); onSelectOrder(order); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  triggerHaptic(ImpactStyle.Medium);
+                  onSelectOrder(order); 
+                }}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-indigo-500/30 dark:shadow-none transition-all border-b-4 border-indigo-800"
               >
                 إنهاء السكة
@@ -178,7 +192,9 @@ const DriverOrderItem = memo(({
         layout
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none relative group overflow-hidden"
+        whileHover={{ y: -2 }}
+        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none relative group overflow-hidden cursor-pointer"
+        onClick={() => onSelectOrder(order)}
       >
         <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full -mr-12 -mt-12 blur-2xl" />
         
@@ -209,7 +225,11 @@ const DriverOrderItem = memo(({
         <motion.button
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => onAccept?.(order.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerHaptic(ImpactStyle.Heavy);
+            onAccept?.(order.id);
+          }}
           disabled={actionLoading}
           className="w-full bg-amber-500 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-amber-500/30 dark:shadow-none transition-all border-b-4 border-amber-700 relative z-10"
         >

@@ -47,7 +47,7 @@ import { fetchWallets as fetchAdminWallets, updateWallet as updateAdminWallet } 
 import { resetUserDataAdmin, resetAllSystemDataAdmin, fetchAdminAppConfig, updateAdminAppConfig, broadcastAlert, runSystemIntegrityCheck } from "@/lib/api/admin";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
+import { getCache, setCache, triggerHaptic } from "@/lib/native-utils";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { StartLogo } from "@/components/StartLogo";
@@ -63,6 +63,8 @@ import { useRef } from "react";
 
 import { formatCurrency, translateStatus, getErrorMessage } from "@/lib/utils/format";
 import { menuGroups } from "./config/menu"; // Move static data to config
+import { ImpactStyle } from "@capacitor/haptics";
+import { ListSkeleton, Skeleton } from "@/components/ui/Skeleton";
 
 export default function AdminPanel() {
   return (
@@ -1311,29 +1313,44 @@ function AdminContent() {
   // 11. Render Helpers
   if (!mounted || loading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-6 text-center">
-        {error ? (
-          <div className="bg-white/10 p-8 rounded-[40px] border border-red-500/30 backdrop-blur-xl max-w-sm">
-            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
+      <div className="min-h-screen bg-[#0f172a] dark:bg-slate-950 p-6 space-y-8" dir="rtl">
+        <div className="flex justify-between items-center mb-10">
+          <div className="flex gap-4 items-center">
+            <Skeleton className="h-12 w-12 rounded-2xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-32 rounded-lg" />
+              <Skeleton className="h-3 w-48 rounded-md" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">فشل تحميل النظام</h2>
-            <p className="text-slate-400 text-sm mb-6">{error}</p>
-            <button 
-              onClick={() => { setError(null); fetchData(); }} 
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black transition-all shadow-lg shadow-blue-500/20"
-            >
-              إعادة المحاولة
-            </button>
           </div>
-        ) : (
-          <>
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full mb-6" />
-            <h2 className="text-xl font-bold text-white mb-2">جاري تحميل لوحة الإدارة...</h2>
-            <p className="text-slate-400 text-sm">يرجى الانتظار قليلاً، يتم جلب البيانات الآمنة</p>
-            <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-xs rounded-xl transition-all border border-white/10">إعادة تحميل يدوية</button>
-          </>
-        )}
+          <Skeleton className="h-10 w-40 rounded-2xl" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-white/5 dark:bg-slate-900/50 backdrop-blur-md p-5 rounded-[32px] border border-white/10 shadow-sm space-y-3">
+              <Skeleton className="w-10 h-10 rounded-xl" />
+              <div className="space-y-1">
+                <Skeleton className="h-8 w-24 rounded-lg" />
+                <Skeleton className="h-3 w-16 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex gap-3">
+              <Skeleton className="h-12 w-32 rounded-2xl" />
+              <Skeleton className="h-12 w-32 rounded-2xl" />
+              <Skeleton className="h-12 w-32 rounded-2xl" />
+            </div>
+            <ListSkeleton count={4} />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-64 w-full rounded-[32px]" />
+            <Skeleton className="h-96 w-full rounded-[32px]" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -1372,7 +1389,11 @@ function AdminContent() {
                 {group.items.map(item => (
                   <button 
                     key={item.id} 
-                    onClick={() => { setActiveView(item.id); if (isMobile) setSidebarOpen(false); }} 
+                    onClick={() => { 
+                      triggerHaptic(ImpactStyle.Light);
+                      setActiveView(item.id); 
+                      if (isMobile) setSidebarOpen(false); 
+                    }} 
                     className={`w-full flex items-center gap-4 p-4 rounded-[20px] transition-all relative group overflow-hidden ${
                       activeView === item.id 
                         ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-none" 

@@ -44,6 +44,9 @@ const LiveMap = dynamic(() => import("@/components/LiveMap"), {
   ),
 });
 
+import { triggerHaptic } from "@/lib/native-utils";
+import { ImpactStyle } from "@capacitor/haptics";
+
 function TabButton({ active, onClick, icon, label, count, color }: { 
   active: boolean, 
   onClick: () => void, 
@@ -52,6 +55,11 @@ function TabButton({ active, onClick, icon, label, count, color }: {
   count: number,
   color: 'blue' | 'amber' | 'emerald'
 }) {
+  const handleInternalClick = () => {
+    triggerHaptic(ImpactStyle.Light);
+    onClick();
+  };
+
   const colorClasses = {
     blue: active 
       ? "bg-blue-600 text-white border-blue-400/30 shadow-xl shadow-blue-500/20" 
@@ -67,7 +75,8 @@ function TabButton({ active, onClick, icon, label, count, color }: {
   return (
     <motion.button 
       whileTap={{ scale: 0.95 }}
-      onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      onClick={handleInternalClick}
       className={`flex-1 py-3 rounded-2xl text-[11px] font-black transition-all flex items-center justify-center gap-2 border-2 backdrop-blur-xl ${colorClasses[color]}`}
     >
       {icon}
@@ -158,6 +167,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
   const handleAccept = async (orderId: string) => {
     if (actionLoading) return;
     setActionLoading(true);
+    triggerHaptic(ImpactStyle.Medium);
     // Optimistic Update
     setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' } : o));
     try {
@@ -176,17 +186,13 @@ const DriverOrdersView = memo(function DriverOrdersView({
   const handlePickup = async (orderId: string) => {
     if (actionLoading) return;
     setActionLoading(true);
+    triggerHaptic(ImpactStyle.Medium);
     // Optimistic Update: Change status immediately in UI
     const previousOrders = [...localOrders];
     setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true } : o));
     
     try {
       aiVoice.announceStatusChange(orderId, 'picked_up'); // V19.3.0: AI Voice announcement
-      
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-      }
       
       await onPickupOrder(orderId);
       toast.success("تم تأكيد استلام الطلب");

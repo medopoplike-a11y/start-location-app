@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
+import { motion, AnimatePresence } from "framer-motion";
 
 const cairo = Cairo({ subsets: ["arabic"] });
 
@@ -30,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head />
-      <body className={cairo.className}>
+      <body className={`${cairo.className} antialiased selection:bg-indigo-500/10`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
@@ -41,7 +42,16 @@ export default function RootLayout({
           <AuthProvider>
             <ToastProvider>
               <AppWrapper>
-                {children}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="min-h-screen"
+                  >
+                    {children}
+                  </motion.div>
+                </AnimatePresence>
               </AppWrapper>
             </ToastProvider>
           </AuthProvider>

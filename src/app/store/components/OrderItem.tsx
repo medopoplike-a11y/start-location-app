@@ -2,9 +2,11 @@
 
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Clock, Store, Eye, Camera, Bot, Edit2, CheckCircle, FileText, Phone, Trash2, Truck, Star } from "lucide-react";
+import { MapPin, Clock, Store, Eye, Camera, Bot, Edit2, CheckCircle, FileText, Phone, Trash2, Truck, Star, User } from "lucide-react";
 import { translateStatus } from "@/lib/utils/format";
 import type { Order } from "../types";
+import { triggerHaptic } from "@/lib/native-utils";
+import { ImpactStyle } from "@capacitor/haptics";
 
 interface OrderItemProps {
   order: Order;
@@ -68,7 +70,11 @@ const OrderItem = memo(({
                 <motion.button 
                   whileHover={{ scale: 1.1, rotate: 15 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={(e) => { e.stopPropagation(); onRequestAIInsights(); }}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    triggerHaptic(ImpactStyle.Light);
+                    onRequestAIInsights(); 
+                  }}
                   className="w-8 h-8 bg-sky-500/10 dark:bg-sky-500/20 flex items-center justify-center rounded-2xl transition-all shadow-inner"
                 >
                   <Bot className="w-4.5 h-4.5 text-sky-500" />
@@ -262,7 +268,10 @@ const OrderItem = memo(({
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setRatingOrder(order)}
+              onClick={() => {
+                triggerHaptic(ImpactStyle.Light);
+                setRatingOrder(order);
+              }}
               className="w-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 py-4 rounded-2xl text-[11px] font-black border border-blue-100 dark:border-blue-900/30 hover:bg-blue-600 hover:text-white transition-all duration-300 flex items-center justify-center gap-2.5"
             >
               <Star className="w-4.5 h-4.5" />
@@ -275,7 +284,10 @@ const OrderItem = memo(({
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => onCollectDebt(order.id)}
+                onClick={() => {
+                  triggerHaptic(ImpactStyle.Medium);
+                  onCollectDebt(order.id);
+                }}
                 className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-2xl text-[11px] font-black shadow-xl shadow-emerald-200/50 dark:shadow-none flex items-center justify-center gap-2.5"
               >
                 <CheckCircle className="w-4.5 h-4.5" />

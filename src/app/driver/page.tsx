@@ -1473,14 +1473,19 @@ function DriverPageContent() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#f3f4f6] p-6 space-y-8" dir="rtl">
-      <div className="grid grid-cols-2 gap-4">
-        <CardSkeleton />
-        <CardSkeleton />
+    <div className="min-h-screen bg-[#f3f4f6] dark:bg-slate-950 p-6 space-y-8" dir="rtl">
+      <div className="flex justify-between items-center mb-6">
+        <Skeleton className="h-8 w-32 rounded-lg" />
+        <Skeleton className="h-10 w-10 rounded-full" />
       </div>
-      <div className="space-y-4">
-        <OrderSkeleton />
-        <OrderSkeleton />
+      <DriverStatsSkeleton />
+      <div className="space-y-6">
+        <div className="flex gap-3 overflow-hidden">
+          <Skeleton className="h-10 flex-1 rounded-2xl" />
+          <Skeleton className="h-10 flex-1 rounded-2xl" />
+          <Skeleton className="h-10 flex-1 rounded-2xl" />
+        </div>
+        <ListSkeleton count={3} />
       </div>
     </div>
   );
