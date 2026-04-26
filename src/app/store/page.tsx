@@ -1124,8 +1124,13 @@ function StoreContent() {
         return; 
       }
       if (data) {
-        // V1.5.5: Force immediate view reset and form cleanup
+        // V19.5.6: Enhanced Reset Strategy - Force state reset and view switch
+        console.log("Order saved successfully, resetting view...");
+        
+        // 1. Switch view immediately
         setActiveView("store");
+        
+        // 2. Clear all form states
         setEditingOrder(null);
         setInvoiceUrl(null);
         setFormData({ 
@@ -1133,17 +1138,20 @@ function StoreContent() {
           customers: [{ id: Math.random().toString(36).substring(2, 9), name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "" }]
         });
 
+        // 3. Update local list
         const ui = mapDBOrderToUI(data as VendorDBOrder);
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
         
-        // V19.3.0: Voice and Sound Feedback
+        // 4. Feedback
         aiVoice.playSound('success');
-        
-        setShowCelebration(true); // V19.3.0: Trigger celebration
-        setTimeout(() => setShowCelebration(false), 3000);
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 4000);
         
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
         
+        // 5. Scroll to top to ensure user sees the new order
+        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+
         // Auto-assign in background
         if (!editingOrder && vendorLocation) {
           assignOrderToNearestDriver(data.id, vendorLocation).then((res) => {

@@ -105,13 +105,12 @@ export default function OrderFormView({
 
   const radicalNormalize = (val: string, numericOnly = false) => {
     if (!val) return "";
-    // V1.3.1: Radical Normalization (The "Safe" Way)
-    // 1. Convert all Arabic/Persian digits to English digits for INTERNAL logic
-    let result = String(val).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-                    .replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
+    // V19.5.6: Enhanced Arabic digit normalization for persistence
+    let result = String(val)
+      .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+      .replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
     
     if (numericOnly) {
-      // 2. Keep only digits and one period
       result = result.replace(/[^0-9.]/g, '');
       const parts = result.split('.');
       if (parts.length > 2) result = parts[0] + '.' + parts.slice(1).join('');
