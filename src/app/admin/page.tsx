@@ -1357,35 +1357,36 @@ function AdminContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-right relative overflow-y-auto transition-colors duration-500" dir="rtl">
-      {/* Sidebar - V1.0.0 GLASSMORPHISM DESIGN */}
+      {/* Sidebar - V0.9.90: Floating Glass Sidebar */}
       <motion.aside 
         initial={false} 
-        animate={{ width: sidebarOpen ? 300 : (isMobile ? 0 : 96), x: sidebarOpen ? 0 : (isMobile ? 300 : 0) }} 
-        className="fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500 border-l border-slate-200 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl shadow-2xl"
+        animate={{ width: sidebarOpen ? 260 : (isMobile ? 0 : 80), x: sidebarOpen ? 0 : (isMobile ? 260 : 0) }} 
+        className="fixed lg:relative z-[70] h-screen overflow-hidden flex flex-col transition-all duration-500 border-l border-white/20 dark:border-slate-800/50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl shadow-2xl"
       >
-        <div className="p-8 flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 h-24">
+        <div className="p-6 flex items-center gap-3 border-b border-white/10 dark:border-slate-800/30 h-20 shrink-0">
           <motion.div 
             whileHover={{ scale: 1.05, rotate: 5 }}
-            className="flex-shrink-0 bg-slate-900 dark:bg-white p-2.5 rounded-2xl shadow-lg shadow-slate-200 dark:shadow-none"
+            className="flex-shrink-0 bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-500/20"
           >
-            <StartLogo className="w-9 h-9 text-white dark:text-slate-900" />
+            <ShieldCheck className="w-6 h-6 text-white" />
           </motion.div>
           {sidebarOpen && (
             <div className="flex flex-col">
-              <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none tracking-tighter italic">START</h1>
-              <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mt-1 tracking-[0.2em]">Management Hub</span>
+              <h1 className="text-sm font-black text-slate-900 dark:text-white leading-none tracking-tighter italic uppercase">Start</h1>
+              <span className="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase mt-0.5 tracking-widest">Admin Control</span>
             </div>
           )}
         </div>
-        <nav className="flex-1 p-6 space-y-8 overflow-y-auto">
+
+        <nav className="flex-1 p-3 space-y-6 overflow-y-auto no-scrollbar">
           {menuGroups.map((group, idx) => (
-            <div key={idx} className="space-y-4">
+            <div key={idx} className="space-y-2">
               {sidebarOpen && (
-                <p className="px-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] mb-2 opacity-60">
+                <p className="px-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1 opacity-60">
                   {group.title}
                 </p>
               )}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {group.items.map(item => (
                   <button 
                     key={item.id} 
@@ -1394,30 +1395,24 @@ function AdminContent() {
                       setActiveView(item.id); 
                       if (isMobile) setSidebarOpen(false); 
                     }} 
-                    className={`w-full flex items-center gap-4 p-4 rounded-[20px] transition-all relative group overflow-hidden ${
+                    className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all relative group overflow-hidden ${
                       activeView === item.id 
-                        ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-none" 
-                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
                     }`}
                   >
-                    {activeView === item.id && (
-                      <motion.div 
-                        layoutId="adminActiveNav"
-                        className="absolute inset-0 bg-indigo-600/10 dark:bg-indigo-600/20" 
-                      />
-                    )}
-                    <div className={`${activeView === item.id ? "text-white dark:text-slate-900" : "text-slate-400 group-hover:scale-110 group-hover:text-slate-900 dark:group-hover:text-slate-100"} transition-all relative z-10`}>
-                      <item.icon className="w-5 h-5" />
+                    <div className={`${activeView === item.id ? "text-white" : "text-slate-400 group-hover:scale-110 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"} transition-all relative z-10`}>
+                      <item.icon className="w-4.5 h-4.5" />
                     </div>
                     {sidebarOpen && (
-                      <span className="text-[13px] font-black flex-1 text-right relative z-10 tracking-tight">
+                      <span className="text-xs font-black flex-1 text-right relative z-10 tracking-tight">
                         {item.label}
                       </span>
                     )}
                     {item.id === 'operations' && liveOrders.filter(o => o.status === "جاري البحث").length > 0 && (
-                      <span className="relative z-10 flex h-5 w-5">
+                      <span className="relative z-10 flex h-4 w-4">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 text-[10px] font-black text-white flex items-center justify-center">
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[8px] font-black text-white flex items-center justify-center">
                           {liveOrders.filter(o => o.status === "جاري البحث").length}
                         </span>
                       </span>
@@ -1428,61 +1423,56 @@ function AdminContent() {
             </div>
           ))}
         </nav>
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/20">
+
+        <div className="p-4 border-t border-white/10 dark:border-slate-800/30 shrink-0">
           <button 
-            onClick={handleSignOut} 
-            className="w-full flex items-center gap-4 p-4 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all group"
+            onClick={() => {
+              triggerHaptic(ImpactStyle.Medium);
+              handleSignOut();
+            }} 
+            className="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all group"
           >
-            {sidebarOpen && <span className="text-sm font-black flex-1 text-right">تسجيل الخروج</span>}
-            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-red-50 dark:group-hover:bg-red-500/10 group-hover:scale-110 transition-all">
-              <LogOut className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center group-hover:scale-110 transition-all border border-red-100/50 dark:border-red-500/20">
+              <LogOut className="w-4 h-4" />
             </div>
+            {sidebarOpen && <span className="text-xs font-black flex-1 text-right">خروج آمن</span>}
           </button>
         </div>
       </motion.aside>
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
-        <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl h-24 px-8 flex items-center justify-between sticky top-0 z-50 border-b border-slate-100 dark:border-slate-800/50 transition-all duration-500 shadow-xl shadow-slate-200/40 dark:shadow-none">
-          <div className="flex items-center gap-6">
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
+        {/* Premium Background Elements */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-sky-500/5 rounded-full blur-[120px] -ml-64 -mb-64 pointer-events-none" />
+
+        <header className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl h-16 px-6 flex items-center justify-between sticky top-0 z-50 border-b border-white/20 dark:border-slate-800/30 shrink-0">
+          <div className="flex items-center gap-4">
+            <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 shadow-sm"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500"
             >
-              <Menu className="w-6 h-6 text-slate-600 dark:text-slate-400" />
-            </motion.button>
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tighter flex items-center gap-3 italic">
-                لوحة التحكم
-                <span className="bg-indigo-600 text-white px-2.5 py-0.5 rounded-lg text-[9px] font-black shadow-lg shadow-indigo-200 dark:shadow-none tracking-widest">AD-ULTIMATE</span>
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
-                  System Active
-                  <span className="w-1 h-1 rounded-full bg-slate-300" />
-                  V1.5.0-STABLE
-                  <span className="w-1 h-1 rounded-full bg-slate-300" />
-                  {lastSync.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <div>
+              <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                {menuGroups.flatMap(g => g.items).find(i => i.id === activeView)?.label || "لوحة التحكم"}
+              </h2>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">System V19.6.7</p>
             </div>
           </div>
           
-          <div className="hidden md:flex flex-1 max-w-lg mx-12 relative">
+          <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
             <div className="relative w-full group">
-              <Search className="absolute right-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
               <input 
                 type="text" 
-                placeholder="بحث ذكي عن طلب، كابتن، أو متجر..."
+                placeholder="بحث ذكي..."
                 value={globalSearch}
                 onChange={(e) => {
                   setGlobalSearch(e.target.value);
                   setShowSearchResults(true);
                 }}
-                onFocus={() => setShowSearchResults(true)}
-                className="w-full bg-slate-100/50 dark:bg-slate-800/50 border-none rounded-[20px] py-3.5 pr-12 pl-6 text-[13px] font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-slate-800 transition-all duration-300 placeholder:text-slate-400 dark:text-white"
+                className="w-full bg-slate-100/50 dark:bg-slate-800/50 border-none rounded-xl py-2 pr-10 pl-4 text-xs font-bold focus:bg-white dark:focus:bg-slate-800 ring-2 ring-transparent focus:ring-indigo-500/20 transition-all outline-none"
               />
               
               <AnimatePresence>
@@ -1493,10 +1483,10 @@ function AdminContent() {
                       className="fixed inset-0 z-40" onClick={() => setShowSearchResults(false)} 
                     />
                     <motion.div 
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-2xl z-50 overflow-hidden"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full mt-2 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-slate-800 shadow-2xl z-50 overflow-hidden"
                     >
                       <div className="p-2 max-h-[400px] overflow-y-auto">
                         {searchResults.users.length === 0 && searchResults.orders.length === 0 && (
