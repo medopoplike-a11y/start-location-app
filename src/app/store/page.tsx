@@ -142,8 +142,15 @@ function StoreContent() {
   // V19.5.8: Global Connection Status Tracking
   const [isSocketConnected, setIsSocketConnected] = useState(true);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const checkInterval = setInterval(() => {
-      setIsSocketConnected(supabase.realtime.isConnected());
+      try {
+        if (supabase?.realtime) {
+          setIsSocketConnected(supabase.realtime.isConnected());
+        }
+      } catch (e) {
+        console.warn("Socket check failed:", e);
+      }
     }, 5000);
     return () => clearInterval(checkInterval);
   }, []);
@@ -750,10 +757,10 @@ function StoreContent() {
         // V19.5.0: Highly optimized parallel fetching for Store
         const [dbOrders, walletRes, settlementsRes, driversRes, profileRes, uncollectedRes] = await Promise.allSettled([
           withTimeout('store.getVendorOrders', getVendorOrders({ role: 'vendor', userId: uid }), 6000),
-          withTimeout('store.wallet', supabase.from('wallets').select('system_balance').eq('user_id', uid).single(), 4000),
+          withTimeout('store.wallet', supabase.from('wallets').select('system_balance').eq('user_id', uid).maybeSingle(), 4000),
           withTimeout('store.settlements', supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }), 4000),
           withTimeout('store.drivers', supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true), 4000),
-          withTimeout('store.profile', supabase.from('profiles').select('*').eq('id', uid).single(), 4000),
+          withTimeout('store.profile', supabase.from('profiles').select('*').eq('id', uid).maybeSingle(), 4000),
           withTimeout('store.uncollected', supabase.from('orders')
             .select('financials')
             .eq('vendor_id', uid)
