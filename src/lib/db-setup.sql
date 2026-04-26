@@ -1074,7 +1074,7 @@ BEGIN
   DELETE FROM public.ratings WHERE from_id = p_user_id OR to_id = p_user_id;
   DELETE FROM public.wallets WHERE user_id = p_user_id;
   DELETE FROM public.order_messages WHERE sender_id = p_user_id;
-  DELETE FROM public.location_logs WHERE driver_id = p_user_id;
+  DELETE FROM public.location_logs WHERE user_id = p_user_id;
   
   -- 3. حذف البروفايل
   DELETE FROM public.profiles WHERE id = p_user_id;
