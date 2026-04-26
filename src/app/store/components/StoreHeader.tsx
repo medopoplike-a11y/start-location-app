@@ -79,7 +79,7 @@ export default function StoreHeader({
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="flex items-center gap-1 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
               <Store className="w-2.5 h-2.5" />
-              لوحة التحكم V19.5.1
+              لوحة التحكم V19.5.2
             </span>
             <RatingBadge rating={rating} count={ratingCount} size="xs" />
           </div>

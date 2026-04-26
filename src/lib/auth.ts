@@ -209,18 +209,26 @@ export const signIn = async (email: string, password?: string) => {
   try {
     console.log("signIn: Calling supabase.auth.signInWithPassword...");
     const result = await supabase.auth.signInWithPassword({ email, password });
-    console.log("=== signIn RESULT SUCCESS ===");
-    return result;
-  } catch (error: any) {
-    console.error("=== signIn ERROR ===");
-    console.error("signIn Error details:", error);
+    console.log("=== signIn RESULT COMPLETED ===");
     
-    // Handle specific common errors
-    if (error.message?.includes('Failed to fetch')) {
-      return { data: null, error: new Error('فشل الاتصال بالسيرفر. يرجى التحقق من اتصال الإنترنت.') };
+    // V19.5.2: Guard against totally empty or malformed results
+    if (!result) {
+      return { data: { user: null, session: null }, error: { message: "فشل الاتصال بخادم الهوية", status: 500 } as any };
     }
     
-    return { data: null, error: error };
+    return result;
+  } catch (error: any) {
+    console.error("=== signIn CRITICAL EXCEPTION ===");
+    console.error("signIn Error details:", error);
+    
+    // V19.5.2: Standardize the error object returned to the UI
+    return { 
+      data: { user: null, session: null }, 
+      error: { 
+        message: error?.message || "حدث خطأ أثناء الاتصال بالخادم. يرجى التحقق من الإنترنت.",
+        status: error?.status || 500
+      } as any 
+    };
   }
 };
 

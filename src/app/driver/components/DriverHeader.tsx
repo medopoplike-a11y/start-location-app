@@ -77,7 +77,7 @@ function DriverHeader({
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <h1 className="text-[10px] font-black text-slate-900 dark:text-white leading-none tracking-tight uppercase italic">Start</h1>
-              <span className="bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 text-[7px] font-black px-1 py-0.5 rounded border border-blue-600/10 dark:border-blue-500/20">V19.5.1</span>
+              <span className="bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 text-[7px] font-black px-1 py-0.5 rounded border border-blue-600/10 dark:border-blue-500/20">V19.5.2</span>
               {isSurgeActive && (
                 <motion.div 
                   animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}

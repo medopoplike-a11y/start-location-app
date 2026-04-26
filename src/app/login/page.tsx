@@ -325,16 +325,27 @@ const LoginPage = () => {
     } catch (e) {}
 
     try {
+      // V17.3.0: Radical cleanup before login to prevent session pollution
       if (typeof window !== 'undefined') {
         localStorage.removeItem('start-location-v1-session');
-        if ((window as any).Capacitor?.isNativePlatform?.()) {
-          const { Preferences } = await import('@capacitor/preferences');
-          await Preferences.remove({ key: 'start-location-v1-session' });
-          // Also clear any stuck supabase tokens
-          const { keys } = await Preferences.keys();
-          for (const key of keys) {
-            if (key.includes('auth-token')) await Preferences.remove({ key });
+        try {
+          if ((window as any).Capacitor?.isNativePlatform?.()) {
+            const { Preferences } = await import('@capacitor/preferences');
+            await Preferences.remove({ key: 'start-location-v1-session' });
+            
+            // V19.5.2: Safer key iteration to prevent crashes
+            const keysRes = await Preferences.keys().catch(() => ({ keys: [] }));
+            const allKeys = keysRes?.keys || [];
+            if (Array.isArray(allKeys)) {
+              for (const key of allKeys) {
+                if (key && typeof key === 'string' && key.includes('auth-token')) {
+                  await Preferences.remove({ key }).catch(() => {});
+                }
+              }
+            }
           }
+        } catch (prefErr) {
+          console.warn("[LoginV19.5.2] Preferences cleanup failed, continuing anyway", prefErr);
         }
       }
 

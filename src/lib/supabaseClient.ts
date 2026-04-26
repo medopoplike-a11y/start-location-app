@@ -168,10 +168,20 @@ const nativeFetch = async (url: string, options: any = {}) => {
       // Convert response data to string for standard Response object
       const bodyString = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
 
+      // V19.5.2: Safer header construction to prevent crashes on older webviews
+      const responseHeaders = new Headers();
+      if (response.headers) {
+        Object.entries(response.headers).forEach(([k, v]) => {
+          try {
+            responseHeaders.set(k, String(v));
+          } catch (e) {}
+        });
+      }
+
       return new Response(bodyString, {
         status: response.status,
         statusText: response.status === 200 ? 'OK' : `Status ${response.status}`,
-        headers: new Headers(response.headers as any),
+        headers: responseHeaders,
       });
     } catch (error: any) {
       lastError = error;
