@@ -112,10 +112,10 @@ export default function VendorsView({ vendors, onAddVendor, onUpdateVendorBillin
                     <span className="text-[9px] font-black text-slate-300 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">#{v.id}</span>
                     <button 
                       onClick={() => onDeleteUser?.(v.id_full, v.name)}
-                      className="p-1 hover:bg-red-50 rounded-lg text-slate-300 hover:text-red-500 transition-colors"
+                      className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-500/20"
                       title="حذف الحساب نهائياً"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
