@@ -113,7 +113,17 @@ function DriverHeader({
         {/* Combined Sync Controls */}
         <div className="flex items-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none overflow-hidden">
           <div className="px-2 py-1 border-l border-white/10 dark:border-slate-800 scale-90">
-            <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} networkHealth={networkHealth} />
+            <SyncIndicator 
+              lastSync={lastSyncTime} 
+              isSyncing={isRefreshing} 
+              networkHealth={networkHealth} 
+              onReset={() => {
+                import("@/lib/supabaseClient").then(({ forceReconnectRealtime }) => {
+                  forceReconnectRealtime(true);
+                  onSync();
+                });
+              }}
+            />
           </div>
           <motion.button
             whileHover={{ scale: 1.05, rotate: 180 }}

@@ -312,12 +312,15 @@ let isReconnecting = false;
 let lastReconnectTime = 0;
 const RECONNECT_COOLDOWN = 3000; // 3s cooldown between force-reconnects
 
-export const forceReconnectRealtime = async () => {
+// V19.5.8: Increased Force Reconnect threshold for extreme cases
+export const forceReconnectRealtime = async (isManual = false) => {
   if (typeof window === 'undefined' || !supabase.realtime || isReconnecting) return;
   
   const now = Date.now();
-  if (now - lastReconnectTime < RECONNECT_COOLDOWN) {
-    console.log("[RealtimeV17.9.9] Reconnect in cooldown, skipping...");
+  // Cooldown is 3s for automated, 1s for manual user-triggered
+  const cooldown = isManual ? 1000 : RECONNECT_COOLDOWN;
+  if (now - lastReconnectTime < cooldown) {
+    console.log("[RealtimeV19.5.8] Reconnect in cooldown, skipping...");
     return;
   }
   

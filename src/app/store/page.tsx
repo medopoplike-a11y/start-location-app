@@ -138,6 +138,15 @@ function StoreContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [updatingLocation, setUpdatingLocation] = useState(false);
+  
+  // V19.5.8: Global Connection Status Tracking
+  const [isSocketConnected, setIsSocketConnected] = useState(true);
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      setIsSocketConnected(supabase.realtime.isConnected());
+    }, 5000);
+    return () => clearInterval(checkInterval);
+  }, []);
   const [showInAppCamera, setShowInAppCamera] = useState(false);
   const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
   const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
@@ -1506,7 +1515,11 @@ function StoreContent() {
             onSearchChange={setSearchQuery}
             onOpenDrawer={() => setShowDrawer(true)}
             onSync={() => vendorId && updateData(vendorId)}
-            onResetSync={() => setIsSyncing(false)}
+            onResetSync={() => {
+              try { Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {}); } catch(e) {}
+              forceReconnectRealtime(true);
+              if (vendorId) updateData(vendorId);
+            }}
             isSurgeActive={appConfig.surge_pricing_active}
             onOpenAI={handleRequestStoreAI}
             rating={authProfile?.rating || 0}

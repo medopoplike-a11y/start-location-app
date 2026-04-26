@@ -86,13 +86,15 @@ export const useSync = (
     if (payload?.source === 'initial_subscribe' && !payload?.force) return;
 
     // V19.5.1: Critical updates are processed INSTANTLY.
-    // We removed setIsSyncing(true) from here to prevent the UI from "flickering" 
-    // in sync mode during every small realtime update.
     if (payload?.source === 'system_sync' || payload?.source === 'new_order' || payload?.source === 'order_update' || payload?.source === 'location_update') {
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
       return;
     }
+
+    // V19.5.8: Detect if we're recovering from a disconnection
+    const isRecovery = payload?.source === 'wakeup_sync' || payload?.source === 'ghost_refresh' || payload?.source === 'app_resume_start';
+    const debounceMs = isRecovery ? 300 : 100;
 
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
@@ -103,7 +105,7 @@ export const useSync = (
       if (onUpdateRef.current) onUpdateRef.current(payload);
       setLastSync(new Date());
       syncTimeoutRef.current = null;
-    }, 100); // V19.5.1: Increased to 100ms to better batch rapid updates
+    }, debounceMs); // V19.5.8: Use adaptive debounce
   }, []);
 
   const subscribe = useCallback(async () => {
