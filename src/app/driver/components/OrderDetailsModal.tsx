@@ -81,8 +81,8 @@ const OrderDetailsModal = memo(function OrderDetailsModal({
         const { requestAIAnalysis } = await import("@/lib/api/ai");
         const res = await requestAIAnalysis('vision_qc', {
           order: {
-            id: order?.id_full,
-            items: order?.items_description,
+            id: order?.id,
+            items: (order as any)?.items_description || "طلب عام",
             value: totalOrderValue
           },
           image: base64
@@ -130,6 +130,10 @@ const OrderDetailsModal = memo(function OrderDetailsModal({
   const totalDeliveryFee = useMemo(() => (order?.customers || []).reduce((acc, c) => acc + (Number(c?.deliveryFee) || 0), 0), [order?.customers]);
 
   if (!order) return null;
+
+  // V19.5.7: Fix ReferenceError by defining config and currentStep
+  const config = statusConfig[order.status] || statusConfig.pending;
+  const currentStep = config.step;
 
   const handleAction = async () => {
     if (loading) return;
