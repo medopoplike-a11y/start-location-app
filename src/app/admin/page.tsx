@@ -146,7 +146,8 @@ function AdminContent() {
 
   const updateDriverRegistry = useCallback((payload: Partial<OnlineDriver> & { id: string }, source: 'db' | 'realtime') => {
     setOnlineDrivers(prev => {
-      const existingIndex = prev.findIndex(d => d.id === payload.id);
+      if (!Array.isArray(prev)) return [];
+      const existingIndex = prev.findIndex(d => d && d.id === payload.id);
       const existing = existingIndex !== -1 ? prev[existingIndex] : null;
       const now = Date.now();
       
@@ -208,8 +209,9 @@ function AdminContent() {
 
       // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
       setDrivers(current => {
+        if (!Array.isArray(current)) return [];
         const updated = current.map(d => {
-          if (d.id_full === payload.id) {
+          if (d && d.id_full === payload.id) {
             // PROTECTION: If current driver in list has a newer timestamp, don't overwrite its location
             if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp) {
                return {
@@ -277,7 +279,12 @@ function AdminContent() {
     const vendorsList: VendorCard[] = [];
 
     const activeWallets = walletsData || wallets || [];
-    const currentOnlineDriversMap = new Map(onlineDriversRef.current.map(d => [d.id, d]));
+    // V19.5.3: Robust Map creation with safety filter
+    const currentOnlineDriversMap = new Map(
+      (onlineDriversRef.current || [])
+        .filter(d => d && d.id)
+        .map(d => [d.id, d])
+    );
 
     profiles.forEach(p => {
       const role = (p.role || '').toLowerCase();
@@ -702,7 +709,7 @@ function AdminContent() {
     if (mounted && !authLoading && user) {
 
       // ── Global system alerts ──
-      if (payload?.payload?.type === 'system_alert') {
+      if (payload?.payload?.type === 'system_alert' && payload?.payload?.message) {
         toastSuccess(payload.payload.message);
         return;
       }
@@ -1252,8 +1259,8 @@ function AdminContent() {
   }, [allOrders, onlineDrivers]);
 
   const stats = useMemo(() => [
-    { title: "إجمالي الطلبات", value: allOrders.length, icon: <Truck className="text-sky-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب", color: "sky" },
-    { title: "المناديب النشطين", value: drivers.filter(d => !d.isShiftLocked).length, icon: <Users className="text-emerald-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن", color: "emerald" },
+    { title: "إجمالي الطلبات", value: (allOrders || []).length, icon: <Truck className="text-sky-500 w-5 h-5" />, trend: "+12%", trendType: 'positive' as const, subtitle: "طلب", color: "sky" },
+    { title: "المناديب النشطين", value: (drivers || []).filter(d => d && !d.isShiftLocked).length, icon: <Users className="text-emerald-500 w-5 h-5" />, trend: "+5%", trendType: 'positive' as const, subtitle: "كابتن", color: "emerald" },
     { title: "صندوق التأمين", value: formatCurrency(insuranceFund), icon: <ShieldCheck className="text-rose-500 w-5 h-5" />, trend: "+2%", trendType: 'positive' as const, subtitle: "ج.م", color: "rose" },
     { title: "عمولات مستحقة", value: formatCurrency(totalSystemDebt), icon: <Wallet className="text-amber-500 w-5 h-5" />, trend: "المديونية", trendType: 'neutral' as const, subtitle: "ج.م", color: "amber" },
     { title: "أرباح النظام", value: formatCurrency(totalProfits), icon: <RefreshCw className="text-indigo-500 w-5 h-5" />, trend: "محسوبة", trendType: 'positive' as const, subtitle: "ج.م", color: "indigo" },

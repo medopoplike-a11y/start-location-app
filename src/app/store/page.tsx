@@ -882,7 +882,22 @@ function StoreContent() {
   };
 
   const mapDBOrderToUI = (db: VendorDBOrder): Order => {
-    // Robust mapping with safety checks
+    // V19.5.3: Robust mapping with total safety checks
+    if (!db) {
+      return {
+        id: "error-" + Math.random(),
+        customer: "خطأ في البيانات",
+        address: "غير متوفر",
+        status: 'cancelled',
+        amount: "0",
+        deliveryFee: "0",
+        time: "00:00",
+        createdAt: new Date().toISOString(),
+        isPickedUp: false,
+        financials: { order_value: 0, delivery_fee: 0, system_commission: 0, vendor_commission: 0, driver_earnings: 0, insurance_fee: 0, prep_time: "15" }
+      } as any;
+    }
+
     const financials = db.financials || { order_value: 0, delivery_fee: 0 };
     const customerDetails = db.customer_details || { name: "عميل", address: "عنوان غير محدد" };
 

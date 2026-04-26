@@ -317,6 +317,19 @@ export const useSync = (
     window.addEventListener('app-resume-sync', handleResumeSync);
     window.addEventListener('supabase-realtime-recovered', handleSocketRecovered);
 
+    // V19.5.3: Define network handlers locally to avoid ReferenceError in cleanup
+    const handleOnline = () => {
+      isOnlineRef.current = true;
+      console.log("useSync: System back online");
+    };
+    const handleOffline = () => {
+      isOnlineRef.current = false;
+      console.warn("useSync: System went offline");
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     // V17.9.9: Persistent heartbeat channel to avoid resource leaks
     const heartbeat = setInterval(async () => {
       // V19.1.0: ULTIMATE Predictive Network Guard
