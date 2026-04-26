@@ -260,31 +260,31 @@ const OperationsCenter = memo(function OperationsCenter({
             transition={{ duration: 0.4 }}
             className="px-8 pt-4"
           >
-            <div className="bg-gradient-to-r from-indigo-600 to-violet-700 text-white rounded-[32px] p-6 flex items-start gap-6 relative overflow-hidden shadow-2xl shadow-indigo-500/20 border border-white/20">
+            <div className="bg-gradient-to-r from-indigo-600 to-violet-700 text-white rounded-3xl p-5 flex items-start gap-5 relative overflow-hidden shadow-xl shadow-indigo-500/10 border border-white/20">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 animate-pulse" />
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-24 -mb-24" />
               
-              <div className="w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shrink-0 relative z-10 shadow-inner border border-white/20">
-                <Bot className="w-8 h-8" />
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-xl rounded-xl flex items-center justify-center shrink-0 relative z-10 shadow-inner border border-white/20">
+                <Bot className="w-6 h-6" />
               </div>
               
               <div className="flex-1 relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-90">التقرير التنفيذي الذكي</h3>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-90">التقرير التنفيذي الذكي</h3>
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
                       <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
-                      <span className="text-[8px] font-black uppercase tracking-widest text-emerald-300">Live AI</span>
+                      <span className="text-[7px] font-black uppercase tracking-widest text-emerald-300">Live AI</span>
                     </div>
                   </div>
                   <button 
                     onClick={() => setAiSummary(null)} 
-                    className="p-2 hover:bg-white/10 rounded-xl transition-all hover:rotate-90"
+                    className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-                <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap text-indigo-50/90">
+                <p className="text-xs font-bold leading-relaxed whitespace-pre-wrap text-indigo-50/90">
                   {aiSummary}
                 </p>
               </div>
@@ -294,112 +294,88 @@ const OperationsCenter = memo(function OperationsCenter({
       </AnimatePresence>
 
       {/* Top Action Bar */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-30 shadow-sm">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
-                <Zap size={20} />
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-6 py-3 flex items-center justify-between z-30 shadow-sm">
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2.5">
+             <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-500/10">
+                <Zap size={18} />
              </div>
              <div>
-                <h1 className="text-lg font-black text-slate-900 dark:text-white">مركز القيادة الموحد</h1>
-                <div className="flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                   <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">System Pulse: Active</span>
+                <h1 className="text-base font-black text-slate-900 dark:text-white leading-tight">مركز القيادة</h1>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                   <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tight">Active Pulse</span>
                 </div>
              </div>
           </div>
           
-          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
+          <div className="h-6 w-px bg-slate-100 dark:bg-slate-800" />
           
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <button 
               onClick={() => setActiveTab("operations")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all relative ${
-                activeTab === "operations" ? "bg-amber-500 text-white shadow-lg shadow-amber-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black transition-all relative ${
+                activeTab === "operations" ? "bg-amber-500 text-white shadow-lg shadow-amber-600/10" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <LayoutGrid className="w-4 h-4" />
-              المراقبة والخريطة الحية
+              <LayoutGrid className="w-3.5 h-3.5" />
+              المراقبة
               {pendingOrdersCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-900 animate-bounce">
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-900">
                   {pendingOrdersCount}
                 </span>
               )}
             </button>
             <button 
               onClick={() => setActiveTab("monitor")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all relative ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black transition-all relative ${
                 activeTab === "monitor" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <Activity className="w-4 h-4" />
-              إدارة المهام
-              {liveOrders.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-400 text-white text-[8px] flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-900">
-                  {liveOrders.length}
-                </span>
-              )}
+              <Activity className="w-3.5 h-3.5" />
+              المهام
             </button>
             <button 
               onClick={() => setActiveTab("ai")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black transition-all ${
                 activeTab === "ai" ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <Zap className="w-4 h-4" />
-              الذكاء الاصطناعي
-            </button>
-            <button 
-              onClick={() => setActiveTab("charts")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-                activeTab === "charts" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              التحليلات
-            </button>
-            <button 
-              onClick={() => setActiveTab("system")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-                activeTab === "system" ? "bg-slate-900 dark:bg-slate-800 text-white shadow-lg shadow-slate-600/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-              التحكم في النظام
+              <Zap className="w-3.5 h-3.5" />
+              AI
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-2xl border border-slate-100 dark:border-slate-800">
-             <div className="text-center px-3">
-                <p className="text-[9px] font-black text-slate-400 uppercase">الطلبات النشطة</p>
-                <p className="text-sm font-black text-amber-600">{liveOrders.length}</p>
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+             <div className="text-center px-2">
+                <p className="text-[8px] font-black text-slate-400 uppercase">النشطة</p>
+                <p className="text-xs font-black text-amber-600">{liveOrders.length}</p>
              </div>
-             <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
-             <div className="text-center px-3">
-                <p className="text-[9px] font-black text-slate-400 uppercase">الطيارين المتصلين</p>
-                <p className="text-sm font-black text-emerald-600">{onlineDrivers.length}</p>
+             <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+             <div className="text-center px-2">
+                <p className="text-[8px] font-black text-slate-400 uppercase">متصل</p>
+                <p className="text-xs font-black text-emerald-600">{onlineDrivers.length}</p>
              </div>
           </div>
           
-          {/* AI Executive Summary Button (V19.3.0) */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleGenerateAiSummary}
             disabled={aiLoading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[11px] shadow-lg shadow-indigo-200 dark:shadow-none disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg font-black text-[10px] shadow-lg shadow-indigo-200/50 disabled:opacity-50"
           >
-            {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 animate-pulse" />}
-            {aiSummary ? "تحديث التقرير" : "تقرير AI"}
+            {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 animate-pulse" />}
+            تقرير AI
           </motion.button>
 
           <button 
             onClick={onRefresh}
             disabled={actionLoading}
-            className="p-3 bg-white dark:bg-slate-800 text-slate-400 hover:text-blue-500 rounded-xl border border-slate-100 dark:border-slate-800 transition-all shadow-sm active:scale-95"
+            className="p-2 bg-white dark:bg-slate-800 text-slate-400 hover:text-blue-500 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm"
           >
-            <RefreshCw className={`w-4 h-4 ${actionLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
@@ -419,7 +395,7 @@ const OperationsCenter = memo(function OperationsCenter({
               className="flex-1 flex gap-4 w-full h-full overflow-hidden"
             >
               {/* 1. Main Map Area (Integrated) */}
-              <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
+              <div className="flex-1 relative bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                 <LiveMap
                   drivers={mapDrivers}
                   vendors={mapVendors}
@@ -429,17 +405,17 @@ const OperationsCenter = memo(function OperationsCenter({
                 />
 
                 {/* Map Overlays: Quick Actions */}
-                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                  <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl">
-                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2">التوزيع التلقائي</p>
+                <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+                  <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg">
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5">التوزيع التلقائي</p>
                     <button 
                       onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
-                      className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${
-                        autoRetryEnabled ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20" : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                        autoRetryEnabled ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/10" : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
                       }`}
                     >
-                      <Zap className={`w-4 h-4 ${autoRetryEnabled ? "animate-pulse" : ""}`} />
-                      <span className="text-xs font-black">{autoRetryEnabled ? "مفعّل الآن" : "معطّل حالياً"}</span>
+                      <Zap className={`w-3.5 h-3.5 ${autoRetryEnabled ? "animate-pulse" : ""}`} />
+                      <span className="text-[11px] font-black">{autoRetryEnabled ? "مفعّل" : "معطّل"}</span>
                     </button>
                   </div>
                 </div>
@@ -447,36 +423,35 @@ const OperationsCenter = memo(function OperationsCenter({
 
               {/* 2. Side Distribution Panel (Manual Distribution Integrated) */}
               <motion.div 
-                animate={{ width: showSidePanel ? 400 : 0, opacity: showSidePanel ? 1 : 0 }}
-                className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-hidden"
+                animate={{ width: showSidePanel ? 340 : 0, opacity: showSidePanel ? 1 : 0 }}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-hidden"
               >
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
-                      <Truck className="w-5 h-5" />
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center text-amber-500">
+                      <Truck className="w-4.5 h-4.5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">التوزيع والتحكم</h3>
-                      <p className="text-[10px] text-slate-400 font-bold">إدارة الطلبات النشطة ({pendingOrders.length})</p>
-                <span className="text-[8px] font-black opacity-30 tracking-widest mr-2 uppercase">v0.9.95-FULL-SYNC-UNIFIED</span>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white">التوزيع</h3>
+                      <p className="text-[9px] text-slate-400 font-bold">الطلبات النشطة ({pendingOrders.length})</p>
                     </div>
                   </div>
-                  <button onClick={() => setShowSidePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
-                    <ChevronRight className="w-5 h-5" />
+                  <button onClick={() => setShowSidePanel(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                    <ChevronRight className="w-4.5 h-4.5" />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div className="flex-1 overflow-y-auto p-3 space-y-4">
                   {/* Active Orders Section (V0.9.87 Redesign) */}
                   <div>
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 px-2">قائمة الطلبات النشطة والتحكم</h4>
+                    <h4 className="text-[9px] font-black text-slate-400 uppercase mb-2 px-1">قائمة الطلبات</h4>
                     {pendingOrders.length === 0 ? (
-                      <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-                        <CheckCircle className="w-8 h-8 text-emerald-500/20 mx-auto mb-2" />
-                        <p className="text-[11px] font-bold text-slate-400">لا توجد طلبات نشطة</p>
+                      <div className="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                        <CheckCircle className="w-6 h-6 text-emerald-500/20 mx-auto mb-1.5" />
+                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات</p>
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {pendingOrders.map(order => {
                           const isSelected = selectedOrderId === order.id;
                           const assignedDriver = order.driver_id ? drivers.find(d => d.id_full === order.driver_id) : null;
@@ -485,32 +460,32 @@ const OperationsCenter = memo(function OperationsCenter({
                             <div key={order.id} className="flex flex-col gap-1">
                               <button
                                 onClick={() => setSelectedOrderId(isSelected ? null : order.id)}
-                                className={`w-full text-right p-4 rounded-[24px] border transition-all ${
+                                className={`w-full text-right p-3 rounded-xl border transition-all ${
                                   isSelected 
-                                  ? "bg-slate-900 text-white border-slate-800 shadow-xl" 
+                                  ? "bg-slate-900 text-white border-slate-800 shadow-lg" 
                                   : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-blue-200"
                                 }`}
                               >
-                                <div className="flex justify-between items-start mb-2">
+                                <div className="flex justify-between items-start mb-1.5">
                                   <div className="flex flex-col">
-                                    <p className={`text-xs font-black ${isSelected ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor_full_name}</p>
-                                    <p className={`text-[10px] font-bold ${isSelected ? "text-white/60" : "text-slate-400"}`}>{order.customer_details?.name || "عميل"}</p>
+                                    <p className={`text-[11px] font-black ${isSelected ? "text-white" : "text-slate-900 dark:text-white"}`}>{order.vendor_full_name}</p>
+                                    <p className={`text-[9px] font-bold ${isSelected ? "text-white/60" : "text-slate-400"}`}>{order.customer_details?.name || "عميل"}</p>
                                   </div>
-                                  <span className={`text-[8px] font-black px-2 py-1 rounded-lg ${
+                                  <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-md ${
                                     order.status === 'pending' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' :
                                     order.status === 'assigned' ? 'bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400' :
                                     'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                                   }`}>
-                                    {order.status === 'pending' ? 'بانتظار التعيين' : order.status === 'assigned' ? 'تم التعيين' : 'في الطريق'}
+                                    {order.status === 'pending' ? 'بانتظار' : order.status === 'assigned' ? 'تم التعيين' : 'في الطريق'}
                                   </span>
                                 </div>
 
                                 {order.driver_id && (
-                                  <div className={`flex items-center gap-2 mt-2 pt-2 border-t ${isSelected ? "border-white/10" : "border-slate-50 dark:border-slate-700"}`}>
-                                    <div className="w-6 h-6 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-500">
-                                      <User size={12} />
+                                  <div className={`flex items-center gap-1.5 mt-1.5 pt-1.5 border-t ${isSelected ? "border-white/10" : "border-slate-50 dark:border-slate-700"}`}>
+                                    <div className="w-5 h-5 bg-blue-500/20 rounded-md flex items-center justify-center text-blue-500">
+                                      <User size={10} />
                                     </div>
-                                    <p className={`text-[10px] font-black ${isSelected ? "text-blue-400" : "text-blue-600"}`}>
+                                    <p className={`text-[9px] font-black ${isSelected ? "text-blue-400" : "text-blue-600"}`}>
                                       الكابتن: {assignedDriver?.name || "غير معروف"}
                                     </p>
                                   </div>

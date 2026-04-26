@@ -54,26 +54,25 @@ function TabButton({ active, onClick, icon, label, count, color }: {
 }) {
   const colorClasses = {
     blue: active 
-      ? "bg-blue-600 text-white border-blue-400/30 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-500/10" 
+      ? "bg-blue-600 text-white border-blue-400/30 shadow-xl shadow-blue-500/20" 
       : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500/30 dark:hover:border-blue-500/30",
     amber: active 
-      ? "bg-amber-500 text-white border-amber-300/30 shadow-2xl shadow-amber-500/30 ring-4 ring-amber-500/10" 
+      ? "bg-amber-500 text-white border-amber-300/30 shadow-xl shadow-amber-500/20" 
       : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-amber-500/30 dark:hover:border-amber-500/30",
     emerald: active 
-      ? "bg-emerald-600 text-white border-emerald-400/30 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/10" 
+      ? "bg-emerald-600 text-white border-emerald-400/30 shadow-xl shadow-emerald-500/20" 
       : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 dark:hover:border-emerald-500/30"
   };
 
   return (
     <motion.button 
-      whileHover={{ y: -2 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className={`flex-1 py-4 rounded-[24px] text-[12px] font-black transition-all flex items-center justify-center gap-2.5 border-2 backdrop-blur-xl ${colorClasses[color]}`}
+      className={`flex-1 py-3 rounded-2xl text-[11px] font-black transition-all flex items-center justify-center gap-2 border-2 backdrop-blur-xl ${colorClasses[color]}`}
     >
       {icon}
       <span className="hidden sm:inline tracking-tight">{label}</span>
-      <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] ${active ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}>
+      <span className={`flex items-center justify-center min-w-[18px] h-4.5 px-1 rounded-full text-[9px] ${active ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}>
         {count}
       </span>
     </motion.button>
@@ -370,40 +369,40 @@ const DriverOrdersView = memo(function DriverOrdersView({
       <motion.div 
         initial={false}
         animate={{ 
-          height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "320px" : "180px")) : "85%"
+          height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "260px" : "150px")) : "85%"
         }}
-        className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-t-[48px] shadow-[0_-20px_80px_rgba(0,0,0,0.15)] dark:shadow-none border-t border-white/40 dark:border-slate-800/50 flex flex-col transition-all duration-500"
+        className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-white/40 dark:border-slate-800/50 flex flex-col transition-all duration-500"
       >
         {/* Map Mode Toggle Button - Floating above panel */}
-        <div className="absolute top-[-85px] right-6 z-30">
+        <div className="absolute top-[-70px] right-5 z-30">
           <motion.button
-            whileHover={{ scale: 1.05, y: -5 }}
+            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.9 }}
             onClick={onToggleMapMode}
-            className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-2xl backdrop-blur-2xl border-2 transition-all duration-500 ${
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl backdrop-blur-2xl border-2 transition-all duration-500 ${
               mapMode 
-              ? "bg-blue-600 text-white border-blue-400/50 shadow-blue-500/40" 
-              : "bg-white/95 dark:bg-slate-900/95 text-slate-500 border-white dark:border-slate-800 shadow-slate-200/50 dark:shadow-none"
+              ? "bg-blue-600 text-white border-blue-400/50 shadow-blue-500/30" 
+              : "bg-white/95 dark:bg-slate-900/95 text-slate-500 border-white dark:border-slate-800 shadow-slate-200/30 dark:shadow-none"
             }`}
           >
-            {mapMode ? <Maximize2 className="w-7 h-7" /> : <MapIcon className="w-7 h-7" />}
+            {mapMode ? <Maximize2 className="w-6 h-6" /> : <MapIcon className="w-6 h-6" />}
           </motion.button>
         </div>
 
         {/* Panel Handle & Tabs */}
-        <div className="w-full flex flex-col items-center pt-4 shrink-0">
+        <div className="w-full flex flex-col items-center pt-3 shrink-0">
           <motion.button 
             whileHover={{ scaleX: 1.2 }}
             onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-6 transition-all"
+            className="w-10 h-1 bg-slate-200 dark:bg-slate-800 rounded-full mb-4 transition-all"
           />
           
           {/* Order Tabs - PREMIUM VERSION */}
-          <div className="flex w-full px-6 gap-3 mb-6">
+          <div className="flex w-full px-5 gap-2 mb-4">
             <TabButton 
               active={activeOrderTab === "active"} 
               onClick={() => { setActiveOrderTab("active"); setIsPanelExpanded(activeOrderTab !== "active" ? true : !isPanelExpanded); }}
-              icon={<Zap className={`w-4 h-4 ${activeOrderTab === "active" ? "animate-pulse" : ""}`} />}
+              icon={<Zap className={`w-3.5 h-3.5 ${activeOrderTab === "active" ? "animate-pulse" : ""}`} />}
               label="النشطة"
               count={activeOrders.length}
               color="blue"
@@ -411,7 +410,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
             <TabButton 
               active={activeOrderTab === "available"} 
               onClick={() => { setActiveOrderTab("available"); setIsPanelExpanded(true); }}
-              icon={<Maximize2 className="w-4 h-4" />}
+              icon={<Maximize2 className="w-3.5 h-3.5" />}
               label="المتاحة"
               count={availableOrders.length}
               color="amber"
@@ -419,7 +418,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
             <TabButton 
               active={activeOrderTab === "completed"} 
               onClick={() => { setActiveOrderTab("completed"); setIsPanelExpanded(true); }}
-              icon={<CheckCircle2 className="w-4 h-4" />}
+              icon={<CheckCircle2 className="w-3.5 h-3.5" />}
               label="مكتمل"
               count={completedOrders.length}
               color="emerald"
@@ -428,34 +427,34 @@ const DriverOrdersView = memo(function DriverOrdersView({
         </div>
 
         {/* Panel Content */}
-        <div className="flex-1 overflow-y-auto px-5 pb-10">
+        <div className="flex-1 overflow-y-auto px-4 pb-8">
           {isActive ? (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3 pt-1">
               <AnimatePresence mode="wait">
                 {activeOrderTab === "active" && (
                   <motion.div key="active-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     {/* V19.3.0: AI Route Optimization */}
                     {activeOrders.length >= 2 && (
-                      <div className="mb-4">
+                      <div className="mb-3">
                         <motion.button
                           whileTap={{ scale: 0.98 }}
                           onClick={handleOptimizeRoute}
                           disabled={aiRouteLoading}
-                          className="w-full p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-[32px] border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between"
+                          className="w-full p-3.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                              <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50">
+                              <Sparkles className="w-4 h-4 text-white animate-pulse" />
                             </div>
                             <div className="text-right">
-                              <h4 className="text-[13px] font-black text-indigo-900 dark:text-indigo-100">ترتيب المسار الذكي</h4>
-                              <p className="text-[10px] font-bold text-indigo-600/70">توفير الوقت والوقود بالذكاء الاصطناعي</p>
+                              <h4 className="text-[12px] font-black text-indigo-900 dark:text-indigo-100 leading-none mb-1">ترتيب المسار الذكي</h4>
+                              <p className="text-[9px] font-bold text-indigo-600/70">تحسين المسار بالذكاء الاصطناعي</p>
                             </div>
                           </div>
                           {aiRouteLoading ? (
-                            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                            <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
                           ) : (
-                            <ChevronDown className={`w-5 h-5 text-indigo-600 transition-transform ${aiRouteResult ? 'rotate-180' : ''}`} />
+                            <ChevronDown className={`w-4 h-4 text-indigo-600 transition-transform ${aiRouteResult ? 'rotate-180' : ''}`} />
                           )}
                         </motion.button>
                         
@@ -465,11 +464,11 @@ const DriverOrdersView = memo(function DriverOrdersView({
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               exit={{ opacity: 0, height: 0 }}
-                              className="mt-2 p-4 bg-white dark:bg-slate-800 rounded-3xl border border-indigo-50 dark:border-indigo-900/50 shadow-sm"
+                              className="mt-2 p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-indigo-50 dark:border-indigo-900/50 shadow-sm"
                             >
-                              <div className="flex gap-3">
-                                <Bot className="w-5 h-5 text-indigo-600 shrink-0" />
-                                <p className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">
+                              <div className="flex gap-2.5">
+                                <Bot className="w-4 h-4 text-indigo-600 shrink-0" />
+                                <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">
                                   {aiRouteResult}
                                 </p>
                               </div>
