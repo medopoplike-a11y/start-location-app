@@ -210,21 +210,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   realtime: {
     params: {
-      // V17.4.0: Reduced from 20 → 5 to lower realtime server pressure.
-      // 5 events/sec is more than enough for logistics order updates and prevents
-      // the connection from being throttled or dropped under burst load.
-      events_per_second: 5,
+      // V19.5.0: Balanced performance (10 events/sec)
+      // Optimized for smoother live tracking while maintaining server stability.
+      events_per_second: 10,
     },
     config: {
-      // V17.4.0: STABILITY OVER AGGRESSION
-      // - self:false → don't receive your own broadcasts (was doubling traffic)
-      // - ack:false  → no per-broadcast acknowledgment (was adding round-trips)
-      // For driver location pings, occasional loss is acceptable; the next ping
-      // arrives in <5s anyway. This dramatically reduces network chatter.
+      // V19.5.0: PROACTIVE BROADCASTS
       broadcast: { self: false, ack: false },
       presence: { key: 'user' },
     },
-    timeout: 30000, // V17.4.0: 30s to tolerate brief mobile network stalls without dropping
+    timeout: 20000, // V19.5.0: Reduced to 20s for faster stall detection
   }
 });
 

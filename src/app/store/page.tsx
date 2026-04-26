@@ -699,13 +699,13 @@ function StoreContent() {
   const updateData = async (uid: string) => {
     if (!uid || isSyncingRef.current) return;
     
-    // V17.9.6: Debounce updateData to prevent rapid overlapping fetches
+    // V19.5.0: Debounce updateData for snappier UI
     if (updateDataTimeoutRef.current) clearTimeout(updateDataTimeoutRef.current);
     
     updateDataTimeoutRef.current = setTimeout(async () => {
       if (!uid || isSyncingRef.current) return;
 
-      // Abort previous request if any
+      // Abort previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -719,20 +719,21 @@ function StoreContent() {
         isSyncingRef.current = false;
         setIsSyncing(false);
         abortControllerRef.current = null;
-      }, 12000);
+      }, 8000); // V19.5.0: Reduced from 12s to 8s
 
       try {
+        // V19.5.0: Highly optimized parallel fetching for Store
         const [dbOrders, walletRes, settlementsRes, driversRes, profileRes, uncollectedRes] = await Promise.allSettled([
-          getVendorOrders({ role: 'vendor', userId: uid }),
-          supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
-          supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-          supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
-          supabase.from('profiles').select('*').eq('id', uid).single(),
-          supabase.from('orders')
+          withTimeout('store.getVendorOrders', getVendorOrders({ role: 'vendor', userId: uid }), 6000),
+          withTimeout('store.wallet', supabase.from('wallets').select('system_balance').eq('user_id', uid).single(), 4000),
+          withTimeout('store.settlements', supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }), 4000),
+          withTimeout('store.drivers', supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true), 4000),
+          withTimeout('store.profile', supabase.from('profiles').select('*').eq('id', uid).single(), 4000),
+          withTimeout('store.uncollected', supabase.from('orders')
             .select('financials')
             .eq('vendor_id', uid)
             .in('status', ['in_transit', 'delivered'])
-            .is('vendor_collected_at', null)
+            .is('vendor_collected_at', null), 4000)
         ]);
 
         if (profileRes.status === 'fulfilled' && profileRes.value.data) {

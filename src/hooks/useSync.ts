@@ -380,10 +380,10 @@ export const useSync = (
         const isConnected = supabase.realtime.isConnected();
         
         if (isConnected) {
-          // If low battery or poor connection, skip 50% of heartbeat pings to save energy/bandwidth
-          if ((isLowBattery || connection?.effectiveType === '2g') && Math.random() > 0.5) return;
+          // If low battery or poor connection, skip 25% of heartbeat pings to save energy/bandwidth
+          if ((isLowBattery || connection?.effectiveType === '2g') && Math.random() > 0.75) return;
 
-          // V18.0.1: Only ping if we have an active heartbeat channel
+          // V19.5.0: Aggressive heartbeat for stability
           if (heartbeatChannelRef.current) {
             const pingStart = Date.now();
             heartbeatChannelRef.current.send({
@@ -397,9 +397,9 @@ export const useSync = (
               
               // Calculate quality
               let quality: 'excellent' | 'good' | 'fair' | 'poor' = 'excellent';
-              if (rtt > 1000) quality = 'poor';
-              else if (rtt > 500) quality = 'fair';
-              else if (rtt > 200) quality = 'good';
+              if (rtt > 800) quality = 'poor'; // V19.5.0: Harder thresholds
+              else if (rtt > 400) quality = 'fair';
+              else if (rtt > 150) quality = 'good';
 
               setNetworkHealth(prev => ({
                 ...prev,
@@ -411,21 +411,20 @@ export const useSync = (
               heartbeatChannelRef.current = null;
             });
           } else {
-            // Create heartbeat channel only once, don't force reconnect if missing
             heartbeatChannelRef.current = supabase.channel(`heartbeat:${userId || 'anon'}`);
             heartbeatChannelRef.current.subscribe();
           }
         } else if (userId) {
-          // V18.0.1: Be more conservative with force reconnect
+          // V19.5.0: Faster force reconnect (20s instead of 60s)
           const lastReconnect = (window as any).__lastForceReconnect || 0;
-          if (now - lastReconnect > 60000) { // 60s cooldown
-            console.warn("[useSyncV19.1.0] Heartbeat detected dead socket, forcing reconnect");
+          if (now - lastReconnect > 20000) { 
+            console.warn("[useSyncV19.5.0] Dead socket detected, forcing immediate reconnect");
             (window as any).__lastForceReconnect = now;
             forceReconnectRealtime();
           }
         }
       }
-    }, 30 * 1000);
+    }, 15 * 1000); // V19.5.0: Reduced from 30s to 15s for better responsiveness
 
     // V19.1.0: Predictive Network Guard - Listen for browser online/offline events
     const handleOnline = () => {

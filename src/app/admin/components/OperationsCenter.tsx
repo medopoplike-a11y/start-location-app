@@ -274,7 +274,7 @@ const OperationsCenter = memo(function OperationsCenter({
                     <h3 className="text-[10px] font-black uppercase tracking-widest opacity-90">التقرير التنفيذي الذكي</h3>
                     <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
                       <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
-                      <span className="text-[7px] font-black uppercase tracking-widest text-emerald-300">Live AI</span>
+                      <span className="text-[7px] font-black uppercase tracking-widest text-emerald-300">V19.5.0 LIVE AI</span>
                     </div>
                   </div>
                   <button 

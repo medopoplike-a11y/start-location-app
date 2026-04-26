@@ -908,49 +908,32 @@ function DriverPageContent() {
     syncTimeoutRef.current = setTimeout(async () => {
       if (!driverId || isRefreshingRef.current) return;
       
-      // V0.9.95: Skip full refresh for self-location broadcast to prevent UI stutter
+      // V19.5.0: Enhanced skip for location broadcasts to prevent micro-stutter
       if (payload?.source === 'broadcast' && payload?.new?.id === driverId) return;
 
       isRefreshingRef.current = true;
-      setIsRefreshing(true); // V1.1.3: Update UI state
+      setIsRefreshing(true);
 
-      // V1.1.4: Safety Timeout to prevent stuck loader in case of hung promises
       const safetyTimeout = setTimeout(() => {
         isRefreshingRef.current = false;
         setIsRefreshing(false);
-      }, 15000); // 15s safety net
+      }, 8000); // V19.5.0: Reduced from 15s to 8s for snappier failure recovery
       
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          await supabase.auth.refreshSession();
-        }
-      } catch (e) {
-        console.warn("manualSync: Session check failed", e);
-      }
-
-      const table = payload?.table;
-      const isOrderUpdate = table === 'orders' || !table;
-      const isProfileUpdate = table === 'profiles' || !table;
-      const isWalletUpdate = table === 'wallets' || !table;
-      
-      try {
-        const tasks: Promise<any>[] = [];
-        if (isOrderUpdate) {
-          tasks.push(withTimeout('sync.fetchOrders', fetchOrders(driverId), 10000));
-        }
-        if (isProfileUpdate || isWalletUpdate) {
-          tasks.push(withTimeout('sync.fetchStats', fetchStats(driverId), 10000));
-        }
+        // V19.5.0: Parallel data fetching for maximum performance
+        const [ordersRes, statsRes] = await Promise.allSettled([
+          withTimeout('sync.fetchOrders', fetchOrders(driverId), 5000),
+          withTimeout('sync.fetchStats', fetchStats(driverId), 5000)
+        ]);
         
-        await Promise.allSettled(tasks);
+        console.log("[DriverPage] Sync completed", { orders: ordersRes.status, stats: statsRes.status });
       } finally {
         clearTimeout(safetyTimeout);
         isRefreshingRef.current = false;
-        setIsRefreshing(false); // V1.1.3: Unlock UI state
+        setIsRefreshing(false);
         syncTimeoutRef.current = null;
       }
-    }, 50); // V17.9.7: Reduced from 100ms to 50ms for snappier response
+    }, 150); // V19.5.0: Increased slightly to 150ms to bundle rapid-fire updates into one render
   };
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
