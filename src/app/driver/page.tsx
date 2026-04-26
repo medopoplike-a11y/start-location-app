@@ -992,15 +992,14 @@ function DriverPageContent() {
           }
           return prev;
         });
-        return;
+
+        if (Capacitor.isNativePlatform()) {
+          dbService.saveOrder(payload.order).catch(() => {});
+        }
+        return; // Skip full manualSync
       }
     } catch (e) {
       console.error("[DriverSync] Partial update processing failed", e);
-    }
-      if (Capacitor.isNativePlatform()) {
-        dbService.saveOrder(payload.order).catch(() => {});
-      }
-      return; // Skip full manualSync
     }
 
     // 3. Trigger full data refresh for general events
