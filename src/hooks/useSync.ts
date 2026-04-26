@@ -11,15 +11,13 @@ import { cleanupBroadcastChannel } from "@/lib/native-utils";
 export const useSync = (
   userId?: string,
   onUpdate?: (payload?: any) => void,
-  // V17.4.6: Accept the actual role so order subscriptions are properly scoped.
-  // Backwards-compat: a boolean `true` is treated as 'admin' to avoid breaking
-  // any callers that may still pass `isAdmin`.
   roleOrIsAdmin: 'admin' | 'vendor' | 'driver' | boolean = 'admin',
 ) => {
+  // V19.6.3: Robust Role Extraction
   const role: 'admin' | 'vendor' | 'driver' =
     typeof roleOrIsAdmin === 'boolean'
       ? (roleOrIsAdmin ? 'admin' : 'admin')
-      : roleOrIsAdmin;
+      : (roleOrIsAdmin || 'admin') as any;
   const isAdmin = role === 'admin';
   const [lastSync, setLastSync] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
@@ -130,6 +128,7 @@ export const useSync = (
   }, []);
 
   const subscribe = useCallback(async () => {
+    // V19.6.3: Prevent subscribing if no userId to avoid invalid filters
     if (!userId || isSubscribingRef.current) return;
     
     // V18.0.1: Add a cooldown to subscribe to prevent rapid re-subscription loops
@@ -145,16 +144,20 @@ export const useSync = (
     try {
       await cleanupChannels();
 
+      if (!isMountedRef.current) return; // V19.6.3: Guard against unmount during cleanup
+
       console.log("useSync: Establishing real-time streams for:", userId);
 
       // V17.7.2: Enhanced Reconnection Logic
       // Ensure socket is actually connected before subscribing
-      if (!supabase.realtime.isConnected()) {
+      if (!supabase?.realtime?.isConnected()) {
         console.log("useSync: Socket disconnected, attempting recovery...");
-        supabase.realtime.connect();
+        supabase?.realtime?.connect();
         // Wait a bit for connection
         await new Promise(r => setTimeout(r, 1000));
       }
+
+      if (!isMountedRef.current) return; // V19.6.3: Check again after await
 
       const newChannels: RealtimeChannel[] = [];
 
@@ -263,12 +266,14 @@ export const useSync = (
         if (status === 'SUBSCRIBED') {
           console.log("useSync: System sync channel active");
           (window as any).__systemSyncRetryCount = 0;
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           // Skip retry if we are explicitly offline
           if (typeof navigator !== 'undefined' && !navigator.onLine) {
             console.log("useSync: System is offline, pausing recovery.");
             return;
           }
+
+          if (!isMountedRef.current) return; // V19.6.3: Guard
 
           const retryCount = ((window as any).__systemSyncRetryCount || 0) + 1;
           (window as any).__systemSyncRetryCount = retryCount;
@@ -280,7 +285,7 @@ export const useSync = (
           console.warn(`useSync: Channel ${status}, PREMIUM retry #${retryCount} in ${Math.round(delay)}ms`);
           
           setTimeout(() => {
-            if (isMountedRef.current && navigator.onLine) subscribe();
+            if (isMountedRef.current && typeof navigator !== 'undefined' && navigator.onLine) subscribe();
           }, delay);
         }
       });
@@ -412,7 +417,7 @@ export const useSync = (
           supabase.auth.refreshSession().catch(() => {});
         }
 
-        const isConnected = supabase.realtime.isConnected();
+        const isConnected = supabase?.realtime?.isConnected();
         
         if (isConnected) {
           // If low battery or poor connection, skip 25% of heartbeat pings to save energy/bandwidth
@@ -455,7 +460,7 @@ export const useSync = (
           if (now - lastReconnect > 45000) { 
             console.warn("[useSyncV19.5.1] Dead socket detected, forcing immediate reconnect");
             (window as any).__lastForceReconnect = now;
-            forceReconnectRealtime();
+            try { forceReconnectRealtime(); } catch(e) {}
           }
         }
       }
@@ -547,9 +552,9 @@ export const useSync = (
 
           // V17.9.4: Radical Socket Recovery
           // Always reconnect socket on resume if it's dead or if it's a hard sync
-          const isSocketDead = !supabase.realtime.isConnected();
+          const isSocketDead = !supabase?.realtime?.isConnected();
           if (isHardSync || isSocketDead) {
-            await forceReconnectRealtime();
+            try { await forceReconnectRealtime(); } catch(e) {}
           }
 
           // Always re-subscribe on resume to ensure we haven't missed channel updates

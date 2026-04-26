@@ -260,9 +260,22 @@ function StoreContent() {
       setShowStoreAI(true);
       setStoreAIAnalysis(null);
       
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn("handleRequestStoreAI: No authenticated user");
+        return;
+      }
+
+      const { data: ordersData } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('vendor_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
       const { requestAIAnalysis } = await import("@/lib/api/ai");
       // Analyze current orders for peak times and efficiency
-      const res = await requestAIAnalysis('store_performance', orders, 'vendor');
+      const res = await requestAIAnalysis('store_performance', ordersData || orders, 'vendor');
       setStoreAIAnalysis(res);
     } catch (e) {
       console.error("AI: Store help request failed", e);
@@ -446,8 +459,6 @@ function StoreContent() {
 
     if (payload?.isHardSync && payload?.source === 'app_resume_start') {
       // V17.9.6: Removed setOrders([]) to prevent UI flickering.
-      // fetchOrders(preferCache: true) in updateData will handle refreshing from SQLite/Network
-      // without showing an empty list to the user.
     }
 
     // 2. Handle global alerts
@@ -456,28 +467,35 @@ function StoreContent() {
       return;
     }
 
-    // V17.4.9: Snappy Partial Updates
-    if (payload?.order) {
-      console.log("[StoreSync] Partial update received for order:", payload.order.id);
-      
-      // Only accept if it belongs to this vendor
-      if (payload.order.vendor_id === vendorId) {
-        const mappedOrder = mapDBOrderToUI(payload.order);
-        setOrders(prev => {
-          const index = prev.findIndex(o => o.id === mappedOrder.id);
-          if (index > -1) {
-            const newOrders = [...prev];
-            newOrders[index] = { ...newOrders[index], ...mappedOrder };
-            return newOrders;
-          }
-          return [mappedOrder, ...prev];
-        });
+    // V19.6.3: Guarded payload processing to prevent crashes
+    try {
+      // V17.4.9: Snappy Partial Updates
+      if (payload?.order) {
+        console.log("[StoreSync] Partial update received for order:", payload.order.id);
+        
+        // Only accept if it belongs to this vendor
+        if (payload.order.vendor_id === vendorId) {
+          const mappedOrder = mapDBOrderToUI(payload.order);
+          setOrders(prev => {
+            const index = prev.findIndex(o => o.id === mappedOrder.id);
+            if (index > -1) {
+              const newOrders = [...prev];
+              newOrders[index] = { ...newOrders[index], ...mappedOrder };
+              return newOrders;
+            }
+            return [mappedOrder, ...prev];
+          });
 
-        if (Capacitor.isNativePlatform()) {
-          dbService.saveOrder(payload.order).catch(() => {});
+          if (Capacitor.isNativePlatform()) {
+            import("@/lib/native-utils").then(({ dbService }) => {
+              if (dbService && dbService.saveOrder) dbService.saveOrder(payload.order).catch(() => {});
+            }).catch(() => {});
+          }
+          return;
         }
-        return;
       }
+    } catch (e) {
+      console.error("[StoreSync] Partial update processing failed", e);
     }
 
     // 3. Trigger full data refresh
@@ -729,7 +747,13 @@ function StoreContent() {
   const updateDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateData = async (uid: string) => {
-    if (!uid || isSyncingRef.current) return;
+    // V19.6.3: Strict ID validation
+    if (!uid || typeof uid !== 'string' || uid.length < 10) {
+      console.warn("updateData: Invalid UID, skipping fetch");
+      return;
+    }
+    
+    if (isSyncingRef.current) return;
     
     // V19.5.0: Debounce updateData for snappier UI
     if (updateDataTimeoutRef.current) clearTimeout(updateDataTimeoutRef.current);
