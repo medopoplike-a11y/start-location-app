@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { getUserProfile, UserProfile } from "@/lib/auth";
 import { getCache, setCache } from "@/lib/native-utils";
 
@@ -18,222 +18,127 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const loadingRef = React.useRef(true);
-
-  // Sync ref with state
-  useEffect(() => {
-    loadingRef.current = loading;
-  }, [loading]);
-
-  // Use refs to avoid dependency loops in useEffect
-  const initializedRef = React.useRef(false);
-  const profileRef = React.useRef<UserProfile | null>(null);
+  
+  // Use a ref to track current user ID to avoid stale closure loops
+  const currentUserIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
     let active = true;
-    let retryCount = 0;
-    const maxRetries = 3;
+    let authSubscription: { unsubscribe: () => void } | null = null;
 
-    // V17.1.0: Extended safety timeout for slow networks
-    const safetyTimeout = setTimeout(() => {
-      if (active && loadingRef.current) {
-        console.warn("[AuthV17.1.0] Safety timeout triggered - Releasing UI");
-        setLoading(false);
-      }
-    }, 10000); 
-
-    const updateState = async (session: any, source: string) => {
-      if (!active) return;
-      console.log(`[AuthV17.1.0] State update from ${source}:`, session?.user?.id || "None");
-      
-      const currentUser = session?.user || null;
-      
-      // Optimization: If user is same and profile exists, skip re-fetch
-      if (currentUser && user?.id === currentUser.id && profileRef.current) {
-        if (active) {
-            loadingRef.current = false;
-            setLoading(false);
-        }
-        return;
+    const loadSession = async () => {
+      // 1. Try to load profile from cache first for instant UX
+      const cachedProfile = await getCache<UserProfile>('auth_profile');
+      if (cachedProfile && active) {
+        setProfile(cachedProfile);
+        setLoading(false); // Can hide loader early if we have a cached profile
       }
 
-      // V17.9.5: Use cache for instant profile recovery
-      if (currentUser) {
-        try {
-          const cachedProfile = await getCache(`profile_${currentUser.id}`);
-          if (cachedProfile && !profileRef.current && active) {
-            console.log("[AuthV17.9.5] Profile recovered from cache");
-            profileRef.current = cachedProfile;
-            setProfile(cachedProfile);
-            // If we have a cached profile, we can unblock the UI immediately
-            setLoading(false);
-          }
-        } catch (e) {}
-      }
-
-      // V17.9.5: Removed arbitrary delay for native boot - using cache instead
-      /*
-      if (source === 'init' && typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() !== 'web') {
-        await new Promise(r => setTimeout(r, 400));
-      }
-      */
-
-      // V16.9.6: Set user IMMEDIATELY to unblock routing
-      if (active) {
-        setUser(currentUser);
-      }
-
-      if (currentUser) {
-        // V17.1.1: Aggressive Profile Recovery Loop
-        retryCount = 0;
-        let p = null;
-
-        while (retryCount < maxRetries && !p && active) {
-          try {
-            p = await getUserProfile(currentUser.id, currentUser.email);
-            if (p) {
-              // V17.9.5: Update cache on successful fetch
-              await setCache(`profile_${currentUser.id}`, p);
-              break;
-            }
-          } catch (e) {
-            console.warn(`[AuthV17.1.1] Profile fetch attempt ${retryCount + 1} failed`, e);
-          }
-          retryCount++;
-          if (!p && active) await new Promise(r => setTimeout(r, 1000 * retryCount)); // Exponential backoff
-        }
-
-        if (active) {
-          profileRef.current = p;
-          setProfile(p);
-          
-          // CRITICAL: If we still don't have a profile after retries, 
-          // we MUST NOT set loading to false yet, unless the user object itself is gone.
-          // This prevents the "Empty System" / "Reload Loop" race condition.
-          if (!p && active) {
-            // V17.3.0: Loop Breaker - Don't sign out on network error!
-            // Only sign out if the user definitively doesn't exist or is invalid.
-            console.error("[AuthV17.3.0] Profile recovery failed. Remaining in offline/idle mode to prevent reload loop.");
-            setLoading(false); // Stop loading to show "Connection Error" in components instead of reloading
-            return;
-          }
-        }
-      } else {
-        profileRef.current = null;
-        setProfile(null);
-      }
-      
-      // V17.1.1: Final release only if we have definitive state
-      if (active) {
-        // V17.2.7: Extra safety - if user exists but profile is still null, 
-        // and it's not a fresh signout, wait a bit more for profile recovery.
-        if (currentUser && !profileRef.current && retryCount < maxRetries) {
-            console.log("[AuthV17.2.7] User exists but profile missing, delaying release...");
-            return; 
-        }
-        loadingRef.current = false;
-        setLoading(false);
-      }
-    };
-
-    // V17.7.2: Industrial Stability
-    const initAuth = async () => {
       try {
-        console.log("[AuthV17.7.2] Standard session check...");
-        const { data: { session } } = await supabase.auth.getSession();
+        const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+        console.log(`AuthProvider: loadSession started (Native: ${isNative})`);
+
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth Timeout")), 5000));
         
-        if (session) {
-          await updateState(session, "init");
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        let session = result?.data?.session;
+
+        // If no session on native, try a small retry because storage can be slow
+        if (!session && isNative && active) {
+          console.log("AuthProvider: No session found on native, retrying in 500ms...");
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+        }
+        
+        if (!active) return;
+
+        if (session?.user) {
+          console.log("AuthProvider: Initial session found:", session.user.id);
+          currentUserIdRef.current = session.user.id;
+          setUser(session.user);
+          const userProfile = await getUserProfile(session.user.id, session.user.email);
+          if (active) {
+            setProfile(userProfile);
+            if (userProfile) setCache('auth_profile', userProfile);
+          }
         } else {
-          console.log("[AuthV17.7.2] No session found, setting loading false");
-          loadingRef.current = false;
+          console.log("AuthProvider: No initial session");
+          setUser(null);
+          setProfile(null);
+          setCache('auth_profile', null);
+        }
+      } catch (error) {
+        console.warn("AuthProvider: Initial session load skipped or timed out", error);
+      } finally {
+        if (active) {
           setLoading(false);
         }
-      } catch (e) {
-        console.error("[AuthV17.7.2] Init error", e);
-        if (active) {
-            loadingRef.current = false;
+      }
+    };
+
+    const setupAuthListener = () => {
+      try {
+        const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+          const newUserId = session?.user?.id || null;
+          console.log(`AuthProvider: onAuthStateChange event: ${event}`, newUserId);
+          
+          if (!active) return;
+
+          if (event === 'SIGNED_OUT') {
+            currentUserIdRef.current = null;
+            setUser(null);
+            setProfile(null);
+            setCache('auth_profile', null);
             setLoading(false);
-        }
-      }
-    };
-
-    // V17.7.2: Emergency Splash Timeout
-    const splashTimeout = setTimeout(() => {
-      if (loadingRef.current && active) {
-        console.warn("[AuthV17.7.2] Splash timeout reached. Forcing loader release.");
-        loadingRef.current = false;
-        setLoading(false);
-      }
-    }, 10000);
-
-    // 2. Auth State Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthV17.7.2] Auth event: ${event}`);
-      if (!active) return;
-
-      if (event === 'SIGNED_OUT') {
-        profileRef.current = null;
-        setUser(null);
-        setProfile(null);
-        loadingRef.current = false;
-        setLoading(false);
-      } else if (session?.user || event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        await updateState(session, `event:${event}`);
-      }
-    });
-
-    initAuth();
-
-    // V17.9.4: Improved App Resume Handler - Re-verify session and reconnect Realtime
-    let appStateListener: any;
-    const setupResumeListener = async () => {
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        try {
-          const { App } = await import("@capacitor/app");
-          appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
-            if (isActive && active) {
-              console.log("[AuthV17.9.4] App foregrounded, recovering session and realtime...");
-              
-              try {
-                // 1. Force session refresh to ensure token is valid
-                const { data: { session }, error } = await supabase.auth.refreshSession();
-                if (error) {
-                  console.warn("[AuthV17.9.4] Session refresh failed on resume, falling back to initAuth", error);
-                  if (active) await initAuth();
-                } else if (session && active) {
-                  console.log("[AuthV17.9.4] Session refreshed successfully");
-                  await updateState(session, "resume");
-                }
-
-                // 2. Explicitly reconnect Realtime socket with radical recovery
-                if (active) await forceReconnectRealtime();
-                
-                // 3. Dispatch global event for other hooks (like useSync) to catch up
-                if (active) window.dispatchEvent(new CustomEvent('app-resume-sync'));
-                
-              } catch (e) {
-                console.error("[AuthV17.9.4] Error during resume recovery", e);
-                if (active) await initAuth();
-              }
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('start-location-v1-session');
             }
-          });
-        } catch (e) {
-          console.error("[AuthV17.9.4] Failed to setup resume listener", e);
+            return;
+          }
+
+          // Use the ref to check if the user has actually changed
+          // This prevents infinite loops on TOKEN_REFRESHED
+          if (event === 'TOKEN_REFRESHED' && newUserId === currentUserIdRef.current) {
+            console.log("AuthProvider: Skipping redundant TOKEN_REFRESHED update");
+            return;
+          }
+
+          // Update tracking ref
+          currentUserIdRef.current = newUserId;
+
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            const userProfile = await getUserProfile(session.user.id, session.user.email);
+            if (active) {
+              setProfile(userProfile);
+              if (userProfile) setCache('auth_profile', userProfile);
+              setLoading(false);
+            }
+          } else {
+            if (active) {
+              setProfile(null);
+              setCache('auth_profile', null);
+              setLoading(false);
+            }
+          }
+        });
+
+        if (data && data.subscription) {
+          authSubscription = data.subscription;
         }
+      } catch (error) {
+        console.error("AuthProvider: setupAuthListener error:", error);
       }
     };
-    setupResumeListener();
+
+    loadSession();
+    setupAuthListener();
 
     return () => {
       active = false;
-      clearTimeout(safetyTimeout);
-      clearTimeout(splashTimeout);
-      subscription.unsubscribe();
-      if (appStateListener) appStateListener.remove();
+      authSubscription?.unsubscribe();
     };
   }, []);
 

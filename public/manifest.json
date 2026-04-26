@@ -1,21 +1,21 @@
 {
   "name": "Start Location",
   "short_name": "Start",
-  "description": "Start Location Delivery Management System",
+  "description": "Start Location Delivery System",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "background_color": "#07111e",
+  "theme_color": "#0ea5e9",
   "icons": [
     {
-      "src": "/icon-512.png",
+      "src": "/globe.svg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/globe.svg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml"
     }
   ]
 }

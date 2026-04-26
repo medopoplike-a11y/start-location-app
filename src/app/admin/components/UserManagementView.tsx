@@ -15,9 +15,6 @@ interface UserManagementViewProps {
   onAddDriver: () => void;
   onAddVendor: () => void;
   onUpdateVendorBilling?: (vendorId: string, data: any) => Promise<void>;
-  onUpdateDriverBilling?: (driverId: string, data: any) => Promise<void>;
-  onUpdateUserDetails?: (userId: string, updates: any) => Promise<void>;
-  onDeleteUser?: (userId: string, userName: string) => Promise<void>;
   onToggleShiftLock: (driverId: string, currentStatus: boolean) => void;
   onResetUser: (userId: string, userName: string) => void;
 }
@@ -29,9 +26,6 @@ export default function UserManagementView({
   onAddDriver,
   onAddVendor,
   onUpdateVendorBilling,
-  onUpdateDriverBilling,
-  onUpdateUserDetails,
-  onDeleteUser,
   onToggleShiftLock,
   onResetUser
 }: UserManagementViewProps) {
@@ -101,9 +95,6 @@ export default function UserManagementView({
               <DriversView
                 drivers={filteredDrivers}
                 onAddDriver={onAddDriver}
-                onUpdateDriverBilling={onUpdateDriverBilling}
-                onUpdateUserDetails={onUpdateUserDetails}
-                onDeleteUser={onDeleteUser}
                 onToggleShiftLock={onToggleShiftLock}
                 onResetUser={onResetUser}
               />
@@ -113,8 +104,6 @@ export default function UserManagementView({
                 vendors={filteredVendors}
                 onAddVendor={onAddVendor}
                 onUpdateVendorBilling={onUpdateVendorBilling}
-                onUpdateUserDetails={onUpdateUserDetails}
-                onDeleteUser={onDeleteUser}
                 onResetUser={onResetUser}
               />
             )}

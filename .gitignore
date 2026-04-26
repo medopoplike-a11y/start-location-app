@@ -29,7 +29,7 @@ Thumbs.db
 # android generated/build artifacts
 android/.gradle/
 android/**/build/
-# android/app/google-services.json
+android/app/google-services.json
 android/local.properties
 
 # local Android signing
@@ -41,9 +41,6 @@ dist/
 coverage/
 *.apk
 *.aab
-
-# OTA bundle — single source of truth is Supabase Storage, never Vercel
-public/update.zip
 
 # temporary local files and test artifacts
 dev-server.log

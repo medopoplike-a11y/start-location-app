@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { CardSkeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import { 
-  Plus, AlertTriangle, X, Zap, Loader2, Bot, Send, Mic, MessageSquare, Truck, CheckCircle2
+  Plus, AlertTriangle
 } from "lucide-react";
 
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
@@ -15,32 +15,31 @@ import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { calculateOrderFinancials } from "@/lib/pricing";
-import { getCurrentUser, getUserProfile, signOut, updateUserAccount } from "@/lib/auth";
-import { fetchOrders as getVendorOrders, createOrder, updateOrder, assignOrderToNearestDriver, updateOrderStatus, vendorCollectDebt } from "@/lib/api/orders";
-import { requestAIAnalysis } from "@/lib/api/ai";
+import { getCurrentUser, getUserProfile, signOut, updateUserProfile } from "@/lib/auth";
+import { getVendorOrders, createOrder, updateOrder, vendorCollectDebt, cancelOrder, assignOrderToNearestDriver } from "@/lib/orders";
 import { supabase } from "@/lib/supabaseClient";
-import { getCache, setCache } from "@/lib/native-utils";
+import { getCache } from "@/lib/native-utils";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
-import { SuccessCelebration } from "@/components/SuccessCelebration";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
-import { aiVoice } from "@/lib/utils/voice";
-import AISupportBot from "@/components/AISupportBot";
-import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
-import { formatTimeOnly } from "@/lib/utils/format";
+import { formatVendorTime } from "./utils";
+import StoreHeader from "./components/StoreHeader";
+import StoreOrdersHub from "./components/StoreOrdersHub";
+import WalletView from "./components/WalletView";
+import StoreSettingsView from "./components/SettingsView";
+import StoreDrawer from "./components/StoreDrawer";
+import OrderFormView from "./components/OrderFormView";
+import StoreAccountModals from "./components/StoreAccountModals";
+import CameraScanner from "@/components/CameraScanner";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 export default function StoreApp() {
   return (
-    <GlobalErrorBoundary 
-      title="خطأ في واجهة المتجر"
-      description="حدث خطأ غير متوقع أثناء عرض واجهة المتجر. يمكنك محاولة إعادة التحميل."
-    >
-      <AuthGuard allowedRoles={["vendor", "admin"]}>
-        <StoreContent />
-      </AuthGuard>
-    </GlobalErrorBoundary>
+    <AuthGuard allowedRoles={["vendor", "admin"]}>
+      <StoreContent />
+    </AuthGuard>
   );
 }
 
@@ -60,9 +59,7 @@ function StoreContent() {
   const [vendorName, setVendorName] = useState("محل");
   const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form" | "settlements">("store");
-  const activeViewRef = useRef(activeView);
-  useEffect(() => { activeViewRef.current = activeView; }, [activeView]);
+  const [activeView, setActiveView] = useState<"store" | "wallet" | "settings" | "order-form">("store");
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -70,40 +67,10 @@ function StoreContent() {
   const [balance, setBalance] = useState(0);
   const [companyCommission, setCompanyCommission] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
-
-  // V19.1.0: Survival Cache - Load cached data immediately on mount
-  useEffect(() => {
-    const loadSurvivalCache = async () => {
-      try {
-        console.log("SurvivalCache: Loading store state from persistent storage...");
-        const [cachedOrders, cachedName] = await Promise.all([
-          getCache<Order[]>('vendor_orders'),
-          getCache<string>('vendor_name')
-        ]);
-
-        if (cachedOrders) setOrders(cachedOrders);
-        if (cachedName) setVendorName(cachedName);
-      } catch (e) {
-        console.warn("SurvivalCache: Failed to load store cache", e);
-      }
-    };
-    loadSurvivalCache();
-  }, []);
-
   const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false); // V19.3.0: Success Celebration State
-  const [celebrationMessage, setCelebrationMessage] = useState(""); // V19.3.0: Dynamic Celebration Message
-  const [driverNotification, setDriverNotification] = useState<Order | null>(null); // V19.3.0: Driver Acceptance Notification State
-  const prevOrdersRef = useRef<Order[]>([]); // V19.3.0: Track previous orders for status changes
   const [savingSettings, setSavingSettings] = useState(false);
-
-  // V17.4.7: Removed redundant onAppResume → updateData wiring.
-  // useSync already handles app resume (visibility + Capacitor appStateChange)
-  // and triggers updateData via the page's onUpdate callback. The duplicate
-  // listener caused the store to fire 2-3 overlapping refreshes whenever the
-  // user returned from the background, surfacing momentarily-stale data.
 
   // Handle Body Scroll Lock when drawer is open
   useEffect(() => {
@@ -132,126 +99,6 @@ function StoreContent() {
   const [cameraMode, setCameraMode] = useState<"form" | "quick">("form");
   const [activeCaptureIndex, setActiveCaptureIndex] = useState<number | null>(null);
   const [quickUploadOrderId, setQuickUploadOrderId] = useState<string | null>(null);
-  
-  // V1.4.2: Store AI States
-  const [showStoreAI, setShowStoreAI] = useState(false);
-  const [storeAIAnalysis, setStoreAIAnalysis] = useState<any>(null);
-  
-  // V1.7.5: AI Chat States
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'ai', content: string}>>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [isAISending, setIsAISending] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [chatMessages, isAISending]);
-
-  const handleSendAIChat = async (text?: string) => {
-    const msg = text || chatInput;
-    if (!msg.trim() || isAISending) return;
-
-    const userMsg = msg.trim();
-    setChatInput("");
-    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setIsAISending(true);
-
-    try {
-      const res = await requestAIAnalysis('chat', { 
-        message: userMsg,
-        storeContext: {
-          ordersCount: orders.length,
-          deliveredCount: orders.filter(o => o.status === 'delivered').length,
-          onlineDriversCount: onlineDrivers.length
-        }
-      }, 'vendor');
-
-      if (res.analysis) {
-        setChatMessages(prev => [...prev, { role: 'ai', content: res.analysis.content }]);
-        // Optional: Speak the response
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(res.analysis.content);
-          utterance.lang = 'ar-SA';
-          window.speechSynthesis.speak(utterance);
-        }
-      }
-    } catch (err) {
-      setChatMessages(prev => [...prev, { role: 'ai', content: "عذراً، واجهت مشكلة في الرد. حاول مرة أخرى." }]);
-    } finally {
-      setIsAISending(false);
-    }
-  };
-
-  const startVoiceInput = () => {
-    if (typeof window === 'undefined') return;
-    
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toastError("المتصفح لا يدعم التعرف على الصوت");
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ar-SA';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        triggerHaptic(ImpactStyle.Medium);
-      };
-
-      recognition.onresult = (event: any) => {
-        const speechToText = event.results[0][0].transcript;
-        handleSendAIChat(speechToText);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-        toastError("فشل التعرف على الصوت");
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (e) {
-      setIsListening(false);
-    }
-  };
-
-  const [analyzingStore, setAnalyzingStore] = useState(false);
-
-  const handleRequestStoreAI = async () => {
-    if (!vendorId) return;
-    try {
-      setAnalyzingStore(true);
-      setShowStoreAI(true);
-      setStoreAIAnalysis(null);
-      
-      const { requestAIAnalysis } = await import("@/lib/api/ai");
-      // Analyze current orders for peak times and efficiency
-      const res = await requestAIAnalysis('store_performance', orders, 'vendor');
-      setStoreAIAnalysis(res);
-    } catch (e) {
-      console.error("AI: Store help request failed", e);
-      setStoreAIAnalysis(null);
-    } finally {
-      setAnalyzingStore(false);
-    }
-  };
-
-  // V17.4.3: Removed continuous background GPS tracking for stores.
-  // The store is a fixed location — it should NOT be tracked continuously.
-  // Location is updated ONCE manually from the Settings screen via
-  // `handleUpdateLocation` (single getCurrentPosition call).
-  // Realtime order delivery still works through useSync (Supabase channels).
-  // No background watcher, no permanent notification, no constant DB writes.
 
   const [formData, setFormData] = useState({
     customer: "",
@@ -384,79 +231,16 @@ function StoreContent() {
     checkRestoredResult();
   }, []); // Only once on mount
 
-  const [settingsData, setSettingsData] = useState({ 
-    name: "", 
-    phone: "", 
-    area: "", 
-    email: "", 
-    password: "",
-    billing_type: 'commission' as 'commission' | 'fixed_salary',
-    monthly_salary: 0
-  });
+  const [settingsData, setSettingsData] = useState({ name: "", phone: "", area: "" });
 
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
 
-  // V17.2.7: Unified Sync Engine
-  const { lastSync: syncLastTime, isSyncing: isRefreshingFromSync, networkHealth } = useSync(vendorId || undefined, (payload) => {
-    // V17.4.6: Explicit 'vendor' role so order subscription is scoped to
-    // this vendor's orders only — no more cross-talk with drivers/other stores.
-    if (!vendorId) return;
-    
-    console.log("[StoreSync] Global sync update received:", payload?.source);
-
-    // 1. Reset locks on resume/focus
-    if (payload?.source === 'app_resume_start' || payload?.source === 'app_resume_complete' || payload?.source === 'visibility_change') {
-      isSyncingRef.current = false;
-      if (payload?.source === 'app_resume_start') {
-        setIsSyncing(true); // Show loader during recovery
-      } else {
-        setIsSyncing(false); // V1.1.4: Ensure UI is unblocked on complete/focus
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
+  // useSync hook for real-time updates
+  useSync(vendorId || undefined, () => {
+    if (vendorId) {
+      updateData(vendorId);
     }
-
-    if (payload?.isHardSync && payload?.source === 'app_resume_start') {
-      // V17.9.6: Removed setOrders([]) to prevent UI flickering.
-      // fetchOrders(preferCache: true) in updateData will handle refreshing from SQLite/Network
-      // without showing an empty list to the user.
-    }
-
-    // 2. Handle global alerts
-    if (payload?.payload?.type === 'system_alert') {
-      success(payload.payload.message);
-      return;
-    }
-
-    // V17.4.9: Snappy Partial Updates
-    if (payload?.order) {
-      console.log("[StoreSync] Partial update received for order:", payload.order.id);
-      
-      // Only accept if it belongs to this vendor
-      if (payload.order.vendor_id === vendorId) {
-        const mappedOrder = mapDBOrderToUI(payload.order);
-        setOrders(prev => {
-          const index = prev.findIndex(o => o.id === mappedOrder.id);
-          if (index > -1) {
-            const newOrders = [...prev];
-            newOrders[index] = { ...newOrders[index], ...mappedOrder };
-            return newOrders;
-          }
-          return [mappedOrder, ...prev];
-        });
-
-        if (Capacitor.isNativePlatform()) {
-          dbService.saveOrder(payload.order).catch(() => {});
-        }
-        return;
-      }
-    }
-
-    // 3. Trigger full data refresh
-    updateData(vendorId);
-  }, 'vendor');
+  });
 
   // Sound notification logic
   useEffect(() => {
@@ -468,11 +252,6 @@ function StoreContent() {
       
       if (hasNewPending) {
         console.log("StorePage: New pending order detected, playing sound...");
-        
-        // V19.3.0: AI Voice Assistant - Announce new orders for vendor
-        const newestOrder = orders[0];
-        aiVoice.speak(`لديك طلب جديد من ${newestOrder.customers?.[0]?.name || 'عميل'} بقيمة ${newestOrder.totalValue} جنيه`, { priority: 'high' });
-
         try {
           const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
           audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
@@ -488,39 +267,6 @@ function StoreContent() {
       }
     }
     setLastOrderCount(orders.length);
-  }, [orders]);
-
-  // V19.3.0: Driver Acceptance Notification Logic
-  useEffect(() => {
-    if (prevOrdersRef.current.length > 0) {
-      orders.forEach(order => {
-        const prevOrder = prevOrdersRef.current.find(o => o.id === order.id);
-        if (prevOrder && prevOrder.status === 'pending' && (order.status === 'assigned' || order.status === 'in_transit')) {
-          console.log("StorePage: Driver accepted order:", order.id);
-          
-          // Trigger Notification
-          setDriverNotification(order);
-          
-          // AI Voice Announcement
-          if (order.driver) {
-            aiVoice.speak(`الكابتن ${order.driver} قبل الطلب رقم ${order.id.slice(0, 4)}`, { priority: 'medium' });
-          }
-
-          // Haptic Feedback
-          if (Capacitor.isNativePlatform()) {
-            import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => {
-              Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-            }).catch(() => {});
-          }
-
-          // Auto-hide notification after 8 seconds
-          setTimeout(() => {
-            setDriverNotification(prev => prev?.id === order.id ? null : prev);
-          }, 8000);
-        }
-      });
-    }
-    prevOrdersRef.current = orders;
   }, [orders]);
 
   const [showSettlementModal, setShowSettlementModal] = useState(false);
@@ -609,11 +355,6 @@ function StoreContent() {
           setVendorId(currentUser.id);
           setVendorName(profile.full_name || "محل");
           
-          // V16.8.1: Diagnostic Logging
-          console.log(`[Store-Diag] User ID: ${currentUser.id}`);
-          console.log(`[Store-Diag] Profile Role: ${profile.role}`);
-          console.log(`[Store-Diag] Auth Metadata Role: ${currentUser.user_metadata?.role}`);
-          
           let loc = profile.location;
           if (typeof loc === 'string') {
             try { loc = JSON.parse(loc); } catch { loc = null; }
@@ -623,11 +364,7 @@ function StoreContent() {
           setSettingsData({ 
             name: profile.full_name || "", 
             phone: profile.phone || "",
-            area: profile.area || "",
-            email: profile.email || "",
-            password: "",
-            billing_type: (profile as any).billing_type || 'commission',
-            monthly_salary: (profile as any).monthly_salary || 0
+            area: profile.area || ""
           });
 
           // Update appConfig with vendor's specific billing settings
@@ -640,26 +377,25 @@ function StoreContent() {
             vendor_commission: (profile as any).commission_type === 'percentage' ? ((profile as any).commission_value || 20) : prev.vendor_commission
           }));
           
-          // V0.9.95: Unified single-stream fetch
           console.log("StorePage: Fetching dashboard data...");
-          setLoading(true);
           await updateData(currentUser.id).catch(err => console.error("Initial updateData failed", err));
-          setLoading(false);
 
-          // Fetch config in background
-          supabase.from('app_config').select('*').maybeSingle().then(({ data: configData }) => {
+          // Fetch config
+          try {
+            const { data: configData } = await supabase.from('app_config').select('*').maybeSingle();
             if (configData && isMounted) {
-              setAppConfig(prev => ({
-                ...prev,
+              setAppConfig({
                 driver_commission: configData.driver_commission || 15,
                 vendor_commission: configData.vendor_commission || 20,
                 vendor_fee: configData.vendor_fee || 1,
                 safe_ride_fee: configData.safe_ride_fee || 1,
                 surge_pricing_active: !!configData.surge_pricing_active,
                 surge_pricing_multiplier: configData.surge_pricing_multiplier || 1.0
-              }));
+              });
             }
-          }).catch(err => console.error("Fetch config failed", err));
+          } catch (configErr) {
+            console.error("Fetch config failed", configErr);
+          }
         } else {
           console.error("StorePage: No profile found for user", currentUser.id);
           // Don't hang forever if profile missing
@@ -682,112 +418,62 @@ function StoreContent() {
     };
   }, [user, authProfile, authLoading, router]);
 
+  useEffect(() => {
+    if (!orders || !Array.isArray(orders)) return;
+    const pendingCollection = orders.reduce((acc, order) => {
+      if ((order.status === "delivered" || order.status === "in_transit") && !order.vendorCollectedAt) {
+        const amount = Number(order.amount?.replace(/[^0-9.-]+/g, "") || 0);
+        return acc + (isNaN(amount) ? 0 : amount);
+      }
+      return acc;
+    }, 0);
+    setBalance(pendingCollection);
+  }, [orders]);
+
   const abortControllerRef = useRef<AbortController | null>(null);
-  const isSyncingRef = useRef(false);
-  const updateDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateData = async (uid: string) => {
-    if (!uid || isSyncingRef.current) return;
+    if (!uid || isSyncing) return;
     
-    // V17.9.6: Debounce updateData to prevent rapid overlapping fetches
-    if (updateDataTimeoutRef.current) clearTimeout(updateDataTimeoutRef.current);
-    
-    updateDataTimeoutRef.current = setTimeout(async () => {
-      if (!uid || isSyncingRef.current) return;
+    // Abort previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
-      // Abort previous request if any
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
+    setIsSyncing(true);
+    setLastSync(new Date());
 
-      isSyncingRef.current = true;
-      setIsSyncing(true);
-      setLastSync(new Date());
+    const safetyTimeout = setTimeout(() => {
+      setIsSyncing(false);
+      abortControllerRef.current = null;
+    }, 12000);
 
-      const safetyTimeout = setTimeout(() => {
-        isSyncingRef.current = false;
-        setIsSyncing(false);
-        abortControllerRef.current = null;
-      }, 12000);
-
-      try {
-        const [dbOrders, walletRes, settlementsRes, driversRes, profileRes, uncollectedRes] = await Promise.allSettled([
-          getVendorOrders({ role: 'vendor', userId: uid }),
-          supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
-          supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-          supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true),
-          supabase.from('profiles').select('*').eq('id', uid).single(),
-          supabase.from('orders')
-            .select('financials')
-            .eq('vendor_id', uid)
-            .in('status', ['in_transit', 'delivered'])
-            .is('vendor_collected_at', null)
-        ]);
-
-        if (profileRes.status === 'fulfilled' && profileRes.value.data) {
-        const p = profileRes.value.data;
-        setVendorName(p.full_name || "محل");
-        // V17.9.5: Cache vendor name
-        setCache('vendor_name', p.full_name || "محل").catch(() => {});
-        
-        let loc = p.location;
-        if (typeof loc === 'string') { try { loc = JSON.parse(loc); } catch { loc = null; } }
-        setVendorLocation((loc as VendorLocation | undefined) || null);
-        
-        // V1.2.5: Only update settingsData if NOT currently in settings view to avoid overwriting user input
-        if (activeViewRef.current !== 'settings') {
-          setSettingsData(prev => ({ 
-            ...prev,
-            name: p.full_name || "", 
-            phone: p.phone || "",
-            area: p.area || "",
-            email: p.email || ""
-          }));
-        }
-      }
+    try {
+      const [dbOrders, walletRes, settlementsRes, driversRes] = await Promise.allSettled([
+        getVendorOrders(uid),
+        supabase.from('wallets').select('system_balance').eq('user_id', uid).single(),
+        supabase.from('settlements').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*').eq('role', 'driver').eq('is_online', true)
+      ]);
 
       if (dbOrders.status === 'fulfilled' && dbOrders.value) {
-        console.log(`[Store-Diag] Orders count: ${dbOrders.value.length}`);
-        if (dbOrders.value.length === 0) {
-            console.warn(`[Store-Diag] Warning: 0 orders found for vendor ${uid}. Possible RLS or ID mismatch.`);
-        }
-        const mappedOrders = dbOrders.value.map(mapDBOrderToUI);
-        setOrders(mappedOrders);
-        // V17.9.5: Cache orders for instant display next time
-        setCache('vendor_orders', mappedOrders).catch(() => {});
-      } else if (dbOrders.status === 'rejected') {
-        console.error(`[Store-Diag] Orders query failed:`, dbOrders.reason);
-      }
-
-      // V1.2.1: Robust uncollected balance calculation from database
-      if (uncollectedRes.status === 'fulfilled' && uncollectedRes.value.data) {
-        const total = uncollectedRes.value.data.reduce((acc, o: any) => {
-          return acc + Number(o.financials?.order_value || 0);
-        }, 0);
-        setBalance(total);
-        // V17.9.5: Cache balance
-        setCache('vendor_balance', total).catch(() => {});
+        setOrders(dbOrders.value.map(mapDBOrderToUI));
       }
 
       // القيمة الأساسية لمديونية الشركة تأتي من جدول المحافظ لأنه يخصم التسويات المدفوعة سابقاً
       if (walletRes.status === 'fulfilled' && walletRes.value.data) {
         const dbBalance = walletRes.value.data.system_balance || 0;
-        console.log(`[Store-Diag] Wallet balance: ${dbBalance}`);
         setCompanyCommission(dbBalance);
-      } else if (walletRes.status === 'rejected') {
-        console.warn(`[Store-Diag] Wallet query failed or not found:`, walletRes.reason);
-        // حساب احتياطي فقط في حال فشل جلب بيانات المحفظة وصحة بيانات الطلبات
-        let fallbackCommission = 0;
-        if (dbOrders.status === 'fulfilled' && dbOrders.value) {
-          fallbackCommission = dbOrders.value
-            .filter((o: any) => o.status === 'delivered')
-            .reduce((sum: number, o: any) => {
-              const vndComm = o.financials?.vendor_commission || 0;
-              const vndIns = o.financials?.vendor_insurance || (o.financials?.insurance_fee ? o.financials.insurance_fee / 2 : 0);
-              return sum + vndComm + vndIns;
-            }, 0);
-        }
+      } else if (dbOrders.status === 'fulfilled' && dbOrders.value) {
+        // حساب احتياطي فقط في حال فشل جلب بيانات المحفظة
+        const fallbackCommission = dbOrders.value
+          .filter((o: any) => o.status === 'delivered')
+          .reduce((sum: number, o: any) => {
+            const vndComm = o.financials?.vendor_commission || 0;
+            const vndIns = o.financials?.vendor_insurance || (o.financials?.insurance_fee ? o.financials.insurance_fee / 2 : 0);
+            return sum + vndComm + vndIns;
+          }, 0);
         setCompanyCommission(fallbackCommission);
       }
 
@@ -821,11 +507,9 @@ function StoreContent() {
       console.error("VendorPage: Update error", err);
     } finally {
       clearTimeout(safetyTimeout);
-      isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, 50); // V17.9.7: Added/Optimized debounce for snappier response
-};
+  };
 
   // --- Logic Helpers ---
   const handleCancelOrder = async (orderId: string) => {
@@ -833,20 +517,19 @@ function StoreContent() {
       Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
     } catch (e) {}
     
+    // Safety check for confirm on native
     const shouldCancel = typeof window !== 'undefined' && window.confirm ? window.confirm('هل أنت متأكد من إلغاء الطلب؟') : true;
     if (!shouldCancel) return;
 
     // Optimistic Update
     const originalOrders = [...orders];
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
+    success('تم إلغاء الطلب بنجاح');
 
     try {
-      // V19.3.0: Voice and Sound Feedback
-      aiVoice.announceStatusChange(orderId, 'cancelled');
+      const { error: cancelErr } = await cancelOrder(orderId);
+      if (cancelErr) throw cancelErr;
       
-      // V1.5.3: Use updateOrderStatus for cancellation instead of non-existent cancelOrder
-      await updateOrderStatus(orderId, 'cancelled');
-      success('تم إلغاء الطلب بنجاح');
       if (vendorId) updateData(vendorId);
     } catch (err) {
       setOrders(originalOrders);
@@ -866,12 +549,10 @@ function StoreContent() {
       address: customerDetails.address || "عنوان غير محدد",
       status: db.status || 'pending',
       driver: db.driver?.full_name || (db.driver_id ? "كابتن (جاري التحديث...)" : null),
-      driverId: db.driver_id || null,
-      vendorId: db.vendor_id,
       driverPhone: db.driver?.phone || "",
       amount: `${financials.order_value || 0} ج.م`,
       deliveryFee: `${financials.delivery_fee || 0} ج.م`,
-      time: formatTimeOnly(db.created_at || ""),
+      time: formatVendorTime(db.created_at || ""),
       createdAt: db.created_at || new Date().toISOString(),
       isPickedUp: db.status === 'in_transit' || db.status === 'delivered',
       notes: (customerDetails as any).notes || "",
@@ -879,16 +560,16 @@ function StoreContent() {
       invoiceUrl: db.invoice_url,
       vendorCollectedAt: db.vendor_collected_at,
       driverConfirmedAt: db.driver_confirmed_at,
-      customers: customerDetails.customers || [],
-      financials: {
+      customers: customerDetails.customers,
+      financials: db.financials ? {
         order_value: Number(financials.order_value || 0),
         delivery_fee: Number(financials.delivery_fee || 0),
         system_commission: Number((financials as any).system_commission || 0),
         vendor_commission: Number((financials as any).vendor_commission || 0),
         driver_earnings: Number((financials as any).driver_earnings || 0),
-        insurance_fee: Number((financials as any).insurance_fee || (financials as any).vendor_insurance || 0),
+        insurance_fee: Number((financials as any).insurance_fee || 0),
         prep_time: String((financials as any).prep_time || "15"),
-      },
+      } : undefined,
     };
   };
 
@@ -903,28 +584,19 @@ function StoreContent() {
   const handleUpdateProfile = async () => {
     if (!vendorId) return;
     setSavingSettings(true);
-    try {
-      const { error: dbError } = await updateUserAccount({
-        full_name: settingsData.name,
-        phone: settingsData.phone,
-        area: settingsData.area,
-        email: settingsData.email,
-        password: settingsData.password
-      });
-      if (!dbError) {
-        setVendorName(settingsData.name);
-        // Ensure local data is refreshed to update all UI components (like the "incomplete data" alert)
-        if (vendorId) await updateData(vendorId);
-        success("تم تحديث الملف الشخصي بنجاح!");
-        setActiveView("store");
-      } else {
-        throw dbError;
-      }
-    } catch (err: any) {
-      error(`حدث خطأ أثناء التحديث: ${err.message || "حاول مرة أخرى"}`);
-    } finally {
-      setSavingSettings(false);
+    const { error: dbError } = await updateUserProfile(vendorId, {
+      full_name: settingsData.name,
+      phone: settingsData.phone,
+      area: settingsData.area
+    });
+    if (!dbError) {
+      setVendorName(settingsData.name);
+      success("تم تحديث الملف الشخصي بنجاح!");
+      setActiveView("store");
+    } else {
+      error("حدث خطأ أثناء تحديث الملف الشخصي.");
     }
+    setSavingSettings(false);
   };
 
   const handlePickCustomerLocation = () => {
@@ -997,12 +669,6 @@ function StoreContent() {
     setActiveView("order-form");
   };
 
-  const normalizeArabicNumerals = (str: string) => {
-    if (!str) return "";
-    return String(str).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
-                      .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
-  };
-
   const handleSaveOrder = async () => {
     if (!vendorId) return;
     setIsSavingOrder(true);
@@ -1013,7 +679,7 @@ function StoreContent() {
       }
 
       // Use the new multi-stop pricing calculation
-      const manualDeliveryFees = formData.customers.map(c => Number(normalizeArabicNumerals(String(c.deliveryFee))) || 0);
+      const manualDeliveryFees = formData.customers.map(c => Number(c.deliveryFee) || 0);
       const calculated = calculateOrderFinancials(
         formData.customers.length,
         manualDeliveryFees,
@@ -1025,15 +691,13 @@ function StoreContent() {
           driverInsuranceFee: appConfig.safe_ride_fee,
           vendorInsuranceFee: appConfig.vendor_fee,
           surgePricingActive: appConfig.surge_pricing_active,
-          surgePricingMultiplier: appConfig.surge_pricing_multiplier,
-          billingType: settingsData.billing_type // V0.9.87: Correctly pass vendor's billing type (commission vs fixed salary)
+          surgePricingMultiplier: appConfig.surge_pricing_multiplier
         }
       );
 
-      const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(normalizeArabicNumerals(String(c.orderValue))) || 0), 0);
-      const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(normalizeArabicNumerals(String(c.deliveryFee))) || 0), 0);
-      const maxPrepTime = formData.customers.reduce((max, c) => Math.max(max, Number(normalizeArabicNumerals(String(c.prepTime))) || 0), 0) || Number(normalizeArabicNumerals(String(formData.prepTime))) || 15;
-
+      const totalOrderValue = formData.customers.reduce((acc, c) => acc + (Number(c.orderValue) || 0), 0);
+      const totalDeliveryFee = formData.customers.reduce((acc, c) => acc + (Number(c.deliveryFee) || 0), 0);
+      const maxPrepTime = formData.customers.reduce((max, c) => Math.max(max, Number(c.prepTime) || 0), 0) || Number(formData.prepTime) || 15;
 
       const orderData = {
         vendor_id: vendorId,
@@ -1054,9 +718,9 @@ function StoreContent() {
             name: c.name,
             phone: c.phone,
             address: c.address,
-            orderValue: Number(normalizeArabicNumerals(String(c.orderValue))),
-            deliveryFee: Number(normalizeArabicNumerals(String(c.deliveryFee))),
-            prepTime: normalizeArabicNumerals(String(c.prepTime)),
+            orderValue: Number(c.orderValue),
+            deliveryFee: Number(c.deliveryFee),
+            prepTime: c.prepTime,
             status: 'pending' as const,
             invoice_url: c.invoiceUrl
           }))
@@ -1082,27 +746,12 @@ function StoreContent() {
         return; 
       }
       if (data) {
-        // V1.5.5: Force immediate view reset and form cleanup
-        setActiveView("store");
-        setEditingOrder(null);
-        setInvoiceUrl(null);
-        setFormData({ 
-          customer: "", phone: "", address: "", orderValue: "", deliveryFee: "30", notes: "", prepTime: "15", customerCoords: null,
-          customers: [{ id: Math.random().toString(36).substring(2, 9), name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "" }]
-        });
-
         const ui = mapDBOrderToUI(data as VendorDBOrder);
         setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
-        
-        // V19.3.0: Voice and Sound Feedback
-        aiVoice.playSound('success');
-        
-        setShowCelebration(true); // V19.3.0: Trigger celebration
-        setTimeout(() => setShowCelebration(false), 3000);
-        
+        setActiveView("store");
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
         
-        // Auto-assign in background
+        // Auto-assign to nearest driver if it's a new order
         if (!editingOrder && vendorLocation) {
           assignOrderToNearestDriver(data.id, vendorLocation).then((res) => {
             if (res.success) {
@@ -1126,13 +775,6 @@ function StoreContent() {
     // Optimistic Update
     const originalOrders = [...orders];
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, vendorCollectedAt: new Date().toISOString() } : o));
-    
-    // V19.3.0: Trigger Success Celebration
-    setCelebrationMessage(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح!`);
-    setShowCelebration(true);
-    aiVoice.playSound('success'); // V19.3.0: Voice Feedback
-    setTimeout(() => setShowCelebration(false), 3000);
-
     success(`تم تحصيل قيمة الطلب #${orderId.slice(0, 8)} بنجاح`);
 
     try {
@@ -1212,17 +854,12 @@ function StoreContent() {
         setFormData(prev => {
           const newCustomers = [...prev.customers];
           if (newCustomers[activeCaptureIndex]) {
-            newCustomers[activeCaptureIndex] = { 
-              ...newCustomers[activeCaptureIndex], 
-              isUploading: true,
-              localPreview: `data:image/jpeg;base64,${base64Data}` 
-            };
+            newCustomers[activeCaptureIndex] = { ...newCustomers[activeCaptureIndex], isUploading: true };
           }
           return { ...prev, customers: newCustomers };
         });
       } else {
         setUploadingInvoice(true);
-        setInvoiceUrl(`data:image/jpeg;base64,${base64Data}`); // Immediate local preview for main invoice
       }
 
       try {
@@ -1241,36 +878,22 @@ function StoreContent() {
         
         if (uploadError) throw new Error(uploadError.message);
         
-        // V1.2.8: Force use of Signed URL instead of Public URL to bypass Storage RLS issues
-        const { data: signedData, error: signedError } = await supabase.storage
-          .from('invoices')
-          .createSignedUrl(fileName, 60 * 60 * 24 * 7); // Valid for 7 days
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
         
-        if (signedError) {
-          console.warn("Failed to create signed URL, falling back to public URL", signedError);
-          const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-          const finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
-          updateFinalUrl(finalUrl);
+        if (activeCaptureIndex !== null) {
+          setFormData(prev => {
+            const newCustomers = [...prev.customers];
+            if (newCustomers[activeCaptureIndex]) {
+              newCustomers[activeCaptureIndex] = { 
+                ...newCustomers[activeCaptureIndex], 
+                invoiceUrl: publicUrl,
+                isUploading: false 
+              };
+            }
+            return { ...prev, customers: newCustomers };
+          });
         } else {
-          updateFinalUrl(signedData.signedUrl);
-        }
-
-        function updateFinalUrl(finalUrl: string) {
-          if (activeCaptureIndex !== null) {
-            setFormData(prev => {
-              const newCustomers = [...prev.customers];
-              if (newCustomers[activeCaptureIndex]) {
-                newCustomers[activeCaptureIndex] = { 
-                  ...newCustomers[activeCaptureIndex], 
-                  invoiceUrl: finalUrl,
-                  isUploading: false 
-                };
-              }
-              return { ...prev, customers: newCustomers };
-            });
-          } else {
-            setInvoiceUrl(finalUrl);
-          }
+          setInvoiceUrl(publicUrl);
         }
         success("تم التقاط ورفع الفاتورة بنجاح");
       } catch (err: any) {
@@ -1312,35 +935,12 @@ function StoreContent() {
           throw new Error(uploadError.message || "خطأ في تخزين الصورة");
         }
         
-        // V1.2.8: Force use of Signed URL instead of Public URL to bypass Storage RLS issues
-        const { data: signedData, error: signedError } = await supabase.storage
-          .from('invoices')
-          .createSignedUrl(fileName, 60 * 60 * 24 * 7); // Valid for 7 days
-        
-        let finalUrl;
-        if (signedError) {
-          console.warn("Failed to create signed URL for quick upload", signedError);
-          const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
-          finalUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
-        } else {
-          finalUrl = signedData.signedUrl;
-        }
-
-        const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: finalUrl });
+        const { data: { publicUrl } } = supabase.storage.from('invoices').getPublicUrl(fileName);
+        const { error: updateError } = await updateOrder(quickUploadOrderId, { invoice_url: publicUrl });
         if (updateError) throw updateError;
         
-        setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: finalUrl } : o));
+        setOrders(prev => prev.map(o => o.id === quickUploadOrderId ? { ...o, invoiceUrl: publicUrl } : o));
         success("تم تحديث الطلب بالفاتورة بنجاح");
-
-        // V1.5.2: Trigger AI Invoice Audit for Admin in background
-        requestAIAnalysis('invoice_audit', { 
-          image: finalUrl, 
-          manualData: { 
-            orderId: quickUploadOrderId, 
-            amount: orders.find(o => o.id === quickUploadOrderId)?.amount 
-          } 
-        }, 'vendor').catch(e => console.warn("AI Audit failed", e));
-
       } catch (err: any) {
         console.error("Quick in-app upload error details:", err);
         const errorMsg = err.message || JSON.stringify(err);
@@ -1415,8 +1015,8 @@ function StoreContent() {
       setShowSettlementModal(false);
       setSettlementAmount("");
       if (vendorId) updateData(vendorId);
-    } catch (err: any) {
-      error(`حدث خطأ أثناء إرسال الطلب: ${err.message || "حاول مرة أخرى"}`);
+    } catch (err) {
+      error("حدث خطأ أثناء إرسال الطلب. حاول مرة أخرى.");
       console.error("Settlement error:", err);
     } finally {
       setRequestingSettlement(false);
@@ -1436,7 +1036,7 @@ function StoreContent() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-orange-500/10 transition-colors duration-500 relative" dir="rtl">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-orange/10 transition-colors duration-500 relative" dir="rtl">
       {/* Background Gradients for Glass Effect */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 dark:bg-blue-600/5 blur-[120px] animate-pulse" />
@@ -1452,15 +1052,11 @@ function StoreContent() {
             lastSync={lastSync}
             isSyncing={isSyncing}
             searchQuery={searchQuery}
-            networkHealth={networkHealth}
             onSearchChange={setSearchQuery}
             onOpenDrawer={() => setShowDrawer(true)}
             onSync={() => vendorId && updateData(vendorId)}
             onResetSync={() => setIsSyncing(false)}
             isSurgeActive={appConfig.surge_pricing_active}
-            onOpenAI={handleRequestStoreAI}
-            rating={authProfile?.rating || 0}
-            ratingCount={0}
           />
           
           {(!vendorLocation || !settingsData.phone || !settingsData.area) && activeView === "store" && (
@@ -1485,20 +1081,8 @@ function StoreContent() {
         </>
       )}
 
-      {/* V19.3.0: AI Support Bot */}
-      <AISupportBot role="vendor" context={{ orders: orders.slice(0, 5), vendorName }} />
-
-      <main className={`flex-1 relative overflow-y-auto ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeView}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="h-full"
-          >
-            {activeView === "store" ? (
+      <main className={`flex-1 ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
+        {activeView === "store" ? (
           <StoreOrdersHub
             orders={orders}
             searchQuery={searchQuery}
@@ -1518,11 +1102,8 @@ function StoreContent() {
             onQuickInvoiceUpload={handleQuickInvoiceUpload}
             uploadingInvoice={uploadingInvoice}
             quickUploadOrderId={quickUploadOrderId}
-              onPreviewImage={setPreviewUrl}
-              onRequestAIInsights={handleRequestStoreAI}
-              isSyncing={isSyncing}
-              lastSync={lastSync}
-            />
+            onPreviewImage={setPreviewUrl}
+          />
         ) : activeView === "wallet" ? (
           <WalletView
             companyCommission={companyCommission}
@@ -1540,8 +1121,6 @@ function StoreContent() {
             }}
             onOpenSettlementModal={() => setShowSettlementModal(true)}
           />
-        ) : activeView === "settlements" ? (
-          <SettlementsHistoryView settlements={settlementHistory} />
         ) : activeView === "settings" ? (
           <StoreSettingsView
             settingsData={settingsData}
@@ -1568,9 +1147,7 @@ function StoreContent() {
             onSave={handleSaveOrder}
             onPreviewImage={setPreviewUrl}
           />
-          )}
-        </motion.div>
-      </AnimatePresence>
+        )}
       </main>
 
 {activeView === "store" && (
@@ -1621,123 +1198,6 @@ function StoreContent() {
         onRequestSettlement={handleRequestSettlement}
       />
 
-      {/* V1.4.2: Store AI Helper Modal */}
-      <AnimatePresence>
-        {showStoreAI && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowStoreAI(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] p-0 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
-            >
-              {/* Modal Header */}
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-purple-600 text-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black leading-tight">مستشار النمو الذكي</h3>
-                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">AI Business Chat</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowStoreAI(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Chat Messages Area */}
-              <div 
-                ref={chatScrollRef}
-                className="flex-1 overflow-y-auto p-6 space-y-4 min-h-[300px] bg-slate-50 dark:bg-slate-950"
-              >
-                {/* Initial Analysis Result (if exists) */}
-                {storeAIAnalysis && (
-                  <div className="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-2xl rounded-tr-none self-start max-w-[85%]">
-                    <p className="text-xs font-bold text-purple-900 dark:text-purple-300 leading-relaxed text-right">
-                      {storeAIAnalysis.content}
-                    </p>
-                  </div>
-                )}
-
-                {/* Chat History */}
-                {chatMessages.map((msg, idx) => (
-                  <motion.div 
-                    key={idx}
-                    initial={{ opacity: 0, x: msg.role === 'user' ? -10 : 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`p-4 rounded-2xl max-w-[85%] text-xs font-bold leading-relaxed shadow-sm ${
-                      msg.role === 'user' 
-                        ? 'bg-blue-600 text-white rounded-tl-none' 
-                        : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tr-none'
-                    }`}>
-                      {msg.content}
-                    </div>
-                  </motion.div>
-                ))}
-
-                {/* Typing Indicator */}
-                {isAISending && (
-                  <div className="flex justify-start">
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tr-none border border-slate-100 dark:border-slate-700 shadow-sm flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" />
-                      <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                      <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input Area */}
-              <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={startVoiceInput}
-                    disabled={isAISending}
-                    className={`p-4 rounded-2xl transition-all ${
-                      isListening 
-                        ? 'bg-red-500 text-white animate-pulse' 
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <Mic className="w-5 h-5" />
-                  </button>
-                  
-                  <div className="flex-1 relative">
-                    <input 
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendAIChat()}
-                      placeholder="اسألني عن مبيعاتك..."
-                      disabled={isAISending}
-                      className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-2xl py-4 pr-4 pl-12 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 ring-purple-500/50 transition-all"
-                    />
-                    <button 
-                      onClick={() => handleSendAIChat()}
-                      disabled={!chatInput.trim() || isAISending}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 text-white rounded-xl disabled:opacity-50 disabled:grayscale transition-all"
-                    >
-                      {isAISending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {activeView !== "order-form" && (
         <StoreDrawer
           showDrawer={showDrawer}
@@ -1747,60 +1207,8 @@ function StoreContent() {
           onChangeView={(view) => setActiveView(view as any)}
           onUpdateLocation={handleUpdateLocation}
           onSignOut={handleSignOut}
-          onOpenAI={handleRequestStoreAI}
         />
       )}
-
-      {/* V19.3.0: Success Celebration */}
-      <SuccessCelebration 
-        show={showCelebration} 
-        message={celebrationMessage || "تم إنشاء الطلب بنجاح! 🚀"} 
-        onComplete={() => setShowCelebration(false)}
-      />
-
-      {/* V19.3.0: Driver Acceptance Interactive Notification */}
-      <AnimatePresence>
-        {driverNotification && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-24 left-4 right-4 z-[100] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] p-4 shadow-2xl shadow-slate-200 dark:shadow-none flex items-center gap-4"
-          >
-            <div className="w-14 h-14 bg-green-500/10 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <Truck className="w-7 h-7 text-green-600" />
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full">تم قبول الطلب</span>
-                <span className="text-[10px] font-bold text-slate-400">#{driverNotification.id.slice(0, 8)}</span>
-              </div>
-              <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
-                الكابتن {driverNotification.driver} في الطريق إليك
-              </h4>
-            </div>
-
-            <button
-              onClick={() => {
-                setDriverNotification(null);
-                setActiveView("store");
-                setActiveTab("active");
-              }}
-              className="bg-slate-900 dark:bg-slate-800 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-lg shadow-slate-200 dark:shadow-none hover:scale-105 active:scale-95 transition-all"
-            >
-              عرض
-            </button>
-            
-            <button 
-              onClick={() => setDriverNotification(null)}
-              className="p-2 text-slate-300 hover:text-slate-500 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

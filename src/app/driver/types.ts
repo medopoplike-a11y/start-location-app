@@ -2,7 +2,6 @@ export interface Order {
   id: string;
   vendor: string;
   vendorId: string;
-  driverId: string;
   customer: string;
   address: string;
   distanceValue: number;
@@ -31,15 +30,12 @@ export interface Order {
     status: 'pending' | 'delivered';
     deliveredAt?: string;
     invoice_url?: string;
-    lat?: number;
-    lng?: number;
   }>;
   financials?: {
     order_value?: number;
     delivery_fee?: number;
     system_commission?: number;
     driver_earnings?: number;
-    driver_insurance?: number;
     prep_time?: string;
   };
 }
@@ -67,8 +63,6 @@ export interface DBDriverOrder {
       deliveryFee: number;
       status: 'pending' | 'delivered';
       deliveredAt?: string;
-      lat?: number;
-      lng?: number;
     }>;
   };
   financials: {
@@ -77,7 +71,6 @@ export interface DBDriverOrder {
     order_value?: number;
     system_commission?: number;
     driver_earnings?: number;
-    driver_insurance?: number;
   };
   distance?: number;
   status: Order["status"];

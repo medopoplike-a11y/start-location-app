@@ -2,60 +2,32 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera, Eye, Bot, Sparkles } from "lucide-react";
-import type { ActivityItem, LiveOrderItem, OnlineDriver } from "../types";
-import ImagePreviewModal from "@/components/ImagePreviewModal";
-import { requestAIAnalysis } from "@/lib/api/ai";
-import { SuccessCelebration } from "@/components/SuccessCelebration";
+import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera, Eye } from "lucide-react";
+import type { ActivityItem, LiveOrderItem } from "../types";
 
 interface OrdersViewProps {
   liveOrders: LiveOrderItem[];
   activities: ActivityItem[];
-  onlineDrivers?: OnlineDriver[];
   onCancelOrder?: (orderId: string) => Promise<void>;
-  onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
+  onUpdateStatus?: (orderId: string, status: any) => Promise<void>;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string; dot: string; dbStatus: string }> = {
-  "جاري البحث":  { label: "جاري البحث",  icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />, bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20",    text: "text-amber-700 dark:text-amber-400",   dot: "bg-amber-400",   dbStatus: "pending" },
-  "تم التعيين":  { label: "تم التعيين",  icon: <Circle className="w-3.5 h-3.5" />,               bg: "bg-sky-50 dark:bg-sky-500/10 border-sky-100 dark:border-sky-500/20",        text: "text-sky-700 dark:text-sky-400",     dot: "bg-sky-500",     dbStatus: "assigned" },
-  "في الطريق":   { label: "في الطريق",   icon: <Truck className="w-3.5 h-3.5" />,                bg: "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-100 dark:border-indigo-500/20",  text: "text-indigo-700 dark:text-indigo-400",  dot: "bg-indigo-500",  dbStatus: "in_transit" },
-  "تم التوصيل": { label: "تم التوصيل", icon: <CheckCircle className="w-3.5 h-3.5" />,           bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20",text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500", dbStatus: "delivered" },
-  "ملغي":        { label: "ملغي",        icon: <XCircle className="w-3.5 h-3.5" />,               bg: "bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20",        text: "text-red-700 dark:text-red-400",     dot: "bg-red-400",     dbStatus: "cancelled" },
+  "جاري البحث":  { label: "جاري البحث",  icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />, bg: "bg-amber-50 border-amber-100",    text: "text-amber-700",   dot: "bg-amber-400",   dbStatus: "pending" },
+  "تم التعيين":  { label: "تم التعيين",  icon: <Circle className="w-3.5 h-3.5" />,               bg: "bg-sky-50 border-sky-100",        text: "text-sky-700",     dot: "bg-sky-500",     dbStatus: "assigned" },
+  "في الطريق":   { label: "في الطريق",   icon: <Truck className="w-3.5 h-3.5" />,                bg: "bg-indigo-50 border-indigo-100",  text: "text-indigo-700",  dot: "bg-indigo-500",  dbStatus: "in_transit" },
+  "تم التوصيل": { label: "تم التوصيل", icon: <CheckCircle className="w-3.5 h-3.5" />,           bg: "bg-emerald-50 border-emerald-100",text: "text-emerald-700", dot: "bg-emerald-500", dbStatus: "delivered" },
+  "ملغي":        { label: "ملغي",        icon: <XCircle className="w-3.5 h-3.5" />,               bg: "bg-red-50 border-red-100",        text: "text-red-700",     dot: "bg-red-400",     dbStatus: "cancelled" },
 };
 
 const statusFilters = ["الكل", "جاري البحث", "تم التعيين", "في الطريق", "تم التوصيل", "ملغي"];
 
-export default function OrdersView({ liveOrders = [], activities = [], onlineDrivers = [], onCancelOrder, onUpdateStatus }: OrdersViewProps) {
+export default function OrdersView({ liveOrders, activities, onCancelOrder, onUpdateStatus }: OrdersViewProps) {
   const [filter, setFilter] = useState("الكل");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [aiDispatchLoading, setAiDispatchLoading] = useState<string | null>(null);
-  const [aiRecommendation, setAiRecommendation] = useState<{orderId: string, text: string} | null>(null);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationMessage, setCelebrationMessage] = useState("");
 
-  const handleAiSuggestDriver = async (order: LiveOrderItem) => {
-    if (aiDispatchLoading) return;
-    setAiDispatchLoading(order.id);
-    try {
-      const res = await requestAIAnalysis('dispatch_recommendation', {
-        orderLocation: order.vendorLocation,
-        drivers: onlineDrivers.map(d => ({ id: d.id, name: d.full_name, lat: d.lat, lng: d.lng, active_orders: d.active_orders }))
-      }, 'admin');
-      
-      if (res.analysis?.content) {
-        setAiRecommendation({ orderId: order.id, text: res.analysis.content });
-      }
-    } catch (err) {
-      console.error("AI Dispatch Error:", err);
-    } finally {
-      setAiDispatchLoading(null);
-    }
-  };
-
-  const allOrders = Array.isArray(liveOrders) ? [...liveOrders] : [];
+  const allOrders = [...liveOrders];
   const filtered = filter === "الكل" ? allOrders : allOrders.filter(o => o.status === filter);
 
   const handleCancel = async (orderId: string) => {
@@ -64,10 +36,6 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
     setCancellingId(orderId);
     try {
       await onCancelOrder(orderId);
-      // V19.3.0: Success Celebration for Cancellation
-      setCelebrationMessage(`تم إلغاء الطلب #${orderId.slice(0, 8)} بنجاح`);
-      setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 3000);
     } finally {
       setCancellingId(null);
     }
@@ -83,11 +51,6 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
     setUpdatingId(orderId);
     try {
       await onUpdateStatus(orderId, dbStatus);
-      setCelebrationMessage(`تم تحديث حالة الطلب إلى "${newStatus}" بنجاح!`);
-      setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 3000);
-    } catch (err) {
-      console.error("Update status error:", err);
     } finally {
       setUpdatingId(null);
     }
@@ -103,56 +66,51 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
 
   return (
     <div className="space-y-6">
-      <SuccessCelebration 
-        show={showCelebration} 
-        message={celebrationMessage} 
-        onComplete={() => setShowCelebration(false)} 
-      />
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-amber-500/10">
-          <p className="text-[9px] font-black text-amber-500 uppercase mb-1 tracking-widest">جاري البحث</p>
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{counts["جاري البحث"]}</p>
+        <div className="bg-white border border-amber-100 rounded-[24px] p-4 shadow-sm">
+          <p className="text-[9px] font-black text-amber-500 uppercase mb-1">جاري البحث</p>
+          <p className="text-2xl font-black text-amber-600">{counts["جاري البحث"]}</p>
         </div>
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-sky-500/10">
-          <p className="text-[9px] font-black text-sky-500 uppercase mb-1 tracking-widest">مُعيَّن</p>
-          <p className="text-2xl font-black text-sky-600 dark:text-sky-400">{counts["تم التعيين"]}</p>
+        <div className="bg-white border border-sky-100 rounded-[24px] p-4 shadow-sm">
+          <p className="text-[9px] font-black text-sky-500 uppercase mb-1">مُعيَّن</p>
+          <p className="text-2xl font-black text-sky-600">{counts["تم التعيين"]}</p>
         </div>
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-indigo-500/10">
-          <p className="text-[9px] font-black text-indigo-500 uppercase mb-1 tracking-widest">في الطريق</p>
-          <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{counts["في الطريق"]}</p>
+        <div className="bg-white border border-indigo-100 rounded-[24px] p-4 shadow-sm">
+          <p className="text-[9px] font-black text-indigo-500 uppercase mb-1">في الطريق</p>
+          <p className="text-2xl font-black text-indigo-600">{counts["في الطريق"]}</p>
         </div>
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-emerald-500/10">
-          <p className="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">تم التوصيل</p>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{counts["تم التوصيل"]}</p>
+        <div className="bg-white border border-emerald-100 rounded-[24px] p-4 shadow-sm">
+          <p className="text-[9px] font-black text-emerald-500 uppercase mb-1">تم التوصيل</p>
+          <p className="text-2xl font-black text-emerald-600">{counts["تم التوصيل"]}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Live Orders */}
-        <div className="lg:col-span-2 drawer-glass rounded-[32px] p-6 shadow-sm border-none">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[32px] p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
               <Truck className="w-4 h-4 text-sky-500" />
               الطلبات الحية
             </h3>
-            <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+            <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400">{allOrders.length} طلب</span>
+              <span className="text-[9px] font-black text-emerald-600">{allOrders.length} طلب</span>
             </div>
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
             <Filter className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-1" />
             {statusFilters.map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`flex-shrink-0 text-[10px] font-black px-4 py-2 rounded-xl border transition-all ${
+                className={`flex-shrink-0 text-[10px] font-black px-3 py-1.5 rounded-full border transition-all ${
                   filter === f
-                    ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20"
-                    : "bg-white/50 dark:bg-white/5 text-slate-500 border-white/20 dark:border-slate-800 hover:border-blue-500/30"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
                 }`}
               >
                 {f}
@@ -161,12 +119,12 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
           </div>
 
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-300 dark:text-slate-700">
-              <Truck className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-sm font-black italic">لا توجد طلبات في هذه الفئة</p>
+            <div className="flex flex-col items-center justify-center py-16 text-slate-300">
+              <Truck className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm font-bold">لا توجد طلبات في هذه الفئة</p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
               {filtered.map((order, i) => {
                 const sc = statusConfig[order.status] ?? statusConfig["جاري البحث"];
                 const isCancelling = cancellingId === order.id_full;
@@ -174,25 +132,25 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
                 return (
                   <motion.div
                     key={order.id_full}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    className="p-5 rounded-3xl border border-white/10 dark:border-white/5 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 transition-all group"
+                    className="p-4 rounded-2xl border border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm transition-all group"
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-600/10 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
-                          <Store className="w-5 h-5 transition-transform group-hover:scale-110" />
+                        <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover:bg-sky-50 transition-colors">
+                          <Store className="w-4 h-4 text-slate-400 group-hover:text-sky-500 transition-colors" />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-900 dark:text-slate-100">{order.vendor}</p>
-                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">#{order.id}</p>
+                          <p className="text-sm font-black text-slate-900">{order.vendor}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">#{order.id}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="relative group/status">
                           <button 
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${sc.bg} ${sc.text} hover:shadow-lg active:scale-95 shadow-sm`}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[10px] font-black transition-all ${sc.bg} ${sc.text} hover:shadow-md active:scale-95`}
                             disabled={updatingId === order.id_full}
                           >
                             {updatingId === order.id_full ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : sc.icon}
@@ -200,14 +158,14 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
                           </button>
                           
                           {/* Status Manual Override Dropdown */}
-                          <div className="absolute top-full right-0 mt-2 w-44 drawer-glass rounded-2xl shadow-2xl opacity-0 pointer-events-none group-hover/status:opacity-100 group-hover/status:pointer-events-auto transition-all z-50 p-2 space-y-1 border-none">
-                            <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-3 py-2 tracking-widest">تغيير الحالة يدوياً</p>
+                          <div className="absolute top-full right-0 mt-2 w-40 bg-white border border-slate-100 rounded-2xl shadow-xl opacity-0 pointer-events-none group-hover/status:opacity-100 group-hover/status:pointer-events-auto transition-all z-50 p-2 space-y-1">
+                            <p className="text-[8px] font-black text-slate-400 uppercase px-2 mb-1">تغيير الحالة يدوياً</p>
                             {Object.keys(statusConfig).map(statusLabel => (
                               <button
                                 key={statusLabel}
                                 onClick={() => handleUpdateStatus(order.id_full, statusLabel)}
-                                className={`w-full text-right px-4 py-2.5 rounded-xl text-[10px] font-black transition-all ${
-                                  order.status === statusLabel ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
+                                className={`w-full text-right px-3 py-2 rounded-xl text-[10px] font-bold transition-colors ${
+                                  order.status === statusLabel ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
                                 }`}
                               >
                                 {statusLabel}
@@ -221,119 +179,75 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
                             onClick={() => handleCancel(order.id_full)}
                             disabled={isCancelling}
                             title="إلغاء الطلب نهائياً"
-                            className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/10 transition-all disabled:opacity-50"
+                            className="p-1.5 rounded-xl bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 border border-red-100 transition-all disabled:opacity-50"
                           >
-                            {isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                            {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                           </button>
                         )}
                       </div>
                     </div>
 
-                    <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 space-y-4 mb-4">
+                    <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100/50 space-y-3 mt-3 mb-3">
                       {/* Unified Invoice View for Admin */}
                       {order.invoice_url && (
-                        <div className="relative group/admin-invoice cursor-pointer overflow-hidden rounded-xl border border-white/20 dark:border-white/5 aspect-[21/9] bg-white dark:bg-slate-900 shadow-inner">
+                        <div className="relative group/admin-invoice cursor-pointer overflow-hidden rounded-xl border border-slate-200 aspect-[21/9] bg-white">
                           <img 
                             src={order.invoice_url} 
-                            alt="" 
-                            crossOrigin="anonymous"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              if (!target.src.includes('retry=1')) {
-                                target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
-                              }
-                            }}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover/admin-invoice:scale-110 opacity-90 group-hover/admin-invoice:opacity-100 relative z-10"
+                            alt="Order Invoice" 
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover/admin-invoice:scale-105"
                           />
-                          <div className="absolute inset-0 flex items-center justify-center text-slate-300 dark:text-slate-700 z-0">
-                            <Camera size={32} className="opacity-20" />
-                          </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity" />
-                          <button 
-                            onClick={() => setPreviewUrl(order.invoice_url!)}
-                            className="absolute inset-0 opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-[10px] font-black uppercase tracking-widest"
+                          <a 
+                            href={order.invoice_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-[10px] font-black"
                           >
-                            <Eye size={16} className="animate-pulse" />
-                            عرض الفاتورة
-                          </button>
+                            <Eye size={14} />
+                            فتح الفاتورة الكاملة
+                          </a>
                         </div>
                       )}
 
                       {order.customers && order.customers.length > 0 ? (
-                        <div className="space-y-2">
-                          <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <Users className="w-3 h-3 text-blue-500" />
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1.5">
+                            <Users className="w-3 h-3 text-sky-500" />
                             سكة متعددة العملاء ({order.customers.length})
                           </p>
-                          <div className="grid grid-cols-1 gap-2">
-                            {order.customers.map((c, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 bg-white/40 dark:bg-white/5 p-3 rounded-xl border border-white/20 dark:border-white/5">
-                                <div className="flex items-center gap-3">
-                                  <span className="w-5 h-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[9px] font-black flex items-center justify-center rounded-lg shadow-sm">{idx + 1}</span>
-                                  <span className="truncate max-w-[140px]">{c.name}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/10">{c.deliveryFee} ج.م</span>
-                                  {c.invoice_url && (
-                                    <button 
-                                      onClick={() => setPreviewUrl(c.invoice_url!)}
-                                      className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/10 hover:bg-amber-500 hover:text-white transition-all"
-                                    >
-                                      <Camera size={12} />
-                                    </button>
-                                  )}
-                                  <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)] ${c.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
-                                </div>
+                          {order.customers.map((c, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-[11px] font-bold text-slate-600 bg-white/60 p-2 rounded-xl border border-slate-100/50">
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 h-4 bg-slate-900 text-white text-[8px] font-black flex items-center justify-center rounded-full">{idx + 1}</span>
+                                <span className="truncate max-w-[120px]">{c.name}</span>
                               </div>
-                            ))}
-                          </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-lg border border-slate-100">{c.deliveryFee} ج.م</span>
+                                {c.invoice_url && (
+                                  <a href={c.invoice_url} target="_blank" rel="noopener noreferrer" className="p-1 bg-orange-50 text-orange-500 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors">
+                                    <Camera size={10} />
+                                  </a>
+                                )}
+                                <span className={`w-1.5 h-1.5 rounded-full ${c.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-[11px] font-black text-slate-700 dark:text-slate-300">
-                            <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
-                              <User className="w-4 h-4" />
-                            </div>
+                          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
                             <span>العميل: {order.customer}</span>
                           </div>
-                          <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/10">
-                            <Banknote className="w-4 h-4 text-emerald-500" />
-                            <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{order.delivery_fee} ج.م</span>
+                          <div className="flex items-center gap-2 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
+                            <Banknote className="w-3 h-3 text-green-500" />
+                            <span className="text-[10px] font-black text-green-700">{order.delivery_fee} ج.م</span>
                           </div>
                         </div>
                       )}
                     </div>
 
-                    {/* AI Dispatch Suggestion (V19.3.0) */}
-                    {order.status === "جاري البحث" && (
-                      <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
-                            <span className="text-[10px] font-black text-indigo-600 uppercase">توزيع ذكي</span>
-                          </div>
-                          <button
-                            onClick={() => handleAiSuggestDriver(order)}
-                            disabled={aiDispatchLoading === order.id}
-                            className="text-[10px] font-black text-indigo-600 underline disabled:opacity-50"
-                          >
-                            {aiDispatchLoading === order.id ? "جاري التحليل..." : "اقتراح طيار"}
-                          </button>
-                        </div>
-                        {aiRecommendation?.orderId === order.id && (
-                          <motion.p 
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2"
-                          >
-                            {aiRecommendation.text}
-                          </motion.p>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10 dark:border-white/5">
-                      <div className="flex items-center gap-6">
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                      <div className="flex items-center gap-4">
                         <div className="flex flex-col">
                           <p className="text-[8px] font-black text-slate-400 uppercase">إجمالي الطلب</p>
                           <p className="text-xs font-black text-slate-900">{order.amount} ج.م</p>
@@ -401,12 +315,6 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
           )}
         </div>
       </div>
-
-      <ImagePreviewModal 
-        url={previewUrl}
-        show={!!previewUrl}
-        onClose={() => setPreviewUrl(null)}
-      />
     </div>
   );
 }

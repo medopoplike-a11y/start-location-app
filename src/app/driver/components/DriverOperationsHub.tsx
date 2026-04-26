@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Activity, Truck } from "lucide-react";
+import { ListFilter, History, Search, Zap, Activity, Truck } from "lucide-react";
 import DriverOrdersView from "./DriverOrdersView";
+import DriverHistoryView from "./DriverHistoryView";
 import type { Order, DBDriverOrder } from "../types";
 
 interface DriverOperationsHubProps {
@@ -41,80 +42,85 @@ export default function DriverOperationsHub({
   onDeliverCustomer,
   onPreviewImage
 }: DriverOperationsHubProps) {
+  const [viewMode, setViewMode] = useState<"orders" | "history">("orders");
+
   const activeOrdersCount = orders.filter(o => o.status === "assigned" || o.status === "in_transit").length;
 
   return (
     <div className="space-y-6">
-      {/* View Switcher - SIMPLIFIED (NO HISTORY) */}
-      <div className="flex items-center justify-between gap-4 px-2">
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex p-1.5 bg-white/80 dark:bg-slate-900/40 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/50 rounded-[28px] w-fit shadow-2xl shadow-slate-200/20 dark:shadow-none"
-        >
-          <div
-            className="flex items-center gap-3 px-6 py-3 rounded-[24px] text-xs font-black bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-900/20 dark:shadow-none transition-all"
+      {/* View Switcher */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex p-1 bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl w-fit shadow-sm">
+          <button
+            onClick={() => setViewMode("orders")}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+              viewMode === "orders"
+                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
           >
-            <div className="p-1.5 bg-white/10 dark:bg-slate-900/10 rounded-lg">
-              <Truck className="w-4 h-4" />
-            </div>
-            <span className="tracking-tight uppercase">المهام والطلبات</span>
+            <Truck className="w-4 h-4" />
+            المهام والطلبات
             {activeOrdersCount > 0 && (
-              <motion.span 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] bg-blue-500 text-white font-black ring-4 ring-slate-900 dark:ring-white/20"
-              >
+              <span className={`px-1.5 py-0.5 rounded-lg text-[9px] ${viewMode === "orders" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500"}`}>
                 {activeOrdersCount}
-              </motion.span>
+              </span>
             )}
-          </div>
-        </motion.div>
+          </button>
+          <button
+            onClick={() => setViewMode("history")}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
+              viewMode === "history"
+                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <History className="w-4 h-4" />
+            سجل اليوم
+          </button>
+        </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, delay: 0.1 }}
-          className="hidden md:flex items-center gap-3"
-        >
-          <div className={`flex items-center gap-3 px-6 py-3 rounded-[28px] border transition-all duration-500 backdrop-blur-2xl ${
-            isActive 
-            ? "bg-emerald-500/10 dark:bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/10" 
-            : "bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800"
-          }`}>
-            <div className={`w-2.5 h-2.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.8)]" : "bg-slate-300 dark:bg-slate-700"}`} />
-            <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
-              {isActive ? "System Online" : "System Offline"}
+        <div className="hidden md:flex items-center gap-3">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border ${isActive ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? "text-emerald-600" : "text-slate-400"}`}>
+              {isActive ? "Online" : "Offline"}
             </span>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
         <motion.div
-          key="orders-view"
+          key={viewMode}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
-          <DriverOrdersView
-            todayDeliveryFees={todayDeliveryFees}
-            vendorDebt={vendorDebt}
-            isActive={isActive}
-            driverLocation={driverLocation}
-            driverId={driverId}
-            orders={orders}
-            autoAccept={autoAccept}
-            onToggleAutoAccept={onToggleAutoAccept}
-            onAcceptOrder={onAcceptOrder}
-            onPickupOrder={onPickupOrder}
-            onDeliverOrder={onDeliverOrder}
-            onConfirmPayment={onConfirmPayment}
-            onDeliverCustomer={onDeliverCustomer}
-            onPreviewImage={onPreviewImage}
-          />
+          {viewMode === "orders" ? (
+            <DriverOrdersView
+              todayDeliveryFees={todayDeliveryFees}
+              vendorDebt={vendorDebt}
+              isActive={isActive}
+              driverLocation={driverLocation}
+              driverId={driverId}
+              orders={orders}
+              autoAccept={autoAccept}
+              onToggleAutoAccept={onToggleAutoAccept}
+              onAcceptOrder={onAcceptOrder}
+              onPickupOrder={onPickupOrder}
+              onDeliverOrder={onDeliverOrder}
+              onConfirmPayment={onConfirmPayment}
+              onDeliverCustomer={onDeliverCustomer}
+              onPreviewImage={onPreviewImage}
+            />
+          ) : (
+            <DriverHistoryView 
+              history={todayHistory} 
+              onPreviewImage={onPreviewImage}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>

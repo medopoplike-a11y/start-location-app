@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState } from "react";
 import { Wallet, AlertCircle, TrendingDown } from "lucide-react";
 import type { SettlementHistoryItem } from "../types";
-
-type FilterPeriod = "today" | "15days" | "month";
 
 interface WalletViewProps {
   companyCommission: number;
@@ -23,7 +21,9 @@ interface WalletViewProps {
   onOpenSettlementModal: () => void;
 }
 
-function WalletView({ companyCommission, balance, settlementHistory, commissionDetails, onOpenSettlementModal }: WalletViewProps) {
+type FilterPeriod = "today" | "15days" | "month";
+
+export default function WalletView({ companyCommission, balance, settlementHistory, commissionDetails, onOpenSettlementModal }: WalletViewProps) {
   const [filter, setFilter] = useState<FilterPeriod>("15days");
 
   const filterLabels: Record<FilterPeriod, string> = {
@@ -53,10 +53,10 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">المحفظة المالية</h2>
+      <h2 className="text-2xl font-bold text-gray-900">المحفظة المالية</h2>
 
       {/* Commission Card */}
-      <div className="bg-gray-900 dark:bg-slate-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800 dark:border-slate-800">
+      <div className="bg-gray-900 text-white p-8 rounded-[40px] shadow-xl relative overflow-hidden border border-gray-800">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -65,52 +65,45 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
             </p>
           </div>
           <h3 className="text-4xl font-black flex items-baseline gap-2">
-            {companyCommission.toLocaleString()} 
+            {billingType === 'fixed_salary' ? (commissionDetails?.monthlySalary || 0).toLocaleString() : companyCommission.toLocaleString()} 
             <span className="text-lg font-bold opacity-40">ج.م</span>
           </h3>
 
-          {/* Monthly Salary Info for Fixed Salary Users */}
-          {billingType === 'fixed_salary' && (
-            <div className="mt-4 bg-purple-500/10 dark:bg-purple-500/20 rounded-2xl p-4 border border-purple-500/20 dark:border-purple-500/30">
-              <div className="flex justify-between items-center text-[10px] font-black">
-                <span className="text-purple-300 dark:text-purple-400">الراتب الشهري الثابت</span>
-                <span className="text-white">{(commissionDetails?.monthlySalary || 0).toLocaleString()} ج.م</span>
-              </div>
-            </div>
-          )}
-
           {/* Commission Breakdown */}
-          {commissionDetails && (
-            <div className="mt-6 space-y-3 bg-white/5 dark:bg-black/20 rounded-[24px] p-5 border border-white/5 dark:border-white/10 backdrop-blur-sm">
-              <div className="flex items-center gap-2 pb-2 border-b border-white/5 dark:border-white/10">
+          {commissionDetails && billingType === 'commission' && (
+            <div className="mt-6 space-y-3 bg-white/5 rounded-[24px] p-5 border border-white/5 backdrop-blur-sm">
+              <div className="flex items-center gap-2 pb-2 border-b border-white/5">
                 <AlertCircle className="w-3.5 h-3.5 text-orange-400" />
-                <p className="text-[10px] font-black text-white/60">
-                  تفاصيل الحساب المالي (
-                  {billingType === 'fixed_salary' 
-                    ? "نظام الراتب" 
-                    : (isFixed ? `${commissionDetails.commissionValue}ج ثابت` : `${(rate*100).toFixed(0)}%`)} 
-                  + {perOrder}ج تأمين
-                  )
-                </p>
+                <p className="text-[10px] font-black text-white/60">تفاصيل الحساب المالي ({isFixed ? `${commissionDetails.commissionValue}ج ثابت` : `${(rate*100).toFixed(0)}%`} + {perOrder}ج)</p>
               </div>
               
               <div className="space-y-2">
-                {billingType !== 'fixed_salary' && (
-                  <div className="flex justify-between items-center text-[11px] font-bold">
-                    <span className="text-white/50">عمولة الشركة {isFixed ? "(ثابتة)" : `(${(rate*100).toFixed(0)}%)`}</span>
-                    <span className="text-white">{commissionValue.toFixed(2)} ج.م</span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center text-[11px] font-bold">
+                  <span className="text-white/50">عمولة الشركة {isFixed ? "(ثابتة)" : `(${(rate*100).toFixed(0)}%)`}</span>
+                  <span className="text-white">{commissionValue.toFixed(2)} ج.م</span>
+                </div>
                 <div className="flex justify-between items-center text-[11px] font-bold">
                   <span className="text-white/50">تأمين رحلة ({perOrder}ج ثابت)</span>
                   <span className="text-white">{(orderCount * perOrder).toFixed(2)} ج.م</span>
                 </div>
-                <div className="h-px bg-white/5 dark:bg-white/10 my-1" />
+                <div className="h-px bg-white/5 my-1" />
                 <div className="flex justify-between items-center text-[11px] font-black text-orange-400">
-                  <span>إجمالي المديونية المتراكمة</span>
-                  <span>{companyCommission.toLocaleString()} ج.م</span>
+                  <span>إجمالي المستحق للشركة</span>
+                  <span>{(commissionValue + (orderCount * perOrder)).toFixed(2)} ج.م</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {commissionDetails && billingType === 'fixed_salary' && (
+            <div className="mt-6 bg-purple-500/10 rounded-[24px] p-5 border border-purple-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-3.5 h-3.5 text-purple-400" />
+                <p className="text-[10px] font-black text-purple-200">نظام الحساب: راتب ثابت</p>
+              </div>
+              <p className="text-[11px] font-bold text-white/60 leading-relaxed">
+                حسابك الحالي مفعل بنظام الراتب الشهري الثابت. يتم سداد المديونية للأدمن بناءً على القيمة المتفق عليها شهرياً بغض النظر عن عدد الطلبات.
+              </p>
             </div>
           )}
 
@@ -124,17 +117,17 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
       </div>
 
       {/* Balance Card */}
-      <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-gray-100 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-200 dark:hover:border-orange-900 transition-all">
+      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden group hover:border-orange-200 transition-all">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="w-4 h-4 text-orange-500" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-slate-500">مستحقاتك لدى الطيارين</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">مستحقاتك لدى الطيارين</p>
           </div>
-          <h3 className="text-4xl font-black text-gray-900 dark:text-white flex items-baseline gap-2">
+          <h3 className="text-4xl font-black text-gray-900 flex items-baseline gap-2">
             {balance.toLocaleString()} 
-            <span className="text-lg font-bold text-gray-300 dark:text-slate-700">ج.م</span>
+            <span className="text-lg font-bold text-gray-300">ج.م</span>
           </h3>
-          <p className="text-[10px] text-gray-400 dark:text-slate-500 font-bold mt-3 leading-relaxed">
+          <p className="text-[10px] text-gray-400 font-bold mt-3 leading-relaxed">
             هذه هي إجمالي قيمة الأوردرات التي استلمها الطيارين من المحل ولم يقوموا بتسليمها لك بعد.
           </p>
         </div>
@@ -143,17 +136,17 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
       {/* Settlements */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white pr-2">طلبات التسوية</h3>
+          <h3 className="text-lg font-bold text-gray-900 pr-2">طلبات التسوية</h3>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex bg-gray-100 dark:bg-slate-950 p-1 rounded-2xl gap-1">
+        <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
           {(["today", "15days", "month"] as FilterPeriod[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${
-                filter === f ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm" : "text-gray-400 dark:text-slate-600"
+                filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"
               }`}
             >
               {filterLabels[f]}
@@ -162,29 +155,29 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
         </div>
 
         {filteredSettlements.length === 0 ? (
-          <div className="bg-gray-50 dark:bg-slate-950 p-8 rounded-[32px] text-center border border-dashed border-gray-200 dark:border-slate-800">
-            <p className="text-xs text-gray-400 dark:text-slate-600 font-bold">لا توجد طلبات تسوية في هذه الفترة</p>
+          <div className="bg-gray-50 p-8 rounded-[32px] text-center border border-dashed border-gray-200">
+            <p className="text-xs text-gray-400 font-bold">لا توجد طلبات تسوية في هذه الفترة</p>
           </div>
         ) : (
           <div className="space-y-3">
             {filteredSettlements.map((s) => (
-              <div key={s.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between">
+              <div key={s.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      s.status === "تم السداد" ? "bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400" : "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400"
+                      s.status === "تم السداد" ? "bg-green-50 text-green-600" : "bg-orange-50 text-orange-600"
                     }`}
                   >
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-slate-200">تسوية مديونية</p>
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500 font-bold">{s.date}</p>
+                    <p className="text-sm font-bold text-gray-800">تسوية مديونية</p>
+                    <p className="text-[10px] text-gray-400 font-bold">{s.date}</p>
                   </div>
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-black text-gray-900 dark:text-white">{s.amount} ج.م</p>
-                  <p className={`text-[10px] font-bold ${s.status === "تم السداد" ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`}>
+                  <p className="text-sm font-black text-gray-900">{s.amount} ج.م</p>
+                  <p className={`text-[10px] font-bold ${s.status === "تم السداد" ? "text-green-600" : "text-orange-600"}`}>
                     {s.status}
                   </p>
                 </div>
@@ -196,5 +189,3 @@ function WalletView({ companyCommission, balance, settlementHistory, commissionD
     </div>
   );
 }
-
-export default WalletView;

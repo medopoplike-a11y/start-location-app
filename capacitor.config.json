@@ -6,29 +6,19 @@
   "server": {
     "androidScheme": "https",
     "hostname": "localhost",
-    "cleartext": true,
-    "allowNavigation": ["*"]
+    "allowNavigation": [
+      "sdpjvorettivpdviytqo.supabase.co"
+    ]
   },
   "android": {
-    "allowMixedContent": true,
+    "allowMixedContent": false,
     "captureInput": true,
-    "backgroundColor": "#020617",
+    "backgroundColor": "#0f172a",
     "buildOptions": {
       "releaseType": "APK"
-    },
-    "overScrollMode": "never"
+    }
   },
   "plugins": {
-    "CapacitorHttp": {
-      "enabled": true
-    },
-    "CapacitorSQLite": {
-      "androidIsEncryption": false,
-      "androidBiometric": {
-        "biometricAuth": false,
-        "isBiometric": false
-      }
-    },
     "CapacitorUpdater": {
       "autoUpdate": false,
       "stats": false,
@@ -43,18 +33,16 @@
       "resizeOnFullScreen": false
     },
     "BackgroundGeolocation": {
-      "staleLocationInterval": 5000,
-      "distanceFilter": 1,
+      "staleLocationInterval": 10000,
+      "distanceFilter": 10,
       "stopOnTerminate": false,
       "startOnBoot": true,
-      "foregroundService": true,
-      "enableHeadless": true,
-      "heartbeatInterval": 30
+      "foregroundService": true
     },
     "SplashScreen": {
       "launchShowDuration": 3000,
       "launchAutoHide": false,
-      "backgroundColor": "#020617",
+      "backgroundColor": "#f8fafc",
       "androidScaleType": "CENTER_CROP",
       "showSpinner": true,
       "androidSpinnerStyle": "large",

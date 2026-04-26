@@ -57,17 +57,6 @@ export interface DriverCard {
   earnings: number;
   debt: number;
   totalOrders: number;
-  email?: string;
-  phone?: string;
-  max_active_orders?: number;
-  billing_type?: 'commission' | 'fixed_salary';
-  commission_value?: number;
-  monthly_salary?: number;
-  rating?: number;
-  lastSeen?: string;
-  lastSeenTimestamp?: number;
-  isOnline?: boolean;
-  location?: { lat: number; lng: number; ts?: number } | null;
 }
 
 export interface VendorCard {
@@ -78,14 +67,11 @@ export interface VendorCard {
   orders: number;
   balance: number;
   status: string;
-  email?: string;
-  phone?: string;
   location?: { lat?: number; lng?: number } | null;
   commission_type?: 'percentage' | 'fixed';
   commission_value?: number;
   billing_type?: 'commission' | 'fixed_salary';
   monthly_salary?: number;
-  rating?: number;
 }
 
 export interface AppUser {
@@ -105,12 +91,8 @@ export interface OnlineDriver {
   name: string;
   lat: number;
   lng: number;
-  path?: Array<{lat: number, lng: number}>;
   lastSeen: string;
-  lastSeenTimestamp?: number;
   status?: 'available' | 'busy';
-  is_online?: boolean;
-  rating?: number;
 }
 
 export interface SettlementItem {

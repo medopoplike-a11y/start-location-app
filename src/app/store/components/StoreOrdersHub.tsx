@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ListFilter, History, Search, Plus, Activity, Sparkles } from "lucide-react";
+import { ListFilter, History, Search, Plus, Activity } from "lucide-react";
 import StoreView from "./StoreView";
 import HistoryView from "./HistoryView";
-import AIInsightsPanel from "./AIInsightsPanel";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import type { Order, OnlineDriver, VendorLocation } from "../types";
 
@@ -27,14 +26,11 @@ interface StoreOrdersHubProps {
   onEditOrder: (order: Order | null) => void;
   onQuickInvoiceUpload?: (order: Order) => void;
   onPreviewImage?: (url: string) => void;
-  onRequestAIInsights?: () => void;
   uploadingInvoice?: boolean;
   quickUploadOrderId?: string | null;
-  isSyncing?: boolean;
-  lastSync?: Date;
 }
 
-const StoreOrdersHub = memo(function StoreOrdersHub({
+export default function StoreOrdersHub({
   orders,
   searchQuery,
   activeTab,
@@ -52,11 +48,8 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
   onEditOrder,
   onQuickInvoiceUpload,
   onPreviewImage,
-  onRequestAIInsights,
   uploadingInvoice,
-  quickUploadOrderId,
-  isSyncing,
-  lastSync
+  quickUploadOrderId
 }: StoreOrdersHubProps) {
   const [viewMode, setViewMode] = useState<"active" | "history">("active");
 
@@ -65,36 +58,31 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
 
   return (
     <div className="space-y-6">
-      {/* V19.3.0: AI Performance Insights */}
-      {viewMode === "active" && (
-        <AIInsightsPanel orders={orders} vendorName={vendorName} />
-      )}
-
       {/* View Switcher */}
-      <div className="flex items-center justify-between gap-6">
-        <div className="flex p-2 bg-white/80 dark:bg-slate-900/40 backdrop-blur-3xl border border-slate-100 dark:border-slate-800/50 rounded-[32px] w-fit shadow-2xl shadow-slate-200/20 dark:shadow-none">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex p-1 bg-white/50 backdrop-blur-md border border-gray-100 rounded-2xl w-fit shadow-sm">
           <button
             onClick={() => setViewMode("active")}
-            className={`flex items-center gap-3 px-8 py-4 rounded-[24px] text-[11px] font-black transition-all uppercase tracking-widest ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
               viewMode === "active"
-                ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl shadow-slate-900/20 dark:shadow-none"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                : "text-slate-500 hover:text-slate-700"
             }`}
           >
             <ListFilter className="w-4 h-4" />
             الطلبات الحالية
             {activeOrders.length > 0 && (
-              <span className={`px-2 py-0.5 rounded-lg text-[10px] ${viewMode === "active" ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"}`}>
+              <span className={`px-1.5 py-0.5 rounded-lg text-[9px] ${viewMode === "active" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500"}`}>
                 {activeOrders.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setViewMode("history")}
-            className={`flex items-center gap-3 px-8 py-4 rounded-[24px] text-[11px] font-black transition-all uppercase tracking-widest ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
               viewMode === "history"
-                ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl shadow-slate-900/20 dark:shadow-none"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                : "text-slate-500 hover:text-slate-700"
             }`}
           >
             <History className="w-4 h-4" />
@@ -102,21 +90,21 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
           </button>
         </div>
 
-        <div className="hidden md:flex items-center gap-4">
-          <div className="flex items-center gap-3 px-5 py-3 bg-white/60 dark:bg-slate-900/40 backdrop-blur-2xl border border-slate-100/50 dark:border-slate-800/50 rounded-[24px] shadow-sm">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-            <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-[0.2em]">Live Monitor</span>
+        <div className="hidden md:flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-2xl">
+            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">Live Monitor</span>
           </div>
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.div
           key={viewMode}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.1 }}
         >
           {viewMode === "active" ? (
             <StoreView
@@ -139,9 +127,6 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
               uploadingInvoice={uploadingInvoice}
               quickUploadOrderId={quickUploadOrderId}
               onPreviewImage={onPreviewImage}
-              onRequestAIInsights={onRequestAIInsights}
-              isSyncing={isSyncing}
-              lastSync={lastSync}
             />
           ) : (
             <HistoryView 
@@ -153,6 +138,4 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
       </AnimatePresence>
     </div>
   );
-});
-
-export default StoreOrdersHub;
+}

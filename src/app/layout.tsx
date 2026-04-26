@@ -3,7 +3,6 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { ToastProvider } from "@/components/ToastProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
 
@@ -12,14 +11,6 @@ const cairo = Cairo({ subsets: ["arabic"] });
 export const metadata: Metadata = {
   title: "Start Location",
   description: "Start Location Application",
-  manifest: "/manifest.json",
-  themeColor: "#4f46e5",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Start Location",
-  },
 };
 
 export default function RootLayout({
@@ -29,21 +20,33 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <head />
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+      </head>
       <body className={cairo.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          forcedTheme={undefined}
-          disableTransitionOnChange
-        >
+        <Script id="kill-sw" strategy="afterInteractive">
+          {`
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for(let registration of registrations) registration.unregister();
+                });
+              }
+              if (typeof window !== 'undefined' && 'caches' in window) {
+                caches.keys().then(function(names) {
+                  for (let name of names) caches.delete(name);
+                });
+              }
+            } catch (e) {
+              console.warn('SW Cleanup failed:', e);
+            }
+          `}
+        </Script>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <ToastProvider>
-              <AppWrapper>
-                {children}
-              </AppWrapper>
-            </ToastProvider>
+            <AppWrapper>
+              {children}
+            </AppWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>

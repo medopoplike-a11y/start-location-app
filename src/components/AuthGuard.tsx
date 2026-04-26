@@ -19,9 +19,10 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
   const userRole = useMemo(() => {
     if (profile?.role) return normalizeRole(profile.role);
+    // If no profile yet, check user metadata as backup
     const metadataRole = user?.user_metadata?.role;
     if (metadataRole) return normalizeRole(metadataRole);
-    return ""; 
+    return ""; // Don't default to driver yet, wait for profile
   }, [profile, user]);
 
   const authorized = useMemo(() => {
@@ -30,70 +31,91 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
   }, [userRole, allowedRoles]);
 
   useEffect(() => {
-    if (loading) return;
+    // Safety fallback: if auth loading is stuck, eventually try to proceed
+    const safetyTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn("AuthGuard: Auth state loading stuck, forcing redirect to login...");
+        const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+        if (isNative) window.location.assign("/login");
+        else window.location.assign("/login");
+      }
+    }, 8000); // Reduced from 15s to 8s for better UX
+    return () => clearTimeout(safetyTimeout);
+  }, [loading]);
 
-    // V16.4.0: Infinite Reload Guard
-    // Prevents the "Crazy Reload" loop between login and dashboard
-    const checkReloadLoop = () => {
-      try {
-        const now = Date.now();
-        const reloadData = JSON.parse(sessionStorage.getItem('auth_redirect_guard') || '{"count":0,"ts":0}');
-        
-        if (now - reloadData.ts > 10000) {
-          // Reset if more than 10 seconds passed
-          sessionStorage.setItem('auth_redirect_guard', JSON.stringify({ count: 1, ts: now }));
-        } else if (reloadData.count > 5) {
-          console.error("AuthGuard: Infinite redirect loop detected! Stopping.");
-          return true; // Loop detected
-        } else {
-          sessionStorage.setItem('auth_redirect_guard', JSON.stringify({ count: reloadData.count + 1, ts: now }));
+  useEffect(() => {
+    if (loading) {
+      console.log("AuthGuard: Still loading auth state...");
+      return;
+    }
+
+    const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+    console.log("AuthGuard: State Check", { user: !!user, userRole, authorized, pathname });
+
+    if (!user) {
+      console.log("AuthGuard: No user session, redirecting to login");
+      // Use window.location as fallback for router issues
+      const loginUrl = "/login"; // Removed trailing slash
+      if (isNative) window.location.assign(loginUrl);
+      else if (router) router.replace(loginUrl);
+      else window.location.assign(loginUrl);
+    } else if (userRole && !authorized) {
+      console.warn("AuthGuard: Access denied for role:", userRole, "allowed:", allowedRoles);
+      const loginUrl = "/login";
+      if (isNative) window.location.assign(loginUrl);
+      else if (router) router.replace(loginUrl);
+      else window.location.assign(loginUrl);
+    } else if (!userRole) {
+      console.log("AuthGuard: User logged in but role not found yet, waiting...");
+      const timeoutId = setTimeout(() => {
+        if (!userRole) {
+          console.error("AuthGuard: Role discovery timeout, forcing login");
+          const loginUrl = "/login";
+          if (isNative) window.location.assign(loginUrl);
+          else router.replace(loginUrl);
         }
-      } catch (e) {}
-      return false;
+      }, isNative ? 30000 : 15000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [loading, user, userRole, authorized, router, allowedRoles, pathname]);
+
+  // Prevent hardware/browser back button from navigating away from the app
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Push a sentinel history entry so back presses consume it instead of leaving
+    window.history.pushState({ guarded: true }, "", pathname);
+
+    const handlePopState = (e: PopStateEvent) => {
+      // Re-push the sentinel — keep the user on this page
+      window.history.pushState({ guarded: true }, "", pathname);
     };
 
-    const timer = setTimeout(() => {
-      const currentPath = pathname?.replace(/\/$/, "") || "";
-      const isLoginPath = currentPath === "/login" || currentPath === "" || currentPath === "/";
+    window.addEventListener("popstate", handlePopState);
 
-      // V17.1.2: Increased timer to 3s to allow profile recovery on slow networks
-      if (currentPath === "" || currentPath === "/") {
-        console.log("AuthGuard: [V17.1.2] Single Shell active, skipping redirect");
-        return;
+    // Capacitor hardware back button (via global plugin if available)
+    let cleanupCapacitor: (() => void) | undefined;
+    const cap = (window as any).Capacitor;
+    if (cap?.isNativePlatform?.() && cap?.Plugins?.App) {
+      try {
+        const handle = cap.Plugins.App.addListener("backButton", () => {
+          // Do nothing — only the logout button signs the user out
+        });
+        cleanupCapacitor = () => handle?.remove?.();
+      } catch {
+        // ignore
       }
+    }
 
-      // V16.6.0: Stable redirection using standard session state
-      if (!user) {
-        if (!isLoginPath) {
-          if (checkReloadLoop()) return;
-          console.log("AuthGuard: [V16.6.0] No session, redirecting to login");
-          router.replace("/login");
-        }
-      } else if (userRole && !authorized) {
-        const correctDashboard = userRole === 'admin' ? '/admin' : userRole === 'vendor' ? '/store' : '/driver';
-        if (currentPath !== correctDashboard) {
-          if (checkReloadLoop()) return;
-          console.log(`AuthGuard: [V17.1.2] Role mismatch, redirecting to ${correctDashboard}`);
-          router.replace(correctDashboard);
-        }
-      }
-    }, 3000); 
-    
-    return () => clearTimeout(timer);
-  }, [loading, user, userRole, authorized, router, pathname]);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      cleanupCapacitor?.();
+    };
+  }, [pathname]);
 
-  if (loading) {
+  if (loading || !user || !authorized) {
     return <AppLoader />;
   }
 
-  // V17.1.2: Persistent Shell - If we have a user and they are authorized, show content.
-  if (user && authorized) {
-    return <>{children}</>;
-  }
-
-  // V17.1.2: ROOT CAUSE FIX for "Empty System" and "Infinite Reloads"
-  // If we have a user but are NOT authorized (e.g. profile still loading or role mismatch),
-  // we MUST keep showing the loader until the redirect timer kicks in.
-  // This prevents the page from rendering in an "Empty" state.
-  return <AppLoader />;
+  return <>{children}</>;
 }

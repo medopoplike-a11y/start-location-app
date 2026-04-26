@@ -1,84 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
-import { 
-  Store, 
-  Truck, 
-  MapPin, 
-  Power, 
-  Phone, 
-  Navigation, 
-  Zap, 
-  Activity, 
-  Clock, 
-  ChevronUp, 
-  ChevronDown,
-  Layers,
-  Map as MapIcon,
-  Maximize2,
-  CheckCircle2,
-  CheckCircle,
-  XCircle,
-  Sparkles,
-  Bot,
-  Loader2
-} from "lucide-react";
+import { Store, TrendingUp, TrendingDown, Truck, Clock, MapPin, Power, ListChecks, Phone, Eye } from "lucide-react";
+import { PremiumCard } from "@/components/PremiumCard";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";
-import { requestAIAnalysis } from "@/lib/api/ai";
 import OrderDetailsModal from "./OrderDetailsModal";
-import RatingModal from "@/components/RatingModal";
-import { SuccessCelebration } from "@/components/SuccessCelebration";
-import DriverOrderItem from "./DriverOrderItem";
-import { supabase } from "@/lib/supabaseClient";
-import { aiVoice } from "@/lib/utils/voice"; // V19.3.0: Import AI Voice
-import { useToast } from "@/hooks/useToast";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), {
   ssr: false,
   loading: () => (
-    <div className="h-full w-full bg-slate-100 dark:bg-slate-800 animate-pulse flex items-center justify-center text-slate-400 font-bold">
-      جاري تحميل الخريطة الاحترافية...
+    <div className="h-44 w-full bg-slate-100/50 animate-pulse rounded-[32px] flex items-center justify-center text-slate-400 font-bold border border-slate-100/50 backdrop-blur-sm">
+      جاري تحميل الخريطة...
     </div>
   ),
 });
-
-function TabButton({ active, onClick, icon, label, count, color }: { 
-  active: boolean, 
-  onClick: () => void, 
-  icon: React.ReactNode, 
-  label: string, 
-  count: number,
-  color: 'blue' | 'amber' | 'emerald'
-}) {
-  const colorClasses = {
-    blue: active 
-      ? "bg-blue-600 text-white border-blue-400/30 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-500/10" 
-      : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500/30 dark:hover:border-blue-500/30",
-    amber: active 
-      ? "bg-amber-500 text-white border-amber-300/30 shadow-2xl shadow-amber-500/30 ring-4 ring-amber-500/10" 
-      : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-amber-500/30 dark:hover:border-amber-500/30",
-    emerald: active 
-      ? "bg-emerald-600 text-white border-emerald-400/30 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/10" 
-      : "bg-white/50 dark:bg-slate-900/50 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 dark:hover:border-emerald-500/30"
-  };
-
-  return (
-    <motion.button 
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={`flex-1 py-4 rounded-[24px] text-[12px] font-black transition-all flex items-center justify-center gap-2.5 border-2 backdrop-blur-xl ${colorClasses[color]}`}
-    >
-      {icon}
-      <span className="hidden sm:inline tracking-tight">{label}</span>
-      <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] ${active ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}>
-        {count}
-      </span>
-    </motion.button>
-  );
-}
 
 interface DriverOrdersViewProps {
   todayDeliveryFees: number;
@@ -95,11 +32,16 @@ interface DriverOrdersViewProps {
   onConfirmPayment: (orderId: string) => Promise<void>;
   onDeliverCustomer?: (orderId: string, customerIndex: number) => Promise<void>;
   onPreviewImage?: (url: string) => void;
-  mapMode: boolean;
-  onToggleMapMode: () => void;
 }
 
-const DriverOrdersView = memo(function DriverOrdersView({
+const statusConfig: Record<string, { label: string; dotColor: string; bg: string; text: string }> = {
+  pending:    { label: "بانتظار القبول", dotColor: "bg-amber-400",  bg: "bg-amber-50 border-amber-100",  text: "text-amber-700" },
+  assigned:   { label: "تم القبول",       dotColor: "bg-sky-500",   bg: "bg-sky-50 border-sky-100",     text: "text-sky-700"   },
+  in_transit: { label: "في الطريق",       dotColor: "bg-indigo-500",bg: "bg-indigo-50 border-indigo-100",text: "text-indigo-700"},
+  delivered:  { label: "تم التوصيل",      dotColor: "bg-emerald-500",bg:"bg-emerald-50 border-emerald-100",text:"text-emerald-700"},
+};
+
+export default function DriverOrdersView({
   todayDeliveryFees,
   vendorDebt,
   isActive,
@@ -114,504 +56,391 @@ const DriverOrdersView = memo(function DriverOrdersView({
   onConfirmPayment,
   onDeliverCustomer,
   onPreviewImage,
-  mapMode,
-  onToggleMapMode,
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
-  const [activeOrderTab, setActiveOrderTab] = useState<"available" | "active" | "completed" | "cancelled">("available");
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [aiRouteLoading, setAiRouteLoading] = useState(false);
-  const [aiRouteResult, setAiRouteResult] = useState<string | null>(null);
-  const [showCelebration, setShowCelebration] = useState(false); // V19.4.0: Success Celebration State
-  const toast = useToast();
+  const [filterTab, setFilterTab] = useState<"available" | "active" | "completed">("available");
 
-  const handleOptimizeRoute = async () => {
-    if (aiRouteLoading || activeOrders.length < 2) return;
-    setAiRouteLoading(true);
-    try {
-      const res = await requestAIAnalysis('route_optimization', {
-        orders: activeOrders.map(o => ({
-          id: o.id_full,
-          vendor: o.vendor,
-          customers: o.customers?.map(c => ({ name: c.name, area: c.area }))
-        })),
-        location: driverLocation
-      }, 'driver');
-      if (res.analysis?.content) setAiRouteResult(res.analysis.content);
-    } catch (err) {
-      console.error("Route Optimization Error:", err);
-    } finally {
-      setAiRouteLoading(false);
-    }
-  };
-
-  // Optimistic UI improvements: use a local state for actions to prevent double-clicks and lag
-  const [localOrders, setLocalOrders] = useState<Order[]>(orders);
-
-  useEffect(() => {
-    setLocalOrders(orders);
-  }, [orders]);
-
-  // 1. Action Handlers
   const handleAccept = async (orderId: string) => {
-    if (actionLoading) return;
     setActionLoading(true);
-    // Optimistic Update
-    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' } : o));
-    try {
-      aiVoice.playSound('success'); // V19.3.0: Success sound
-      await onAcceptOrder(orderId);
-      toast.success("تم قبول الطلب بنجاح");
-      setSelectedOrder(null);
-    } catch (err) {
-      setLocalOrders(orders); // Rollback
-      toast.error("فشل قبول الطلب، حاول مرة أخرى");
-    } finally {
-      setActionLoading(false);
-    }
+    await onAcceptOrder(orderId);
+    setActionLoading(false);
+    setSelectedOrder((prev) => prev ? { ...prev, status: "assigned" } : null);
   };
 
   const handlePickup = async (orderId: string) => {
-    if (actionLoading) return;
     setActionLoading(true);
-    // Optimistic Update: Change status immediately in UI
-    const previousOrders = [...localOrders];
-    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true } : o));
-    
-    try {
-      aiVoice.announceStatusChange(orderId, 'picked_up'); // V19.3.0: AI Voice announcement
-      
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
-        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-      }
-      
-      await onPickupOrder(orderId);
-      toast.success("تم تأكيد استلام الطلب");
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, status: 'in_transit' } : null);
-      }
-    } catch (err) {
-      setLocalOrders(previousOrders); // Rollback
-      toast.error("فشل تأكيد الاستلام");
-    } finally {
-      setActionLoading(false);
-    }
+    await onPickupOrder(orderId);
+    setActionLoading(false);
+    setSelectedOrder((prev) => prev ? { ...prev, status: "in_transit", isPickedUp: true } : null);
   };
 
   const handleDeliver = async (orderId: string) => {
-    if (actionLoading) return;
     setActionLoading(true);
-    // Optimistic Update: Remove from active immediately
-    const previousOrders = [...localOrders];
-    setLocalOrders(prev => prev.filter(o => o.id !== orderId));
-    
-    try {
-      aiVoice.announceStatusChange(orderId, 'delivered'); // V19.3.0: AI Voice announcement
-      
-      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-        const { Haptics, NotificationType } = await import("@capacitor/haptics");
-        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-      }
-      
-      await onDeliverOrder(orderId);
-      toast.success("تم توصيل الطلب بنجاح! أحسنت");
-      setShowCelebration(true); // V19.3.0: Trigger celebration
-      setTimeout(() => setShowCelebration(false), 3000); // Hide after 3s
-      
-      setRatingOrder(selectedOrder);
-      setSelectedOrder(null);
-      setIsNavigating(false);
-    } catch (err) {
-      setLocalOrders(previousOrders); // Rollback
-      toast.error("فشل تأكيد التوصيل");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeliverCustomer = async (orderId: string, customerIndex: number) => {
-    if (!onDeliverCustomer) return;
-    setActionLoading(true);
-    try {
-      await onDeliverCustomer(orderId, customerIndex);
-      toast.success("تم تأكيد التوصيل للعميل");
-      // Update local selectedOrder state to reflect the specific customer delivery
-      if (selectedOrder && selectedOrder.id === orderId && selectedOrder.customers) {
-        const newCustomers = [...selectedOrder.customers];
-        newCustomers[customerIndex] = { ...newCustomers[customerIndex], status: 'delivered' };
-        setSelectedOrder({ ...selectedOrder, customers: newCustomers });
-      }
-    } finally {
-      setActionLoading(false);
-    }
+    await onDeliverOrder(orderId);
+    setActionLoading(false);
+    setSelectedOrder(null);
   };
 
   const handleConfirmPayment = async (orderId: string) => {
     setActionLoading(true);
-    try {
-      await onConfirmPayment(orderId);
-      toast.success("تم تأكيد تحصيل المبلغ");
-    } catch (err) {
-      toast.error("فشل تأكيد التحصيل");
-    } finally {
-      setActionLoading(false);
-    }
+    await onConfirmPayment(orderId);
+    setActionLoading(false);
+    setSelectedOrder((prev) => prev ? { ...prev, driverConfirmedAt: new Date().toISOString() } : null);
   };
 
-  const submitRating = async (rating: number, comment: string) => {
-    if (!ratingOrder || !driverId) return;
-    try {
-      await supabase.from('ratings').insert({
-        order_id: ratingOrder.id,
-        from_id: driverId,
-        to_id: ratingOrder.vendor_id,
-        rating,
-        comment,
-        type: 'driver_to_vendor'
-      });
-    } catch (e) {
-      console.error("Failed to submit rating", e);
-    } finally {
-      setRatingOrder(null);
-    }
-  };
-
-  // Map Data Preparation
-    const availableOrders = useMemo(() => localOrders.filter(o => o.status === 'pending' || o.status === 'searching'), [localOrders]);
-  const activeOrders = useMemo(() => localOrders.filter(o => o.status === 'assigned' || o.status === 'pickup_reached' || o.status === 'in_transit' || o.status === 'delivery_reached'), [localOrders]);
-  const completedOrders = useMemo(() => localOrders.filter(o => o.status === 'delivered'), [localOrders]);
-  const cancelledOrders = useMemo(() => localOrders.filter(o => o.status === 'cancelled'), [localOrders]);
-
-  const vendorMarkers = useMemo(() => 
-    activeOrders
-      .filter(o => o.vendorCoords?.lat && o.vendorCoords?.lng)
-      .map(o => ({ 
-        id: `v-${o.id}`, 
-        name: o.vendor, 
-        lat: o.vendorCoords!.lat, 
-        lng: o.vendorCoords!.lng,
-        type: 'vendor' as const,
-        details: o.status === 'assigned' ? 'بانتظار الاستلام' : 'تم الاستلام'
-      })),
-  [activeOrders]);
-
-  const orderMarkers = useMemo(() => 
-    activeOrders
-      .filter(o => o.customerCoords?.lat && o.customerCoords?.lng)
-      .map(o => ({
-        id: `c-${o.id}`,
-        name: o.customer,
-        lat: o.customerCoords!.lat,
-        lng: o.customerCoords!.lng,
-        type: 'order' as const,
-        status: o.status,
-        details: o.address
-      })),
-  [activeOrders]);
-
-  const mapCenter = useMemo(() => 
-    driverLocation ? [driverLocation.lat, driverLocation.lng] as [number, number] : [30.1450, 31.6350] as [number, number],
-  [driverLocation]);
-
-  // 2. Routing Logic: Determine the next target for the driver
-  const navigationTarget = useMemo(() => {
-    if (!isNavigating) return null;
-    const firstActive = activeOrders[0];
-    if (!firstActive) return null;
+  const filteredOrders = orders.filter(o => {
+    // If not active, hide available orders
+    if (!isActive && o.status === "pending") return false;
     
-    // Target is vendor if not picked up, otherwise target is customer
-    if (firstActive.status === 'assigned' && firstActive.vendorCoords) {
-      return { lat: firstActive.vendorCoords.lat, lng: firstActive.vendorCoords.lng };
-    } else if (firstActive.status === 'in_transit' && firstActive.customerCoords) {
-      return { lat: firstActive.customerCoords.lat, lng: firstActive.customerCoords.lng };
-    }
-    return null;
-  }, [activeOrders, isNavigating]);
+    if (filterTab === "available") return o.status === "pending";
+    if (filterTab === "active") return o.status === "assigned" || o.status === "in_transit";
+    if (filterTab === "completed") return o.status === "delivered";
+    return true;
+  }).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+
+  const vendorMarkersForMap = filteredOrders
+    .filter(o => (o.status === "assigned" || o.status === "in_transit") && o.vendorCoords?.lat && o.vendorCoords?.lng)
+    .map(o => ({ id: o.vendorId || o.id, name: o.vendor, lat: o.vendorCoords!.lat, lng: o.vendorCoords!.lng }));
 
   return (
-    <div className="fixed inset-0 z-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-      {/* 1. Full Screen Map Background */}
-      <div className="absolute inset-0 z-0">
-        {isActive && driverLocation && !isNaN(driverLocation.lat) && !isNaN(driverLocation.lng) ? (
-          <LiveMap
-            drivers={[{ 
-              id: driverId || "me", 
-              name: "أنا", 
-              lat: driverLocation.lat,
-              lng: driverLocation.lng,
-              isOnline: true,
-              status: activeOrders.length > 0 ? 'busy' : 'available'
-            }]}
-            vendors={vendorMarkers.filter(v => !isNaN(v.lat) && !isNaN(v.lng))}
-            orders={orderMarkers.filter(o => !isNaN(o.lat) && !isNaN(o.lng))}
-            center={mapCenter}
-            zoom={16}
-            className="h-full w-full"
-            driverMode={true}
-            isNavigating={isNavigating}
-            navigationTarget={navigationTarget && !isNaN(navigationTarget.lat) && !isNaN(navigationTarget.lng) ? navigationTarget : null}
+    <>
+      <div className="space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <PremiumCard
+            title="أرباح اليوم"
+            value={todayDeliveryFees}
+            icon={<div className="bg-green-500/10 p-2 rounded-xl"><TrendingUp className="text-green-500 w-5 h-5" /></div>}
+            subtitle="ج.م"
+            delay={0.1}
           />
-        ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-400 p-8 text-center">
-            <MapIcon className="w-16 h-16 mb-4 opacity-20" />
-            <p className="font-black text-sm mb-2">الخريطة متوقفة</p>
-            <p className="text-[10px] font-bold max-w-[200px]">قم بتفعيل الحالة (Online) لتشغيل التتبع والملاحة الاحترافية</p>
-          </div>
-        )}
-      </div>
-
-      {/* 2. Navigation Mode Overlay - REMOVED AS PER USER REQUEST */}
-
-      {/* 3. Dynamic Orders Panel (Bottom Sheet) */}
-      <motion.div 
-        initial={false}
-        animate={{ 
-          height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "320px" : "180px")) : "85%"
-        }}
-        className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-t-[48px] shadow-[0_-20px_80px_rgba(0,0,0,0.15)] dark:shadow-none border-t border-white/40 dark:border-slate-800/50 flex flex-col transition-all duration-500"
-      >
-        {/* Map Mode Toggle Button - Floating above panel */}
-        <div className="absolute top-[-85px] right-6 z-30">
-          <motion.button
-            whileHover={{ scale: 1.05, y: -5 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={onToggleMapMode}
-            className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-2xl backdrop-blur-2xl border-2 transition-all duration-500 ${
-              mapMode 
-              ? "bg-blue-600 text-white border-blue-400/50 shadow-blue-500/40" 
-              : "bg-white/95 dark:bg-slate-900/95 text-slate-500 border-white dark:border-slate-800 shadow-slate-200/50 dark:shadow-none"
-            }`}
-          >
-            {mapMode ? <Maximize2 className="w-7 h-7" /> : <MapIcon className="w-7 h-7" />}
-          </motion.button>
+          <PremiumCard
+            title="مديونية المحلات"
+            value={vendorDebt}
+            icon={<div className="bg-orange-500/10 p-2 rounded-xl"><TrendingDown className="text-orange-500 w-5 h-5" /></div>}
+            subtitle="ج.م"
+            delay={0.2}
+          />
         </div>
 
-        {/* Panel Handle & Tabs */}
-        <div className="w-full flex flex-col items-center pt-4 shrink-0">
-          <motion.button 
-            whileHover={{ scaleX: 1.2 }}
-            onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-            className="w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-6 transition-all"
-          />
-          
-          {/* Order Tabs - PREMIUM VERSION */}
-          <div className="flex w-full px-6 gap-3 mb-6">
-            <TabButton 
-              active={activeOrderTab === "active"} 
-              onClick={() => { setActiveOrderTab("active"); setIsPanelExpanded(activeOrderTab !== "active" ? true : !isPanelExpanded); }}
-              icon={<Zap className={`w-4 h-4 ${activeOrderTab === "active" ? "animate-pulse" : ""}`} />}
-              label="النشطة"
-              count={activeOrders.length}
-              color="blue"
-            />
-            <TabButton 
-              active={activeOrderTab === "available"} 
-              onClick={() => { setActiveOrderTab("available"); setIsPanelExpanded(true); }}
-              icon={<Maximize2 className="w-4 h-4" />}
-              label="المتاحة"
-              count={availableOrders.length}
-              color="amber"
-            />
-            <TabButton 
-              active={activeOrderTab === "completed"} 
-              onClick={() => { setActiveOrderTab("completed"); setIsPanelExpanded(true); }}
-              icon={<CheckCircle2 className="w-4 h-4" />}
-              label="مكتمل"
-              count={completedOrders.length}
-              color="emerald"
-            />
-          </div>
+        {/* Filter Tabs */}
+        <div className="flex bg-white/60 backdrop-blur-md p-1 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+          {[
+            { id: "available", label: "متاحة", count: orders.filter(o => o.status === "pending").length },
+            { id: "active", label: "نشطة", count: orders.filter(o => o.status === "assigned" || o.status === "in_transit").length },
+            { id: "completed", label: "مكتملة", count: orders.filter(o => o.status === "delivered").length },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setFilterTab(tab.id as any)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-black transition-all whitespace-nowrap px-4 ${
+                filterTab === tab.id
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-lg text-[9px] ${filterTab === tab.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500"}`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
-        {/* Panel Content */}
-        <div className="flex-1 overflow-y-auto px-5 pb-10">
-          {isActive ? (
-            <div className="space-y-4 pt-2">
-              <AnimatePresence mode="wait">
-                {activeOrderTab === "active" && (
-                  <motion.div key="active-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                    {/* V19.3.0: AI Route Optimization */}
-                    {activeOrders.length >= 2 && (
-                      <div className="mb-4">
-                        <motion.button
-                          whileTap={{ scale: 0.98 }}
-                          onClick={handleOptimizeRoute}
-                          disabled={aiRouteLoading}
-                          className="w-full p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-[32px] border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                              <Sparkles className="w-5 h-5 text-white animate-pulse" />
-                            </div>
-                            <div className="text-right">
-                              <h4 className="text-[13px] font-black text-indigo-900 dark:text-indigo-100">ترتيب المسار الذكي</h4>
-                              <p className="text-[10px] font-bold text-indigo-600/70">توفير الوقت والوقود بالذكاء الاصطناعي</p>
-                            </div>
-                          </div>
-                          {aiRouteLoading ? (
-                            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
-                          ) : (
-                            <ChevronDown className={`w-5 h-5 text-indigo-600 transition-transform ${aiRouteResult ? 'rotate-180' : ''}`} />
+        {/* Live Map or Inactive Warning */}
+        <section>
+          <AnimatePresence mode="wait">
+            {isActive && driverLocation ? (
+              <motion.div
+                key="map"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="relative"
+              >
+                <LiveMap
+                  drivers={[{ id: driverId || "me", name: "موقعي", ...driverLocation }]}
+                  vendors={vendorMarkersForMap}
+                  center={[driverLocation.lat, driverLocation.lng]}
+                  zoom={15}
+                  className="h-44 w-full rounded-[32px] overflow-hidden shadow-sm border border-slate-100/50"
+                />
+                <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">تتبع مباشر</span>
+                </div>
+              </motion.div>
+            ) : isActive && !driverLocation ? (
+              <motion.div
+                key="gps"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-sky-50/60 border border-sky-100 p-5 rounded-[28px] flex items-center gap-4"
+              >
+                <MapPin className="w-6 h-6 text-sky-500 flex-shrink-0 animate-bounce" />
+                <div>
+                  <p className="text-sm font-black text-sky-700">جاري تحديد الموقع...</p>
+                  <p className="text-[10px] text-sky-500 font-bold">تأكد من تفعيل GPS</p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="inactive"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-amber-50/50 border border-amber-100/50 p-6 rounded-[32px] text-center backdrop-blur-sm"
+              >
+                <Power className="w-8 h-8 text-amber-500/40 mx-auto mb-2" />
+                <p className="text-[10px] font-bold text-amber-600">قم بتفعيل الحالة لاستقبال الطلبات وتتبع موقعك</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+
+        {/* Orders List */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <ListChecks className="w-5 h-5 text-sky-500" />
+              الطلبات الحالية
+            </h2>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+              {filteredOrders.length} طلب
+            </span>
+          </div>
+
+          {/* Auto-Accept Toggle */}
+          {filterTab === "available" && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex items-center justify-between px-5 py-4 rounded-[24px] border transition-all ${
+                autoAccept
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-white border-slate-100"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  autoAccept ? "bg-emerald-500" : "bg-slate-100"
+                }`}>
+                  <Truck className={`w-4 h-4 ${autoAccept ? "text-white" : "text-slate-400"}`} />
+                </div>
+                <div>
+                  <p className={`text-[11px] font-black ${autoAccept ? "text-emerald-800" : "text-slate-700"}`}>
+                    القبول التلقائي
+                  </p>
+                  <p className={`text-[9px] font-bold ${autoAccept ? "text-emerald-500" : "text-slate-400"}`}>
+                    {autoAccept ? "مفعّل — يُقبل أول طلب تلقائياً" : "معطّل — قبول يدوي فقط"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onToggleAutoAccept}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                  autoAccept ? "bg-emerald-500" : "bg-slate-200"
+                }`}
+              >
+                <motion.span
+                  layout
+                  transition={{ type: "spring", stiffness: 700, damping: 30 }}
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md ${
+                    autoAccept ? "right-0.5" : "left-0.5"
+                  }`}
+                />
+              </button>
+            </motion.div>
+          )}
+
+          {filteredOrders.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white/60 p-12 rounded-[40px] shadow-sm text-center border border-slate-100/50 backdrop-blur-sm"
+            >
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Truck className="w-10 h-10 text-slate-200" />
+              </div>
+              <p className="text-sm text-slate-400 font-bold">لا توجد طلبات {filterTab === "available" ? "متاحة" : filterTab === "active" ? "نشطة" : "مكتملة"} حالياً</p>
+            </motion.div>
+          ) : (
+            <div className="space-y-4">
+              {filteredOrders.map((order, index) => {
+                const sc = statusConfig[order.status] ?? statusConfig.pending;
+                return (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.08 }}
+                    className="bg-white p-5 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+                  >
+                    {/* Priority indicator */}
+                    <div className={`absolute top-0 right-0 w-1 h-full rounded-l-full ${
+                      order.status === "pending" ? "bg-amber-400" :
+                      order.status === "assigned" ? "bg-sky-500" :
+                      "bg-indigo-500"
+                    }`} />
+
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 group-hover:bg-sky-50 transition-colors shrink-0">
+                          <Store className="w-6 h-6 text-slate-400 group-hover:text-sky-500 transition-colors" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <h3 className="font-black text-slate-900 text-sm truncate">{order.vendor}</h3>
+                          {order.vendorArea && (
+                            <p className="text-[10px] font-bold text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-2.5 h-2.5 text-red-400" />
+                              {order.vendorArea}
+                            </p>
                           )}
-                        </motion.button>
-                        
-                        <AnimatePresence>
-                          {aiRouteResult && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="mt-2 p-4 bg-white dark:bg-slate-800 rounded-3xl border border-indigo-50 dark:border-indigo-900/50 shadow-sm"
-                            >
-                              <div className="flex gap-3">
-                                <Bot className="w-5 h-5 text-indigo-600 shrink-0" />
-                                <p className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">
-                                  {aiRouteResult}
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">#{order.id.slice(0, 8)}</p>
+                          {order.vendorPhone && (
+                            <a href={`tel:${order.vendorPhone}`} className="flex items-center gap-1 text-[10px] font-black text-sky-600 mt-0.5">
+                              <Phone className="w-2.5 h-2.5" />
+                              {order.vendorPhone}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-left bg-green-50 px-3 py-2 rounded-2xl border border-green-100 shrink-0">
+                        <p className="text-xs font-black text-green-600">{order.fee}</p>
+                        <p className="text-[8px] font-bold text-green-500/60 uppercase">عمولة</p>
+                      </div>
+                    </div>
+
+                    {/* Customers Quick Info */}
+                    {order.customers && order.customers.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        {order.customers.slice(0, 2).map((c, i) => (
+                          <div key={i} className="flex items-center justify-between bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <span className="w-4 h-4 bg-slate-900 text-white text-[8px] font-black flex items-center justify-center rounded-full shrink-0">{i + 1}</span>
+                              <div className="overflow-hidden">
+                                <p className="text-[10px] font-black text-slate-800 truncate">{c.name}</p>
+                                <p className="text-[9px] font-bold text-slate-400 truncate flex items-center gap-1">
+                                  <MapPin className="w-2 h-2 text-red-400" />
+                                  {c.address}
                                 </p>
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {c.invoice_url && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onPreviewImage?.(c.invoice_url!);
+                                  }}
+                                  className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all overflow-hidden relative group/inv"
+                                >
+                                  <img src={c.invoice_url} className="w-full h-full object-cover" alt="Inv" />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/inv:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Eye size={8} className="text-white" />
+                                  </div>
+                                </button>
+                              )}
+                              <a href={`tel:${c.phone}`} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
+                                <Phone size={12} />
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                        {order.customers.length > 2 && (
+                          <p className="text-[9px] text-center font-bold text-slate-400">+ {order.customers.length - 2} عملاء آخرين (اضغط للتفاصيل)</p>
+                        )}
                       </div>
                     )}
 
-                    {activeOrders.length > 0 ? (
-                      activeOrders.map((order) => (
-                        <DriverOrderItem
-                          key={order.id}
-                          order={order}
-                          type="active"
-                          actionLoading={actionLoading}
-                          isNavigating={isNavigating}
-                          onToggleNavigation={() => setIsNavigating(!isNavigating)}
-                          onSelectOrder={setSelectedOrder}
-                          onPickup={handlePickup}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-10">
-                        <Activity className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات نشطة حالياً</p>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
+                    {/* Status & Info */}
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${sc.bg}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${sc.dotColor} animate-pulse`} />
+                      <span className={`text-[10px] font-black ${sc.text}`}>{sc.label}</span>
+                    </div>
 
-                {activeOrderTab === "available" && (
-                  <motion.div key="available-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                    {availableOrders.length > 0 ? (
-                      availableOrders.map((order) => (
-                        <DriverOrderItem
-                          key={order.id}
-                          order={order}
-                          type="available"
-                          actionLoading={actionLoading}
-                          onAccept={handleAccept}
-                          onSelectOrder={setSelectedOrder}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-10">
-                        <Zap className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات متاحة الآن</p>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                        <div className="overflow-hidden">
+                          <p className="text-[9px] font-bold text-slate-400">المسافة</p>
+                          <p className="text-[10px] font-black text-slate-700">{order.distance}</p>
+                        </div>
                       </div>
-                    )}
-                  </motion.div>
-                )}
+                      <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-400">التجهيز</p>
+                          <p className="text-[10px] font-black text-slate-700">{order.prepTime || "15"} دقيقة</p>
+                        </div>
+                      </div>
+                    </div>
 
-                {activeOrderTab === "completed" && (
-                  <motion.div key="completed-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                    {completedOrders.length > 0 ? (
-                      completedOrders.map((order) => (
-                        <DriverOrderItem
-                          key={order.id}
-                          order={order}
-                          type="completed"
-                          actionLoading={false}
-                          onSelectOrder={setSelectedOrder}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-10">
-                        <CheckCircle2 className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات مكتملة اليوم</p>
-                      </div>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex gap-3">
+                      <motion.button
+                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-2xl font-black text-xs shadow-lg shadow-slate-200 transition-all active:scale-95"
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        التفاصيل
+                      </motion.button>
+                      {order.status === "pending" && (
+                        <motion.button
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-5 rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 transition-all active:scale-95 disabled:opacity-50"
+                          whileTap={{ scale: 0.97 }}
+                          disabled={actionLoading || !isActive}
+                          onClick={() => handleAccept(order.id)}
+                        >
+                          ✓ قبول
+                        </motion.button>
+                      )}
+                      {order.status === "assigned" && (
+                        <motion.button
+                          className="bg-sky-500 hover:bg-sky-600 text-white py-3.5 px-3 rounded-2xl font-black text-[10px] shadow-lg shadow-sky-100 transition-all active:scale-95 disabled:opacity-50"
+                          whileTap={{ scale: 0.97 }}
+                          disabled={actionLoading}
+                          onClick={() => handlePickup(order.id)}
+                        >
+                          استلمت
+                        </motion.button>
+                      )}
+                      {order.status === "in_transit" && (
+                        <motion.button
+                          className="bg-indigo-500 hover:bg-indigo-600 text-white py-3.5 px-3 rounded-2xl font-black text-[10px] shadow-lg shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+                          whileTap={{ scale: 0.97 }}
+                          disabled={actionLoading}
+                          onClick={() => handleDeliver(order.id)}
+                        >
+                          وصّلت
+                        </motion.button>
+                      )}
+                    </div>
                   </motion.div>
-                )}
-
-                {activeOrderTab === "cancelled" && (
-                  <motion.div key="cancelled-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                    {cancelledOrders.length > 0 ? (
-                      cancelledOrders.map((order) => (
-                        <DriverOrderItem
-                          key={order.id}
-                          order={order}
-                          type="cancelled"
-                          actionLoading={false}
-                          onSelectOrder={setSelectedOrder}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-10">
-                        <XCircle className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                        <p className="text-[10px] font-bold text-slate-400">لا توجد طلبات ملغاة اليوم</p>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="text-center py-10">
-              <Power className="w-10 h-10 text-rose-500/20 mx-auto mb-3" />
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">أنت في وضع عدم الاتصال</p>
-              <p className="text-[10px] text-slate-300 font-bold mt-1">قم بتفعيل الحالة من الأعلى لبدء استقبال الطلبات</p>
+                );
+              })}
             </div>
           )}
-        </div>
-      </motion.div>
+        </section>
+      </div>
 
-      {/* 4. Modals */}
-      <OrderDetailsModal
-        order={selectedOrder}
-        show={!!selectedOrder}
-        onClose={() => setSelectedOrder(null)}
-        onAccept={handleAccept}
-        onPickup={handlePickup}
-        onDeliver={handleDeliver}
-        onConfirmPayment={handleConfirmPayment}
-        onDeliverCustomer={handleDeliverCustomer}
-        onPreviewImage={onPreviewImage}
-        onNavigate={() => {
-          setIsNavigating(true);
-          setIsPanelExpanded(false);
-        }}
-        isActive={isActive}
-        loading={actionLoading}
-      />
-
-      <RatingModal
-        isOpen={!!ratingOrder}
-        onClose={() => setRatingOrder(null)}
-        onSubmit={submitRating}
-        title="تقييم المتجر"
-        subtitle="كيف كانت تجربتك مع هذا المتجر في هذا الطلب؟"
-        targetName={ratingOrder?.vendor || "المتجر"}
-      />
-
-      {/* V19.3.0: Success Celebration */}
-      <SuccessCelebration 
-        show={showCelebration} 
-        message="تم التوصيل بنجاح! 🎉" 
-        onComplete={() => setShowCelebration(false)}
-      />
-    </div>
+      {/* Order Details Modal */}
+      {selectedOrder && (
+        <OrderDetailsModal
+            order={selectedOrder}
+            onClose={() => setSelectedOrder(null)}
+            onAccept={handleAccept}
+            onPickup={handlePickup}
+            onDeliver={handleDeliver}
+            onConfirmPayment={handleConfirmPayment}
+            onDeliverCustomer={onDeliverCustomer}
+            onPreviewImage={onPreviewImage}
+            isActive={isActive}
+            loading={actionLoading}
+          />
+      )}
+    </>
   );
-});
-
-export default DriverOrdersView;
+}
