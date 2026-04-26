@@ -20,6 +20,10 @@ interface StoreHeaderProps {
   rating?: number;
   ratingCount?: number;
   onOpenAI?: () => void; // V1.5.9: AI Help trigger
+  networkHealth?: {
+    rtt: number;
+    quality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown';
+  };
 }
 
 export default function StoreHeader({ 
@@ -34,7 +38,8 @@ export default function StoreHeader({
   isSurgeActive = false,
   rating = 0,
   ratingCount = 0,
-  onOpenAI
+  onOpenAI,
+  networkHealth
 }: StoreHeaderProps) {
   const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Medium) => {
     try {
@@ -77,7 +82,7 @@ export default function StoreHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} onReset={onResetSync} />
+        <SyncIndicator lastSync={lastSync} isSyncing={isSyncing} onReset={onResetSync} networkHealth={networkHealth} />
 
         <ThemeToggle />
 

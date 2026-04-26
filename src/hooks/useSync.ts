@@ -23,6 +23,11 @@ export const useSync = (
   const isAdmin = role === 'admin';
   const [lastSync, setLastSync] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [networkHealth, setNetworkHealth] = useState({
+    rtt: 0,
+    quality: 'unknown' as 'excellent' | 'good' | 'fair' | 'poor' | 'unknown',
+    lastSync: Date.now()
+  });
   const onUpdateRef = useRef(onUpdate);
   const channelsRef = useRef<RealtimeChannel[]>([]);
   const heartbeatChannelRef = useRef<RealtimeChannel | null>(null);
@@ -30,6 +35,7 @@ export const useSync = (
   const isSubscribingRef = useRef(false);
   const lastMessageTimeRef = useRef(Date.now());
   const rttRef = useRef<number>(0);
+  const isOnlineRef = useRef(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -386,7 +392,21 @@ export const useSync = (
               payload: { ts: pingStart, userId }
             }).then(() => {
               // Track RTT for network quality monitoring
-              rttRef.current = Date.now() - pingStart;
+              const rtt = Date.now() - pingStart;
+              rttRef.current = rtt;
+              
+              // Calculate quality
+              let quality: 'excellent' | 'good' | 'fair' | 'poor' = 'excellent';
+              if (rtt > 1000) quality = 'poor';
+              else if (rtt > 500) quality = 'fair';
+              else if (rtt > 200) quality = 'good';
+
+              setNetworkHealth(prev => ({
+                ...prev,
+                rtt,
+                quality,
+                lastSync: Date.now()
+              }));
             }).catch(() => {
               heartbeatChannelRef.current = null;
             });
@@ -407,20 +427,36 @@ export const useSync = (
       }
     }, 30 * 1000);
 
-    // V19.0.5: Global Network State Listeners
+    // V19.1.0: Predictive Network Guard - Listen for browser online/offline events
     const handleOnline = () => {
-      console.log("useSync: System back online, re-syncing...");
+      console.log("PredictiveGuard: Network online detected");
+      isOnlineRef.current = true;
+      triggerUpdate();
       subscribe();
     };
     const handleOffline = () => {
-      console.warn("useSync: System offline, standing by.");
+      console.log("PredictiveGuard: Network offline detected. Switching to Survival Cache.");
+      isOnlineRef.current = false;
+      setNetworkHealth(prev => ({ ...prev, quality: 'poor', rtt: 9999 }));
     };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // V19.1.0: Predictive Network Guard - Pre-emptive reconnection if silence exceeds 60s
+    const silenceLimit = 60000;
+    const checkInterval = setInterval(() => {
+      const silence = Date.now() - lastMessageTimeRef.current;
+      if (silence > silenceLimit && isOnlineRef.current) {
+        console.warn(`PredictiveGuard: Silence (${Math.round(silence/1000)}s) exceeds limit. Pre-emptive reconnect.`);
+        subscribe();
+      }
+    }, 15000);
 
     return () => {
       isMountedRef.current = false;
       clearInterval(heartbeat);
+      clearInterval(checkInterval);
       window.removeEventListener('app-resume-sync', handleResumeSync);
       window.removeEventListener('supabase-realtime-recovered', handleSocketRecovered);
       window.removeEventListener('online', handleOnline);
@@ -546,5 +582,5 @@ export const useSync = (
     };
   }, [triggerUpdate, subscribe, cleanupChannels]);
 
-  return { lastSync, isSyncing, triggerUpdate };
+  return { lastSync, isSyncing, triggerUpdate, networkHealth };
 };

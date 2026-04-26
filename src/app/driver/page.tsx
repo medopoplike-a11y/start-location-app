@@ -18,6 +18,8 @@ import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
+import { aiVoice } from "@/lib/utils/voice";
+import AISupportBot from "@/components/AISupportBot";
 import type { Order, DBDriverOrder } from "./types";
 import DriverHeader from "./components/DriverHeader";
 import DriverOrdersView from "./components/DriverOrdersView";
@@ -99,6 +101,31 @@ function DriverPageContent() {
   const [balance, setBalance] = useState<number>(0); // Overall Earnings
   const [autoAccept, setAutoAccept] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+
+  // V19.1.0: Survival Cache - Load cached data immediately on mount
+  useEffect(() => {
+    const loadSurvivalCache = async () => {
+      try {
+        console.log("SurvivalCache: Loading initial state from persistent storage...");
+        const [cachedActive, cachedHistory, cachedWallet] = await Promise.all([
+          getCache<Order[]>('driver_active_debt_orders'),
+          getCache<Order[]>('driver_today_history'),
+          getCache<any>('driver_wallet')
+        ]);
+
+        if (cachedActive) setOrders(cachedActive);
+        if (cachedHistory) setTodayHistory(cachedHistory);
+        if (cachedWallet) {
+          setVendorDebt(cachedWallet.debt || 0);
+          setSystemBalance(cachedWallet.system_balance || 0);
+          setBalance(cachedWallet.balance || 0);
+        }
+      } catch (e) {
+        console.warn("SurvivalCache: Failed to load", e);
+      }
+    };
+    loadSurvivalCache();
+  }, []);
   const [showAIHelper, setShowAIHelper] = useState(false);
   const [aiAnalysis, setAIAnalysis] = useState<any>(null);
   
@@ -589,6 +616,13 @@ function DriverPageContent() {
       const finalBalance = Number(walletData?.system_balance || 0);
       const finalOverallBalance = Number(walletData?.balance || 0);
       
+      // V19.1.0: Persist wallet to Survival Cache
+      setCache('driver_wallet', { 
+        debt: walletData?.debt, 
+        system_balance: finalBalance, 
+        balance: finalOverallBalance 
+      }).catch(() => {});
+
       // V1.2.1: Use uncollectedOrders sum for real-time accuracy, fallback to wallet debt
       let finalDebt = Number(walletData?.debt || 0);
       if (uncollectedOrders && Array.isArray(uncollectedOrders)) {
@@ -719,6 +753,26 @@ function DriverPageContent() {
   }, [handleRequestAIHelp]);
 
   const [isOnline, setIsOnline] = useState(true);
+
+  // V19.3.0: AI Voice Assistant - Announce new orders
+  const lastOrderCountRef = useRef(0);
+  useEffect(() => {
+    // We only care about pending orders that the driver can accept
+    const pendingOrders = orders.filter(o => o.status === 'pending');
+    
+    if (pendingOrders.length > lastOrderCountRef.current && isActive) {
+      const newestOrder = pendingOrders[0]; // Usually the top one is the newest/most relevant
+      console.log("AIVoice: Announcing new order", newestOrder.id);
+      aiVoice.announceNewOrder(newestOrder.id, newestOrder.vendorArea);
+      
+      try { 
+        Haptics.impact({ style: ImpactStyle.Heavy }); 
+        // V19.3.0: Second pulse for critical alert
+        setTimeout(() => Haptics.impact({ style: ImpactStyle.Heavy }), 500);
+      } catch(e) {}
+    }
+    lastOrderCountRef.current = pendingOrders.length;
+  }, [orders, isActive]);
 
   // Monitor network status
   useEffect(() => {
@@ -941,7 +995,7 @@ function DriverPageContent() {
   const memoizedUserId = useMemo(() => driverId || undefined, [driverId]);
 
   // V17.2.7: Unified Sync Engine
-  useSync(memoizedUserId, (payload) => {
+  const { lastSync, isSyncing: isRefreshingFromSync, networkHealth } = useSync(memoizedUserId, (payload) => {
     // V17.4.6: Explicit 'driver' role so order subscription only fires for
     // this driver's own orders — eliminates flood from other drivers/vendors.
     if (!driverId) return;
@@ -1535,6 +1589,7 @@ function DriverPageContent() {
             isRefreshing={isRefreshing}
             isActive={isActive}
             isSurgeActive={isSurgeActive}
+            networkHealth={networkHealth}
             onOpenDrawer={() => {
               try { Haptics.selectionChanged(); } catch(e) {}
               setShowDrawer(true);
@@ -1551,6 +1606,9 @@ function DriverPageContent() {
           />
 
           <main className="flex-1 relative overflow-y-auto">
+            {/* V19.3.0: AI Support Bot */}
+            <AISupportBot role="driver" context={{ orders: orders.slice(0, 5), profile: authProfile }} />
+            
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

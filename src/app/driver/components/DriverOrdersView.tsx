@@ -19,10 +19,14 @@ import {
   Maximize2,
   CheckCircle2,
   CheckCircle,
-  XCircle
+  XCircle,
+  Sparkles,
+  Bot,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Order } from "../types";
+import { requestAIAnalysis } from "@/lib/api/ai";
 import OrderDetailsModal from "./OrderDetailsModal";
 import RatingModal from "@/components/RatingModal";
 import DriverOrderItem from "./DriverOrderItem";
@@ -80,6 +84,28 @@ const DriverOrdersView = memo(function DriverOrdersView({
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<"available" | "active" | "completed" | "cancelled">("available");
   const [isNavigating, setIsNavigating] = useState(false);
+  const [aiRouteLoading, setAiRouteLoading] = useState(false);
+  const [aiRouteResult, setAiRouteResult] = useState<string | null>(null);
+
+  const handleOptimizeRoute = async () => {
+    if (aiRouteLoading || activeOrders.length < 2) return;
+    setAiRouteLoading(true);
+    try {
+      const res = await requestAIAnalysis('route_optimization', {
+        orders: activeOrders.map(o => ({
+          id: o.id_full,
+          vendor: o.vendor,
+          customers: o.customers?.map(c => ({ name: c.name, area: c.area }))
+        })),
+        location: driverLocation
+      }, 'driver');
+      if (res.analysis?.content) setAiRouteResult(res.analysis.content);
+    } catch (err) {
+      console.error("Route Optimization Error:", err);
+    } finally {
+      setAiRouteLoading(false);
+    }
+  };
 
   // Optimistic UI improvements: use a local state for actions to prevent double-clicks and lag
   const [localOrders, setLocalOrders] = useState<Order[]>(orders);
@@ -359,6 +385,51 @@ const DriverOrdersView = memo(function DriverOrdersView({
               <AnimatePresence mode="wait">
                 {activeOrderTab === "active" && (
                   <motion.div key="active-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    {/* V19.3.0: AI Route Optimization */}
+                    {activeOrders.length >= 2 && (
+                      <div className="mb-4">
+                        <motion.button
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleOptimizeRoute}
+                          disabled={aiRouteLoading}
+                          className="w-full p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-[32px] border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                              <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                            </div>
+                            <div className="text-right">
+                              <h4 className="text-[13px] font-black text-indigo-900 dark:text-indigo-100">ترتيب المسار الذكي</h4>
+                              <p className="text-[10px] font-bold text-indigo-600/70">توفير الوقت والوقود بالذكاء الاصطناعي</p>
+                            </div>
+                          </div>
+                          {aiRouteLoading ? (
+                            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                          ) : (
+                            <ChevronDown className={`w-5 h-5 text-indigo-600 transition-transform ${aiRouteResult ? 'rotate-180' : ''}`} />
+                          )}
+                        </motion.button>
+                        
+                        <AnimatePresence>
+                          {aiRouteResult && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-2 p-4 bg-white dark:bg-slate-800 rounded-3xl border border-indigo-50 dark:border-indigo-900/50 shadow-sm"
+                            >
+                              <div className="flex gap-3">
+                                <Bot className="w-5 h-5 text-indigo-600 shrink-0" />
+                                <p className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">
+                                  {aiRouteResult}
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+
                     {activeOrders.length > 0 ? (
                       activeOrders.map((order) => (
                         <DriverOrderItem

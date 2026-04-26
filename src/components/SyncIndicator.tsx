@@ -9,9 +9,13 @@ interface SyncIndicatorProps {
   lastSync: Date;
   isSyncing?: boolean;
   onReset?: () => void;
+  networkHealth?: {
+    rtt: number;
+    quality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown';
+  };
 }
 
-export const SyncIndicator = ({ lastSync, isSyncing = false, onReset }: SyncIndicatorProps) => {
+export const SyncIndicator = ({ lastSync, isSyncing = false, onReset, networkHealth }: SyncIndicatorProps) => {
   const [timeAgo, setTimeAgo] = useState("الآن");
   const [isConnected, setIsConnected] = useState(true);
 
@@ -64,6 +68,30 @@ export const SyncIndicator = ({ lastSync, isSyncing = false, onReset }: SyncIndi
       <span className={`text-[10px] font-bold whitespace-nowrap ${!isConnected ? 'text-red-600' : 'text-gray-500'}`}>
         {!isConnected ? "انقطع الاتصال" : isSyncing ? "جاري التزامن..." : `تزامن ${timeAgo}`}
       </span>
+
+      {isConnected && networkHealth && networkHealth.quality !== 'unknown' && (
+        <div className="flex gap-0.5 items-end h-2 ml-1" title={`RTT: ${networkHealth.rtt}ms`}>
+          {[1, 2, 3, 4].map((bar) => {
+            const isActive = 
+              (networkHealth.quality === 'excellent') ||
+              (networkHealth.quality === 'good' && bar <= 3) ||
+              (networkHealth.quality === 'fair' && bar <= 2) ||
+              (networkHealth.quality === 'poor' && bar <= 1);
+            
+            return (
+              <div 
+                key={bar}
+                className={`w-0.5 rounded-full transition-all ${
+                  isActive 
+                    ? networkHealth.quality === 'poor' ? 'bg-amber-400' : 'bg-emerald-500' 
+                    : 'bg-gray-200'
+                }`}
+                style={{ height: `${bar * 25}%` }}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

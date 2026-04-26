@@ -2,7 +2,7 @@
 
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { Truck, Store, Navigation, MapPin, Zap, CheckCircle2, XCircle } from "lucide-react";
+import { Truck, Store, Navigation, MapPin, Zap, CheckCircle2, XCircle, Bot, AlertCircle } from "lucide-react";
 import type { Order } from "../types";
 
 interface DriverOrderItemProps {
@@ -26,6 +26,23 @@ const DriverOrderItem = ({
   onAccept,
   onPickup
 }: DriverOrderItemProps) => {
+  // V19.3.0: AI Delay Prediction Logic
+  const getAIAlert = () => {
+    if (order.status === 'assigned') {
+      const assignedTime = new Date(order.assignedAt || order.updatedAt).getTime();
+      const diffMins = (Date.now() - assignedTime) / 60000;
+      if (diffMins > 10) return { type: 'delay', message: 'تأخر في الاستلام' };
+    }
+    if (order.status === 'in_transit') {
+      const pickupTime = new Date(order.pickedUpAt || order.updatedAt).getTime();
+      const diffMins = (Date.now() - pickupTime) / 60000;
+      if (diffMins > 20) return { type: 'critical', message: 'تأخر في التوصيل' };
+    }
+    return null;
+  };
+
+  const aiAlert = getAIAlert();
+
   if (type === "active") {
     return (
       <motion.div
@@ -66,6 +83,19 @@ const DriverOrderItem = ({
             )}
           </div>
         </div>
+
+        {aiAlert && (
+          <div className={`mb-3 p-2.5 rounded-2xl flex items-center gap-2.5 animate-pulse ${
+            aiAlert.type === 'critical' 
+              ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:border-red-800/30' 
+              : 'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/20 dark:border-amber-800/30'
+          }`}>
+            <div className={`p-1.5 rounded-lg ${aiAlert.type === 'critical' ? 'bg-red-100 dark:bg-red-800/40' : 'bg-amber-100 dark:bg-amber-800/40'}`}>
+              <Bot className="w-3.5 h-3.5" />
+            </div>
+            <p className="text-[11px] font-black">{aiAlert.message}</p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-2 mb-1">

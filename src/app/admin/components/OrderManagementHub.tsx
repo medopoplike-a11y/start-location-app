@@ -25,6 +25,7 @@ interface OrderManagementHubProps {
   liveOrders: LiveOrderItem[];
   allOrders: AdminOrder[];
   activities: ActivityItem[];
+  onlineDrivers?: any[];
   onCancelOrder: (orderId: string) => Promise<void>;
   onUpdateStatus: (orderId: string, status: string) => Promise<void>;
   onDeleteOrder: (orderId: string) => Promise<void>;
@@ -36,6 +37,7 @@ export default function OrderManagementHub({
   liveOrders,
   allOrders,
   activities,
+  onlineDrivers = [],
   onCancelOrder,
   onUpdateStatus,
   onDeleteOrder,
@@ -145,6 +147,7 @@ export default function OrderManagementHub({
             <OrdersView 
               liveOrders={liveOrders.filter(o => o.customer.toLowerCase().includes(searchQuery.toLowerCase()) || o.id_full.includes(searchQuery))} 
               activities={activities}
+              onlineDrivers={onlineDrivers}
               onCancelOrder={onCancelOrder}
               onUpdateStatus={onUpdateStatus}
             />

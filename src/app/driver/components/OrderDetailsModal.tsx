@@ -3,10 +3,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Phone, MapPin, Store, User, Clock, Banknote,
-  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, Star, Bot
+  Truck, CheckCircle, Package, Navigation, AlertCircle, Camera, Star, Bot, Sparkles, Loader2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useBackButton } from "@/hooks/useBackButton";
+import { aiVoice } from "@/lib/utils/voice";
 import RatingModal from "@/components/RatingModal";
 import type { Order } from "../types";
 import { submitRating } from "@/lib/auth"; // Correct import from auth.ts
@@ -61,6 +62,69 @@ export default function OrderDetailsModal({
 }: OrderDetailsModalProps) {
   useBackButton(onClose, !!order);
   const [showRating, setShowRating] = useState(false);
+  const [isGeneratingReply, setIsGeneratingReply] = useState(false);
+  const [visionLoading, setVisionLoading] = useState(false);
+  const [visionResult, setVisionResult] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleVisionQC = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setVisionLoading(true);
+    setVisionResult(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        const { requestAIAnalysis } = await import("@/lib/api/ai");
+        const res = await requestAIAnalysis('vision_qc', {
+          order: {
+            id: order.id_full,
+            items: order.items_description,
+            value: totalOrderValue
+          },
+          image: base64
+        }, 'driver');
+
+        if (res.analysis?.content) {
+          setVisionResult(res.analysis.content);
+          aiVoice.speak(res.analysis.content);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("AI Vision QC error:", err);
+    } finally {
+      setVisionLoading(false);
+    }
+  };
+
+  const generateAIQuickReply = async (target: 'vendor' | 'customer', customerIndex: number = 0) => {
+    if (!order || isGeneratingReply) return;
+    setIsGeneratingReply(true);
+    try {
+      const { requestAIAnalysis } = await import("@/lib/api/ai");
+      const res = await requestAIAnalysis('quick_reply', {
+        target,
+        orderStatus: order.status,
+        vendorName: order.vendor,
+        customerName: order.customers?.[customerIndex]?.name
+      }, 'driver');
+      
+      if (res.analysis?.content) {
+        const phone = target === 'vendor' ? order.vendorPhone : order.customers?.[customerIndex]?.phone;
+        const cleanPhone = phone?.replace(/\D/g, '');
+        const message = encodeURIComponent(res.analysis.content);
+        window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_system');
+      }
+    } catch (err) {
+      console.error("AI Quick Reply error:", err);
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  };
 
   if (!order) return null;
 
@@ -227,13 +291,27 @@ export default function OrderDetailsModal({
                   </div>
                 </div>
                 {order.vendorPhone && (
-                  <a
-                    href={`tel:${order.vendorPhone}`}
-                    className="w-12 h-12 bg-white dark:bg-slate-800 text-sky-500 border border-sky-100 dark:border-sky-900/30 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
-                    title="اتصال بالمحل"
-                  >
-                    <Phone className="w-5 h-5" />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`tel:${order.vendorPhone}`}
+                      className="w-12 h-12 bg-white dark:bg-slate-800 text-sky-500 border border-sky-100 dark:border-sky-900/30 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all"
+                      title="اتصال بالمحل"
+                    >
+                      <Phone className="w-5 h-5" />
+                    </a>
+                    <button 
+                      onClick={() => generateAIQuickReply('vendor')}
+                      disabled={isGeneratingReply}
+                      className="h-12 px-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl flex items-center gap-2 shadow-sm active:scale-90 transition-all disabled:opacity-50"
+                    >
+                      {isGeneratingReply ? (
+                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Bot className="w-4 h-4" />
+                      )}
+                      <span className="text-[10px] font-black">رد ذكي</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -380,6 +458,18 @@ export default function OrderDetailsModal({
                       <a href={`tel:${cust.phone}`} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl flex items-center justify-center text-sky-500 shadow-sm active:scale-90 transition-all">
                         <Phone size={18} />
                       </a>
+                      <button 
+                        onClick={() => generateAIQuickReply('customer', idx)}
+                        disabled={isGeneratingReply}
+                        className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all disabled:opacity-50"
+                        title="رد ذكي للعميل"
+                      >
+                        {isGeneratingReply ? (
+                          <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Bot className="w-4 h-4" />
+                        )}
+                      </button>
                       
                       {/* Navigate to Customer (v0.9.80 - Compact) */}
                       {((cust as any).lat || (cust as any).coords?.lat || (order.customers?.length === 1 && order.customerCoords)) && (
@@ -498,7 +588,55 @@ export default function OrderDetailsModal({
 
           {/* Action Button */}
           <div className="px-6 pb-8 pt-2">
-            {actionLabel() && (
+            {/* V19.3.0: AI Vision QC */}
+                {order.status === "assigned" && (
+                  <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-[32px] border border-indigo-100 dark:border-indigo-900/30">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
+                          <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                        </div>
+                        <div>
+                          <h4 className="text-[13px] font-black text-indigo-900 dark:text-indigo-100">فحص الجودة الذكي</h4>
+                          <p className="text-[10px] font-bold text-indigo-600/70">تأكد من سلامة الطلب بالذكاء الاصطناعي</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={visionLoading}
+                        className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200"
+                      >
+                        {visionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleVisionQC}
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                    />
+
+                    {visionResult && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="mt-3 p-3 bg-white dark:bg-slate-800 rounded-2xl border border-indigo-50 dark:border-indigo-900/50"
+                      >
+                        <div className="flex gap-2">
+                          <Bot className="w-4 h-4 text-indigo-600 shrink-0 mt-1" />
+                          <p className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {visionResult}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {actionLabel() && (
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleAction}

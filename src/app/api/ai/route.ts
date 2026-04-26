@@ -88,7 +88,59 @@ export async function POST(request: NextRequest) {
       2. Delivery efficiency advice.
       3. Provide 'store_advice' in Arabic as a trusted consultant.
       4. DO NOT provide technical info or system fixes.`;
-    } else {
+    } else if (type === 'quick_reply') {
+      systemPrompt += ` Task: Generate a professional, short, and polite WhatsApp reply for a delivery driver.
+      Target: ${data.target} (vendor or customer)
+      Status: ${data.orderStatus}
+      Vendor: ${data.vendorName}
+      Customer: ${data.customerName || 'the customer'}
+      Instructions:
+      1. Keep it very short (1-2 sentences).
+      2. Use a respectful tone.
+      3. For status 'assigned', mention you're on your way to pick up.
+      4. For status 'in_transit', mention you're on your way to deliver.
+      5. Respond only with the message content in Arabic.`;
+    } else if (type === 'dispatch_recommendation') {
+      systemPrompt += ` Task: Recommend the best driver for a new order.
+      Order Location: ${JSON.stringify(data.orderLocation)}
+      Available Drivers: ${JSON.stringify(data.drivers)}
+      Instructions:
+      1. Analyze distances and driver current workloads.
+      2. Recommend one driver with a brief reason.
+      3. Respond in Arabic.`;
+    } else if (type === 'vision_qc') {
+      systemPrompt += ` Task: Analyze a photo of an order for quality control.
+      Order Details: ${JSON.stringify(data.order)}
+      Instructions:
+      1. Check if the items in the photo match the order description (if visible).
+      2. Check if the packaging looks secure and professional.
+      3. Verify if a receipt is visible.
+      4. Provide a very brief "Status: OK" or "Warning: [issue]" followed by a short friendly advice in Arabic.`;
+    } else if (type === 'admin_summary') {
+      systemPrompt += ` Task: Provide a high-level executive summary of today's delivery operations for the Admin.
+      Data: ${JSON.stringify(data.stats)}
+      Instructions:
+      1. Summarize the performance (orders, drivers, revenue).
+      2. Identify any potential issues or bottlenecks.
+      3. Suggest 2-3 actionable improvements.
+      4. Be professional, concise, and use a "Director" tone in Arabic.`;
+    } else if (type === 'route_optimization') {
+      systemPrompt += ` Task: Suggest the most efficient sequence for multiple deliveries.
+      Orders: ${JSON.stringify(data.orders)}
+      Current Location: ${JSON.stringify(data.location)}
+      Instructions:
+      1. Order the deliveries to minimize total travel time.
+      2. Briefly explain why this sequence was chosen.
+      3. Respond in Arabic.`;
+    } else if (type === 'support_bot') {
+      systemPrompt += ` Task: Provide instant support to a ${role}.
+      Context: ${JSON.stringify(data.context)}
+      User Message: ${data.message}
+      Instructions:
+      1. Solve the problem based on the context.
+      2. If you can't solve it, suggest contacting the admin.
+      3. Be extremely supportive and friendly in Arabic.`;
+    } else if (role === 'admin') {
       systemPrompt += ` Task: Analyze ${type} data for admin review.
       Data: ${JSON.stringify(data)}
       Be precise, technical, and helpful.`;
@@ -110,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     const contents: any[] = [{ parts: [{ text: prompt }] }];
 
-    if (type === 'invoice_audit' && data.image && data.image.startsWith('data:image')) {
+    if ((type === 'invoice_audit' || type === 'vision_qc') && data.image && data.image.startsWith('data:image')) {
       const base64Data = data.image.split(',')[1];
       const mimeType = data.image.split(';')[0].split(':')[1];
       contents[0].parts.push({

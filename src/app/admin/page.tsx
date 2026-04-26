@@ -53,6 +53,7 @@ import Toast from "@/components/Toast";
 import { StartLogo } from "@/components/StartLogo";
 import { AppLoader } from "@/components/AppLoader";
 import { SyncIndicator } from "@/components/SyncIndicator";
+import AISupportBot from "@/components/AISupportBot";
 import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
@@ -424,6 +425,28 @@ function AdminContent() {
       customers: o.customer_details?.customers
     };
   }, [translateStatus]);
+
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+
+  const handleGenerateAiSummary = async () => {
+    if (aiSummaryLoading) return;
+    setAiSummaryLoading(true);
+    try {
+      const stats = {
+        totalOrders: liveOrders.length,
+        pendingOrders: liveOrders.filter(o => o.status === 'جاري البحث').length,
+        activeDrivers: drivers.filter(d => d.is_online).length,
+        totalRevenue: liveOrders.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0)
+      };
+      const res = await requestAIAnalysis('admin_summary', { stats }, 'admin');
+      if (res.analysis?.content) setAiSummary(res.analysis.content);
+    } catch (err) {
+      console.error("AI Summary Error:", err);
+    } finally {
+      setAiSummaryLoading(false);
+    }
+  };
 
   const fetchOrders = useCallback(async (fullHistory = false) => {
     try {
@@ -1571,6 +1594,7 @@ function AdminContent() {
                 liveOrders={liveOrders}
                 allOrders={allOrders}
                 activities={activities}
+                onlineDrivers={onlineDrivers}
                 onCancelOrder={handleCancelOrder}
                 onUpdateStatus={handleUpdateOrderStatusManual}
                 onDeleteOrder={handleDeleteAdminOrder}
@@ -1669,6 +1693,9 @@ function AdminContent() {
       </AnimatePresence>
 
       <Toast toasts={toasts} onRemove={removeToast} />
+      
+      {/* V19.3.0: AI Support Bot */}
+      <AISupportBot role="admin" context={{ liveOrders: liveOrders.length, drivers: drivers.length }} />
     </div>
   );
 }

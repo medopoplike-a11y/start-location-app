@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera, Eye } from "lucide-react";
-import type { ActivityItem, LiveOrderItem } from "../types";
+import { Clock, Truck, Store, User, Banknote, CheckCircle, Circle, Loader2, XCircle, Ban, Filter, Users, Camera, Eye, Bot, Sparkles } from "lucide-react";
+import type { ActivityItem, LiveOrderItem, OnlineDriver } from "../types";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
+import { requestAIAnalysis } from "@/lib/api/ai";
 
 interface OrdersViewProps {
   liveOrders: LiveOrderItem[];
   activities: ActivityItem[];
+  onlineDrivers?: OnlineDriver[];
   onCancelOrder?: (orderId: string) => Promise<void>;
   onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
 }
@@ -23,11 +25,32 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: s
 
 const statusFilters = ["الكل", "جاري البحث", "تم التعيين", "في الطريق", "تم التوصيل", "ملغي"];
 
-export default function OrdersView({ liveOrders = [], activities = [], onCancelOrder, onUpdateStatus }: OrdersViewProps) {
+export default function OrdersView({ liveOrders = [], activities = [], onlineDrivers = [], onCancelOrder, onUpdateStatus }: OrdersViewProps) {
   const [filter, setFilter] = useState("الكل");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [aiDispatchLoading, setAiDispatchLoading] = useState<string | null>(null);
+  const [aiRecommendation, setAiRecommendation] = useState<{orderId: string, text: string} | null>(null);
+
+  const handleAiSuggestDriver = async (order: LiveOrderItem) => {
+    if (aiDispatchLoading) return;
+    setAiDispatchLoading(order.id);
+    try {
+      const res = await requestAIAnalysis('dispatch_recommendation', {
+        orderLocation: order.vendorLocation,
+        drivers: onlineDrivers.map(d => ({ id: d.id, name: d.full_name, lat: d.lat, lng: d.lng, active_orders: d.active_orders }))
+      }, 'admin');
+      
+      if (res.analysis?.content) {
+        setAiRecommendation({ orderId: order.id, text: res.analysis.content });
+      }
+    } catch (err) {
+      console.error("AI Dispatch Error:", err);
+    } finally {
+      setAiDispatchLoading(null);
+    }
+  };
 
   const allOrders = Array.isArray(liveOrders) ? [...liveOrders] : [];
   const filtered = filter === "الكل" ? allOrders : allOrders.filter(o => o.status === filter);
@@ -263,6 +286,34 @@ export default function OrdersView({ liveOrders = [], activities = [], onCancelO
                         </div>
                       )}
                     </div>
+
+                    {/* AI Dispatch Suggestion (V19.3.0) */}
+                    {order.status === "جاري البحث" && (
+                      <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+                            <span className="text-[10px] font-black text-indigo-600 uppercase">توزيع ذكي</span>
+                          </div>
+                          <button
+                            onClick={() => handleAiSuggestDriver(order)}
+                            disabled={aiDispatchLoading === order.id}
+                            className="text-[10px] font-black text-indigo-600 underline disabled:opacity-50"
+                          >
+                            {aiDispatchLoading === order.id ? "جاري التحليل..." : "اقتراح طيار"}
+                          </button>
+                        </div>
+                        {aiRecommendation?.orderId === order.id && (
+                          <motion.p 
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2"
+                          >
+                            {aiRecommendation.text}
+                          </motion.p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between pt-4 border-t border-white/10 dark:border-white/5">
                       <div className="flex items-center gap-6">

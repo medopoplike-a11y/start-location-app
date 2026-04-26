@@ -24,6 +24,8 @@ import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
+import { aiVoice } from "@/lib/utils/voice";
+import AISupportBot from "@/components/AISupportBot";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
 import { formatTimeOnly } from "@/lib/utils/format";
 import StoreHeader from "./components/StoreHeader";
@@ -71,6 +73,26 @@ function StoreContent() {
   const [balance, setBalance] = useState(0);
   const [companyCommission, setCompanyCommission] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
+
+  // V19.1.0: Survival Cache - Load cached data immediately on mount
+  useEffect(() => {
+    const loadSurvivalCache = async () => {
+      try {
+        console.log("SurvivalCache: Loading store state from persistent storage...");
+        const [cachedOrders, cachedName] = await Promise.all([
+          getCache<Order[]>('vendor_orders'),
+          getCache<string>('vendor_name')
+        ]);
+
+        if (cachedOrders) setOrders(cachedOrders);
+        if (cachedName) setVendorName(cachedName);
+      } catch (e) {
+        console.warn("SurvivalCache: Failed to load store cache", e);
+      }
+    };
+    loadSurvivalCache();
+  }, []);
+
   const [onlineDrivers, setOnlineDrivers] = useState<OnlineDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
@@ -374,7 +396,7 @@ function StoreContent() {
   const [lastOrderCount, setLastOrderCount] = useState<number | null>(null);
 
   // V17.2.7: Unified Sync Engine
-  useSync(vendorId || undefined, (payload) => {
+  const { lastSync: syncLastTime, isSyncing: isRefreshingFromSync, networkHealth } = useSync(vendorId || undefined, (payload) => {
     // V17.4.6: Explicit 'vendor' role so order subscription is scoped to
     // this vendor's orders only — no more cross-talk with drivers/other stores.
     if (!vendorId) return;
@@ -445,6 +467,11 @@ function StoreContent() {
       
       if (hasNewPending) {
         console.log("StorePage: New pending order detected, playing sound...");
+        
+        // V19.3.0: AI Voice Assistant - Announce new orders for vendor
+        const newestOrder = orders[0];
+        aiVoice.speak(`لديك طلب جديد من ${newestOrder.customers?.[0]?.name || 'عميل'} بقيمة ${newestOrder.totalValue} جنيه`, { priority: 'high' });
+
         try {
           const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
           audio.play().catch(e => console.warn("Audio play failed (normal browser behavior)", e));
@@ -1375,6 +1402,7 @@ function StoreContent() {
             lastSync={lastSync}
             isSyncing={isSyncing}
             searchQuery={searchQuery}
+            networkHealth={networkHealth}
             onSearchChange={setSearchQuery}
             onOpenDrawer={() => setShowDrawer(true)}
             onSync={() => vendorId && updateData(vendorId)}
@@ -1406,6 +1434,9 @@ function StoreContent() {
           )}
         </>
       )}
+
+      {/* V19.3.0: AI Support Bot */}
+      <AISupportBot role="vendor" context={{ orders: orders.slice(0, 5), vendorName }} />
 
       <main className={`flex-1 overflow-y-auto ${activeView === "order-form" ? "" : "p-4 pb-24 space-y-6"}`}>
         {activeView === "store" ? (

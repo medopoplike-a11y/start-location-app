@@ -20,6 +20,10 @@ interface DriverHeaderProps {
   autoAccept: boolean;
   onToggleAutoAccept: () => void;
   onOpenAIHelp?: () => void; // V1.5.9: AI Help trigger
+  networkHealth?: {
+    rtt: number;
+    quality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown';
+  };
 }
 
 function DriverHeader({
@@ -36,6 +40,7 @@ function DriverHeader({
   autoAccept,
   onToggleAutoAccept,
   onOpenAIHelp,
+  networkHealth,
   activeView = "orders", // V0.9.91: Hide controls in wallet view to prevent overlap
 }: DriverHeaderProps & { activeView?: string }) {
   // Only show floating controls in orders/map view to prevent overlapping with wallet/settings headers
@@ -102,7 +107,7 @@ function DriverHeader({
         {/* Combined Sync Controls */}
         <div className="flex items-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl border border-white/20 dark:border-slate-800 shadow-lg overflow-hidden">
           <div className="px-1.5 py-1 border-l border-white/10 dark:border-slate-800">
-            <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} />
+            <SyncIndicator lastSync={lastSyncTime} isSyncing={isRefreshing} networkHealth={networkHealth} />
           </div>
           <motion.button
             whileTap={{ scale: 0.9, rotate: 180 }}

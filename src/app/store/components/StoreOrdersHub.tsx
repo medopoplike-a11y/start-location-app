@@ -2,9 +2,10 @@
 
 import { useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ListFilter, History, Search, Plus, Activity } from "lucide-react";
+import { ListFilter, History, Search, Plus, Activity, Sparkles } from "lucide-react";
 import StoreView from "./StoreView";
 import HistoryView from "./HistoryView";
+import AIInsightsPanel from "./AIInsightsPanel";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import type { Order, OnlineDriver, VendorLocation } from "../types";
 
@@ -60,6 +61,11 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
 
   return (
     <div className="space-y-6">
+      {/* V19.3.0: AI Performance Insights */}
+      {viewMode === "active" && (
+        <AIInsightsPanel orders={orders} vendorName={vendorName} />
+      )}
+
       {/* View Switcher */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex p-1 bg-white/50 backdrop-blur-md border border-gray-100 rounded-2xl w-fit shadow-sm">

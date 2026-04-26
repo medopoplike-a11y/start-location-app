@@ -17,11 +17,15 @@ import {
   CheckCircle,
   AlertCircle,
   X,
-  ChevronLeft,
-  ChevronRight
+  ChevronLeft, 
+  ChevronRight,
+  Sparkles,
+  Bot,
+  Loader2
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
+import { requestAIAnalysis } from "@/lib/api/ai";
 import OrdersView from "./OrdersView";
 import SystemControlView from "./SystemControlView";
 import AIMonitorView from "./AIMonitorView";
@@ -85,6 +89,28 @@ export default function OperationsCenter({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
+  
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGenerateAiSummary = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    try {
+      const summaryStats = {
+        totalOrders: liveOrders.length,
+        pendingOrders: liveOrders.filter(o => o.status === 'جاري البحث').length,
+        onlineDrivers: onlineDrivers.length,
+        revenue: liveOrders.reduce((acc, o) => acc + (o.financials?.order_value || 0), 0)
+      };
+      const res = await requestAIAnalysis('admin_summary', { stats: summaryStats }, 'admin');
+      if (res.analysis?.content) setAiSummary(res.analysis.content);
+    } catch (err) {
+      console.error("AI Summary Error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // V1.5.0: Memoized Map Data to prevent heavy re-renders
   const mapDrivers = useMemo(() => onlineDrivers.map(d => ({
@@ -191,6 +217,36 @@ export default function OperationsCenter({
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-black">
+      {/* AI Summary Display (V19.3.0) */}
+      <AnimatePresence>
+        {aiSummary && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-indigo-600 text-white"
+          >
+            <div className="px-8 py-4 flex items-start gap-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0 relative z-10">
+                <Bot className="w-6 h-6" />
+              </div>
+              <div className="flex-1 relative z-10">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xs font-black uppercase tracking-wider opacity-80">التقرير التنفيذي الذكي</h3>
+                  <button onClick={() => setAiSummary(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap">
+                  {aiSummary}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top Action Bar */}
       <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-30 shadow-sm">
         <div className="flex items-center gap-6">
@@ -262,6 +318,17 @@ export default function OperationsCenter({
              </div>
           </div>
           
+          {/* AI Executive Summary Button (V19.3.0) */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleGenerateAiSummary}
+            disabled={aiLoading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[11px] shadow-lg shadow-indigo-200 dark:shadow-none disabled:opacity-50"
+          >
+            {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 animate-pulse" />}
+            {aiSummary ? "تحديث التقرير" : "تقرير AI"}
+          </motion.button>
+
           <button 
             onClick={onRefresh}
             disabled={actionLoading}
