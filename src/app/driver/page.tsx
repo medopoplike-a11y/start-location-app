@@ -537,10 +537,11 @@ function DriverPageContent() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [driverId, isActive, lastLocationUpdate]);
 
+  // V19.6.4: Standardized Wallet Fetching with Auto-Creation
   const fetchStats = async (currentDriverId: string) => {
     setLastSyncTime(new Date());
     try {
-      // V0.9.92: Improved Wallet Fetching with Auto-Creation fallback
+      // 1. Fetch Wallet
       let { data: walletData, error: walletError } = await supabase
         .from('wallets')
         .select('debt, system_balance, balance')
@@ -553,28 +554,16 @@ function DriverPageContent() {
           .from('wallets')
           .insert({ user_id: currentDriverId, balance: 0, debt: 0, system_balance: 0 })
           .select()
-          .single();
+          .maybeSingle();
         if (!createError) walletData = newWallet;
       }
 
-      const { data: uncollectedOrders } = await supabase
-        .from('orders')
-        .select('financials')
-        .eq('driver_id', currentDriverId)
-        .in('status', ['in_transit', 'delivered']) 
-        .is('vendor_collected_at', null);
-      
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      
-      const { data: todayOrders } = await supabase.from('orders')
-        .select('financials')
-        .eq('driver_id', currentDriverId)
-        .eq('status', 'delivered')
-        .gte('status_updated_at', startOfToday.toISOString());
-      
-      const { data: configData } = await supabase.from('app_config').select('surge_pricing_active').maybeSingle();
-      if (configData) setIsSurgeActive(!!configData.surge_pricing_active);
+      // 2. Parallel fetch for orders and config
+      const [uncollectedRes, todayRes, configRes] = await Promise.allSettled([
+        withTimeout('driver.uncollected', supabase.from('orders').select('financials').eq('driver_id', currentDriverId).in('status', ['in_transit', 'delivered']).is('vendor_collected_at', null), 4000),
+        withTimeout('driver.today', supabase.from('orders').select('financials').eq('driver_id', currentDriverId).eq('status', 'delivered').gte('status_updated_at', new Date(new Date().setHours(0,0,0,0)).toISOString()), 4000),
+        withTimeout('driver.config', supabase.from('app_config').select('surge_pricing_active').maybeSingle(), 4000)
+      ]);
 
       // V17.7.7: Industrial-grade numeric sanitation
       const finalBalance = Number(walletData?.system_balance || 0);
@@ -589,19 +578,25 @@ function DriverPageContent() {
 
       // V1.2.1: Use uncollectedOrders sum for real-time accuracy, fallback to wallet debt
       let finalDebt = Number(walletData?.debt || 0);
-      if (uncollectedOrders && Array.isArray(uncollectedOrders)) {
-        const ordersSum = uncollectedOrders.reduce((acc, o) => acc + Number(o.financials?.order_value || 0), 0);
+      if (uncollectedRes.status === 'fulfilled' && uncollectedRes.value.data) {
+        const uncollectedOrders = uncollectedRes.value.data;
+        const ordersSum = uncollectedOrders.reduce((acc, o: any) => acc + Number(o.financials?.order_value || 0), 0);
         if (ordersSum > 0 || uncollectedOrders.length === 0) {
           finalDebt = ordersSum;
         }
       }
       
       let finalFees = 0;
-      if (todayOrders && Array.isArray(todayOrders)) {
-        finalFees = todayOrders.reduce((acc, o) => {
+      if (todayRes.status === 'fulfilled' && todayRes.value.data) {
+        const todayOrders = todayRes.value.data;
+        finalFees = todayOrders.reduce((acc, o: any) => {
           const earnings = Number(o?.financials?.driver_earnings || 0);
           return acc + (isNaN(earnings) ? 0 : earnings);
         }, 0);
+      }
+
+      if (configRes.status === 'fulfilled' && configRes.value.data) {
+        setIsSurgeActive(!!configRes.value.data.surge_pricing_active);
       }
 
       setSystemBalance(finalBalance);
@@ -965,7 +960,6 @@ function DriverPageContent() {
 
     if (payload?.isHardSync && payload?.source === 'app_resume_start') {
       // V17.6.1: If hard sync is needed, show cached data first while clearing stale state
-      setOrders([]); // Clear memory, fetchOrders(preferCache: true) will refill it from SQLite
     }
 
     // 2. Handle global alerts
@@ -974,30 +968,35 @@ function DriverPageContent() {
       return;
     }
 
-    // V17.4.9: Snappy Partial Updates
-    // If we have the full order object in the payload, inject it into local state
-    // immediately to avoid an expensive fetch cycle.
-    if (payload?.order) {
-      console.log("[DriverSync] Partial update received for order:", payload.order.id);
-      const mappedOrder = mapDBOrderToUI(payload.order);
-      setOrders(prev => {
-        const index = prev.findIndex(o => o.id === mappedOrder.id);
-        if (index > -1) {
-          // Skip update if data is identical (Render Optimization)
-          if (JSON.stringify(prev[index]) === JSON.stringify(mappedOrder)) return prev;
-          
-          // Update existing
-          const newOrders = [...prev];
-          newOrders[index] = { ...newOrders[index], ...mappedOrder };
-          return newOrders;
-        } else if (mappedOrder.status === 'pending' || mappedOrder.driver_id === driverId) {
-          // Add new if relevant
-          return [mappedOrder, ...prev];
-        }
-        return prev;
-      });
-      
-      // Still trigger a silent background sync to keep SQLite in sync
+    // V19.6.3: Guarded payload processing to prevent crashes
+    try {
+      // V17.4.9: Snappy Partial Updates
+      // If we have the full order object in the payload, inject it into local state
+      // immediately to avoid an expensive fetch cycle.
+      if (payload?.order) {
+        console.log("[DriverSync] Partial update received for order:", payload.order.id);
+        const mappedOrder = mapDBOrderToUI(payload.order);
+        setOrders(prev => {
+          const index = prev.findIndex(o => o.id === mappedOrder.id);
+          if (index > -1) {
+            // Skip update if data is identical (Render Optimization)
+            if (JSON.stringify(prev[index]) === JSON.stringify(mappedOrder)) return prev;
+            
+            // Update existing
+            const newOrders = [...prev];
+            newOrders[index] = { ...newOrders[index], ...mappedOrder };
+            return newOrders;
+          } else if (mappedOrder.status === 'pending' || mappedOrder.driverId === driverId) {
+            // Add new if relevant
+            return [mappedOrder, ...prev];
+          }
+          return prev;
+        });
+        return;
+      }
+    } catch (e) {
+      console.error("[DriverSync] Partial update processing failed", e);
+    }
       if (Capacitor.isNativePlatform()) {
         dbService.saveOrder(payload.order).catch(() => {});
       }

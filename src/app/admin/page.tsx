@@ -502,17 +502,21 @@ function AdminContent() {
 
   const fetchSettlements = useCallback(async () => {
     // V1.3.0: Fetching settlements with detailed profile information
-    const { data, error } = await supabase
-      .from('settlements')
-      .select('*, profiles!user_id(full_name, role, phone)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
-      
-    if (error) {
-      console.error("Admin: Error fetching settlements:", error);
-      return;
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .select('*, profiles!user_id(full_name, role, phone)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
+        
+      if (error) {
+        console.error("Admin: Error fetching settlements:", error);
+        return;
+      }
+      if (data) setSettlements(data);
+    } catch (e) {
+      console.error("Admin: Settlements exception:", e);
     }
-    if (data) setSettlements(data);
   }, []);
 
   const fetchProfiles = useCallback(async () => {
@@ -728,19 +732,23 @@ function AdminContent() {
       }
 
       // V17.4.9: Snappy Partial Order Updates
-      if (payload?.order) {
-        console.log("[AdminSync] Partial update received for order:", payload.order.id);
-        setLiveOrders(prev => {
-          const index = prev.findIndex(o => o.id_full === payload.order.id);
-          const mappedOrder = mapOrderData(payload.order);
-          if (index > -1) {
-            const newOrders = [...prev];
-            newOrders[index] = { ...newOrders[index], ...mappedOrder };
-            return newOrders;
-          }
-          return [mappedOrder, ...prev];
-        });
-        return;
+      try {
+        if (payload?.order) {
+          console.log("[AdminSync] Partial update received for order:", payload.order.id);
+          setLiveOrders(prev => {
+            const index = prev.findIndex(o => o.id_full === payload.order.id);
+            const mappedOrder = mapOrderData(payload.order);
+            if (index > -1) {
+              const newOrders = [...prev];
+              newOrders[index] = { ...newOrders[index], ...mappedOrder };
+              return newOrders;
+            }
+            return [mappedOrder, ...prev];
+          });
+          return;
+        }
+      } catch (e) {
+        console.error("[AdminSync] Partial order update error:", e);
       }
 
       // ── Real-time driver location broadcast (highest priority, no DB fetch needed) ──
