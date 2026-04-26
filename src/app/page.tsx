@@ -1,0 +1,77 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import { AppLoader } from "@/components/AppLoader";
+import LoginPage from "./login/page";
+import DriverApp from "./driver/page";
+import StoreApp from "./store/page";
+import AdminDashboard from "./admin/page";
+import { setupPushNotifications } from "@/lib/push-notifications";
+import { config } from "@/lib/config";
+
+/**
+ * ─── UNIFIED SYSTEM SHELL (V19.0.0) ──────────────────────────────────────────
+ * The single entry point for all roles. 
+ * Provides a seamless, reload-free experience across Admin, Store, and Driver.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+export default function MainShell() {
+  const { user, profile, loading } = useAuth();
+
+  // V17.9.4: Added safety timeout for profile recovery to prevent stuck loader on resume.
+  const [profileTimeout, setProfileTimeout] = useState(false);
+  
+  useEffect(() => {
+    if (user && !profile) {
+      const timer = setTimeout(() => {
+        console.warn("[HomeV17.9.4] Profile recovery timed out, forcing mount");
+        setProfileTimeout(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else if (profileTimeout) {
+      // Only reset if it was previously true to avoid sync setState during render/effect
+      setTimeout(() => setProfileTimeout(false), 0);
+    }
+  }, [user, profile, profileTimeout]);
+
+  useEffect(() => {
+    // V19.0.1: Check feature flag before initializing push notifications
+    if (user && config.features.pushNotifications) {
+      setupPushNotifications().catch(err => console.warn('Push Setup skipped:', err));
+    } else if (user) {
+      console.log('MainShell: Push notifications are disabled in config');
+    }
+  }, [user]);
+
+  // 1. Loading State
+  if (loading) {
+    return <AppLoader />;
+  }
+
+  // 2. Unauthenticated -> Show Login
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  // 3. Authenticated -> Show Role-based View
+  // V17.2.7: Ensure we have a profile before choosing the dashboard.
+  // If user exists but profile is null, it means we are in the middle of a fetch.
+  if (user && !profile && !profileTimeout) {
+    return <AppLoader />;
+  }
+
+  // V17.9.4: Fallback to user metadata role if profile fetch failed or timed out
+  const role = profile?.role || user?.user_metadata?.role || "driver";
+
+  switch (role) {
+    case 'admin':
+      return <AdminDashboard />;
+    case 'vendor':
+      return <StoreApp />;
+    case 'driver':
+    default:
+      return <DriverApp />;
+  }
+}

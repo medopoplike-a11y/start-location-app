@@ -1,0 +1,65 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="140"
+    android:viewportWidth="108">
+    
+    <!-- Outer Luxury Glow (Subtle Blue Halo) -->
+    <path
+        android:pathData="M54 12C32.67 12 16 28.67 16 50C16 67 54 133 54 133C54 133 92 67 92 50C92 28.67 75.33 12 54 12Z"
+        android:fillColor="#1A3B82F6"/> <!-- 10% opacity blue -->
+    
+    <!-- Main Blue Pin Body -->
+    <path
+        android:pathData="M54 15C34.67 15 19 30.67 19 50C19 65 54 130 54 130C54 130 89 65 89 50C89 30.67 73.33 15 54 15Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="19"
+                android:startY="15"
+                android:endX="89"
+                android:endY="130"
+                android:type="linear">
+                <item android:offset="0" android:color="#3B82F6"/>
+                <item android:offset="1" android:color="#2563EB"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- Red Inner Pin (Luxury Highlight) -->
+    <path
+        android:pathData="M54 30C42.95 30 34 38.95 34 50C34 58 54 95 54 95C54 95 74 58 74 50C74 38.95 65.05 30 54 30Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="34"
+                android:startY="30"
+                android:endX="74"
+                android:endY="95"
+                android:type="linear">
+                <item android:offset="0" android:color="#EF4444"/>
+                <item android:offset="1" android:color="#DC2626"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- Yellow Center Core -->
+    <path
+        android:pathData="M54 45C51.24 45 49 47.24 49 50C49 52 54 65 54 65C54 65 59 52 59 50C59 47.24 56.76 45 54 45Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="49"
+                android:startY="45"
+                android:endX="59"
+                android:endY="65"
+                android:type="linear">
+                <item android:offset="0" android:color="#FDE047"/>
+                <item android:offset="1" android:color="#FACC15"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- White Glow Center Point -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,50m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0"/>
+</vector>
