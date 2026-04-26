@@ -199,11 +199,12 @@ const LoginPage = () => {
       const { CapacitorHttp } = await import('@capacitor/core');
       const url = `${config.supabase.url}/rest/v1/app_config?select=id&limit=1`;
       
+      console.log("[Login] Checking connection to:", url);
       const response = await CapacitorHttp.request({
         url,
         method: 'GET',
         headers: { 'apikey': config.supabase.anonKey },
-        connectTimeout: 8000, // V17.2.6: Doubled timeout for stability
+        connectTimeout: 8000, 
         readTimeout: 8000
       });
       
@@ -211,17 +212,21 @@ const LoginPage = () => {
         setConnStatus('ok');
         setLastError("");
       } else {
-        // V17.2.6: Be extremely lenient. Only fail if status is 0 (No internet)
+        console.warn(`[Login] Connection Check status: ${response.status}`);
         if (response.status === 0) {
           setConnStatus('fail');
-          console.warn(`Connection Check: Offline (0)`);
-        } else {
+          setLastError("لا يوجد اتصال بالإنترنت (Status 0)");
+        } else if (response.status === 401 || response.status === 403) {
           setConnStatus('ok'); // Assume OK if server responded but with error (might be RLS)
+          console.log("[Login] Connection OK (Auth required)");
+        } else {
+          setConnStatus('fail');
+          setLastError(`خطأ في السيرفر: ${response.status}`);
         }
       }
     } catch (e: any) {
-      console.warn("Connection Check non-fatal exception:", e.message);
-      // Don't flip to fail if we were already OK
+      console.error("[Login] Connection Check Exception:", e.message);
+      setLastError(e.message || "خطأ غير معروف في الاتصال");
       if (globalConnectionStatus !== 'ok') {
         setConnStatus('fail');
       }
@@ -327,7 +332,12 @@ const LoginPage = () => {
     try {
       // V17.3.0: Radical cleanup before login to prevent session pollution
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('start-location-v1-session');
+        try {
+          localStorage.removeItem('start-location-v1-session');
+        } catch (lsErr) {
+          console.warn("[Login] localStorage cleanup failed", lsErr);
+        }
+
         try {
           if ((window as any).Capacitor?.isNativePlatform?.()) {
             const { Preferences } = await import('@capacitor/preferences');
@@ -349,16 +359,19 @@ const LoginPage = () => {
         }
       }
 
+      console.log("[Login] Attempting signIn for:", email.trim());
       const { data, error: loginError } = await signIn(email.trim(), password);
 
       if (loginError) {
-        setError(loginError.message);
+        console.error("[Login] signIn returned error:", loginError);
+        setError(loginError.message || "فشل تسجيل الدخول. يرجى التأكد من البيانات.");
         setStatus("");
         setLoading(false);
         return;
       }
 
       if (!data?.user) {
+        console.error("[Login] signIn returned no user");
         setError("لم يتم العثور على بيانات المستخدم");
         setStatus("");
         setLoading(false);
@@ -376,7 +389,7 @@ const LoginPage = () => {
 
       // V17.0.7: Single Shell - No more router.replace or window.location.href.
       // AuthProvider will detect the session change and MainShell will swap views.
-      console.log(`[LoginV17.0.7] Single Shell transition started...`);
+      console.log(`[LoginV17.0.7] Single Shell transition started for user: ${data.user.id}`);
       
       // Just a small delay to show the success message before transition
       setTimeout(() => {
@@ -384,6 +397,7 @@ const LoginPage = () => {
       }, 1000);
 
     } catch (err: any) {
+      console.error("[Login] CRITICAL UNEXPECTED ERROR:", err);
       setError(`خطأ غير متوقع: ${err.message || "حاول مرة أخرى"}`);
       setStatus("");
       setLoading(false);

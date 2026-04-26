@@ -199,11 +199,11 @@ export const getUserProfile = async (userId: string, email?: string): Promise<Us
 };
 
 export const signIn = async (email: string, password?: string) => {
-  console.log("=== signIn START ===");
+  console.log("=== signIn START for:", email, "===");
   
   if (!password) {
     console.log("signIn: No password provided");
-    return { data: null, error: new Error('كلمة المرور مطلوبة') };
+    return { data: { user: null, session: null }, error: { message: 'كلمة المرور مطلوبة', status: 400 } as any };
   }
 
   try {
@@ -213,7 +213,12 @@ export const signIn = async (email: string, password?: string) => {
     
     // V19.5.2: Guard against totally empty or malformed results
     if (!result) {
-      return { data: { user: null, session: null }, error: { message: "فشل الاتصال بخادم الهوية", status: 500 } as any };
+      console.error("signIn: Result is null/undefined");
+      return { data: { user: null, session: null }, error: { message: "فشل الاتصال بخادم الهوية - لا توجد استجابة", status: 500 } as any };
+    }
+
+    if (result.error) {
+      console.warn("signIn: Result contains error:", result.error);
     }
     
     return result;
