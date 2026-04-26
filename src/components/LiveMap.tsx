@@ -255,24 +255,24 @@ function ZoomBtn() {
   const map = useMap();
   return (
     <div style={{
-      position: 'absolute', bottom: '90px', right: '12px', zIndex: 1000,
-      display: 'flex', flexDirection: 'column', gap: '2px',
+      position: 'absolute', bottom: '100px', right: '10px', zIndex: 1000,
+      display: 'flex', flexDirection: 'column', gap: '4px',
     }}>
       {[
         { label: '+', action: () => map.zoomIn() },
         { label: '−', action: () => map.zoomOut() },
       ].map(({ label, action }) => (
         <button key={label} onClick={action} style={{
-          width: '40px', height: '40px',
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: '10px',
-          fontSize: '22px', fontWeight: 900,
-          color: 'var(--foreground)',
-          boxShadow: 'var(--card-shadow)',
+          width: '32px', height: '32px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          border: '1px solid rgba(0, 0, 0, 0.1)',
+          borderRadius: '8px',
+          fontSize: '18px', fontWeight: 900,
+          color: '#0f172a',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           cursor: 'pointer', lineHeight: 1,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
         }}>{label}</button>
       ))}
     </div>
@@ -285,20 +285,20 @@ function RecenterBtn({ target, zoom }: { target: [number, number]; zoom: number 
     <button
       onClick={() => map.flyTo(target, zoom, { animate: true, duration: 0.8 })}
       style={{
-        position: 'absolute', bottom: '90px', left: '12px', zIndex: 1000,
-        width: '44px', height: '44px',
+        position: 'absolute', bottom: '100px', left: '10px', zIndex: 1000,
+        width: '36px', height: '36px',
         background: '#3b82f6',
-        border: '3px solid white',
+        border: '2px solid white',
         borderRadius: '50%',
-        color: 'white', fontSize: '18px',
-        boxShadow: '0 3px 12px rgba(59,130,246,.45)',
-        cursor: 'pointer', lineHeight: 1,
+        color: 'white',
+        boxShadow: '0 4px 12px rgba(59,130,246,0.4)',
+        cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
       title="العودة لموقعي"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-        fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+        fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
       </svg>
     </button>

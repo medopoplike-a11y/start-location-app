@@ -47,23 +47,24 @@ const OrderItem = memo(({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.4, delay: index * 0.05, ease: "circOut" }}
-      className="bg-white dark:bg-slate-900 rounded-[40px] p-6 border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none group relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:border-sky-200 dark:hover:border-sky-900/50"
+      whileHover={{ y: -1 }}
+      className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-3 rounded-2xl border border-slate-100 dark:border-slate-800/50 shadow-lg shadow-slate-200/10 dark:shadow-none group relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:border-sky-200 dark:hover:border-sky-900/50"
     >
       {/* Premium Decorative Gradient */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-sky-500/10 to-transparent rounded-full -mr-16 -mt-16 blur-2xl group-hover:from-sky-500/20 transition-all duration-700" />
       
       {/* Header Section: Customer & Status */}
-      <div className="flex justify-between items-start mb-6 relative z-10">
-        <div className="flex items-center gap-5">
+      <div className="flex justify-between items-start mb-4 relative z-10">
+        <div className="flex items-center gap-3">
           <motion.div 
             whileHover={{ rotate: -5, scale: 1.05 }}
-            className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-3xl flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-700 shadow-inner group-hover:bg-sky-500 group-hover:text-white transition-all duration-500 shrink-0"
+            className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-700 shadow-inner group-hover:bg-sky-500 group-hover:text-white transition-all duration-500 shrink-0"
           >
-            <User className="w-8 h-8" />
+            <User className="w-6 h-6" />
           </motion.div>
           <div>
-            <div className="flex items-center gap-3">
-              <h3 className="font-black text-xl text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors duration-300 tracking-tight">
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-base text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors duration-300 tracking-tight">
                 {order.customer}
               </h3>
               {onRequestAIInsights && (
@@ -75,15 +76,15 @@ const OrderItem = memo(({
                     triggerHaptic(ImpactStyle.Light);
                     onRequestAIInsights(); 
                   }}
-                  className="w-8 h-8 bg-sky-500/10 dark:bg-sky-500/20 flex items-center justify-center rounded-2xl transition-all shadow-inner"
+                  className="w-7 h-7 bg-sky-500/10 dark:bg-sky-500/20 flex items-center justify-center rounded-xl transition-all shadow-inner"
                 >
-                  <Bot className="w-4.5 h-4.5 text-sky-500" />
+                  <Bot className="w-4 h-4 text-sky-500" />
                 </motion.button>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-100 dark:border-slate-800 tracking-wider">#{order.id.slice(-6).toUpperCase()}</span>
-              <span className={`text-[10px] px-3.5 py-1 rounded-full font-black border shadow-sm transition-all duration-300 tracking-wide ${getStatusStyle(order.status)}`}>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-800 tracking-wider">#{order.id.slice(-6).toUpperCase()}</span>
+              <span className={`text-[8px] px-2 py-0.5 rounded-full font-black border shadow-sm transition-all duration-300 tracking-wide ${getStatusStyle(order.status)}`}>
                 {translateStatus(order.status)}
               </span>
             </div>
@@ -91,47 +92,44 @@ const OrderItem = memo(({
         </div>
         
         <div className="text-left shrink-0">
-          <div className="bg-slate-900 dark:bg-white px-5 py-3 rounded-[24px] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-800 dark:border-slate-100 transition-all duration-500 group-hover:scale-105">
-            <p className="text-2xl font-black text-white dark:text-slate-900 flex items-center gap-1.5 leading-none">
+          <div className="bg-slate-900 dark:bg-white px-3 py-2 rounded-xl shadow-lg border border-slate-800 dark:border-slate-100 transition-all duration-500 group-hover:scale-105">
+            <p className="text-lg font-black text-white dark:text-slate-900 flex items-center gap-1 leading-none">
               {order.amount.replace(" ج.م", "")}
-              <span className="text-[10px] font-black opacity-50">ج.م</span>
+              <span className="text-[8px] font-black opacity-50">ج.م</span>
             </p>
-            <p className="text-[8px] font-black text-white/40 dark:text-slate-400 tracking-[0.2em] uppercase mt-1 text-center">Total Order</p>
           </div>
         </div>
       </div>
 
       {/* Details Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">
-        <div className="bg-slate-50/50 dark:bg-slate-950/30 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 flex items-center gap-4 transition-all duration-300 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md">
-          <div className="w-11 h-11 bg-red-500/10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><MapPin className="w-5.5 h-5.5 text-red-500" /></div>
+      <div className="grid grid-cols-2 gap-3 mb-4 relative z-10">
+        <div className="bg-slate-50/50 dark:bg-slate-950/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50 flex items-center gap-3 transition-all duration-300 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md">
+          <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0 shadow-sm"><MapPin className="w-4 h-4 text-red-500" /></div>
           <div className="overflow-hidden">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">العنوان</p>
-            <p className="text-[13px] font-black text-slate-700 dark:text-slate-200 truncate leading-tight">{order.address}</p>
+            <p className="text-[11px] font-black text-slate-700 dark:text-slate-200 truncate leading-tight">{order.address}</p>
           </div>
         </div>
 
-        <div className="bg-slate-50/50 dark:bg-slate-950/30 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 flex items-center gap-4 transition-all duration-300 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md">
-          <div className="w-11 h-11 bg-sky-500/10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Clock className="w-5.5 h-5.5 text-sky-500" /></div>
+        <div className="bg-slate-50/50 dark:bg-slate-950/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50 flex items-center gap-3 transition-all duration-300 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md">
+          <div className="w-8 h-8 bg-sky-500/10 rounded-lg flex items-center justify-center shrink-0 shadow-sm"><Clock className="w-4 h-4 text-sky-500" /></div>
           <div className="overflow-hidden">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">وقت الطلب</p>
-            <p className="text-[13px] font-black text-slate-700 dark:text-slate-200 truncate leading-tight">{order.time}</p>
+            <p className="text-[11px] font-black text-slate-700 dark:text-slate-200 truncate leading-tight">{order.time}</p>
           </div>
         </div>
       </div>
 
       {/* Multi-Stop Customers Summary (If applicable) */}
       {order.customers && order.customers.length > 1 && (
-        <div className="mb-6 bg-orange-50/30 dark:bg-orange-950/10 p-4 rounded-3xl border border-orange-100/50 dark:border-orange-900/20">
-          <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Truck className="w-3.5 h-3.5" />
+        <div className="mb-4 bg-orange-50/30 dark:bg-orange-950/10 p-3 rounded-2xl border border-orange-100/50 dark:border-orange-900/20">
+          <p className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <Truck className="w-3 h-3" />
             مسار السكة ({order.customers.length} محطات)
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {order.customers.map((c, i) => (
-              <div key={i} className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-orange-100 dark:border-orange-900/30 flex-shrink-0">
-                <p className="text-[10px] font-black text-slate-800 dark:text-slate-200">{c.name}</p>
-                <p className="text-[8px] font-bold text-slate-400">{c.orderValue} ج.م</p>
+              <div key={i} className="bg-white dark:bg-slate-900 px-2 py-1.5 rounded-lg border border-orange-100 dark:border-orange-900/30 flex-shrink-0">
+                <p className="text-[9px] font-black text-slate-800 dark:text-slate-200">{c.name}</p>
+                <p className="text-[7px] font-bold text-slate-400">{c.orderValue} ج.م</p>
               </div>
             ))}
           </div>
@@ -140,32 +138,29 @@ const OrderItem = memo(({
 
       {/* Invoices Preview */}
       {((order.customers && order.customers.some(c => c.invoice_url)) || order.invoiceUrl) && (
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-4 flex flex-wrap gap-2">
           {order.invoiceUrl && (
             <motion.button 
-              whileHover={{ scale: 1.05, y: -2 }}
+              whileHover={{ scale: 1.05, y: -1 }}
               onClick={(e) => { e.stopPropagation(); onPreviewImage?.(order.invoiceUrl!); }}
-              className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white dark:border-slate-800 shadow-xl bg-slate-100 dark:bg-slate-800 group/img"
+              className="relative w-12 h-12 rounded-xl overflow-hidden border border-white dark:border-slate-800 shadow-md bg-slate-100 dark:bg-slate-800 group/img"
             >
-              <img src={order.invoiceUrl} alt="" crossOrigin="anonymous" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-sky-500/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                <Eye className="text-white w-5 h-5" />
+              <img src={order.invoiceUrl} alt="Invoice" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                <Camera className="w-4 h-4 text-white" />
               </div>
             </motion.button>
           )}
-          {order.customers?.map((cust, idx) => cust.invoice_url && (
+          {order.customers?.map((c, idx) => c.invoice_url && (
             <motion.button 
               key={idx}
-              whileHover={{ scale: 1.05, y: -2 }}
-              onClick={(e) => { e.stopPropagation(); onPreviewImage?.(cust.invoice_url!); }}
-              className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white dark:border-slate-800 shadow-xl bg-slate-100 dark:bg-slate-800 group/img"
+              whileHover={{ scale: 1.05, y: -1 }}
+              onClick={(e) => { e.stopPropagation(); onPreviewImage?.(c.invoice_url!); }}
+              className="relative w-12 h-12 rounded-xl overflow-hidden border border-white dark:border-slate-800 shadow-md bg-slate-100 dark:bg-slate-800 group/img"
             >
-              <img src={cust.invoice_url} alt="" crossOrigin="anonymous" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-orange-500/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                <Eye className="text-white w-5 h-5" />
-              </div>
-              <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[7px] font-black py-0.5 text-center">
-                عميل {idx + 1}
+              <img src={c.invoice_url} alt={`Invoice ${idx}`} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-[8px] text-white font-bold p-1 text-center leading-tight">
+                فاتورة {c.name}
               </div>
             </motion.button>
           ))}

@@ -56,9 +56,9 @@ const DriverOrderItem = memo(({
         layout
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        whileHover={{ y: -2 }}
+        whileHover={{ y: -1 }}
         transition={{ duration: 0.2 }}
-        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none overflow-hidden relative group cursor-pointer"
+        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-3 rounded-2xl border border-slate-100 dark:border-slate-800/50 shadow-lg shadow-slate-200/10 dark:shadow-none overflow-hidden relative group cursor-pointer"
         onClick={() => onSelectOrder(order)}
       >
         <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-blue-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -152,7 +152,7 @@ const DriverOrderItem = memo(({
             
             {order.status === 'assigned' && onPickup && (
               <motion.button
-                whileHover={{ y: -2 }}
+                whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={(e) => { 
                   e.stopPropagation(); 
@@ -160,7 +160,7 @@ const DriverOrderItem = memo(({
                   onPickup(order.id); 
                 }}
                 disabled={actionLoading}
-                className="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-sky-500/30 dark:shadow-none transition-all border-b-4 border-sky-800"
+                className="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2.5 rounded-xl font-black text-xs shadow-lg shadow-sky-500/20 dark:shadow-none transition-all border-b-2 border-sky-800"
               >
                 {actionLoading ? "جاري..." : "تأكيد الاستلام"}
               </motion.button>
@@ -168,14 +168,14 @@ const DriverOrderItem = memo(({
             
             {order.status === 'in_transit' && (
               <motion.button
-                whileHover={{ y: -2 }}
+                whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   triggerHaptic(ImpactStyle.Medium);
                   onSelectOrder(order); 
                 }}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-indigo-500/30 dark:shadow-none transition-all border-b-4 border-indigo-800"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-black text-xs shadow-lg shadow-indigo-500/20 dark:shadow-none transition-all border-b-2 border-indigo-800"
               >
                 إنهاء السكة
               </motion.button>
@@ -192,8 +192,8 @@ const DriverOrderItem = memo(({
         layout
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        whileHover={{ y: -2 }}
-        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-xl shadow-slate-200/20 dark:shadow-none relative group overflow-hidden cursor-pointer"
+        whileHover={{ y: -1 }}
+        className="bg-white/90 dark:bg-slate-900/60 backdrop-blur-3xl p-3 rounded-2xl border border-slate-100 dark:border-slate-800/50 shadow-lg shadow-slate-200/10 dark:shadow-none relative group overflow-hidden cursor-pointer"
         onClick={() => onSelectOrder(order)}
       >
         <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full -mr-12 -mt-12 blur-2xl" />
@@ -223,7 +223,7 @@ const DriverOrderItem = memo(({
         </div>
 
         <motion.button
-          whileHover={{ y: -2 }}
+          whileHover={{ y: -1 }}
           whileTap={{ scale: 0.98 }}
           onClick={(e) => {
             e.stopPropagation();
@@ -231,7 +231,7 @@ const DriverOrderItem = memo(({
             onAccept?.(order.id);
           }}
           disabled={actionLoading}
-          className="w-full bg-amber-500 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-amber-500/30 dark:shadow-none transition-all border-b-4 border-amber-700 relative z-10"
+          className="w-full bg-amber-500 text-white py-3 rounded-xl font-black text-xs shadow-lg shadow-amber-500/20 dark:shadow-none transition-all border-b-2 border-amber-700 relative z-10"
         >
           {actionLoading ? "جاري..." : "قبول الطلب فوراً"}
         </motion.button>

@@ -77,13 +77,15 @@ function TabButton({ active, onClick, icon, label, count, color }: {
       whileTap={{ scale: 0.95 }}
       whileHover={{ scale: 1.02 }}
       onClick={handleInternalClick}
-      className={`flex-1 py-3 rounded-2xl text-[11px] font-black transition-all flex items-center justify-center gap-2 border-2 backdrop-blur-xl ${colorClasses[color]}`}
+      className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all flex items-center justify-center gap-1.5 border-2 backdrop-blur-xl ${colorClasses[color]}`}
     >
       {icon}
-      <span className="hidden sm:inline tracking-tight">{label}</span>
-      <span className={`flex items-center justify-center min-w-[18px] h-4.5 px-1 rounded-full text-[9px] ${active ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}>
-        {count}
-      </span>
+      {label}
+      {count > 0 && (
+        <span className={`px-1.5 py-0.5 rounded-lg text-[8px] ${active ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+          {count}
+        </span>
+      )}
     </motion.button>
   );
 }
@@ -361,15 +363,47 @@ const DriverOrdersView = memo(function DriverOrdersView({
             navigationTarget={navigationTarget && !isNaN(navigationTarget.lat) && !isNaN(navigationTarget.lng) ? navigationTarget : null}
           />
         ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-400 p-8 text-center">
-            <MapIcon className="w-16 h-16 mb-4 opacity-20" />
-            <p className="font-black text-sm mb-2">الخريطة متوقفة</p>
-            <p className="text-[10px] font-bold max-w-[200px]">قم بتفعيل الحالة (Online) لتشغيل التتبع والملاحة الاحترافية</p>
+          <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+             <div className="text-center p-8">
+                <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <MapPin className="w-8 h-8 text-blue-500 animate-pulse" />
+                </div>
+                <h3 className="text-slate-900 dark:text-white font-bold">بانتظار تحديد الموقع...</h3>
+                <p className="text-slate-500 text-sm mt-2">تأكد من تفعيل الـ GPS والاتصال بالإنترنت</p>
+             </div>
           </div>
         )}
       </div>
 
       {/* 2. Navigation Mode Overlay - REMOVED AS PER USER REQUEST */}
+
+      {/* View Toggle (Orders / Map) - REPOSITIONED AND REDESIGNED */}
+      <div className="fixed top-[60px] left-1/2 -translate-x-1/2 z-[1001] flex bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-1 rounded-xl border border-white/20 dark:border-slate-800 shadow-lg pointer-events-auto min-w-[160px]">
+        <button 
+          onClick={() => {
+            triggerHaptic(ImpactStyle.Light);
+            onToggleMapMode();
+          }}
+          className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center justify-center gap-1.5 ${
+            !mapMode ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <Layers className="w-3 h-3" />
+          الطلبات
+        </button>
+        <button 
+          onClick={() => {
+            triggerHaptic(ImpactStyle.Light);
+            onToggleMapMode();
+          }}
+          className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center justify-center gap-1.5 ${
+            mapMode ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <Navigation className="w-3 h-3" />
+          الخريطة
+        </button>
+      </div>
 
       {/* 3. Dynamic Orders Panel (Bottom Sheet) */}
       <motion.div 
@@ -377,23 +411,19 @@ const DriverOrdersView = memo(function DriverOrdersView({
         animate={{ 
           height: mapMode ? (isPanelExpanded ? "85%" : (activeOrders.length > 0 ? "260px" : "150px")) : "85%"
         }}
-        className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-white/40 dark:border-slate-800/50 flex flex-col transition-all duration-500"
+        className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-white/40 dark:border-slate-800/50 flex flex-col transition-all duration-500 pb-[env(safe-area-inset-bottom,20px)]"
       >
         {/* Map Mode Toggle Button - Floating above panel */}
-        <div className="absolute top-[-70px] right-5 z-30">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={onToggleMapMode}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl backdrop-blur-2xl border-2 transition-all duration-500 ${
-              mapMode 
-              ? "bg-blue-600 text-white border-blue-400/50 shadow-blue-500/30" 
-              : "bg-white/95 dark:bg-slate-900/95 text-slate-500 border-white dark:border-slate-800 shadow-slate-200/30 dark:shadow-none"
-            }`}
-          >
-            {mapMode ? <Maximize2 className="w-6 h-6" /> : <MapIcon className="w-6 h-6" />}
-          </motion.button>
-        </div>
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => {
+            triggerHaptic(ImpactStyle.Light);
+            onToggleMapMode();
+          }}
+          className="absolute -top-14 left-4 z-30 w-10 h-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl border border-white/20 dark:border-slate-800 shadow-xl flex items-center justify-center text-slate-900 dark:text-white"
+        >
+          {mapMode ? <Maximize2 className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
+        </motion.button>
 
         {/* Panel Handle & Tabs */}
         <div className="w-full flex flex-col items-center pt-3 shrink-0">
