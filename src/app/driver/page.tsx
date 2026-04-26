@@ -20,6 +20,7 @@ import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import { aiVoice } from "@/lib/utils/voice";
 import AISupportBot from "@/components/AISupportBot";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import type { Order, DBDriverOrder } from "./types";
 import DriverHeader from "./components/DriverHeader";
 import DriverOrdersView from "./components/DriverOrdersView";
@@ -30,53 +31,16 @@ import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { Wallet, X, Loader2, Settings, Bot, MapPin, Send, Mic, MessageSquare, AlertCircle } from "lucide-react";
 
-// V17.7.8: Standard Class Error Boundary for radical stability
-class DriverErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: any, errorInfo: any) {
-    console.error("DriverErrorBoundary caught an error", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center" dir="rtl">
-          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-            <AlertCircle className="w-10 h-10 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-black text-white mb-2">عذراً، حدث خطأ في الواجهة</h1>
-          <p className="text-slate-400 text-sm mb-8 leading-relaxed max-w-md">
-            حدث خطأ غير متوقع أثناء عرض واجهة الطيار. تم عزل الخطأ لضمان عدم انهيار التطبيق بالكامل.
-          </p>
-          <div className="flex flex-col w-full gap-3 max-w-xs">
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-900/20 active:scale-95 transition-all"
-            >
-              إعادة محاولة التشغيل
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 export default function DriverApp() {
   return (
-    <DriverErrorBoundary>
-      <DriverPageContent />
-    </DriverErrorBoundary>
+    <GlobalErrorBoundary 
+      title="خطأ في واجهة الطيار"
+      description="حدث خطأ غير متوقع أثناء عرض واجهة الطيار. تم عزل الخطأ لضمان استقرار التطبيق."
+    >
+      <AuthGuard allowedRoles={["driver", "admin"]}>
+        <DriverPageContent />
+      </AuthGuard>
+    </GlobalErrorBoundary>
   );
 }
 

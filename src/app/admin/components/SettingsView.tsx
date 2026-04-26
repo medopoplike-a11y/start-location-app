@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Save, Smartphone, DollarSign, Package, Bell, Loader2, Zap } from "lucide-react";
@@ -80,7 +81,7 @@ const ToggleField = ({ label, description, checked, onChange }: {
   </div>
 );
 
-export default function SettingsView({ appConfig, actionLoading, setAppConfig, onSubmit }: SettingsViewProps) {
+const SettingsView = memo(function SettingsView({ appConfig, actionLoading, setAppConfig, onSubmit }: SettingsViewProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="flex items-center justify-between">
@@ -234,4 +235,6 @@ export default function SettingsView({ appConfig, actionLoading, setAppConfig, o
       </SectionCard>
     </form>
   );
-}
+});
+
+export default SettingsView;

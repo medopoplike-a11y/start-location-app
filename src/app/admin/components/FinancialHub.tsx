@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   BarChart3, 
@@ -26,13 +26,16 @@ interface FinancialHubProps {
   onRefresh?: () => void;
 }
 
-export default function FinancialHub({
+const FinancialHub = memo(function FinancialHub({
   settlements,
   allOrders,
   onSettlementAction,
   onRefresh
 }: FinancialHubProps) {
   const [activeTab, setActiveTab] = useState<"settlements" | "reports">("settlements");
+
+  const settlementCount = useMemo(() => settlements.length, [settlements]);
+  const orderCount = useMemo(() => allOrders.length, [allOrders]);
 
   return (
     <div className="space-y-6">
@@ -58,11 +61,11 @@ export default function FinancialHub({
              <div className="flex gap-4">
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5 backdrop-blur-md">
                    <p className="text-[10px] font-black text-white/40 uppercase mb-1">تسويات معلقة</p>
-                   <p className="text-xl font-black text-amber-400">{settlements.length}</p>
+                   <p className="text-xl font-black text-amber-400">{settlementCount}</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5 backdrop-blur-md">
                    <p className="text-[10px] font-black text-white/40 uppercase mb-1">إجمالي طلبات النظام</p>
-                   <p className="text-xl font-black text-emerald-400">{allOrders.length}</p>
+                   <p className="text-xl font-black text-emerald-400">{orderCount}</p>
                 </div>
              </div>
           </div>
@@ -70,10 +73,10 @@ export default function FinancialHub({
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex p-1.5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 w-fit shadow-sm">
+      <div className="flex p-1.5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 w-fit shadow-sm overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab("settlements")}
-          className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all ${
+          className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
             activeTab === "settlements"
               ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl"
               : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -81,15 +84,15 @@ export default function FinancialHub({
         >
           <Wallet className="w-4 h-4" />
           تأكيد التسويات المالية
-          {settlements.length > 0 && (
-             <span className="px-2 py-0.5 bg-amber-500 text-white rounded-lg text-[9px] font-black animate-pulse">
-                {settlements.length}
+          {settlementCount > 0 && (
+             <span className={`px-2 py-0.5 rounded-lg text-[9px] ${activeTab === "settlements" ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
+                {settlementCount}
              </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab("reports")}
-          className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all ${
+          className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
             activeTab === "reports"
               ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl"
               : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -111,7 +114,10 @@ export default function FinancialHub({
           className="min-h-[500px]"
         >
           {activeTab === "settlements" ? (
-            <SettlementsView settlements={settlements} onSettlementAction={onSettlementAction} />
+            <SettlementsView 
+              settlements={settlements} 
+              onSettlementAction={onSettlementAction} 
+            />
           ) : (
             <ReportsView allOrders={allOrders} />
           )}
@@ -119,4 +125,6 @@ export default function FinancialHub({
       </AnimatePresence>
     </div>
   );
-}
+});
+
+export default FinancialHub;

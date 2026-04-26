@@ -21,7 +21,7 @@ interface OrderItemProps {
   setRatingOrder?: (order: Order) => void;
 }
 
-const OrderItem = ({
+const OrderItem = memo(({
   order,
   index,
   getStatusStyle,

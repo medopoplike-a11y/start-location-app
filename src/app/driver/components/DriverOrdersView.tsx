@@ -33,6 +33,7 @@ import { SuccessCelebration } from "@/components/SuccessCelebration";
 import DriverOrderItem from "./DriverOrderItem";
 import { supabase } from "@/lib/supabaseClient";
 import { aiVoice } from "@/lib/utils/voice"; // V19.3.0: Import AI Voice
+import { useToast } from "@/hooks/useToast";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), {
   ssr: false,
@@ -125,6 +126,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
   const [aiRouteLoading, setAiRouteLoading] = useState(false);
   const [aiRouteResult, setAiRouteResult] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false); // V19.3.0: Success Celebration State
+  const toast = useToast();
 
   const handleOptimizeRoute = async () => {
     if (aiRouteLoading || activeOrders.length < 2) return;
@@ -162,9 +164,11 @@ const DriverOrdersView = memo(function DriverOrdersView({
     try {
       aiVoice.playSound('success'); // V19.3.0: Success sound
       await onAcceptOrder(orderId);
+      toast.success("تم قبول الطلب بنجاح");
       setSelectedOrder(null);
     } catch (err) {
       setLocalOrders(orders); // Rollback
+      toast.error("فشل قبول الطلب، حاول مرة أخرى");
     } finally {
       setActionLoading(false);
     }
@@ -186,11 +190,13 @@ const DriverOrdersView = memo(function DriverOrdersView({
       }
       
       await onPickupOrder(orderId);
+      toast.success("تم تأكيد استلام الطلب");
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: 'in_transit' } : null);
       }
     } catch (err) {
       setLocalOrders(previousOrders); // Rollback
+      toast.error("فشل تأكيد الاستلام");
     } finally {
       setActionLoading(false);
     }
@@ -212,6 +218,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
       }
       
       await onDeliverOrder(orderId);
+      toast.success("تم توصيل الطلب بنجاح! أحسنت");
       setShowCelebration(true); // V19.3.0: Trigger celebration
       setTimeout(() => setShowCelebration(false), 3000); // Hide after 3s
       
@@ -220,6 +227,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
       setIsNavigating(false);
     } catch (err) {
       setLocalOrders(previousOrders); // Rollback
+      toast.error("فشل تأكيد التوصيل");
     } finally {
       setActionLoading(false);
     }
@@ -230,6 +238,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
     setActionLoading(true);
     try {
       await onDeliverCustomer(orderId, customerIndex);
+      toast.success("تم تأكيد التوصيل للعميل");
       // Update local selectedOrder state to reflect the specific customer delivery
       if (selectedOrder && selectedOrder.id === orderId && selectedOrder.customers) {
         const newCustomers = [...selectedOrder.customers];
@@ -245,6 +254,9 @@ const DriverOrdersView = memo(function DriverOrdersView({
     setActionLoading(true);
     try {
       await onConfirmPayment(orderId);
+      toast.success("تم تأكيد تحصيل المبلغ");
+    } catch (err) {
+      toast.error("فشل تأكيد التحصيل");
     } finally {
       setActionLoading(false);
     }
@@ -269,8 +281,8 @@ const DriverOrdersView = memo(function DriverOrdersView({
   };
 
   // Map Data Preparation
-  const availableOrders = useMemo(() => localOrders.filter(o => o.status === 'pending'), [localOrders]);
-  const activeOrders = useMemo(() => localOrders.filter(o => o.status === 'assigned' || o.status === 'in_transit'), [localOrders]);
+    const availableOrders = useMemo(() => localOrders.filter(o => o.status === 'pending' || o.status === 'searching'), [localOrders]);
+  const activeOrders = useMemo(() => localOrders.filter(o => o.status === 'assigned' || o.status === 'pickup_reached' || o.status === 'in_transit' || o.status === 'delivery_reached'), [localOrders]);
   const completedOrders = useMemo(() => localOrders.filter(o => o.status === 'delivered'), [localOrders]);
   const cancelledOrders = useMemo(() => localOrders.filter(o => o.status === 'cancelled'), [localOrders]);
 

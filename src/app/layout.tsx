@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ToastProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
 
@@ -38,9 +39,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <AppWrapper>
-              {children}
-            </AppWrapper>
+            <ToastProvider>
+              <AppWrapper>
+                {children}
+              </AppWrapper>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -57,6 +57,7 @@ import AISupportBot from "@/components/AISupportBot";
 import AuthGuard from "@/components/AuthGuard";
 import { useSync } from "@/hooks/useSync";
 import { aiVoice } from "@/lib/utils/voice";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import type { AdminOrder, LiveOrderItem, DriverCard, VendorCard, AppUser, OnlineDriver, SettlementItem, ProfileRow, WalletRow, ActivityItem, ActivityLogItem } from "./types";
 import { useRef } from "react";
 
@@ -65,9 +66,14 @@ import { menuGroups } from "./config/menu"; // Move static data to config
 
 export default function AdminPanel() {
   return (
-    <AuthGuard allowedRoles={["admin"]}>
-      <AdminContent />
-    </AuthGuard>
+    <GlobalErrorBoundary 
+      title="خطأ في لوحة التحكم"
+      description="حدث خطأ غير متوقع أثناء عرض لوحة تحكم المدير. يمكنك محاولة إعادة التحميل."
+    >
+      <AuthGuard allowedRoles={["admin"]}>
+        <AdminContent />
+      </AuthGuard>
+    </GlobalErrorBoundary>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, Circle, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -277,7 +277,9 @@ function ZoomBtn() {
       ))}
     </div>
   );
-}
+});
+
+export default LiveMap;
 
 function RecenterBtn({ target, zoom }: { target: [number, number]; zoom: number }) {
   const map = useMap();
@@ -544,7 +546,7 @@ function HeadingFollower({ heading, autoRotate }: { heading: number; autoRotate:
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function LiveMap({
+const LiveMap = memo(function LiveMap({
   drivers = [],
   vendors = [],
   orders = [],

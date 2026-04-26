@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FileText, 
@@ -33,7 +33,7 @@ interface OrderManagementHubProps {
   onRefreshData?: () => void;
 }
 
-export default function OrderManagementHub({
+const OrderManagementHub = memo(function OrderManagementHub({
   liveOrders,
   allOrders,
   activities,
@@ -47,8 +47,8 @@ export default function OrderManagementHub({
   const [activeTab, setActiveTab] = useState<"live" | "history">("live");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const pendingCount = allOrders.filter(o => o.status === 'pending').length;
-  const inTransitCount = allOrders.filter(o => o.status === 'in_transit' || o.status === 'assigned').length;
+  const pendingCount = useMemo(() => allOrders.filter(o => o.status === 'pending').length, [allOrders]);
+  const inTransitCount = useMemo(() => allOrders.filter(o => o.status === 'in_transit' || o.status === 'assigned').length, [allOrders]);
 
   return (
     <div className="space-y-6">
@@ -86,10 +86,10 @@ export default function OrderManagementHub({
 
       {/* Control Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex p-1.5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 w-fit shadow-sm">
+        <div className="flex p-1.5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 w-fit shadow-sm overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab("live")}
-            className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
               activeTab === "live"
                 ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl"
                 : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -98,21 +98,21 @@ export default function OrderManagementHub({
             <Activity className="w-4 h-4" />
             الطلبات النشطة
             {liveOrders.length > 0 && (
-               <span className="px-2 py-0.5 bg-blue-500 text-white rounded-lg text-[9px] font-black animate-pulse">
-                  {liveOrders.length}
-               </span>
+              <span className={`px-2 py-0.5 rounded-lg text-[9px] ${activeTab === "live" ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
+                {liveOrders.length}
+              </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
               activeTab === "history"
                 ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl"
                 : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             }`}
           >
             <History className="w-4 h-4" />
-            سجل كافة الطلبات
+            سجل العمليات
           </button>
         </div>
 
@@ -162,4 +162,6 @@ export default function OrderManagementHub({
       </AnimatePresence>
     </div>
   );
-}
+});
+
+export default OrderManagementHub;

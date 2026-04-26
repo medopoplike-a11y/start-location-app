@@ -27,24 +27,20 @@ import { useSync } from "@/hooks/useSync";
 import { useToast } from "@/hooks/useToast";
 import { aiVoice } from "@/lib/utils/voice";
 import AISupportBot from "@/components/AISupportBot";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import type { Order, VendorLocation, OnlineDriver, SettlementHistoryItem, VendorDBOrder } from "./types";
 import { formatTimeOnly } from "@/lib/utils/format";
-import StoreHeader from "./components/StoreHeader";
-import StoreOrdersHub from "./components/StoreOrdersHub";
-import WalletView from "./components/WalletView";
-import SettlementsHistoryView from "./components/SettlementsHistoryView";
-import StoreSettingsView from "./components/SettingsView";
-import StoreDrawer from "./components/StoreDrawer";
-import OrderFormView from "./components/OrderFormView";
-import StoreAccountModals from "./components/StoreAccountModals";
-import CameraScanner from "@/components/CameraScanner";
-import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 export default function StoreApp() {
   return (
-    <AuthGuard allowedRoles={["vendor", "admin"]}>
-      <StoreContent />
-    </AuthGuard>
+    <GlobalErrorBoundary 
+      title="خطأ في واجهة المتجر"
+      description="حدث خطأ غير متوقع أثناء عرض واجهة المتجر. يمكنك محاولة إعادة التحميل."
+    >
+      <AuthGuard allowedRoles={["vendor", "admin"]}>
+        <StoreContent />
+      </AuthGuard>
+    </GlobalErrorBoundary>
   );
 }
 

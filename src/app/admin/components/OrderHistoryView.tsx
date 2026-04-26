@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { motion } from "framer-motion";
 import { 
   Search, 
@@ -24,7 +24,7 @@ interface OrderHistoryViewProps {
   onCreateOrder: () => void;
 }
 
-export default function OrderHistoryView({ 
+const OrderHistoryView = memo(function OrderHistoryView({ 
   orders, 
   onEditOrder, 
   onDeleteOrder, 
@@ -277,4 +277,6 @@ export default function OrderHistoryView({
       </div>
     </div>
   );
-}
+});
+
+export default OrderHistoryView;

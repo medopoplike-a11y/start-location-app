@@ -16,7 +16,7 @@ interface DriverOrderItemProps {
   onPickup?: (orderId: string) => void;
 }
 
-const DriverOrderItem = ({
+const DriverOrderItem = memo(({
   order,
   type,
   actionLoading,

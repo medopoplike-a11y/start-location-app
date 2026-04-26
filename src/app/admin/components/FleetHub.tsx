@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Truck, 
@@ -38,7 +38,7 @@ interface FleetHubProps {
   onRecalculateWallets: () => Promise<void>;
 }
 
-export default function FleetHub({
+const FleetHub = memo(function FleetHub({
   drivers,
   vendors,
   users,
@@ -57,16 +57,24 @@ export default function FleetHub({
   const [activeTab, setActiveTab] = useState<"drivers" | "vendors" | "wallets" | "accounts">("drivers");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: "drivers", label: "المناديب", icon: <Truck className="w-4 h-4" />, count: drivers.length },
     { id: "vendors", label: "المحلات", icon: <Store className="w-4 h-4" />, count: vendors.length },
     { id: "wallets", label: "الرقابة المالية", icon: <Wallet className="w-4 h-4" />, count: wallets.length },
     { id: "accounts", label: "إدارة الحسابات", icon: <ShieldCheck className="w-4 h-4" />, count: users.length },
-  ];
+  ], [drivers.length, vendors.length, wallets.length, users.length]);
 
-  const filteredDrivers = drivers.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase()) || d.id_full.includes(searchQuery));
-  const filteredVendors = vendors.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()) || v.id_full.includes(searchQuery));
-  const filteredUsers = users.filter(u => u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredDrivers = useMemo(() => drivers.filter(d => 
+    d.name.toLowerCase().includes(searchQuery.toLowerCase()) || d.id_full.includes(searchQuery)
+  ), [drivers, searchQuery]);
+
+  const filteredVendors = useMemo(() => vendors.filter(v => 
+    v.name.toLowerCase().includes(searchQuery.toLowerCase()) || v.id_full.includes(searchQuery)
+  ), [vendors, searchQuery]);
+
+  const filteredUsers = useMemo(() => users.filter(u => 
+    u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [users, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -103,12 +111,12 @@ export default function FleetHub({
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex p-1.5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 w-fit shadow-sm">
+      <div className="flex p-1.5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 w-fit shadow-sm overflow-x-auto no-scrollbar">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center gap-2.5 px-6 py-3.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
               activeTab === tab.id
                 ? "bg-slate-900 dark:bg-slate-800 text-white shadow-xl"
                 : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -116,71 +124,63 @@ export default function FleetHub({
           >
             {tab.icon}
             {tab.label}
-            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${activeTab === tab.id ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400"}`}>
+            <span className={`px-2 py-0.5 rounded-lg text-[10px] ${activeTab === tab.id ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
               {tab.count}
             </span>
           </button>
         ))}
       </div>
 
-      {/* Content Area */}
-      <div className="min-h-[500px]">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === "drivers" && (
-              <DriversView
-                drivers={filteredDrivers}
-                onAddDriver={onAddDriver}
-                onUpdateDriverBilling={onUpdateDriverBilling}
-                onUpdateUserDetails={onUpdateUserDetails}
-                onDeleteUser={onDeleteUser}
-                onToggleShiftLock={onToggleShiftLock}
-                onResetUser={onResetUser}
-              />
-            )}
-            {activeTab === "vendors" && (
-              <VendorsView
-                vendors={filteredVendors}
-                onAddVendor={onAddVendor}
-                onUpdateVendorBilling={onUpdateVendorBilling}
-                onUpdateUserDetails={onUpdateUserDetails}
-                onDeleteUser={onDeleteUser}
-                onResetUser={onResetUser}
-              />
-            )}
-            {activeTab === "wallets" && (
-              <WalletsView 
-                users={users} 
-                wallets={wallets} 
-                onResetUser={onResetUser}
-                onRefresh={onRefreshData}
-                onRecalculate={onRecalculateWallets}
-              />
-            )}
-            {activeTab === "accounts" && (
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] p-8 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
-                   <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">قائمة جميع الحسابات</h3>
-                      <p className="text-[11px] text-slate-400 font-bold">إدارة الأدمن والمناديب والمحلات في مكان واحد</p>
-                   </div>
-                   <button onClick={onAddDriver} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all">
-                      <Plus size={16} />
-                      إنشاء حساب جديد
-                   </button>
-                </div>
-                <AccountsView users={filteredUsers} />
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeTab === "drivers" && (
+            <DriversView
+              drivers={filteredDrivers}
+              onAddDriver={onAddDriver}
+              onUpdateDriverBilling={onUpdateDriverBilling}
+              onUpdateUserDetails={onUpdateUserDetails}
+              onDeleteUser={onDeleteUser}
+              onToggleShiftLock={onToggleShiftLock}
+              onResetUser={onResetUser}
+            />
+          )}
+          {activeTab === "vendors" && (
+            <VendorsView
+              vendors={filteredVendors}
+              onAddVendor={onAddVendor}
+              onUpdateVendorBilling={onUpdateVendorBilling}
+              onUpdateUserDetails={onUpdateUserDetails}
+              onDeleteUser={onDeleteUser}
+              onResetUser={onResetUser}
+            />
+          )}
+          {activeTab === "wallets" && (
+            <WalletsView 
+              users={users} 
+              wallets={wallets} 
+              onResetUser={onResetUser}
+              onRefresh={onRefreshData}
+              onRecalculate={onRecalculateWallets}
+            />
+          )}
+          {activeTab === "accounts" && (
+            <AccountsView 
+              users={filteredUsers} 
+              onUpdateUser={onUpdateUserDetails}
+              onDeleteUser={onDeleteUser}
+              onResetUser={onResetUser}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
-}
+});
+
+export default FleetHub;

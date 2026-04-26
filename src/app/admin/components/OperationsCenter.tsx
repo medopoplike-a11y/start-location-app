@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Activity, 
@@ -65,7 +65,7 @@ interface OperationsCenterProps {
   onIntegrityCheck?: () => void;
 }
 
-export default function OperationsCenter({
+const OperationsCenter = memo(function OperationsCenter({
   liveOrders,
   drivers,
   onlineDrivers,
@@ -97,6 +97,14 @@ export default function OperationsCenter({
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const prevOrdersRef = useRef<LiveOrderItem[]>([]);
+
+  const statsData = useMemo(() => stats || [
+    { label: "طلبات نشطة", value: liveOrders.length, color: "blue" },
+    { label: "مناديب متصلين", value: onlineDrivers.length, color: "emerald" },
+    { label: "تنبيهات النظام", value: activities.filter(a => a.type === 'alert').length, color: "amber" }
+  ], [liveOrders.length, onlineDrivers.length, activities, stats]);
+
+  const filteredOrders = useMemo(() => liveOrders, [liveOrders]);
 
   // V19.3.0: Voice Notifications for Admin
   useEffect(() => {
@@ -695,4 +703,6 @@ export default function OperationsCenter({
       </div>
     </div>
   );
-}
+});
+
+export default OperationsCenter;

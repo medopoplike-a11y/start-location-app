@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Zap, 
@@ -33,7 +33,7 @@ interface AIMonitorProps {
   onlineDrivers?: any[];
 }
 
-export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMonitorProps) {
+const AIMonitorView = memo(function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMonitorProps) {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'applied' | 'chat'>('pending');
@@ -415,4 +415,6 @@ export default function AIMonitorView({ stats, allOrders, onlineDrivers }: AIMon
       )}
     </div>
   );
-}
+});
+
+export default AIMonitorView;
