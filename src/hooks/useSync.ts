@@ -76,19 +76,19 @@ export const useSync = (
    */
   const lastSyncTimeRef = useRef<number>(Date.now());
 
-  // V19.6.0: Periodic Fallback Fetch (Safety Net)
-  // If no realtime events are received for 45 seconds, trigger a manual sync
+  // V19.8.1: Enhanced Periodic Fallback Fetch (Snappier Safety Net)
+  // If no realtime events are received for 20 seconds, trigger a manual sync
   useEffect(() => {
     if (!userId || !onUpdate) return;
     
     const fallbackInterval = setInterval(() => {
       const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
-      if (timeSinceLastSync > 45000) { // 45 seconds of silence
-        console.log(`[SyncV19.6.0] Realtime silence detected (${Math.round(timeSinceLastSync/1000)}s). Triggering fallback fetch...`);
+      if (timeSinceLastSync > 20000) { // Reduced from 45s to 20s for better stability
+        console.log(`[SyncV19.8.1] Realtime silence detected (${Math.round(timeSinceLastSync/1000)}s). Triggering fallback fetch...`);
         onUpdate({ source: 'ghost_refresh', isHardSync: false });
         lastSyncTimeRef.current = Date.now();
       }
-    }, 15000); // Check every 15s
+    }, 10000); // Check every 10s (was 15s)
 
     return () => clearInterval(fallbackInterval);
   }, [userId, onUpdate]);

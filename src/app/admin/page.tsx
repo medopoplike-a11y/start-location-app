@@ -147,126 +147,100 @@ function AdminContent() {
   }, []);
 
   const updateDriverRegistry = useCallback((payload: Partial<OnlineDriver> & { id: string }, source: 'db' | 'realtime') => {
-    setOnlineDrivers(prev => {
-      if (!Array.isArray(prev)) return [];
-      const existingIndex = prev.findIndex(d => d && d.id === payload.id);
-      const existing = existingIndex !== -1 ? prev[existingIndex] : null;
-      const now = Date.now();
-      
-      // 1. Timestamp Protection: Never let old data overwrite new data
-      const payloadTs = payload.lastSeenTimestamp || (source === 'realtime' ? now : 0);
-      
-      if (existing && existing.lastSeenTimestamp && payloadTs < existing.lastSeenTimestamp) {
-        // GHOST PROTECTION (V0.9.57): If DB data is older than current memory, 
-        // ONLY update status/online, but KEEP the newer location we already have.
-        if (source === 'db') {
-          const newDrivers = [...prev];
-          newDrivers[existingIndex] = {
-            ...existing,
-            is_online: payload.is_online !== undefined ? payload.is_online : existing.is_online,
-            status: payload.status || existing.status
-          };
-          return newDrivers;
-        }
-        
-        // If both are Realtime and this one is older (out of order delivery)
-        if (source === 'realtime' && (existing.lastSeenTimestamp - payloadTs) > 100) {
-           return prev;
-        }
+    // V19.8.1: High-Performance Atomic Registry Update
+    const now = Date.now();
+    const payloadTs = payload.lastSeenTimestamp || (source === 'realtime' ? now : 0);
+    
+    // 1. Precise Location Parsing
+    const lat = payload.lat ?? 0;
+    const lng = payload.lng ?? 0;
+    
+    // Safety check for invalid coords
+    if (lat === 0 || lng === 0 && source === 'realtime') return;
+
+    // 2. Update Drivers Card List First (Atomic)
+    setDrivers(current => {
+      const existingIndex = current.findIndex(d => d.id_full === payload.id);
+      if (existingIndex === -1) return current;
+
+      const d = current[existingIndex];
+      // PROTECTION: If current driver in list has a newer timestamp, don't overwrite its location
+      if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp && (now - d.lastSeenTimestamp < 30000)) {
+         // Still update online status if it changed
+         if (payload.is_online !== undefined && payload.is_online !== d.isOnline) {
+            const updated = [...current];
+            updated[existingIndex] = { ...d, isOnline: payload.is_online };
+            return updated;
+         }
+         return current;
       }
 
-      // 2. Precision Location Parsing
-      const lat = payload.lat ?? existing?.lat ?? 0;
-      const lng = payload.lng ?? existing?.lng ?? 0;
+      const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
       
-      if (lat === 0 || lng === 0) return prev;
+      let relativeTime = d.lastSeen;
+      if (source === 'realtime') {
+        relativeTime = "الآن";
+      } else if (payloadTs) {
+        const mins = Math.floor((now - payloadTs) / 60000);
+        if (mins < 1) relativeTime = "الآن";
+        else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
+        else relativeTime = d.lastSeen;
+      }
 
-      // 3. Force move for Realtime updates (V0.9.50)
-      // Even if the movement is tiny, we want the marker to move in Realtime
-      const locChanged = source === 'realtime' || Math.abs((existing?.lat || 0) - lat) > 0.000001 || Math.abs((existing?.lng || 0) - lng) > 0.000001;
+      const updated = [...current];
+      updated[existingIndex] = { 
+        ...d, 
+        ...payload,
+        isOnline: isOnlineStatus, 
+        status: d.isShiftLocked ? "محظور" : (isOnlineStatus ? "متصل" : "غير متصل"),
+        location: lat !== 0 ? { lat, lng, ts: payloadTs } : d.location,
+        lastSeen: relativeTime,
+        lastSeenTimestamp: payloadTs
+      };
+      return updated;
+    });
 
-      // 4. Status & Online logic
+    // 3. Update Online Drivers Registry (Atomic)
+    setOnlineDrivers(prev => {
+      const existingIndex = prev.findIndex(d => d.id === payload.id);
+      const existing = existingIndex !== -1 ? prev[existingIndex] : null;
+      
+      if (existing && existing.lastSeenTimestamp && payloadTs < existing.lastSeenTimestamp && (now - existing.lastSeenTimestamp < 30000)) {
+        return prev;
+      }
+
       const isOnline = payload.is_online !== undefined ? payload.is_online : (existing?.is_online ?? true);
       
-      // 5. Breadcrumb Path (V0.9.50): Keep last 30 points for a detailed movement trail
+      // If offline and not previously in registry, or no location, don't add
+      if (!isOnline && !existing) return prev;
+
+      const locChanged = source === 'realtime' || Math.abs((existing?.lat || 0) - lat) > 0.00001;
       let updatedPath = existing?.path || [];
-      if (locChanged) {
-        updatedPath = [...updatedPath, { lat, lng }].slice(-30);
+      if (locChanged && lat !== 0) {
+        updatedPath = [...updatedPath, { lat, lng }].slice(-20);
       }
 
       const updatedDriver: OnlineDriver = {
         ...existing,
         ...payload,
         id: payload.id,
-        name: payload.name || existing?.name || payload.full_name || "كابتن",
-        lat,
-        lng,
+        name: payload.name || existing?.name || "كابتن",
+        lat: lat !== 0 ? lat : (existing?.lat || 0),
+        lng: lng !== 0 ? lng : (existing?.lng || 0),
         path: updatedPath,
         lastSeen: source === 'realtime' ? "الآن" : (existing?.lastSeen || "تحديث..."),
         lastSeenTimestamp: payloadTs,
         is_online: isOnline,
         status: payload.status || existing?.status || 'available',
-        rating: payload.rating ?? existing?.rating ?? 0
       };
 
-      // V1.0.1: Added timestamp protection for setDrivers to prevent stale DB data from overwriting real-time location
-      setDrivers(current => {
-        if (!Array.isArray(current)) return [];
-        const updated = current.map(d => {
-          if (d && d.id_full === payload.id) {
-            // PROTECTION: If current driver in list has a newer timestamp, don't overwrite its location
-            if (d.lastSeenTimestamp && payloadTs < d.lastSeenTimestamp) {
-               return {
-                 ...d,
-                 isOnline: payload.is_online !== undefined ? payload.is_online : d.isOnline,
-                 status: d.isShiftLocked ? "محظور" : (payload.is_online !== undefined ? (payload.is_online ? "متصل" : "غير متصل") : d.status),
-               };
-            }
-
-            const isOnlineStatus = payload.is_online !== undefined ? payload.is_online : d.isOnline;
-            
-            // Calculate relative time for the card
-            let relativeTime = d.lastSeen;
-            if (source === 'realtime') {
-              relativeTime = "الآن";
-            } else if (payload.lastSeenTimestamp) {
-              const mins = Math.floor((Date.now() - payload.lastSeenTimestamp) / 60000);
-              if (mins < 1) relativeTime = "الآن";
-              else if (mins < 60) relativeTime = `منذ ${mins} دقيقة`;
-              else if (mins < 1440) relativeTime = `منذ ${Math.floor(mins/60)} ساعة`;
-              else relativeTime = `منذ ${Math.floor(mins/1440)} يوم`;
-            }
-
-            return { 
-              ...d, 
-              isOnline: isOnlineStatus, 
-              status: d.isShiftLocked ? "محظور" : (isOnlineStatus ? "متصل" : "غير متصل"),
-              location: { lat, lng, ts: payloadTs },
-              lastSeen: relativeTime,
-              lastSeenTimestamp: payloadTs
-            };
-          }
-          return d;
-        });
-        
-        // V1.0.4: Ensure new reference for immediate React state update
-        return [...updated];
-      });
-
-      if (existing) {
-        const statusChanged = existing.status !== updatedDriver.status || existing.is_online !== updatedDriver.is_online;
-        
-        // V0.9.50: Ultra-fast updates for Real-time (250ms) to ensure smooth marker movement
-        const cooldown = source === 'realtime' ? 250 : 5000;
-        if (!locChanged && !statusChanged && (now - (existing.lastSeenTimestamp || 0) < cooldown)) {
-          return prev;
-        }
-
-        const newDrivers = [...prev];
-        newDrivers[existingIndex] = updatedDriver;
-        return newDrivers;
+      const newList = [...prev];
+      if (existingIndex !== -1) {
+        newList[existingIndex] = updatedDriver;
+      } else {
+        newList.push(updatedDriver);
       }
-      return [...prev, updatedDriver];
+      return newList;
     });
   }, []);
 
@@ -560,8 +534,15 @@ function AdminContent() {
     try {
       isDataFetchingRef.current = true;
       setError(null);
+      
+      // V19.8.1: Enhanced Sync Recovery
+      // If we're doing a full refresh or recovering from silence, clear potential stale data
+      if (fullHistory) {
+        setLoading(true);
+      }
+
       const fetchWithTimeout = async (promise: Promise<any>, label: string) => {
-        const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 10000));
+        const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`انتهت مهلة جلب ${label}`)), 12000));
         return Promise.race([promise, timeout]);
       };
 
@@ -576,33 +557,43 @@ function AdminContent() {
         console.warn("Admin: Auto-unassign failed", e);
       }
 
-      await Promise.allSettled([
+      // V19.8.1: Use Promise.all instead of Settled for critical path to ensure we don't proceed with partial/broken state
+      await Promise.all([
         fetchWithTimeout(fetchProfiles(), "بيانات المستخدمين"),
         fetchWithTimeout(fetchOrders(fullHistory), "بيانات الطلبات"),
         fetchWithTimeout(fetchSettlements(), "بيانات التسويات"),
         fetchWithTimeout(fetchAppConfig(), "إعدادات النظام")
       ]);
+      
+      setLastSync(new Date());
     } catch (err) {
       console.error("Admin: Global fetch error:", err);
       setError(getErrorMessage(err));
-    } finally { isDataFetchingRef.current = false; }
-  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage, addActivity]);
+      // If critical fetch fails, don't leave the UI in a broken state
+      toastError("حدث خطأ أثناء تحديث البيانات، يرجى التحقق من الاتصال");
+    } finally { 
+      isDataFetchingRef.current = false; 
+      setLoading(false);
+    }
+  }, [fetchProfiles, fetchOrders, fetchSettlements, fetchAppConfig, getErrorMessage, addActivity, toastSuccess, toastError]);
 
   const manualSync = useCallback(async (payload?: any) => {
     if (!mounted) return;
 
-    // On app resume or tab-focus, reset the fetching lock in case it got stuck
-    // while the app was backgrounded (fetch interrupted on native platforms).
-    if (payload?.source === 'app_resume_start' || payload?.source === 'app_resume_complete' || payload?.source === 'visibility_change') {
-      isDataFetchingRef.current = false;
+    // V19.8.1: Robust Recovery Logic
+    if (payload?.source === 'ghost_refresh' || payload?.source === 'app_resume_start' || payload?.source === 'visibility_change') {
+      console.log(`[SyncV19.8.1] Recovery sync triggered by: ${payload?.source}`);
+      isDataFetchingRef.current = false; // Reset lock
+      
       if (payload?.source === 'app_resume_start') {
-        setLoading(true); // Show loader during recovery
+        setLoading(true);
       }
     }
 
-    if (payload?.isHardSync && payload?.source === 'app_resume_start') {
+    if (payload?.isHardSync) {
       // V17.6.1: Hard Sync - Clear orders to prevent data overlap from old state
       setLiveOrders([]);
+      setAllOrders([]);
     }
     
     // V1.4.0: Optimized real-time location and status updates
@@ -615,9 +606,16 @@ function AdminContent() {
           lat: data.location?.lat,
           lng: data.location?.lng,
           is_online: data.is_online,
+          status: data.status, // V19.8.1: Pass status directly
           lastSeenTimestamp: data.last_location_update ? new Date(data.last_location_update).getTime() : Date.now()
         }, 'realtime');
       }
+      return;
+    }
+
+    // V19.8.1: If an order update happens, we should refresh profiles too to ensure wallet/balance consistency
+    if (payload?.source === 'orders' || payload?.source === 'new_order') {
+      await fetchData();
       return;
     }
 
@@ -628,20 +626,36 @@ function AdminContent() {
   }, [mounted, fetchData, updateDriverRegistry]);
 
   const handleRefresh = useCallback(async () => {
+    // V19.8.1: Industrial Hard Reset
+    setLoading(true);
     try {
-      // CLEAR EVERYTHING for a fresh start
+      // 1. Clear all local state to prevent data overlap
+      setLiveOrders([]);
+      setAllOrders([]);
+      setOnlineDrivers([]);
+      
+      // 2. Clear caches
       localStorage.clear();
       sessionStorage.clear();
       
-      // Force reload the entire supabase client state if possible by refreshing data
-      console.log("Admin: ALL Cache cleared manually");
-    } catch (e) {}
-    
-    setLoading(true);
-    await fetchData(true);
-    addActivity("تم تصفير الذاكرة وتحديث البيانات بالكامل");
-    setLoading(false);
-  }, [fetchData, addActivity]);
+      // 3. Force Realtime Reconnection
+      if (supabase?.realtime?.isConnected()) {
+        supabase.realtime.disconnect();
+        setTimeout(() => supabase.realtime.connect(), 500);
+      }
+      
+      // 4. Perform Hard Fetch
+      await fetchData(true);
+      
+      addActivity("تم تصفير النظام وإعادة الاتصال بنجاح");
+      toastSuccess("تم تحديث النظام بالكامل وإعادة مزامنة البيانات");
+    } catch (e) {
+      console.error("Hard refresh failed:", e);
+      toastError("فشل التحديث الشامل، حاول مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchData, addActivity, toastSuccess, toastError]);
 
   // 7. Auto-Dispatch Loop (Simultaneous with manual)
   useEffect(() => {
