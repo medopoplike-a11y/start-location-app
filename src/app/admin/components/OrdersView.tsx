@@ -14,6 +14,8 @@ interface OrdersViewProps {
   onlineDrivers?: OnlineDriver[];
   onCancelOrder?: (orderId: string) => Promise<void>;
   onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
+  onSelectOrder?: (orderId: string) => void;
+  selectedOrderId?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string; dot: string; dbStatus: string }> = {
@@ -26,7 +28,15 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: s
 
 const statusFilters = ["الكل", "جاري البحث", "تم التعيين", "في الطريق", "تم التوصيل", "ملغي"];
 
-export default function OrdersView({ liveOrders = [], activities = [], onlineDrivers = [], onCancelOrder, onUpdateStatus }: OrdersViewProps) {
+export default function OrdersView({ 
+  liveOrders = [], 
+  activities = [], 
+  onlineDrivers = [], 
+  onCancelOrder, 
+  onUpdateStatus,
+  onSelectOrder,
+  selectedOrderId
+}: OrdersViewProps) {
   const [filter, setFilter] = useState("الكل");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -170,6 +180,7 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
               {filtered.map((order, i) => {
                 const sc = statusConfig[order.status] ?? statusConfig["جاري البحث"];
                 const isCancelling = cancellingId === order.id_full;
+                const isSelected = selectedOrderId === order.id_full;
                 const canCancel = order.status !== "تم التوصيل" && order.status !== "ملغي";
                 return (
                   <motion.div
@@ -177,7 +188,12 @@ export default function OrdersView({ liveOrders = [], activities = [], onlineDri
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    className="p-5 rounded-3xl border border-white/10 dark:border-white/5 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 transition-all group"
+                    onClick={() => onSelectOrder?.(order.id_full)}
+                    className={`p-5 rounded-3xl border transition-all group cursor-pointer ${
+                      isSelected 
+                        ? "bg-slate-900 text-white border-indigo-500 shadow-xl shadow-indigo-500/10" 
+                        : "border-white/10 dark:border-white/5 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10"
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">

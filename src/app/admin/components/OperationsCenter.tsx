@@ -14,6 +14,7 @@ import {
   Zap,
   Store,
   User,
+  Users,
   CheckCircle,
   AlertCircle,
   X,
@@ -298,36 +299,144 @@ const OperationsCenter = memo(function OperationsCenter({
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full space-y-6"
               >
-                {/* Live Map Container */}
-                <div className="relative h-[500px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[32px] border border-white/20 dark:border-slate-800/50 shadow-xl overflow-hidden group">
-                  <LiveMap 
-                    drivers={mapDrivers}
-                    orders={mapOrders}
-                    vendors={mapVendors}
-                    zoom={13}
-                  />
-                  {/* Map Overlays */}
-                  <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-                    <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-3">
-                      <div className="flex -space-x-2">
-                        {onlineDrivers.slice(0, 3).map((d, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full border-2 border-slate-900 bg-indigo-600 flex items-center justify-center text-[8px] text-white font-black">
-                            {d.name[0]}
-                          </div>
-                        ))}
+                {/* Operations Grid: Map + Manual Distribution */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                  {/* Map Container */}
+                  <div className={`${selectedOrderId ? 'xl:col-span-8' : 'xl:col-span-12'} relative h-[500px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[32px] border border-white/20 dark:border-slate-800/50 shadow-xl overflow-hidden group transition-all duration-500`}>
+                    <LiveMap 
+                      drivers={mapDrivers}
+                      orders={mapOrders}
+                      vendors={mapVendors}
+                      zoom={13}
+                    />
+                    {/* Map Overlays */}
+                    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                      <div className="bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                          {onlineDrivers.slice(0, 3).map((d, i) => (
+                            <div key={i} className="w-6 h-6 rounded-full border-2 border-slate-900 bg-indigo-600 flex items-center justify-center text-[8px] text-white font-black">
+                              {d.name[0]}
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-[10px] text-white font-black">{onlineDrivers.length} متصل</span>
                       </div>
-                      <span className="text-[10px] text-white font-black">{onlineDrivers.length} متصل</span>
+                      
+                      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-lg">
+                         <button 
+                            onClick={() => onToggleAutoRetry(!autoRetryEnabled)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
+                              autoRetryEnabled ? "bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20" : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                            }`}
+                         >
+                            <Zap className={`w-3 h-3 ${autoRetryEnabled ? "animate-pulse" : ""}`} />
+                            <span className="text-[9px] font-black">{autoRetryEnabled ? "توزيع آلي: مفعل" : "توزيع آلي: معطل"}</span>
+                         </button>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Manual Distribution Panel */}
+                  <AnimatePresence>
+                    {selectedOrderId && (
+                      <motion.div 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        className="xl:col-span-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[32px] border border-white/20 dark:border-slate-800/50 shadow-xl flex flex-col overflow-hidden h-[500px]"
+                      >
+                        <div className="p-5 border-b border-white/10 dark:border-slate-800/30 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Users className="w-4 h-4 text-indigo-500" />
+                            <h3 className="font-black text-xs text-slate-900 dark:text-white">توزيع الطلب</h3>
+                          </div>
+                          <button onClick={() => setSelectedOrderId(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+                           <div className="p-3 bg-indigo-600/10 border border-indigo-600/20 rounded-2xl mb-4">
+                              <p className="text-[10px] font-black text-indigo-600 mb-1">الطلب المختار:</p>
+                              <p className="text-xs font-black text-slate-900 dark:text-white">{selectedOrder?.vendor_full_name || "غير معروف"}</p>
+                              <p className="text-[9px] font-bold text-slate-500 mt-0.5">#{selectedOrderId.slice(0, 8)}</p>
+                           </div>
+
+                           <div className="flex items-center justify-between mb-2">
+                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">اختر كابتن متاح</h4>
+                             <span className="text-[8px] font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500">{allPotentialDrivers.length} كابتن</span>
+                           </div>
+
+                           {allPotentialDrivers.length === 0 ? (
+                             <div className="py-10 text-center">
+                               <User className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                               <p className="text-[10px] font-bold text-slate-400 italic">لا يوجد طيارين متاحين</p>
+                             </div>
+                           ) : (
+                             allPotentialDrivers.map(driver => {
+                               const isAssigned = selectedOrder?.driver_id === driver.id_full;
+                               const activeOrders = allOrders.filter(o => o.driver_id === driver.id_full && (o.status === 'assigned' || o.status === 'in_transit')).length;
+                               return (
+                                 <button
+                                   key={driver.id_full}
+                                   disabled={assigning || isAssigned}
+                                   onClick={() => handleAssign(driver.id_full, driver.name)}
+                                   className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all group ${
+                                     isAssigned 
+                                       ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30" 
+                                       : "bg-white/50 dark:bg-white/5 border-white/20 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-800"
+                                   }`}
+                                 >
+                                   <div className="flex items-center gap-3 text-right">
+                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                                       driver.isActuallyOnline ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-slate-100 text-slate-400 border-slate-200"
+                                     }`}>
+                                       <User className="w-5 h-5" />
+                                     </div>
+                                     <div>
+                                       <div className="flex items-center gap-1.5">
+                                         <p className="text-[11px] font-black text-slate-900 dark:text-white">{driver.name}</p>
+                                         <div className={`w-1 h-1 rounded-full ${driver.isActuallyOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
+                                       </div>
+                                       <p className="text-[8px] font-bold text-slate-400 mt-0.5">{activeOrders} طلبات نشطة</p>
+                                     </div>
+                                   </div>
+                                   {isAssigned ? (
+                                     <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                   ) : (
+                                     <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md">
+                                       <ChevronLeft className="w-4 h-4" />
+                                     </div>
+                                   )}
+                                 </button>
+                               );
+                             })
+                           )}
+                        </div>
+
+                        {selectedOrder?.driver_id && (
+                           <div className="p-4 bg-white/50 dark:bg-slate-900/50 border-t border-white/10 dark:border-slate-800/30">
+                              <button 
+                                 onClick={() => handleUnassign(selectedOrderId)}
+                                 disabled={assigning}
+                                 className="w-full py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl text-[10px] font-black hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                              >
+                                 إلغاء التعيين الحالي
+                              </button>
+                           </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <OrdersView 
-                  orders={filteredOrders}
-                  allDrivers={allPotentialDrivers}
-                  onAssign={onAssign}
-                  onCancel={onCancelOrder}
+                  liveOrders={liveOrders}
+                  onlineDrivers={onlineDrivers}
+                  onCancelOrder={onCancelOrder}
                   onUpdateStatus={onUpdateStatus}
-                  actionLoading={actionLoading}
+                  onSelectOrder={setSelectedOrderId}
+                  selectedOrderId={selectedOrderId}
                 />
               </motion.div>
             )}

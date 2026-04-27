@@ -278,12 +278,24 @@ export const assignOrderToNearestDriver = async (
 export const subscribeToOrders = (callback: (payload: any) => void, userId?: string, role: 'driver' | 'vendor' | 'admin' = 'admin') => {
   const channel = supabase.channel(`orders:${role}:${userId || 'all'}`);
   
-  let filter = undefined;
-  if (role === 'vendor' && userId) filter = `vendor_id=eq.${userId}`;
-  if (role === 'driver' && userId) filter = `driver_id=eq.${userId}`;
+  // V19.6.9: Intelligent Multi-Filter Subscriptions
+  if (role === 'vendor' && userId) {
+    return channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `vendor_id=eq.${userId}` }, callback)
+      .subscribe();
+  }
 
+  if (role === 'driver' && userId) {
+    // Drivers must see both their assigned orders AND all pending orders to accept them.
+    return channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `driver_id=eq.${userId}` }, callback)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `status=eq.pending` }, callback)
+      .subscribe();
+  }
+
+  // Admin listens to everything
   return channel
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter }, callback)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, callback)
     .subscribe();
 };
 
