@@ -16,6 +16,7 @@ interface OrdersViewProps {
   onUpdateStatus?: (orderId: string, status: string) => Promise<void>;
   onSelectOrder?: (orderId: string) => void;
   selectedOrderId?: string | null;
+  isCompact?: boolean;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string; dot: string; dbStatus: string }> = {
@@ -35,7 +36,8 @@ export default function OrdersView({
   onCancelOrder, 
   onUpdateStatus,
   onSelectOrder,
-  selectedOrderId
+  selectedOrderId,
+  isCompact = false
 }: OrdersViewProps) {
   const [filter, setFilter] = useState("الكل");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -74,7 +76,6 @@ export default function OrdersView({
     setCancellingId(orderId);
     try {
       await onCancelOrder(orderId);
-      // V19.3.0: Success Celebration for Cancellation
       setCelebrationMessage(`تم إلغاء الطلب #${orderId.slice(0, 8)} بنجاح`);
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 3000);
@@ -112,36 +113,38 @@ export default function OrdersView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isCompact ? 'p-0 h-full flex flex-col' : ''}`}>
       <SuccessCelebration 
         show={showCelebration} 
         message={celebrationMessage} 
         onComplete={() => setShowCelebration(false)} 
       />
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-amber-500/10">
-          <p className="text-[9px] font-black text-amber-500 uppercase mb-1 tracking-widest">جاري البحث</p>
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{counts["جاري البحث"]}</p>
+      {/* Summary Cards - Hidden if compact */}
+      {!isCompact && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-amber-500/10">
+            <p className="text-[9px] font-black text-amber-500 uppercase mb-1 tracking-widest">جاري البحث</p>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{counts["جاري البحث"]}</p>
+          </div>
+          <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-sky-500/10">
+            <p className="text-[9px] font-black text-sky-500 uppercase mb-1 tracking-widest">مُعيَّن</p>
+            <p className="text-2xl font-black text-sky-600 dark:text-sky-400">{counts["تم التعيين"]}</p>
+          </div>
+          <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-indigo-500/10">
+            <p className="text-[9px] font-black text-indigo-500 uppercase mb-1 tracking-widest">في الطريق</p>
+            <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{counts["في الطريق"]}</p>
+          </div>
+          <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-emerald-500/10">
+            <p className="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">تم التوصيل</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{counts["تم التوصيل"]}</p>
+          </div>
         </div>
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-sky-500/10">
-          <p className="text-[9px] font-black text-sky-500 uppercase mb-1 tracking-widest">مُعيَّن</p>
-          <p className="text-2xl font-black text-sky-600 dark:text-sky-400">{counts["تم التعيين"]}</p>
-        </div>
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-indigo-500/10">
-          <p className="text-[9px] font-black text-indigo-500 uppercase mb-1 tracking-widest">في الطريق</p>
-          <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{counts["في الطريق"]}</p>
-        </div>
-        <div className="drawer-glass rounded-[24px] p-5 shadow-sm border-emerald-500/10">
-          <p className="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">تم التوصيل</p>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{counts["تم التوصيل"]}</p>
-        </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={isCompact ? 'flex-1 flex flex-col overflow-hidden min-h-0' : 'grid grid-cols-1 lg:grid-cols-3 gap-6'}>
         {/* Live Orders */}
-        <div className="lg:col-span-2 drawer-glass rounded-[32px] p-6 shadow-sm border-none">
-          <div className="flex items-center justify-between mb-6">
+        <div className={`${isCompact ? 'flex-1 flex flex-col overflow-hidden min-h-0 p-0' : 'lg:col-span-2 drawer-glass rounded-[32px] p-6 shadow-sm border-none'}`}>
+          <div className="flex items-center justify-between mb-6 px-2">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Truck className="w-4 h-4 text-sky-500" />
               الطلبات الحية
@@ -153,7 +156,7 @@ export default function OrdersView({
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar px-2">
             <Filter className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-1" />
             {statusFilters.map(f => (
               <button
@@ -176,7 +179,7 @@ export default function OrdersView({
               <p className="text-sm font-black italic">لا توجد طلبات في هذه الفئة</p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className={`space-y-4 pr-2 custom-scrollbar overflow-y-auto ${isCompact ? 'flex-1 min-h-0' : 'max-h-[600px]'}`}>
               {filtered.map((order, i) => {
                 const sc = statusConfig[order.status] ?? statusConfig["جاري البحث"];
                 const isCancelling = cancellingId === order.id_full;
@@ -189,39 +192,42 @@ export default function OrdersView({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
                     onClick={() => onSelectOrder?.(order.id_full)}
-                    className={`p-5 rounded-3xl border transition-all group cursor-pointer ${
+                    className={`p-4 rounded-[24px] border transition-all group cursor-pointer ${
                       isSelected 
                         ? "bg-slate-900 text-white border-indigo-500 shadow-xl shadow-indigo-500/10" 
                         : "border-white/10 dark:border-white/5 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10"
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-600/10 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
-                          <Store className="w-5 h-5 transition-transform group-hover:scale-110" />
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 ${isSelected ? 'bg-indigo-500/20' : 'bg-blue-600/10'} rounded-xl flex items-center justify-center border border-blue-600/10 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500`}>
+                          <Store className="w-4 h-4 transition-transform group-hover:scale-110" />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-900 dark:text-slate-100">{order.vendor}</p>
-                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">#{order.id}</p>
+                          <p className={`text-[12px] font-black ${isSelected ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>{order.vendor}</p>
+                          <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">#{order.id.slice(0, 8)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <div className="relative group/status">
                           <button 
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${sc.bg} ${sc.text} hover:shadow-lg active:scale-95 shadow-sm`}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black transition-all ${sc.bg} ${sc.text} hover:shadow-lg active:scale-95 shadow-sm`}
                             disabled={updatingId === order.id_full}
                           >
-                            {updatingId === order.id_full ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : sc.icon}
-                            {order.status}
+                            {updatingId === order.id_full ? <Loader2 className="w-3 h-3 animate-spin" /> : sc.icon}
+                            <span className={isCompact ? 'hidden xl:inline' : ''}>{order.status}</span>
                           </button>
                           
                           {/* Status Manual Override Dropdown */}
                           <div className="absolute top-full right-0 mt-2 w-44 drawer-glass rounded-2xl shadow-2xl opacity-0 pointer-events-none group-hover/status:opacity-100 group-hover/status:pointer-events-auto transition-all z-50 p-2 space-y-1 border-none">
-                            <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-3 py-2 tracking-widest">تغيير الحالة يدوياً</p>
+                            <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-3 py-2 tracking-widest">تغيير الحالة</p>
                             {Object.keys(statusConfig).map(statusLabel => (
                               <button
                                 key={statusLabel}
-                                onClick={() => handleUpdateStatus(order.id_full, statusLabel)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStatus(order.id_full, statusLabel);
+                                }}
                                 className={`w-full text-right px-4 py-2.5 rounded-xl text-[10px] font-black transition-all ${
                                   order.status === statusLabel ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"
                                 }`}
@@ -232,144 +238,132 @@ export default function OrdersView({
                           </div>
                         </div>
 
+                        {/* Quick Actions for Pending Orders */}
+                        {order.status === "جاري البحث" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectOrder?.(order.id_full);
+                            }}
+                            className="p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
+                            title="توزيع سريع"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span className="text-[9px] font-black hidden xl:inline">توزيع</span>
+                          </button>
+                        )}
+
                         {canCancel && onCancelOrder && (
                           <button
-                            onClick={() => handleCancel(order.id_full)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancel(order.id_full);
+                            }}
                             disabled={isCancelling}
-                            title="إلغاء الطلب نهائياً"
-                            className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/10 transition-all disabled:opacity-50"
+                            title="إلغاء الطلب"
+                            className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/10 transition-all disabled:opacity-50"
                           >
-                            {isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                            {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                           </button>
                         )}
                       </div>
                     </div>
 
-                    <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 space-y-4 mb-4">
-                      {/* Unified Invoice View for Admin */}
-                      {order.invoice_url && (
-                        <div className="relative group/admin-invoice cursor-pointer overflow-hidden rounded-xl border border-white/20 dark:border-white/5 aspect-[21/9] bg-white dark:bg-slate-900 shadow-inner">
-                          <img 
-                            src={order.invoice_url} 
-                            alt="" 
-                            crossOrigin="anonymous"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              if (!target.src.includes('retry=1')) {
-                                target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
-                              }
-                            }}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover/admin-invoice:scale-110 opacity-90 group-hover/admin-invoice:opacity-100 relative z-10"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center text-slate-300 dark:text-slate-700 z-0">
-                            <Camera size={32} className="opacity-20" />
-                          </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity" />
-                          <button 
-                            onClick={() => setPreviewUrl(order.invoice_url!)}
-                            className="absolute inset-0 opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-[10px] font-black uppercase tracking-widest"
-                          >
-                            <Eye size={16} className="animate-pulse" />
-                            عرض الفاتورة
-                          </button>
-                        </div>
-                      )}
-
-                      {order.customers && order.customers.length > 0 ? (
-                        <div className="space-y-2">
-                          <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <Users className="w-3 h-3 text-blue-500" />
-                            سكة متعددة العملاء ({order.customers.length})
-                          </p>
-                          <div className="grid grid-cols-1 gap-2">
-                            {order.customers.map((c, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 bg-white/40 dark:bg-white/5 p-3 rounded-xl border border-white/20 dark:border-white/5">
-                                <div className="flex items-center gap-3">
-                                  <span className="w-5 h-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[9px] font-black flex items-center justify-center rounded-lg shadow-sm">{idx + 1}</span>
-                                  <span className="truncate max-w-[140px]">{c.name}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/10">{c.deliveryFee} ج.م</span>
-                                  {c.invoice_url && (
-                                    <button 
-                                      onClick={() => setPreviewUrl(c.invoice_url!)}
-                                      className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/10 hover:bg-amber-500 hover:text-white transition-all"
-                                    >
-                                      <Camera size={12} />
-                                    </button>
-                                  )}
-                                  <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)] ${c.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-[11px] font-black text-slate-700 dark:text-slate-300">
-                            <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
-                              <User className="w-4 h-4" />
+                    {!isCompact && (
+                      <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 space-y-4 mb-4">
+                        {order.invoice_url && (
+                          <div className="relative group/admin-invoice cursor-pointer overflow-hidden rounded-xl border border-white/20 dark:border-white/5 aspect-[21/9] bg-white dark:bg-slate-900 shadow-inner">
+                            <img 
+                              src={order.invoice_url} 
+                              alt="" 
+                              crossOrigin="anonymous"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                if (!target.src.includes('retry=1')) {
+                                  target.src = `${target.src}${target.src.includes('?') ? '&' : '?'}retry=1`;
+                                }
+                              }}
+                              className="w-full h-full object-cover transition-transform duration-700 group-hover/admin-invoice:scale-110 opacity-90 group-hover/admin-invoice:opacity-100 relative z-10"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center text-slate-300 dark:text-slate-700 z-0">
+                              <Camera size={32} className="opacity-20" />
                             </div>
-                            <span>العميل: {order.customer}</span>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity" />
+                            <button 
+                              onClick={() => setPreviewUrl(order.invoice_url!)}
+                              className="absolute inset-0 opacity-0 group-hover/admin-invoice:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-[10px] font-black uppercase tracking-widest"
+                            >
+                              <Eye size={16} className="animate-pulse" />
+                              عرض الفاتورة
+                            </button>
                           </div>
-                          <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/10">
-                            <Banknote className="w-4 h-4 text-emerald-500" />
-                            <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{order.delivery_fee} ج.م</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
 
-                    {/* AI Dispatch Suggestion (V19.3.0) */}
-                    {order.status === "جاري البحث" && (
-                      <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
-                            <span className="text-[10px] font-black text-indigo-600 uppercase">توزيع ذكي</span>
+                        {order.customers && order.customers.length > 0 ? (
+                          <div className="space-y-2">
+                            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                              <Users className="w-3 h-3 text-blue-500" />
+                              سكة متعددة العملاء ({order.customers.length})
+                            </p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {order.customers.map((c, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-[11px] font-black text-slate-700 dark:text-slate-300 bg-white/40 dark:bg-white/5 p-3 rounded-xl border border-white/20 dark:border-white/5">
+                                  <div className="flex items-center gap-3">
+                                    <span className="w-5 h-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[9px] font-black flex items-center justify-center rounded-lg shadow-sm">{idx + 1}</span>
+                                    <span className="truncate max-w-[140px]">{c.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/10">{c.deliveryFee} ج.م</span>
+                                    {c.invoice_url && (
+                                      <button 
+                                        onClick={() => setPreviewUrl(c.invoice_url!)}
+                                        className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/10 hover:bg-amber-500 hover:text-white transition-all"
+                                      >
+                                        <Camera size={12} />
+                                      </button>
+                                    )}
+                                    <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)] ${c.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleAiSuggestDriver(order)}
-                            disabled={aiDispatchLoading === order.id}
-                            className="text-[10px] font-black text-indigo-600 underline disabled:opacity-50"
-                          >
-                            {aiDispatchLoading === order.id ? "جاري التحليل..." : "اقتراح طيار"}
-                          </button>
-                        </div>
-                        {aiRecommendation?.orderId === order.id && (
-                          <motion.p 
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2"
-                          >
-                            {aiRecommendation.text}
-                          </motion.p>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-[11px] font-black text-slate-700 dark:text-slate-300">
+                              <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                                <User className="w-4 h-4" />
+                              </div>
+                              <span>العميل: {order.customer}</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/10">
+                              <Banknote className="w-4 h-4 text-emerald-500" />
+                              <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{order.delivery_fee} ج.م</span>
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10 dark:border-white/5">
-                      <div className="flex items-center gap-6">
+                    <div className={`flex items-center justify-between ${!isCompact ? 'pt-4 border-t border-white/10 dark:border-white/5' : ''}`}>
+                      <div className="flex items-center gap-4">
                         <div className="flex flex-col">
-                          <p className="text-[8px] font-black text-slate-400 uppercase">إجمالي الطلب</p>
-                          <p className="text-xs font-black text-slate-900">{order.amount} ج.م</p>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">الإجمالي</p>
+                          <p className={`text-[11px] font-black ${isSelected ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>{order.amount} ج.م</p>
                         </div>
                         {order.driver && (
-                          <>
-                            <div className="w-px h-6 bg-slate-100" />
-                            <div className="flex flex-col">
-                              <p className="text-[8px] font-black text-sky-400 uppercase">الكابتن</p>
-                              <p className="text-xs font-black text-sky-600 flex items-center gap-1">
-                                <Truck className="w-3 h-3" />
-                                {order.driver}
-                              </p>
-                            </div>
-                          </>
+                          <div className="flex flex-col">
+                            <p className="text-[8px] font-black text-sky-400 uppercase tracking-tighter">الكابتن</p>
+                            <p className="text-[10px] font-black text-sky-600 flex items-center gap-1">
+                              <Truck className="w-3 h-3" />
+                              <span className="truncate max-w-[60px]">{order.driver}</span>
+                            </p>
+                          </div>
                         )}
                       </div>
                       
-                      <div className="text-left">
-                        <p className="text-[9px] font-black text-slate-400 flex items-center justify-end gap-1.5">
+                      <div className="text-left flex items-center gap-2">
+                        <p className="text-[8px] font-black text-slate-400 flex items-center justify-end gap-1">
                           <Clock className="w-3 h-3" />
                           {order.created_at ? new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "---"}
                         </p>
@@ -382,40 +376,42 @@ export default function OrdersView({
           )}
         </div>
 
-        {/* Activity Feed */}
-        <div className="bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[32px] p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-5">
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-500" />
-              آخر الأنشطة
-            </h3>
-          </div>
+        {/* Activity Feed - Hidden if compact */}
+        {!isCompact && (
+          <div className="bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[32px] p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-5">
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-indigo-500" />
+                آخر الأنشطة
+              </h3>
+            </div>
 
-          {activities.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-300">
-              <Clock className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm font-bold">لا توجد أنشطة حديثة</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activities.map((activity, i) => (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-slate-200 transition-all"
-                >
-                  <div className="mt-1.5 w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-slate-700 leading-relaxed">{activity.text}</p>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mt-0.5">{activity.time}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
+            {activities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-300">
+                <Clock className="w-10 h-10 mb-3 opacity-30" />
+                <p className="text-sm font-bold">لا توجد أنشطة حديثة</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activities.map((activity, i) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-slate-200 transition-all"
+                  >
+                    <div className="mt-1.5 w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold text-slate-700 leading-relaxed">{activity.text}</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase mt-0.5">{activity.time}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <ImagePreviewModal 
