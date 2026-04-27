@@ -13,7 +13,7 @@ import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
 import { dbService } from "@/lib/db-service";
 import { requestAIAnalysis } from "@/lib/api/ai";
 import { getCache, setCache, startBackgroundTracking, stopBackgroundTracking, stopForegroundTracking, sendLocationBroadcast, cleanupBroadcastChannel, requestBatteryOptimizationExemption } from "@/lib/native-utils";
-import { OrderSkeleton } from "@/components/ui/Skeleton";
+import { Skeleton, OrderSkeleton } from "@/components/ui/Skeleton";
 import AuthGuard from "@/components/AuthGuard";
 import Toast from "@/components/Toast";
 import { useSync } from "@/hooks/useSync";
@@ -30,7 +30,6 @@ import DriverHistoryView from "./components/DriverHistoryView";
 import DriverSettingsView from "./components/DriverSettingsView";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import { Wallet, X, Loader2, Settings, Bot, MapPin, Send, Mic, AlertCircle } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 // --- SKELETON COMPONENTS ---
 function DriverStatsSkeleton() {
