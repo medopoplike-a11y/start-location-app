@@ -43,13 +43,13 @@
       "resizeOnFullScreen": false
     },
     "BackgroundGeolocation": {
-      "staleLocationInterval": 5000,
-      "distanceFilter": 1,
+      "staleLocationInterval": 30000,
+      "distanceFilter": 50,
       "stopOnTerminate": false,
       "startOnBoot": true,
       "foregroundService": true,
-      "enableHeadless": true,
-      "heartbeatInterval": 30
+      "enableHeadless": false,
+      "heartbeatInterval": 60
     },
     "SplashScreen": {
       "launchShowDuration": 3000,

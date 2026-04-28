@@ -46,7 +46,7 @@ function DriverHeader({
   // Only show floating controls in orders/map view to prevent overlapping with wallet/settings headers
   if (activeView === "wallet" || activeView === "settings") {
     return (
-      <header className="fixed top-2 left-2 right-2 z-[1001] flex items-center justify-between pointer-events-none">
+      <header className="fixed top-0 left-0 right-0 z-[1001] flex items-center justify-between pointer-events-none p-2 pt-[env(safe-area-inset-top,8px)]">
         <div className="pointer-events-auto">
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -61,7 +61,7 @@ function DriverHeader({
   }
 
   return (
-    <header className="fixed top-3 left-3 right-3 z-[1001] flex items-center justify-between gap-1 pointer-events-none">
+    <header className="fixed top-0 left-0 right-0 z-[1001] flex items-center justify-between gap-1 pointer-events-none p-3 pt-[env(safe-area-inset-top,12px)]">
       {/* Left side: Menu and Profile (Floating Card) */}
       <div className="flex items-center gap-1.5 pointer-events-auto">
         <motion.button

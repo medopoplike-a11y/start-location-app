@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { checkAppUpdate, showNativeToast } from "@/lib/native-utils";
 import { dbService } from "@/lib/db-service";
+import { mapCache } from "@/lib/map-cache";
 
 export const NativeBridge = () => {
   const pathname = usePathname();
@@ -39,10 +40,13 @@ export const NativeBridge = () => {
 
   useEffect(() => {
     let backListener: any;
-    // Initialize SQLite on boot
+    // Initialize SQLite and Map Cache on boot
     if (Capacitor.isNativePlatform()) {
       dbService.initialize().catch(err => {
         console.error("NativeBridge: SQLite Init Failed", err);
+      });
+      mapCache.initialize().catch(err => {
+        console.error("NativeBridge: Map Cache Init Failed", err);
       });
     }
 

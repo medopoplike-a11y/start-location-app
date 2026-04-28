@@ -117,6 +117,9 @@ class DatabaseService {
     if (!this.db || !this.isInitialized) return;
 
     try {
+      // V19.9.0: First process any pending offline sync items
+      await this.processSyncQueue();
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -312,6 +315,126 @@ class DatabaseService {
       console.log('✅ [SQLite] Database optimized.');
     } catch (e) {
       console.warn('[SQLite] VACUUM failed', e);
+    }
+  }
+
+  /**
+   * V19.9.0: Offline Order Creation - Queue orders when offline
+   */
+  async queueOfflineOrder(orderData: any) {
+    if (!this.db) return null;
+    try {
+      const tempId = `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await this.db.run(
+        'INSERT INTO sync_queue (table_name, action, payload) VALUES (?, ?, ?)',
+        ['orders', 'create', JSON.stringify({ ...orderData, id: tempId, is_offline: true })]
+      );
+      console.log('✅ [SQLite] Order queued for later sync:', tempId);
+      return tempId;
+    } catch (e) {
+      console.error('[SQLite] Failed to queue offline order', e);
+      return null;
+    }
+  }
+
+  /**
+   * V19.9.0: Get all pending sync items
+   */
+  async getPendingSyncQueue() {
+    if (!this.db) return [];
+    try {
+      const result = await this.db.query('SELECT * FROM sync_queue ORDER BY created_at ASC');
+      return result.values || [];
+    } catch (e) {
+      console.warn('[SQLite] Failed to get sync queue', e);
+      return [];
+    }
+  }
+
+  /**
+   * V19.9.0: Remove item from sync queue after successful sync
+   */
+  async removeFromSyncQueue(queueId: number) {
+    if (!this.db) return;
+    try {
+      await this.db.run('DELETE FROM sync_queue WHERE id = ?', [queueId]);
+      console.log('✅ [SQLite] Removed from sync queue:', queueId);
+    } catch (e) {
+      console.warn('[SQLite] Failed to remove from sync queue', e);
+    }
+  }
+
+  /**
+   * V19.9.0: Process sync queue when online
+   */
+  async processSyncQueue() {
+    if (!this.db || !this.isInitialized) return;
+    try {
+      const queue = await this.getPendingSyncQueue();
+      if (queue.length === 0) return;
+
+      console.log(`[SyncQueue] Processing ${queue.length} pending items...`);
+      
+      for (const item of queue) {
+        try {
+          const payload = JSON.parse(item.payload);
+          
+          if (item.table_name === 'orders' && item.action === 'create') {
+            // Create order in Supabase
+            const { supabase } = await import('./supabaseClient');
+            const { data, error } = await supabase.from('orders').insert(payload).select();
+            
+            if (!error && data) {
+              // Update local order with real ID
+              await this.db.run(
+                'UPDATE orders SET id = ? WHERE id = ?',
+                [data[0].id, payload.id]
+              );
+              await this.removeFromSyncQueue(item.id);
+              console.log('✅ [SyncQueue] Order synced successfully:', data[0].id);
+            } else {
+              throw error;
+            }
+          }
+        } catch (e) {
+          console.error('[SyncQueue] Failed to process item:', item.id, e);
+          // Stop processing if we hit an error - will try again next time
+          break;
+        }
+      }
+    } catch (e) {
+      console.error('[SyncQueue] Process failed', e);
+    }
+  }
+
+  /**
+   * V19.9.0: Automatic SQLite Backup
+   */
+  async backupDatabase() {
+    if (!this.db || !Capacitor.isNativePlatform()) return;
+    try {
+      const { CapacitorSQLite } = await import('@capacitor-community/sqlite');
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      
+      const backupName = `start_location_backup_${new Date().toISOString().split('T')[0]}.db`;
+      
+      // Export database
+      const { exportPath } = await CapacitorSQLite.exportToJson({
+        database: 'start_location_db',
+        jsonexportmode: 'full'
+      });
+      
+      if (exportPath) {
+        // Copy to documents directory
+        await Filesystem.copy({
+          from: exportPath,
+          to: backupName,
+          directory: Directory.Documents
+        });
+        console.log('✅ [Backup] Database backed up successfully:', backupName);
+      }
+    } catch (e) {
+      console.warn('[Backup] Failed to backup database', e);
     }
   }
 }

@@ -41,8 +41,8 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             
             def hasKeystoreProps = project.file('keystore.properties').exists()
@@ -51,6 +51,19 @@ android {
             if (hasKeystoreProps || hasEnvKeystore) {
                 signingConfig signingConfigs.release
             }
+        }
+    }
+    
+    // V19.9.0: App Bundles for smaller download size from Google Play
+    bundle {
+        language {
+            enableSplit = true
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
         }
     }
 }

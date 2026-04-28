@@ -50,7 +50,7 @@ export default function StoreHeader({
   };
 
   return (
-    <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl h-20 px-4 shadow-lg shadow-slate-200/20 dark:shadow-none flex items-center justify-between sticky top-0 z-40 border-b border-white/20 dark:border-slate-800/50 transition-all duration-500">
+    <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl h-auto min-h-[5rem] pt-[env(safe-area-inset-top)] px-4 shadow-lg shadow-slate-200/20 dark:shadow-none flex items-center justify-between sticky top-0 z-40 border-b border-white/20 dark:border-slate-800/50 transition-all duration-500">
       <div className="flex items-center gap-3">
         <motion.button 
           whileTap={{ scale: 0.95 }}

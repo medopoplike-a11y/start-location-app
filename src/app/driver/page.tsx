@@ -223,6 +223,14 @@ function DriverPageContent() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
+      // 1. Fetch wallet data for overall balance and system balance
+      const { data: walletData } = await supabase
+        .from('wallets')
+        .select('balance, debt, system_balance')
+        .eq('user_id', currentDriverId)
+        .single();
+
+      // 2. Fetch today's orders for daily stats
       const { data, error } = await supabase
         .from('orders')
         .select('financials, status, vendor_collected_at, driver_confirmed_at')
@@ -234,21 +242,28 @@ function DriverPageContent() {
       let earnings = 0;
       let fees = 0;
       let debt = 0;
+      let sysBalance = walletData?.system_balance || 0; // Use wallet value as base
 
       data?.forEach(order => {
         if (order.status === 'delivered') {
           earnings += Number(order.financials?.driver_earnings || 0);
           fees += Number(order.financials?.delivery_fee || 0);
         }
+        // Today's debt (orders not yet collected by vendor)
         if (!order.vendor_collected_at && (order.status === 'assigned' || order.status === 'in_transit' || order.status === 'delivered')) {
           debt += Number(order.financials?.order_value || 0);
         }
       });
 
-      setBalance(earnings);
+      setBalance(walletData?.balance || earnings); // Prefer total wallet balance
       setTodayDeliveryFees(fees);
-      setVendorDebt(debt);
-      setCache('driver_wallet', { balance: earnings, debt, system_balance: 0 });
+      setVendorDebt(walletData?.debt || debt); // Prefer total wallet debt
+      setSystemBalance(sysBalance);
+      setCache('driver_wallet', { 
+        balance: walletData?.balance || earnings, 
+        debt: walletData?.debt || debt, 
+        system_balance: sysBalance 
+      });
     } catch (err) {
       console.error("fetchStats error:", err);
     }
@@ -883,22 +898,37 @@ function DriverPageContent() {
     try {
       const { data: freshOrder, error: fetchError } = await supabase.from('orders').select('customer_details').eq('id', orderId).single();
       if (fetchError) throw fetchError;
+      if (!freshOrder) throw new Error("لم يتم العثور على الطلب");
 
-      const dbCustomers = freshOrder.customer_details?.customers || [];
-      const updatedCustomers = [...dbCustomers];
-      if (updatedCustomers[customerIndex]) {
-        updatedCustomers[customerIndex] = { ...updatedCustomers[customerIndex], status: 'delivered', deliveredAt: new Date().toISOString() };
+      const currentDetails = freshOrder.customer_details || {};
+      const dbCustomers = currentDetails.customers || [];
+      
+      if (!dbCustomers || dbCustomers.length === 0) {
+        throw new Error("لا يوجد تفاصيل عملاء لهذا الطلب لتحديثها");
       }
 
-      const updatedDetails = { ...(freshOrder.customer_details || {}), customers: updatedCustomers };
+      if (customerIndex < 0 || customerIndex >= dbCustomers.length) {
+        throw new Error("رقم العميل غير صحيح");
+      }
+
+      const updatedCustomers = [...dbCustomers];
+      updatedCustomers[customerIndex] = { 
+        ...updatedCustomers[customerIndex], 
+        status: 'delivered', 
+        deliveredAt: new Date().toISOString() 
+      };
+
+      const updatedDetails = { ...currentDetails, customers: updatedCustomers };
       const { error } = await supabase.from('orders').update({ customer_details: updatedDetails }).eq('id', orderId);
       if (error) throw error;
       
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: updatedCustomers } : o));
-      toastSuccess(`تم تسليم العميل ${updatedCustomers[customerIndex]?.name || ""} بنجاح`);
+      toastSuccess(`تم تسليم العميل ${updatedCustomers[customerIndex]?.name || "المختار"} بنجاح`);
     } catch (err: any) {
+      console.error("handleDeliverCustomer error:", err);
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: order.customers } : o));
       toastError("فشل تحديث حالة العميل: " + (err.message || "خطأ غير معروف"));
+      throw err; // Re-throw to let the UI know it failed
     } finally {
       setActionLoading(false);
     }

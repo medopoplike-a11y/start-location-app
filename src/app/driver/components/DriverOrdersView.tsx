@@ -245,7 +245,6 @@ const DriverOrdersView = memo(function DriverOrdersView({
     setActionLoading(true);
     try {
       await onDeliverCustomer(orderId, customerIndex);
-      toast.success("تم تأكيد التوصيل للعميل");
       // Update local selectedOrder state to reflect the specific customer delivery
       if (selectedOrder && selectedOrder.id === orderId && selectedOrder.customers) {
         const newCustomers = [...selectedOrder.customers];

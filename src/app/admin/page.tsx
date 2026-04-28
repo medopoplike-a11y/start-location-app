@@ -1459,7 +1459,7 @@ function AdminContent() {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-sky-500/5 rounded-full blur-[120px] -ml-64 -mb-64 pointer-events-none" />
 
-        <header className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl h-16 px-6 flex items-center justify-between sticky top-0 z-50 border-b border-white/20 dark:border-slate-800/30 shrink-0">
+        <header className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl h-auto min-h-[4rem] pt-[env(safe-area-inset-top)] px-6 flex items-center justify-between sticky top-0 z-50 border-b border-white/20 dark:border-slate-800/30 shrink-0">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
