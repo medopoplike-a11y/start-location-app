@@ -7,6 +7,8 @@ import { subscribeToProfiles } from "@/lib/api/profiles";
 import { subscribeToWallets, subscribeToSettlements } from "@/lib/api/wallets";
 import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
 import { cleanupBroadcastChannel } from "@/lib/native-utils";
+import { dbService } from "@/lib/db-service";
+import { Capacitor } from "@capacitor/core";
 
 export const useSync = (
   userId?: string,
@@ -162,14 +164,23 @@ export const useSync = (
       const newChannels: RealtimeChannel[] = [];
 
     // ─── 1. Orders channel ────────────────────────────────────────────────────
-    // V17.4.9: Enhanced callback to pass the actual record for partial updates
+    // V20.0.0: First save to SQLite, then notify UI to refresh
     const orderChannel = subscribeToOrders(
-      (payload: any) => {
+      async (payload: any) => {
+        const order = payload.new || payload.payload?.new;
+        if (order && Capacitor.isNativePlatform()) {
+          try {
+            await dbService.saveOrder(order);
+            console.log('[useSync] Saved order update to SQLite:', order.id);
+          } catch (e) {
+            console.warn('[useSync] Failed to save order to SQLite:', e);
+          }
+        }
         triggerUpdate({ 
           source: 'orders', 
           event: payload?.eventType, 
           payload,
-          order: payload.new || payload.payload?.new // Pass the new record data
+          order // Pass the new record data
         });
       },
       isAdmin ? undefined : userId,
@@ -225,7 +236,16 @@ export const useSync = (
     newChannels.push(profileChannel);
 
     // ─── 3. Wallet & Settlements ──────────────────────────────────────────────
-    const walletChannel = subscribeToWallets(userId, (payload) => {
+    const walletChannel = subscribeToWallets(userId, async (payload) => {
+      const wallet = payload.new || payload.payload?.new;
+      if (wallet && Capacitor.isNativePlatform()) {
+        try {
+          await dbService.saveWallet(wallet);
+          console.log('[useSync] Saved wallet update to SQLite:', wallet.user_id);
+        } catch (e) {
+          console.warn('[useSync] Failed to save wallet to SQLite:', e);
+        }
+      }
       triggerUpdate({ source: 'wallets', payload });
     });
     newChannels.push(walletChannel);

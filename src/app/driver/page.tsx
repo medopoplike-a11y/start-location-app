@@ -194,6 +194,21 @@ function DriverPageContent() {
   const fetchOrders = useCallback(async (explicitDriverId?: string) => {
     const activeDriverId = explicitDriverId ?? driverId;
     try {
+      // First: Try to load from SQLite (local source of truth)
+      if (Capacitor.isNativePlatform()) {
+        const localOrders = await dbService.getLocalOrders({ 
+          role: 'driver', 
+          userId: activeDriverId 
+        });
+        if (localOrders && localOrders.length > 0) {
+          console.log(`[DriverPage] Loaded ${localOrders.length} orders from SQLite`);
+          const uiOrders = localOrders.map(mapDBOrderToUI).filter(o => o.id !== 'error');
+          setOrders(uiOrders);
+          setCache('driver_orders', uiOrders);
+        }
+      }
+
+      // Then: Sync from remote (Supabase) and update SQLite
       const { fetchOrders: fetchUnifiedOrders } = await import("@/lib/api/orders");
       const [pending, active, completedToday] = await Promise.all([
         fetchUnifiedOrders({ role: 'driver', status: ['pending'] }),
@@ -208,27 +223,74 @@ function DriverPageContent() {
         return true;
       });
       
+      // Save all remote orders to SQLite
+      if (Capacitor.isNativePlatform()) {
+        for (const order of merged) {
+          await dbService.saveOrder(order);
+        }
+      }
+      
       const uiOrders = merged.map(mapDBOrderToUI).filter(o => o.id !== 'error');
       setOrders(uiOrders);
       setCache('driver_orders', uiOrders);
       return uiOrders;
     } catch (err) {
       console.error("fetchOrders error:", err);
+      
+      // Fallback to SQLite if remote fetch fails
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const localOrders = await dbService.getLocalOrders({ 
+            role: 'driver', 
+            userId: driverId 
+          });
+          if (localOrders && localOrders.length > 0) {
+            const uiOrders = localOrders.map(mapDBOrderToUI).filter(o => o.id !== 'error');
+            setOrders(uiOrders);
+            setCache('driver_orders', uiOrders);
+            return uiOrders;
+          }
+        } catch (e) {
+          console.warn("Failed to load fallback orders from SQLite", e);
+        }
+      }
+      
       return [];
     }
   }, [driverId, mapDBOrderToUI]);
 
   const fetchStats = useCallback(async (currentDriverId: string) => {
     try {
+      // First: Try to load from SQLite (local source of truth)
+      if (Capacitor.isNativePlatform()) {
+        const localWallet = await dbService.getLocalWallet(currentDriverId);
+        if (localWallet) {
+          console.log('[DriverPage] Loaded wallet from SQLite:', localWallet);
+          setBalance(localWallet.balance || 0);
+          setVendorDebt(localWallet.debt || 0);
+          setSystemBalance(localWallet.system_balance || 0);
+          setCache('driver_wallet', { 
+            balance: localWallet.balance, 
+            debt: localWallet.debt, 
+            system_balance: localWallet.system_balance 
+          });
+        }
+      }
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       // 1. Fetch wallet data for overall balance and system balance
       const { data: walletData } = await supabase
         .from('wallets')
-        .select('balance, debt, system_balance')
+        .select('*')
         .eq('user_id', currentDriverId)
         .single();
+
+      // Save wallet to SQLite
+      if (Capacitor.isNativePlatform() && walletData) {
+        await dbService.saveWallet(walletData);
+      }
 
       // 2. Fetch today's orders for daily stats
       const { data, error } = await supabase
@@ -266,6 +328,25 @@ function DriverPageContent() {
       });
     } catch (err) {
       console.error("fetchStats error:", err);
+      
+      // Fallback to SQLite if remote fetch fails
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const localWallet = await dbService.getLocalWallet(currentDriverId);
+          if (localWallet) {
+            setBalance(localWallet.balance || 0);
+            setVendorDebt(localWallet.debt || 0);
+            setSystemBalance(localWallet.system_balance || 0);
+            setCache('driver_wallet', { 
+              balance: localWallet.balance, 
+              debt: localWallet.debt, 
+              system_balance: localWallet.system_balance 
+            });
+          }
+        } catch (e) {
+          console.warn("Failed to load fallback wallet from SQLite", e);
+        }
+      }
     }
   }, []);
 

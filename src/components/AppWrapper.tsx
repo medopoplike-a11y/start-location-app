@@ -5,6 +5,7 @@ import { NativeBridge } from "./NativeBridge";
 import { useDynamicTheme } from "@/hooks/useDynamicTheme";
 import { App } from '@capacitor/app';
 import { forceReconnectRealtime } from "@/lib/supabaseClient";
+import { dbService } from "@/lib/db-service";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
@@ -12,7 +13,19 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   useDynamicTheme(); // V19.3.0: Enable auto-theme logic
 
   React.useEffect(() => {
-    setMounted(true);
+    const init = async () => {
+      try {
+        // Initialize SQLite database as the primary source of truth
+        await dbService.initialize();
+        console.log("✅ AppWrapper: SQLite initialized and ready");
+      } catch (e) {
+        console.error("❌ AppWrapper: SQLite initialization failed", e);
+      }
+      
+      setMounted(true);
+    };
+    
+    init();
 
     // V19.6.1: Global Activity Monitor
     // Trigger a hard sync and socket repair when app returns from background
@@ -21,6 +34,8 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
         console.log("[AppWrapperV19.6.1] App returned to foreground. Repairing sync...");
         try {
           await forceReconnectRealtime(true);
+          // Trigger sync from remote to update SQLite
+          await dbService.syncFromRemote();
           // Broadcast a custom event that useSync and pages can listen to
           window.dispatchEvent(new CustomEvent('app-resume-sync', { 
             detail: { source: 'app_resume_start', isHardSync: true } 

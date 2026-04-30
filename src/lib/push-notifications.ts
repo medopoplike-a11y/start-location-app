@@ -1,5 +1,6 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
+import { dbService } from './db-service';
 
 export const setupPushNotifications = async () => {
   // V19.0.1: CRITICAL SAFETY GUARD
@@ -57,11 +58,37 @@ export const setupPushNotifications = async () => {
     console.error('Error on registration: ' + JSON.stringify(error));
   });
 
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
+  PushNotifications.addListener('pushNotificationReceived', async (notification) => {
     console.log('Push received: ' + JSON.stringify(notification));
+    
+    // V20.0.0: Save notification data to SQLite immediately
+    try {
+      // Check if notification contains order data
+      const data = notification.data as any;
+      if (data?.order) {
+        console.log('PushNotifications: Saving order to SQLite:', data.order);
+        await dbService.saveOrder(data.order);
+        // Trigger a sync to ensure we have the latest data
+        await dbService.syncFromRemote();
+      }
+    } catch (e) {
+      console.error('PushNotifications: Failed to save data to SQLite', e);
+    }
   });
 
-  PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+  PushNotifications.addListener('pushNotificationActionPerformed', async (notification) => {
     console.log('Push action performed: ' + JSON.stringify(notification));
+    
+    // V20.0.0: Ensure data is saved to SQLite when user taps notification
+    try {
+      const data = notification.notification.data as any;
+      if (data?.order) {
+        console.log('PushNotifications: Saving order to SQLite from action:', data.order);
+        await dbService.saveOrder(data.order);
+        await dbService.syncFromRemote();
+      }
+    } catch (e) {
+      console.error('PushNotifications: Failed to save data from action', e);
+    }
   });
 };

@@ -296,6 +296,44 @@ class DatabaseService {
     }
   }
 
+  /**
+   * V20.0.0: Get local wallet data
+   */
+  async getLocalWallet(userId: string) {
+    if (!this.db) return null;
+    try {
+      const result = await this.db.query(
+        'SELECT * FROM wallets WHERE user_id = ?',
+        [userId]
+      );
+      return result.values?.[0] || null;
+    } catch (e) {
+      console.warn('[SQLite] getLocalWallet failed', e);
+      return null;
+    }
+  }
+
+  /**
+   * V20.0.0: Save wallet data locally
+   */
+  async saveWallet(wallet: any) {
+    if (!this.db) return;
+    try {
+      await this.db.run(
+        'INSERT OR REPLACE INTO wallets (user_id, balance, debt, pending_withdrawals, updated_at) VALUES (?, ?, ?, ?, ?)',
+        [
+          wallet.user_id,
+          wallet.balance,
+          wallet.debt,
+          wallet.pending_withdrawals,
+          wallet.updated_at || new Date().toISOString()
+        ]
+      );
+    } catch (e) {
+      console.warn('[SQLite] saveWallet failed', e);
+    }
+  }
+
   async clearAll() {
     if (!this.db) return;
     await this.db.execute('DELETE FROM orders; DELETE FROM wallets; DELETE FROM profiles; DELETE FROM sync_queue;');
