@@ -3,9 +3,7 @@
 import * as React from "react";
 import { NativeBridge } from "./NativeBridge";
 import { useDynamicTheme } from "@/hooks/useDynamicTheme";
-import { App } from '@capacitor/app';
-import { forceReconnectRealtime } from "@/lib/supabaseClient";
-import { dbService } from "@/lib/db-service";
+import { Capacitor } from "@capacitor/core";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
@@ -15,11 +13,18 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
   React.useEffect(() => {
     const init = async () => {
       try {
-        // Initialize SQLite database as the primary source of truth
-        await dbService.initialize();
-        console.log("✅ AppWrapper: SQLite initialized and ready");
+        // Only initialize SQLite on native platforms, and do it with extreme safety
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const { dbService } = await import("@/lib/db-service");
+            await dbService.initialize();
+            console.log("✅ AppWrapper: SQLite initialized and ready");
+          } catch (sqliteError) {
+            console.warn("⚠️ AppWrapper: SQLite optional initialization skipped", sqliteError);
+          }
+        }
       } catch (e) {
-        console.error("❌ AppWrapper: SQLite initialization failed", e);
+        console.error("❌ AppWrapper: General init error (safe to continue)", e);
       }
       
       setMounted(true);
@@ -27,29 +32,53 @@ export default function AppWrapper({ children }: { children: React.ReactNode }) 
     
     init();
 
-    // V19.6.1: Global Activity Monitor
-    // Trigger a hard sync and socket repair when app returns from background
-    const handleAppStateChange = async (state: any) => {
-      if (state.isActive) {
-        console.log("[AppWrapperV19.6.1] App returned to foreground. Repairing sync...");
-        try {
-          await forceReconnectRealtime(true);
-          // Trigger sync from remote to update SQLite
-          await dbService.syncFromRemote();
-          // Broadcast a custom event that useSync and pages can listen to
-          window.dispatchEvent(new CustomEvent('app-resume-sync', { 
-            detail: { source: 'app_resume_start', isHardSync: true } 
-          }));
-        } catch (e) {
-          console.error("Failed to repair sync on resume:", e);
-        }
+    // V19.6.1: Global Activity Monitor (Ultra-Safe Version)
+    const setupAppStateListener = async () => {
+      if (!Capacitor.isNativePlatform()) return;
+      
+      try {
+        const { App } = await import('@capacitor/app');
+        const { forceReconnectRealtime } = await import("@/lib/supabaseClient");
+        const { dbService } = await import("@/lib/db-service");
+
+        const handleAppStateChange = async (state: any) => {
+          if (state.isActive) {
+            console.log("[AppWrapperV20.0.0] App returned to foreground");
+            try {
+              await forceReconnectRealtime(true);
+              try {
+                await dbService.syncFromRemote();
+              } catch (syncError) {
+                console.warn("⚠️ Sync from remote skipped", syncError);
+              }
+              try {
+                window.dispatchEvent(new CustomEvent('app-resume-sync', { 
+                  detail: { source: 'app_resume_start', isHardSync: true } 
+                }));
+              } catch (eventError) {
+                console.warn("⚠️ Event dispatch skipped", eventError);
+              }
+            } catch (e) {
+              console.error("Failed to repair sync on resume (safe to continue)", e);
+            }
+          }
+        };
+
+        const listener = await App.addListener('appStateChange', handleAppStateChange);
+        return listener;
+      } catch (e) {
+        console.warn("⚠️ App state listener setup failed", e);
+        return null;
       }
     };
 
-    const listener = App.addListener('appStateChange', handleAppStateChange);
+    let listener: any = null;
+    setupAppStateListener().then(l => { listener = l; });
 
     return () => {
-      listener.then(l => l.remove());
+      if (listener?.remove) {
+        try { listener.remove(); } catch (e) { /* ignore */ }
+      }
     };
   }, []);
 

@@ -7,7 +7,6 @@ import { subscribeToProfiles } from "@/lib/api/profiles";
 import { subscribeToWallets, subscribeToSettlements } from "@/lib/api/wallets";
 import { supabase, forceReconnectRealtime } from "@/lib/supabaseClient";
 import { cleanupBroadcastChannel } from "@/lib/native-utils";
-import { dbService } from "@/lib/db-service";
 import { Capacitor } from "@capacitor/core";
 
 export const useSync = (
@@ -164,16 +163,17 @@ export const useSync = (
       const newChannels: RealtimeChannel[] = [];
 
     // ─── 1. Orders channel ────────────────────────────────────────────────────
-    // V20.0.0: First save to SQLite, then notify UI to refresh
+    // V20.0.1: Ultra-safe - first save to SQLite if possible, then notify UI to refresh
     const orderChannel = subscribeToOrders(
       async (payload: any) => {
         const order = payload.new || payload.payload?.new;
         if (order && Capacitor.isNativePlatform()) {
           try {
+            const { dbService } = await import("@/lib/db-service");
             await dbService.saveOrder(order);
             console.log('[useSync] Saved order update to SQLite:', order.id);
           } catch (e) {
-            console.warn('[useSync] Failed to save order to SQLite:', e);
+            console.warn('[useSync] Failed to save order to SQLite (safe to continue):', e);
           }
         }
         triggerUpdate({ 
@@ -240,10 +240,11 @@ export const useSync = (
       const wallet = payload.new || payload.payload?.new;
       if (wallet && Capacitor.isNativePlatform()) {
         try {
+          const { dbService } = await import("@/lib/db-service");
           await dbService.saveWallet(wallet);
           console.log('[useSync] Saved wallet update to SQLite:', wallet.user_id);
         } catch (e) {
-          console.warn('[useSync] Failed to save wallet to SQLite:', e);
+          console.warn('[useSync] Failed to save wallet to SQLite (safe to continue):', e);
         }
       }
       triggerUpdate({ source: 'wallets', payload });
