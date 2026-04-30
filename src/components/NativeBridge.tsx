@@ -13,24 +13,24 @@ import { mapCache } from "@/lib/map-cache";
 
 export const NativeBridge = () => {
   const pathname = usePathname();
-  const pathnameRef = (typeof window !== 'undefined') ? (window as any)._pathnameRef : null;
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any)._pathnameRef = pathname;
+    try {
+      if (typeof window !== 'undefined') {
+        (window as any)._pathnameRef = pathname;
+      }
+    } catch (e) {
+      console.warn('NativeBridge: Pathname ref failed', e);
     }
   }, [pathname]);
 
   useEffect(() => {
-    // V17.7.6: IMMEDIATE NOTIFICATION
-    // This must run as early as possible to prevent Capgo from rolling back
-    // thinking the new version crashed.
     if (Capacitor.isNativePlatform()) {
       (async () => {
         try {
           const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
           await CapacitorUpdater.notifyAppReady();
-          console.log("NativeBridge: [V17.7.6] Capgo notified of successful boot.");
+          console.log("NativeBridge: Capgo notified of successful boot.");
         } catch (e) {
           console.warn('NativeBridge: Capgo notification failed', e);
         }
@@ -40,21 +40,28 @@ export const NativeBridge = () => {
 
   useEffect(() => {
     let backListener: any;
-    // Initialize SQLite and Map Cache on boot
+    
     if (Capacitor.isNativePlatform()) {
-      dbService.initialize().catch(err => {
-        console.error("NativeBridge: SQLite Init Failed", err);
-      });
-      mapCache.initialize().catch(err => {
-        console.error("NativeBridge: Map Cache Init Failed", err);
-      });
+      try {
+        dbService.initialize().catch(err => {
+          console.error("NativeBridge: SQLite Init Failed", err);
+        });
+      } catch (e) {
+        console.warn('NativeBridge: dbService init failed', e);
+      }
+      
+      try {
+        mapCache.initialize().catch(err => {
+          console.error("NativeBridge: Map Cache Init Failed", err);
+        });
+      } catch (e) {
+        console.warn('NativeBridge: mapCache init failed', e);
+      }
     }
 
     if (!Capacitor.isNativePlatform()) return;
 
     const setupNative = async () => {
-      // V17.4.9: HARD RESET GUARD - Clear stale sessions on version upgrade
-      // This prevents "Ghost Logins" and "Empty Systems" caused by Android Auto Backup
       try {
         const { Preferences } = await import('@capacitor/preferences');
         const { value: lastBootVersion } = await Preferences.get({ key: 'app_last_boot_version' });
@@ -62,61 +69,75 @@ export const NativeBridge = () => {
 
         if (lastBootVersion !== CURRENT_VERSION) {
           if (lastBootVersion) {
-            console.log(`NativeBridge: [${CURRENT_VERSION}] New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
+            console.log(`NativeBridge: New version detected (${lastBootVersion} -> ${CURRENT_VERSION}). Performing safety cleanup...`);
             
-            // Only clear auth-related data to avoid losing important user settings
-            const sessionKey = 'start-location-v1-session';
-            await Preferences.remove({ key: sessionKey });
-            const { keys } = await Preferences.keys();
-            for (const key of keys) {
-              if (key.includes('auth-token') || key.includes('supabase') || key.includes('session')) {
-                await Preferences.remove({ key });
+            try {
+              const sessionKey = 'start-location-v1-session';
+              await Preferences.remove({ key: sessionKey });
+              const { keys } = await Preferences.keys();
+              for (const key of keys) {
+                if (key.includes('auth-token') || key.includes('supabase') || key.includes('session')) {
+                  try {
+                    await Preferences.remove({ key });
+                  } catch (removeErr) {
+                    console.warn('NativeBridge: Failed to remove key:', key, removeErr);
+                  }
+                }
               }
+              console.log("NativeBridge: Safety cleanup complete.");
+            } catch (cleanupErr) {
+              console.warn('NativeBridge: Safety cleanup failed', cleanupErr);
             }
-            console.log("NativeBridge: Safety cleanup complete.");
           }
           
-          await Preferences.set({ key: 'app_last_boot_version', value: CURRENT_VERSION });
+          try {
+            await Preferences.set({ key: 'app_last_boot_version', value: CURRENT_VERSION });
+          } catch (setErr) {
+            console.warn('NativeBridge: Failed to set last boot version', setErr);
+          }
         }
       } catch (e) {
         console.warn('NativeBridge: Version guard failed', e);
       }
 
-      // V16.9.6: CRITICAL - Hide splash screen as early as possible to avoid white screen
       try {
         await SplashScreen.hide();
       } catch (e) {
         console.warn('NativeBridge: SplashScreen hide failed', e);
       }
 
-      // 1. Handle Back Button
       try {
         backListener = await App.addListener('backButton', () => {
-          const handlers = (window as any)._backButtonHandlers || [];
-          if (handlers.length > 0) {
-            const lastHandler = handlers[handlers.length - 1];
-            lastHandler();
-            return;
-          }
+          try {
+            const handlers = (window as any)._backButtonHandlers || [];
+            if (handlers.length > 0) {
+              const lastHandler = handlers[handlers.length - 1];
+              lastHandler();
+              return;
+            }
 
-          const currentPath = (window as any)._pathnameRef || '/';
-          const mainRoutes = ['/login', '/driver', '/admin', '/store'];
-          if (mainRoutes.includes(currentPath)) {
-            App.minimizeApp();
-          } else {
-            window.history.back();
+            const currentPath = (window as any)._pathnameRef || '/';
+            const mainRoutes = ['/login', '/driver', '/admin', '/store'];
+            if (mainRoutes.includes(currentPath)) {
+              try {
+                App.minimizeApp();
+              } catch (minErr) {
+                console.warn('NativeBridge: Minimize app failed', minErr);
+              }
+            } else {
+              window.history.back();
+            }
+          } catch (handlerErr) {
+            console.warn('NativeBridge: Back button handler error', handlerErr);
           }
         });
       } catch (e) {
         console.warn('NativeBridge: Back button listener failed', e);
       }
 
-      // 2. Configure Native UI
       try {
         await StatusBar.setStyle({ style: Style.Light });
         await StatusBar.setBackgroundColor({ color: '#f8fafc' }); 
-        
-        // Keyboard configuration
         await Keyboard.setAccessoryBarVisible({ isVisible: false });
         if (Capacitor.getPlatform() === 'ios') {
           await Keyboard.setStyle({ style: KeyboardStyle.Light });
@@ -125,9 +146,6 @@ export const NativeBridge = () => {
         console.warn('NativeBridge: UI config failed', e);
       }
 
-      // 4. Check for OTA updates in the background (non-blocking, safe)
-      // V17.7.6: Uses immediate: false to avoid reload loops.
-      // The downloaded bundle is applied on the next cold start of the app.
       setTimeout(async () => {
         try {
           const CURRENT_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
@@ -139,15 +157,23 @@ export const NativeBridge = () => {
         } catch (e) {
           console.warn('[NativeBridge] OTA check failed silently:', e);
         }
-      }, 5000); // Delay 5s to let the app fully load before checking
+      }, 5000);
     };
 
-    setupNative();
+    try {
+      setupNative();
+    } catch (setupErr) {
+      console.error('NativeBridge: Setup failed', setupErr);
+    }
 
     return () => {
-      if (backListener) backListener.remove();
+      try {
+        if (backListener) backListener.remove();
+      } catch (e) {
+        console.warn('NativeBridge: Failed to remove back listener', e);
+      }
     };
-  }, []); // V16.9.2: Remove pathname dependency to prevent redundant checks and reload loops during navigation
+  }, []);
 
   return null;
 };
