@@ -485,10 +485,6 @@ const getFreshAccessToken = async (): Promise<string> => {
 export const startBackgroundTracking = async (userId: string, name?: string, role: 'driver' | 'vendor' | 'admin' = 'driver', onUpdate?: (loc: {lat: number, lng: number}) => void) => {
   if (!isNative() || !userId) return null;
 
-  // V17.4.3: HARD GUARD — only drivers get continuous background GPS tracking.
-  // Vendors (stores) are fixed locations and update manually; admins don't need GPS.
-  // This prevents any caller from accidentally re-enabling battery-draining
-  // background location for non-driver roles.
   if (role !== 'driver') {
     console.log(`[BG-Tracking] Skipped for role="${role}" — only drivers are tracked continuously.`);
     return null;
@@ -503,186 +499,173 @@ export const startBackgroundTracking = async (userId: string, name?: string, rol
       return null;
     }
 
-    // 1. Request necessary permissions
-    const { Geolocation } = await import('@capacitor/geolocation');
-    // For vendors/admins, we might not need high accuracy, but we need the background process
-    const perm = await Geolocation.requestPermissions({ 
-      permissions: ['location', 'coarseLocation', 'backgroundLocation'] 
-    });
+    let perm;
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      perm = await Geolocation.requestPermissions({ 
+        permissions: ['location', 'coarseLocation', 'backgroundLocation'] 
+      });
+    } catch (permErr) {
+      console.warn('Permission request failed:', permErr);
+      return null;
+    }
     
-    if (perm.location !== 'granted') {
+    if (perm?.location !== 'granted') {
       console.warn('Location permission not granted');
       return null;
     }
 
-    // V17.4.4: Natural-pace tracking — admin still gets live view but the
-    // network and battery are no longer hammered.
     let lastDbUpdate = 0;
-    const DB_UPDATE_INTERVAL = 8000;          // DB write at most every 8s
+    const DB_UPDATE_INTERVAL = 8000;
     let lastBroadcast = 0;
-    const BROADCAST_INTERVAL = 4000;          // Realtime broadcast every 4s
+    const BROADCAST_INTERVAL = 4000;
     let lastLogInsert = 0;
-    const LOG_INSERT_INTERVAL = 30 * 1000;    // History row every 30s (not 5s)
-
+    const LOG_INSERT_INTERVAL = 30 * 1000;
     let lastHeartbeatUpdate = 0;
-    const HEARTBEAT_DB_INTERVAL = 90 * 1000;  // 1.5 minutes for heartbeat
+    const HEARTBEAT_DB_INTERVAL = 90 * 1000;
 
-    const bgMessage = role === 'driver' 
-      ? "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق"
-      : "مزامنة البيانات نشطة في الخلفية لضمان استقبال التنبيهات";
+    const bgMessage = "تتبع الموقع نشط لضمان وصول الطلبات بدقة — لا تغلق التطبيق";
+    const bgTitle = "ستارت: تتبع الموقع (وضع الاستمرارية)";
 
-    const bgTitle = role === 'driver'
-      ? "ستارت: تتبع الموقع (وضع الاستمرارية)"
-      : "ستارت: مزامنة البيانات (وضع الاستمرارية)";
+    let mainWatcherId: string | null = null;
+    try {
+      mainWatcherId = await BackgroundGeolocation.addWatcher(
+        {
+          backgroundMessage: bgMessage,
+          backgroundTitle: bgTitle,
+          requestPermissions: true,
+          staleLocationInterval: 10000,
+          distanceFilter: 8,
+          persist: true,
+          forceAccuracy: true,
+          stationaryRadius: 20,
+          notificationTitle: bgTitle,
+          notificationText: bgMessage,
+          notificationIconColor: "#f97316",
+          notificationImportance: 4,
+          priority: 2,
+          interval: 5000,
+          fastestInterval: 3000,
+          activitiesInterval: 10000,
+          stopOnTerminate: false,
+          startOnBoot: true,
+          heartbeatInterval: 60,
+          enableHeadless: true
+        },
+        async (location: any, error: any) => {
+          try {
+            if (error) {
+              console.warn("BG Watcher Error:", error);
+              return;
+            }
 
-    // V17.4.4: Driver tracking is continuous but at a NATURAL pace.
-    // - GPS sample every 5s (was 1s) — admin sees a smooth live trail without spam
-    // - 8m distance filter — won't fire on every step or GPS jitter
-    // - 20m stationary radius — silent when driver is parked at a stop
-    const mainWatcherId = await BackgroundGeolocation.addWatcher(
-      {
-        backgroundMessage: bgMessage,
-        backgroundTitle: bgTitle,
-        requestPermissions: true,
-        staleLocationInterval: 10000,
-        distanceFilter: 8,
-        persist: true,
-        forceAccuracy: true,
-        stationaryRadius: 20,
-        notificationTitle: bgTitle,
-        notificationText: bgMessage,
-        notificationIconColor: "#f97316",
-        notificationImportance: 4,
-        priority: 2,
-        interval: 5000,
-        fastestInterval: 3000,
-        activitiesInterval: 10000,
-        stopOnTerminate: false,
-        startOnBoot: true,
-        heartbeatInterval: 60,
-        enableHeadless: true
-      },
-      async (location: any, error: any) => {
-        if (error) {
-          console.warn("BG Watcher Error:", error);
-          return;
-        }
+            const now = Date.now();
+            const isHeartbeat = !location || !location.latitude;
 
-        const now = Date.now();
-        const isHeartbeat = !location || !location.latitude;
+            if (!isHeartbeat && location?.latitude && location?.longitude) {
+              if (role === 'driver' && location?.accuracy && location.accuracy > 300) return;
 
-        if (!isHeartbeat && location.latitude && location.longitude) {
-          if (role === 'driver' && location.accuracy && location.accuracy > 300) return;
+              const loc = { 
+                lat: location.latitude, 
+                lng: location.longitude,
+                heading: location.bearing || 0,
+                speed: location.speed || 0,
+                accuracy: location.accuracy || 0
+              };
+              if (onUpdate) {
+                try { onUpdate(loc); } catch (e) { console.warn('onUpdate failed:', e); }
+              }
 
-          const loc = { 
-            lat: location.latitude, 
-            lng: location.longitude,
-            heading: location.bearing || 0,
-            speed: location.speed || 0,
-            accuracy: location.accuracy || 0
-          };
-          if (onUpdate) onUpdate(loc);
+              if (role === 'driver' && now - lastBroadcast >= BROADCAST_INTERVAL) {
+                lastBroadcast = now;
+                try { sendLocationBroadcast(userId, loc, name); } catch (e) { console.warn('sendLocationBroadcast failed:', e); }
+              }
 
-          // V17.4.4: Throttle realtime broadcasts to BROADCAST_INTERVAL (4s).
-          // Without this, GPS callbacks (every 5s natively but burst-prone) could
-          // flood the realtime channel with multiple drivers broadcasting at once.
-          if (role === 'driver' && now - lastBroadcast >= BROADCAST_INTERVAL) {
-            lastBroadcast = now;
-            sendLocationBroadcast(userId, loc, name);
-          }
+              if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
+              lastDbUpdate = now;
+            } else if (isHeartbeat) {
+              if (now - lastHeartbeatUpdate < HEARTBEAT_DB_INTERVAL) return;
+              lastHeartbeatUpdate = now;
+              console.log(`BG Tracker: Sending ${role} heartbeat...`);
+            } else {
+              return;
+            }
 
-          if (now - lastDbUpdate < DB_UPDATE_INTERVAL) return;
-          lastDbUpdate = now;
-        } else if (isHeartbeat) {
-          if (now - lastHeartbeatUpdate < HEARTBEAT_DB_INTERVAL) return;
-          lastHeartbeatUpdate = now;
-          console.log(`BG Tracker: Sending ${role} heartbeat...`);
-        } else {
-          return;
-        }
+            try {
+              const accessToken = await getFreshAccessToken();
+              const headers = {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              };
 
-        try {
-          const accessToken = await getFreshAccessToken();
-          const headers = {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          };
+              const updateData: any = {
+                is_online: true,
+                last_location_update: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+              
+              if (location?.latitude) {
+                updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
+              }
 
-          const updateData: any = {
-            is_online: true,
-            last_location_update: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          if (location?.latitude) {
-            updateData.location = { lat: location.latitude, lng: location.longitude, ts: now };
-          }
-
-          // Native update bypasses JS suspension
-          const requests = [
-            CapacitorHttp.patch({
-              url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
-              headers,
-              data: updateData
-            })
-          ];
-
-          if (role === 'driver') {
-            // Drivers check for orders
-            requests.push(
-              CapacitorHttp.get({
-                url: `${SUPABASE_URL}/rest/v1/orders?driver_id=eq.${userId}&status=in.("assigned","in_transit")&select=id,status`,
-                headers
-              })
-            );
-
-            // V17.4.4: Insert location_logs row only every 30s (was every 5s).
-            // location_logs is a history table for trip replay — 30s granularity
-            // is more than enough and keeps DB writes manageable across many drivers.
-            if (location?.latitude && now - lastLogInsert >= LOG_INSERT_INTERVAL) {
-              lastLogInsert = now;
-              requests.push(
-                CapacitorHttp.post({
-                  url: `${SUPABASE_URL}/rest/v1/location_logs`,
+              const requests = [
+                CapacitorHttp.patch({
+                  url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
                   headers,
-                  data: {
-                    user_id: userId,
-                    lat: location.latitude,
-                    lng: location.longitude,
-                    speed: location.speed || 0,
-                    heading: location.bearing || 0,
-                    accuracy: location.accuracy || 0,
-                    created_at: new Date().toISOString()
-                  }
+                  data: updateData
                 })
-              );
-            }
-          } else if (role === 'vendor') {
-            // Vendors check for new pending orders
-            requests.push(
-              CapacitorHttp.get({
-                url: `${SUPABASE_URL}/rest/v1/orders?vendor_id=eq.${userId}&status=eq.pending&select=id`,
-                headers
-              })
-            );
-          }
+              ];
 
-          const results = await Promise.allSettled(requests);
+              if (role === 'driver') {
+                requests.push(
+                  CapacitorHttp.get({
+                    url: `${SUPABASE_URL}/rest/v1/orders?driver_id=eq.${userId}&status=in.("assigned","in_transit")&select=id,status`,
+                    headers
+                  })
+                );
 
-          // Alert if something new found in background
-          if (role === 'driver' || role === 'vendor') {
-            const checkRes = results[1]; // Order check is usually second
-            if (checkRes.status === 'fulfilled' && Array.isArray((checkRes.value as any).data) && (checkRes.value as any).data.length > 0) {
-              await triggerHaptic(ImpactStyle.Heavy);
+                if (location?.latitude && now - lastLogInsert >= LOG_INSERT_INTERVAL) {
+                  lastLogInsert = now;
+                  requests.push(
+                    CapacitorHttp.post({
+                      url: `${SUPABASE_URL}/rest/v1/location_logs`,
+                      headers,
+                      data: {
+                        user_id: userId,
+                        lat: location.latitude,
+                        lng: location.longitude,
+                        speed: location.speed || 0,
+                        heading: location.bearing || 0,
+                        accuracy: location.accuracy || 0,
+                        created_at: new Date().toISOString()
+                      }
+                    })
+                  );
+                }
+              }
+
+              const results = await Promise.allSettled(requests);
+
+              if (role === 'driver') {
+                const checkRes = results[1];
+                if (checkRes.status === 'fulfilled' && Array.isArray((checkRes.value as any).data) && (checkRes.value as any).data.length > 0) {
+                  try { await triggerHaptic(ImpactStyle.Heavy); } catch (e) { /* ignore */ }
+                }
+              }
+            } catch (e) {
+              console.warn("BG Native Update Exception", e);
             }
+          } catch (watchErr) {
+            console.error("BG Watcher callback error:", watchErr);
           }
-        } catch (e) {
-          console.warn("BG Native Update Exception", e);
         }
-      }
-    );
+      );
+    } catch (addWatcherErr) {
+      console.error('Failed to add background watcher:', addWatcherErr);
+      return null;
+    }
 
     return mainWatcherId;
   } catch (err) {
@@ -702,8 +685,12 @@ export const stopBackgroundTracking = async (watcherId: string) => {
     const BackgroundGeolocation = plugins?.BackgroundGeolocation as any;
 
     if (BackgroundGeolocation?.removeWatcher) {
-      await BackgroundGeolocation.removeWatcher({ id: watcherId });
-      console.log('Native: Background tracking stopped');
+      try {
+        await BackgroundGeolocation.removeWatcher({ id: watcherId });
+        console.log('Native: Background tracking stopped');
+      } catch (removeErr) {
+        console.warn('Remove watcher failed:', removeErr);
+      }
     }
   } catch (e) {
     console.error('Stop Background Tracking Failed:', e);
