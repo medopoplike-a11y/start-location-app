@@ -904,7 +904,7 @@ function DriverPageContent() {
     }
 
     const originalOrders = [...orders];
-    const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driver_id: driverId } : o);
+    const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'assigned', priority: 2, driverId: driverId } : o);
     setOrders(updatedOrders);
 
     try {
@@ -977,7 +977,7 @@ function DriverPageContent() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: newCustomers } : o));
 
     try {
-      const { data: freshOrder, error: fetchError } = await supabase.from('orders').select('customer_details').eq('id', orderId).single();
+      const { data: freshOrder, error: fetchError } = await supabase.from('orders').select('*, vendor:vendor_id(*), driver:driver_id(*)').eq('id', orderId).single();
       if (fetchError) throw fetchError;
       if (!freshOrder) throw new Error("لم يتم العثور على الطلب");
 
@@ -1000,8 +1000,15 @@ function DriverPageContent() {
       };
 
       const updatedDetails = { ...currentDetails, customers: updatedCustomers };
+      const updatedOrder = { ...freshOrder, customer_details: updatedDetails };
+      
       const { error } = await supabase.from('orders').update({ customer_details: updatedDetails }).eq('id', orderId);
       if (error) throw error;
+      
+      // Update local DB (SQLite) if on native
+      if (Capacitor.isNativePlatform()) {
+        await dbService.saveOrder(updatedOrder);
+      }
       
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, customers: updatedCustomers } : o));
       toastSuccess(`تم تسليم العميل ${updatedCustomers[customerIndex]?.name || "المختار"} بنجاح`);
@@ -1016,15 +1023,24 @@ function DriverPageContent() {
   };
 
   const handleConfirmPayment = async (orderId: string) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    
+    const originalOrders = [...orders];
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driverConfirmedAt: new Date().toISOString() } : o));
+    
     try {
       const { error } = await supabase.rpc('confirm_driver_payment', { p_order_id: orderId, p_driver_id: driverId });
       if (error) throw error;
+      
       toastSuccess("تم تأكيد تسليم المبلغ للمحل بنجاح");
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driverConfirmedAt: new Date().toISOString() } : o));
       void fetchActiveDebtOrders(driverId!);
       void fetchStats(driverId!);
     } catch (err: any) {
+      setOrders(originalOrders);
       toastError(err.message || "فشل تأكيد تسليم المبلغ");
+    } finally {
+      setActionLoading(false);
     }
   };
 
