@@ -6,6 +6,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import Script from "next/script";
 import AppWrapper from "@/components/AppWrapper";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
+import { GlobalErrorHandler } from "@/components/GlobalErrorHandler";
 
 const cairo = Cairo({ subsets: ["arabic"] });
 
@@ -38,21 +40,27 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head />
       <body className={`${cairo.className} antialiased selection:bg-indigo-500/10`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          forcedTheme={undefined}
-          disableTransitionOnChange
+        <GlobalErrorBoundary 
+          title="خطأ في النظام" 
+          description="حدث خطأ غير متوقع في التطبيق، ولكن تم حفظ حالتك بأمان. يمكنك المحاولة مرة أخرى."
         >
-          <AuthProvider>
-            <ToastProvider>
-              <AppWrapper>
-                {children}
-              </AppWrapper>
-            </ToastProvider>
-          </AuthProvider>
-        </ThemeProvider>
+          <GlobalErrorHandler />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            forcedTheme={undefined}
+            disableTransitionOnChange
+          >
+            <AuthProvider>
+              <ToastProvider>
+                <AppWrapper>
+                  {children}
+                </AppWrapper>
+              </ToastProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );
