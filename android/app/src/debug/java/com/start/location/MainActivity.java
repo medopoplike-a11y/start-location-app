@@ -6,6 +6,7 @@ import com.facebook.flipper.android.utils.FlipperUtils;
 import com.facebook.flipper.core.FlipperClient;
 import com.facebook.flipper.plugins.inspector.DescriptorMapping;
 import com.facebook.flipper.plugins.inspector.InspectorFlipperPlugin;
+import com.facebook.flipper.plugins.network.FlipperOkhttpInterceptor;
 import com.facebook.flipper.plugins.network.NetworkFlipperPlugin;
 import com.facebook.flipper.plugins.leakcanary2.LeakCanary2FlipperPlugin;
 import com.facebook.soloader.SoLoader;
@@ -13,7 +14,11 @@ import com.getcapacitor.BridgeActivity;
 import leakcanary.LeakCanary;
 
 public class MainActivity extends BridgeActivity {
-    private NetworkFlipperPlugin networkFlipperPlugin;
+    private static NetworkFlipperPlugin networkFlipperPlugin;
+
+    public static NetworkFlipperPlugin getNetworkFlipperPlugin() {
+        return networkFlipperPlugin;
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
