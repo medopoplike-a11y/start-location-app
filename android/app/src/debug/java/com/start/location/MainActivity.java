@@ -7,8 +7,10 @@ import com.facebook.flipper.core.FlipperClient;
 import com.facebook.flipper.plugins.inspector.DescriptorMapping;
 import com.facebook.flipper.plugins.inspector.InspectorFlipperPlugin;
 import com.facebook.flipper.plugins.network.NetworkFlipperPlugin;
+import com.facebook.flipper.plugins.leakcanary2.LeakCanary2FlipperPlugin;
 import com.facebook.soloader.SoLoader;
 import com.getcapacitor.BridgeActivity;
+import leakcanary.LeakCanary;
 
 public class MainActivity extends BridgeActivity {
     private NetworkFlipperPlugin networkFlipperPlugin;
@@ -23,7 +25,13 @@ public class MainActivity extends BridgeActivity {
             networkFlipperPlugin = new NetworkFlipperPlugin();
             client.addPlugin(new InspectorFlipperPlugin(this, DescriptorMapping.withDefaults()));
             client.addPlugin(networkFlipperPlugin);
+            client.addPlugin(new LeakCanary2FlipperPlugin());
             client.start();
         }
+
+        LeakCanary.Config config = LeakCanary.getConfig().newBuilder()
+                .dumpHeap(true)
+                .build();
+        LeakCanary.setConfig(config);
     }
 }
