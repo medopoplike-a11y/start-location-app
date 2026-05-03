@@ -2,7 +2,7 @@
 
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Clock, Store, Eye, Camera, Bot, Edit2, CheckCircle, FileText, Phone, Trash2, Truck, Star, User } from "lucide-react";
+import { MapPin, Clock, Store, Eye, Camera, Bot, Edit2, CheckCircle, FileText, Phone, Trash2, Truck, Star, User, Loader2 } from "lucide-react";
 import { translateStatus } from "@/lib/utils/format";
 import type { Order } from "../types";
 import { triggerHaptic } from "@/lib/native-utils";
@@ -21,6 +21,8 @@ interface OrderItemProps {
   quickUploadOrderId?: string | null;
   onCollectDebt?: (orderId: string) => void;
   setRatingOrder?: (order: Order) => void;
+  cancelingOrderId?: string | null;
+  collectingDebtOrderId?: string | null;
 }
 
 const OrderItem = memo(({
@@ -35,7 +37,9 @@ const OrderItem = memo(({
   uploadingInvoice,
   quickUploadOrderId,
   onCollectDebt,
-  setRatingOrder
+  setRatingOrder,
+  cancelingOrderId,
+  collectingDebtOrderId
 }: OrderItemProps) => {
   const isDelivered = order.status === "delivered";
   const isCancelled = order.status === "cancelled";
@@ -234,10 +238,18 @@ const OrderItem = memo(({
                 </motion.button>
                 <motion.button
                   onClick={() => onCancelOrder(order.id)}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-red-50 dark:bg-red-950/30 text-red-500 py-3.5 px-5 rounded-[22px] font-black text-xs border border-red-100 dark:border-red-900/30 hover:bg-red-500 hover:text-white transition-all"
+                  disabled={cancelingOrderId === order.id}
+                  whileHover={cancelingOrderId !== order.id ? { y: -2 } : {}}
+                  whileTap={cancelingOrderId !== order.id ? { scale: 0.95 } : {}}
+                  className={`flex items-center gap-2 py-3.5 px-5 rounded-[22px] font-black text-xs border transition-all ${
+                    cancelingOrderId === order.id
+                      ? "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed"
+                      : "bg-red-50 dark:bg-red-950/30 text-red-500 border-red-100 dark:border-red-900/30 hover:bg-red-500 hover:text-white"
+                  }`}
                 >
+                  {cancelingOrderId === order.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : null}
                   إلغاء
                 </motion.button>
               </>
@@ -277,16 +289,27 @@ const OrderItem = memo(({
           {!order.vendorCollectedAt && onCollectDebt && (
             order.driverConfirmedAt ? (
               <motion.button
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={collectingDebtOrderId === order.id}
+                whileHover={collectingDebtOrderId !== order.id ? { scale: 1.02, y: -2 } : {}}
+                whileTap={collectingDebtOrderId !== order.id ? { scale: 0.98 } : {}}
                 onClick={() => {
                   triggerHaptic(ImpactStyle.Medium);
-                  onCollectDebt(order.id);
+                  onCollectDebt!(order.id);
                 }}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-2xl text-[11px] font-black shadow-xl shadow-emerald-200/50 dark:shadow-none flex items-center justify-center gap-2.5"
+                className={`w-full py-4 rounded-2xl text-[11px] font-black shadow-xl flex items-center justify-center gap-2.5 transition-all ${
+                  collectingDebtOrderId === order.id
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400 shadow-none cursor-not-allowed"
+                    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-200/50 dark:shadow-none"
+                }`}
               >
-                <CheckCircle className="w-4.5 h-4.5" />
-                تأكيد استلام المديونية ({order.amount})
+                {collectingDebtOrderId === order.id ? (
+                  <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4.5 h-4.5" />
+                )}
+                {collectingDebtOrderId === order.id
+                  ? "جاري التأكيد..."
+                  : `تأكيد استلام المديونية (${order.amount})`}
               </motion.button>
             ) : (
               <div className="w-full bg-slate-50/50 dark:bg-slate-950/50 text-slate-400 dark:text-slate-600 py-4 rounded-2xl text-[10px] font-black flex items-center justify-center gap-2.5 border border-dashed border-slate-200 dark:border-slate-800">

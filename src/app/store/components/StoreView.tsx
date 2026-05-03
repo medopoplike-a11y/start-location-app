@@ -49,6 +49,8 @@ interface StoreViewProps {
   onRequestAIInsights?: () => void;
   isSyncing?: boolean;
   lastSync?: Date;
+  cancelingOrderId?: string | null;
+  collectingDebtOrderId?: string | null;
 }
 
 const StoreView = memo(function StoreView({
@@ -73,7 +75,9 @@ const StoreView = memo(function StoreView({
   quickUploadOrderId,
   onRequestAIInsights,
   isSyncing,
-  lastSync
+  lastSync,
+  cancelingOrderId,
+  collectingDebtOrderId
 }: StoreViewProps) {
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
   const [vendorRating, setVendorRating] = useState(0);
@@ -376,6 +380,8 @@ const StoreView = memo(function StoreView({
                 quickUploadOrderId={quickUploadOrderId}
                 onCollectDebt={onCollectDebt}
                 setRatingOrder={setRatingOrder}
+                cancelingOrderId={cancelingOrderId}
+                collectingDebtOrderId={collectingDebtOrderId}
               />
             ))}
           </AnimatePresence>

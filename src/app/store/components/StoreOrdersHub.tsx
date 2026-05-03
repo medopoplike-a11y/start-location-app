@@ -32,6 +32,8 @@ interface StoreOrdersHubProps {
   quickUploadOrderId?: string | null;
   isSyncing?: boolean;
   lastSync?: Date;
+  cancelingOrderId?: string | null;
+  collectingDebtOrderId?: string | null;
 }
 
 const StoreOrdersHub = memo(function StoreOrdersHub({
@@ -56,7 +58,9 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
   uploadingInvoice,
   quickUploadOrderId,
   isSyncing,
-  lastSync
+  lastSync,
+  cancelingOrderId,
+  collectingDebtOrderId
 }: StoreOrdersHubProps) {
   const [viewMode, setViewMode] = useState<"active" | "history">("active");
 
@@ -142,6 +146,8 @@ const StoreOrdersHub = memo(function StoreOrdersHub({
               onRequestAIInsights={onRequestAIInsights}
               isSyncing={isSyncing}
               lastSync={lastSync}
+              cancelingOrderId={cancelingOrderId}
+              collectingDebtOrderId={collectingDebtOrderId}
             />
           ) : (
             <HistoryView 

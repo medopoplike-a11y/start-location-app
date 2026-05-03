@@ -139,6 +139,8 @@ function StoreContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [updatingLocation, setUpdatingLocation] = useState(false);
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
+  const [collectingDebtOrderId, setCollectingDebtOrderId] = useState<string | null>(null);
   
   // V19.5.8: Global Connection Status Tracking
   const [isSocketConnected, setIsSocketConnected] = useState(true);
@@ -897,6 +899,7 @@ function StoreContent() {
 
   // --- Logic Helpers ---
   const handleCancelOrder = async (orderId: string) => {
+    if (cancelingOrderId) return;
     try {
       Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
     } catch (e) {}
@@ -906,6 +909,7 @@ function StoreContent() {
 
     // Optimistic Update
     const originalOrders = [...orders];
+    setCancelingOrderId(orderId);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
 
     try {
@@ -919,6 +923,8 @@ function StoreContent() {
     } catch (err) {
       setOrders(originalOrders);
       error('خطأ في الإلغاء. حاول مرة أخرى.');
+    } finally {
+      setCancelingOrderId(null);
     }
   };
 
@@ -1214,8 +1220,10 @@ function StoreContent() {
   };
 
   const handleCollectDebt = async (orderId: string) => {
+    if (collectingDebtOrderId) return;
     // Optimistic Update
     const originalOrders = [...orders];
+    setCollectingDebtOrderId(orderId);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, vendorCollectedAt: new Date().toISOString() } : o));
     
     // V19.3.0: Trigger Success Celebration
@@ -1238,6 +1246,8 @@ function StoreContent() {
     } catch (err) {
       setOrders(originalOrders);
       error("حدث خطأ أثناء تأكيد التحصيل.");
+    } finally {
+      setCollectingDebtOrderId(null);
     }
   };
 
@@ -1644,6 +1654,8 @@ function StoreContent() {
               onRequestAIInsights={handleRequestStoreAI}
               isSyncing={isSyncing}
               lastSync={lastSync}
+              cancelingOrderId={cancelingOrderId}
+              collectingDebtOrderId={collectingDebtOrderId}
             />
         ) : activeView === "wallet" ? (
           <WalletView
