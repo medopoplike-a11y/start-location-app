@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'com.google.firebase.crashlytics'
 
 android {
     namespace = "com.start.location"
@@ -79,6 +80,7 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.9.0')
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-crashlytics'
 
     // Flipper Dependencies
     debugImplementation 'com.facebook.flipper:flipper:0.269.0'
