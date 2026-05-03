@@ -107,6 +107,10 @@ interface DriverOrdersViewProps {
   onPreviewImage?: (url: string) => void;
   mapMode: boolean;
   onToggleMapMode: () => void;
+  acceptingOrderId?: string | null;
+  pickingUpOrderId?: string | null;
+  deliveringOrderId?: string | null;
+  confirmingPaymentOrderId?: string | null;
 }
 
 const DriverOrdersView = memo(function DriverOrdersView({
@@ -126,6 +130,10 @@ const DriverOrdersView = memo(function DriverOrdersView({
   onPreviewImage,
   mapMode,
   onToggleMapMode,
+  acceptingOrderId,
+  pickingUpOrderId,
+  deliveringOrderId,
+  confirmingPaymentOrderId,
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -519,11 +527,11 @@ const DriverOrdersView = memo(function DriverOrdersView({
                           key={order.id}
                           order={order}
                           type="active"
-                          actionLoading={actionLoading}
                           isNavigating={isNavigating}
                           onToggleNavigation={() => setIsNavigating(!isNavigating)}
                           onSelectOrder={setSelectedOrder}
                           onPickup={handlePickup}
+                          pickingUpOrderId={pickingUpOrderId}
                         />
                       ))
                     ) : (
@@ -543,9 +551,9 @@ const DriverOrdersView = memo(function DriverOrdersView({
                           key={order.id}
                           order={order}
                           type="available"
-                          actionLoading={actionLoading}
                           onAccept={handleAccept}
                           onSelectOrder={setSelectedOrder}
+                          acceptingOrderId={acceptingOrderId}
                         />
                       ))
                     ) : (

@@ -2,7 +2,7 @@
 
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { Truck, Store, Navigation, MapPin, Zap, CheckCircle2, XCircle, Bot, AlertCircle } from "lucide-react";
+import { Truck, Store, Navigation, MapPin, Zap, CheckCircle2, XCircle, Bot, AlertCircle, Loader2 } from "lucide-react";
 import type { Order } from "../types";
 import { triggerHaptic } from "@/lib/native-utils";
 import { ImpactStyle } from "@capacitor/haptics";
@@ -10,23 +10,25 @@ import { ImpactStyle } from "@capacitor/haptics";
 interface DriverOrderItemProps {
   order: Order;
   type: "active" | "available" | "completed" | "cancelled";
-  actionLoading: boolean;
   isNavigating?: boolean;
   onToggleNavigation?: () => void;
   onSelectOrder: (order: Order) => void;
   onAccept?: (orderId: string) => void;
   onPickup?: (orderId: string) => void;
+  acceptingOrderId?: string | null;
+  pickingUpOrderId?: string | null;
 }
 
 const DriverOrderItem = memo(({
   order,
   type,
-  actionLoading,
   isNavigating,
   onToggleNavigation,
   onSelectOrder,
   onAccept,
-  onPickup
+  onPickup,
+  acceptingOrderId,
+  pickingUpOrderId,
 }: DriverOrderItemProps) => {
   // V19.3.0: AI Delay Prediction Logic
   const [now, setNow] = React.useState(() => Date.now());
@@ -152,17 +154,28 @@ const DriverOrderItem = memo(({
             
             {order.status === 'assigned' && onPickup && (
               <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={pickingUpOrderId !== order.id ? { y: -1 } : {}}
+                whileTap={pickingUpOrderId !== order.id ? { scale: 0.98 } : {}}
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   triggerHaptic(ImpactStyle.Medium);
                   onPickup(order.id); 
                 }}
-                disabled={actionLoading}
-                className="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2.5 rounded-xl font-black text-xs shadow-lg shadow-sky-500/20 dark:shadow-none transition-all border-b-2 border-sky-800"
+                disabled={pickingUpOrderId === order.id}
+                className={`flex-1 py-2.5 rounded-xl font-black text-xs shadow-lg transition-all border-b-2 flex items-center justify-center gap-2 ${
+                  pickingUpOrderId === order.id
+                    ? "bg-slate-400 text-white border-slate-600 shadow-none cursor-not-allowed"
+                    : "bg-sky-600 hover:bg-sky-700 text-white shadow-sky-500/20 dark:shadow-none border-sky-800"
+                }`}
               >
-                {actionLoading ? "جاري..." : "تأكيد الاستلام"}
+                {pickingUpOrderId === order.id ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    جاري...
+                  </>
+                ) : (
+                  "تأكيد الاستلام"
+                )}
               </motion.button>
             )}
             
@@ -223,17 +236,28 @@ const DriverOrderItem = memo(({
         </div>
 
         <motion.button
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={acceptingOrderId !== order.id ? { y: -1 } : {}}
+          whileTap={acceptingOrderId !== order.id ? { scale: 0.98 } : {}}
           onClick={(e) => {
             e.stopPropagation();
             triggerHaptic(ImpactStyle.Heavy);
             onAccept?.(order.id);
           }}
-          disabled={actionLoading}
-          className="w-full bg-amber-500 text-white py-3 rounded-xl font-black text-xs shadow-lg shadow-amber-500/20 dark:shadow-none transition-all border-b-2 border-amber-700 relative z-10"
+          disabled={acceptingOrderId === order.id}
+          className={`w-full py-3 rounded-xl font-black text-xs shadow-lg transition-all border-b-2 flex items-center justify-center gap-2 ${
+            acceptingOrderId === order.id
+              ? "bg-slate-400 text-white border-slate-600 shadow-none cursor-not-allowed"
+              : "bg-amber-500 text-white shadow-amber-500/20 dark:shadow-none border-amber-700"
+          } relative z-10`}
         >
-          {actionLoading ? "جاري..." : "قبول الطلب فوراً"}
+          {acceptingOrderId === order.id ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              جاري...
+            </>
+          ) : (
+            "قبول الطلب فوراً"
+          )}
         </motion.button>
       </motion.div>
     );

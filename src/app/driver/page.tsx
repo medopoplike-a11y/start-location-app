@@ -106,6 +106,10 @@ function DriverPageContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const [settingsData, setSettingsData] = useState({ name: "", phone: "", email: "", password: "" });
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
+  const [pickingUpOrderId, setPickingUpOrderId] = useState<string | null>(null);
+  const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
+  const [confirmingPaymentOrderId, setConfirmingPaymentOrderId] = useState<string | null>(null);
   
   const isRefreshingRef = useRef(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -822,15 +826,16 @@ function DriverPageContent() {
     }
   }, [isActive, autoAccept, driverId, toastSuccess, manualSync]);
 
+  const [togglingActive, setTogglingActive] = useState(false);
   const toggleActive = async () => {
-    if (actionLoading) return;
+    if (togglingActive) return;
     try {
       if (Capacitor.isNativePlatform()) {
         await Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
       }
       
       const newStatus = !isActive;
-      setActionLoading(true);
+      setTogglingActive(true);
       setIsActive(newStatus);
       
       if (newStatus) {
@@ -854,11 +859,11 @@ function DriverPageContent() {
         });
       }
       
-      setTimeout(() => setActionLoading(false), 300);
+      setTimeout(() => setTogglingActive(false), 300);
     } catch (err) {
       console.error("Online toggle: Fatal error", err);
       setIsActive(!isActive);
-      setActionLoading(false);
+      setTogglingActive(false);
       toastError("حدث خطأ أثناء تبديل الحالة");
     }
   };
@@ -890,8 +895,8 @@ function DriverPageContent() {
   };
 
   const handleAcceptOrder = async (orderId: string) => {
-    if (!driverId || actionLoading) return;
-    setActionLoading(true);
+    if (!driverId || acceptingOrderId) return;
+    setAcceptingOrderId(orderId);
     
     const currentCustomersCount = orders
       .filter(o => o.status === 'assigned' || o.status === 'in_transit')
@@ -899,7 +904,7 @@ function DriverPageContent() {
 
     if (currentCustomersCount >= 3) {
       toastError("لقد وصلت للحد الأقصى من العملاء (3). يرجى توصيل الطلبات الحالية أولاً.");
-      setActionLoading(false);
+      setAcceptingOrderId(null);
       return;
     }
 
@@ -916,13 +921,13 @@ function DriverPageContent() {
       setOrders(originalOrders);
       toastError(err.message || "فشل قبول الطلب. حاول مرة أخرى.");
     } finally {
-      setActionLoading(false);
+      setAcceptingOrderId(null);
     }
   };
 
   const handlePickupOrder = async (orderId: string) => {
-    if (!driverId || actionLoading) return;
-    setActionLoading(true);
+    if (!driverId || pickingUpOrderId) return;
+    setPickingUpOrderId(orderId);
 
     const originalOrders = [...orders];
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'in_transit', isPickedUp: true, priority: 1 } : o));
@@ -939,13 +944,13 @@ function DriverPageContent() {
       setOrders(originalOrders);
       toastError(err.message || "فشل تحديث الحالة. حاول مرة أخرى.");
     } finally {
-      setActionLoading(false);
+      setPickingUpOrderId(null);
     }
   };
 
   const handleDeliverOrder = async (orderId: string) => {
-    if (!driverId || actionLoading) return;
-    setActionLoading(true);
+    if (!driverId || deliveringOrderId) return;
+    setDeliveringOrderId(orderId);
 
     const originalOrders = [...orders];
     setOrders(orders.filter(o => o.id !== orderId));
@@ -962,14 +967,14 @@ function DriverPageContent() {
       setOrders(originalOrders);
       toastError(err.message || "فشل إتمام الطلب. حاول مرة أخرى.");
     } finally {
-      setActionLoading(false);
+      setDeliveringOrderId(null);
     }
   };
 
   const handleDeliverCustomer = async (orderId: string, customerIndex: number) => {
     const order = orders.find(o => o.id === orderId);
-    if (!order || !order.customers || actionLoading) return;
-    setActionLoading(true);
+    if (!order || !order.customers || deliveringOrderId) return;
+    setDeliveringOrderId(orderId);
 
     const newCustomers = [...order.customers];
     newCustomers[customerIndex] = { ...newCustomers[customerIndex], status: 'delivered', deliveredAt: new Date().toISOString() };
@@ -1018,13 +1023,13 @@ function DriverPageContent() {
       toastError("فشل تحديث حالة العميل: " + (err.message || "خطأ غير معروف"));
       throw err; // Re-throw to let the UI know it failed
     } finally {
-      setActionLoading(false);
+      setDeliveringOrderId(null);
     }
   };
 
   const handleConfirmPayment = async (orderId: string) => {
-    if (actionLoading) return;
-    setActionLoading(true);
+    if (confirmingPaymentOrderId) return;
+    setConfirmingPaymentOrderId(orderId);
     
     const originalOrders = [...orders];
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driverConfirmedAt: new Date().toISOString() } : o));
@@ -1040,7 +1045,7 @@ function DriverPageContent() {
       setOrders(originalOrders);
       toastError(err.message || "فشل تأكيد تسليم المبلغ");
     } finally {
-      setActionLoading(false);
+      setConfirmingPaymentOrderId(null);
     }
   };
 
@@ -1074,9 +1079,10 @@ function DriverPageContent() {
     }
   };
 
+  const [updatingProfile, setUpdatingProfile] = useState(false);
   const handleUpdateProfile = async () => {
-    if (!user) return;
-    setActionLoading(true);
+    if (!user || updatingProfile) return;
+    setUpdatingProfile(true);
     try {
       const { error } = await supabase.from('profiles').update({ full_name: settingsData.name, phone: settingsData.phone }).eq('id', user.id);
       if (error) throw error;
@@ -1085,7 +1091,7 @@ function DriverPageContent() {
     } catch (err: any) {
       toastError("فشل تحديث البيانات: " + err.message);
     } finally {
-      setActionLoading(false);
+      setUpdatingProfile(false);
     }
   };
 
@@ -1276,6 +1282,10 @@ function DriverPageContent() {
                     onPreviewImage={setPreviewUrl}
                     mapMode={mapMode}
                     onToggleMapMode={() => setMapMode(!mapMode)}
+                    acceptingOrderId={acceptingOrderId}
+                    pickingUpOrderId={pickingUpOrderId}
+                    deliveringOrderId={deliveringOrderId}
+                    confirmingPaymentOrderId={confirmingPaymentOrderId}
                   />
                 ) : activeTab === "wallet" ? (
                   <div className="p-4 md:p-6 space-y-6">
