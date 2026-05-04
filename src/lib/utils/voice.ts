@@ -112,9 +112,69 @@ class VoiceAssistant {
     try {
       const audio = new Audio(url);
       audio.volume = 0.5;
-      audio.play().catch(e => console.warn("Audio play blocked by browser", e));
+      
+      audio.onerror = () => {
+        console.warn("Audio file load failed, falling back to Web Audio API");
+        this.playFallbackSound(type);
+      };
+      
+      audio.play().catch(e => {
+        console.warn("Audio play blocked by browser", e);
+        this.playFallbackSound(type);
+      });
     } catch (e) {
       console.error("Audio playback error", e);
+      this.playFallbackSound(type);
+    }
+  }
+
+  /**
+   * Fallback sound using Web Audio API to generate a simple beep
+   */
+  private playFallbackSound(type: 'success' | 'alert' | 'notification' | 'error') {
+    try {
+      if (typeof window === 'undefined') return;
+      
+      const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Configure based on sound type
+      switch(type) {
+        case 'success':
+          oscillator.frequency.setValueAtTime(880, ctx.currentTime); // A5
+          oscillator.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+          gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+          break;
+        case 'alert':
+          oscillator.frequency.setValueAtTime(440, ctx.currentTime); // A4
+          oscillator.frequency.setValueAtTime(523, ctx.currentTime + 0.1);
+          oscillator.frequency.setValueAtTime(659, ctx.currentTime + 0.2);
+          gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+          break;
+        case 'error':
+          oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+          oscillator.frequency.setValueAtTime(150, ctx.currentTime + 0.2);
+          gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+          break;
+        default:
+          oscillator.frequency.setValueAtTime(660, ctx.currentTime); // E5
+          gainNode.gain.setValueAtTime(0.25, ctx.currentTime);
+          break;
+      }
+      
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.5);
+      
+    } catch (e) {
+      console.warn("Fallback sound also failed", e);
     }
   }
 
