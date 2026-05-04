@@ -1,6 +1,6 @@
 {
   "name": "start-new",
-  "version": "20.0.4",
+  "version": "20.0.5",
   "private": true,
   "engines": {
     "node": ">=22.0.0"
@@ -11,6 +11,7 @@
     "export": "node scripts/static-export.mjs",
     "build:mobile": "npm run export && node fix-paths.js && node prepare-android.js && npx cap sync android",
     "build:android": "npm run build:mobile && node scripts/android-ensure-sdk.mjs && cd android && gradlew.bat assembleRelease",
+    "build:android:debug": "npm run build:mobile && node scripts/android-ensure-sdk.mjs && cd android && gradlew.bat assembleDebug",
     "build:ota": "node scripts/create-ota-bundle.js",
     "prepare-android": "node prepare-android.js",
     "start": "next start",

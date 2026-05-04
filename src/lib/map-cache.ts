@@ -24,11 +24,18 @@ export class MapCacheService {
   async initialize() {
     if (!Capacitor.isNativePlatform()) return;
     try {
-      await Filesystem.mkdir({
-        path: this.cacheDir,
-        directory: Directory.Cache,
-        recursive: true,
-      });
+      try {
+        await Filesystem.readdir({
+          path: this.cacheDir,
+          directory: Directory.Cache,
+        });
+      } catch (dirErr) {
+        await Filesystem.mkdir({
+          path: this.cacheDir,
+          directory: Directory.Cache,
+          recursive: true,
+        });
+      }
       console.log('🗺️ [MapCache] Cache directory initialized');
       
       await this.calculateCacheSize();

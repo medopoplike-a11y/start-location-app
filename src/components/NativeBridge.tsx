@@ -136,11 +136,11 @@ export const NativeBridge = () => {
       }
 
       try {
-        await StatusBar.setStyle({ style: Style.Light });
-        await StatusBar.setBackgroundColor({ color: '#f8fafc' }); 
-        await Keyboard.setAccessoryBarVisible({ isVisible: false });
+        await StatusBar.setStyle({ style: Style.Light }).catch(err => console.warn('NativeBridge: StatusBar.setStyle failed', err));
+        await StatusBar.setBackgroundColor({ color: '#f8fafc' }).catch(err => console.warn('NativeBridge: StatusBar.setBackgroundColor failed', err));
+        await Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(err => console.warn('NativeBridge: Keyboard.setAccessoryBarVisible failed', err));
         if (Capacitor.getPlatform() === 'ios') {
-          await Keyboard.setStyle({ style: KeyboardStyle.Light });
+          await Keyboard.setStyle({ style: KeyboardStyle.Light }).catch(err => console.warn('NativeBridge: Keyboard.setStyle failed', err));
         }
       } catch (e) {
         console.warn('NativeBridge: UI config failed', e);

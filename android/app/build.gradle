@@ -8,8 +8,8 @@ android {
         applicationId "com.start.location"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "20.0.4"
+        versionCode 8
+        versionName "20.0.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -41,6 +41,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+        }
         release {
             minifyEnabled true
             shrinkResources true
@@ -82,13 +86,13 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-crashlytics'
 
-    // Flipper Dependencies
-    debugImplementation 'com.facebook.flipper:flipper:0.269.0'
+    // Flipper Dependencies (matches Flipper 0.239.0 desktop app)
+    debugImplementation 'com.facebook.flipper:flipper:0.237.0'
     debugImplementation 'com.facebook.soloader:soloader:0.10.5'
-    debugImplementation 'com.facebook.flipper:flipper-network-plugin:0.269.0'
-    debugImplementation 'com.facebook.flipper:flipper-fresco-plugin:0.269.0'
-    debugImplementation 'com.facebook.flipper:flipper-leakcanary2-plugin:0.269.0'
-    debugImplementation 'com.squareup.leakcanary:leakcanary-android:3.0-alpha-8'
+    debugImplementation 'com.facebook.flipper:flipper-network-plugin:0.237.0'
+    debugImplementation 'com.facebook.flipper:flipper-leakcanary2-plugin:0.237.0'
+    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.12'
+    releaseImplementation 'com.facebook.flipper:flipper-noop:0.237.0'
 
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
