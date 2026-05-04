@@ -136,7 +136,6 @@ const DriverOrdersView = memo(function DriverOrdersView({
   confirmingPaymentOrderId,
 }: DriverOrdersViewProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [ratingOrder, setRatingOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<"available" | "active" | "completed" | "cancelled">("available");
@@ -175,8 +174,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
 
   // 1. Action Handlers
   const handleAccept = async (orderId: string) => {
-    if (actionLoading) return;
-    setActionLoading(true);
+    if (acceptingOrderId === orderId) return;
     triggerHaptic(ImpactStyle.Medium);
     // Optimistic Update
     setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'assigned' } : o));
@@ -188,14 +186,11 @@ const DriverOrdersView = memo(function DriverOrdersView({
     } catch (err) {
       setLocalOrders(orders); // Rollback
       toast.error("فشل قبول الطلب، حاول مرة أخرى");
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const handlePickup = async (orderId: string) => {
-    if (actionLoading) return;
-    setActionLoading(true);
+    if (pickingUpOrderId === orderId) return;
     triggerHaptic(ImpactStyle.Medium);
     // Optimistic Update: Change status immediately in UI
     const previousOrders = [...localOrders];
@@ -212,14 +207,11 @@ const DriverOrdersView = memo(function DriverOrdersView({
     } catch (err) {
       setLocalOrders(previousOrders); // Rollback
       toast.error("فشل تأكيد الاستلام");
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const handleDeliver = async (orderId: string) => {
-    if (actionLoading) return;
-    setActionLoading(true);
+    if (deliveringOrderId === orderId) return;
     // Optimistic Update: Remove from active immediately
     const previousOrders = [...localOrders];
     setLocalOrders(prev => prev.filter(o => o.id !== orderId));
@@ -243,14 +235,11 @@ const DriverOrdersView = memo(function DriverOrdersView({
     } catch (err) {
       setLocalOrders(previousOrders); // Rollback
       toast.error("فشل تأكيد التوصيل");
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const handleDeliverCustomer = async (orderId: string, customerIndex: number) => {
     if (!onDeliverCustomer) return;
-    setActionLoading(true);
     try {
       await onDeliverCustomer(orderId, customerIndex);
       // Update local selectedOrder state to reflect the specific customer delivery
@@ -259,20 +248,16 @@ const DriverOrdersView = memo(function DriverOrdersView({
         newCustomers[customerIndex] = { ...newCustomers[customerIndex], status: 'delivered' };
         setSelectedOrder({ ...selectedOrder, customers: newCustomers });
       }
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const handleConfirmPayment = async (orderId: string) => {
-    setActionLoading(true);
+    if (confirmingPaymentOrderId === orderId) return;
     try {
       await onConfirmPayment(orderId);
       toast.success("تم تأكيد تحصيل المبلغ");
     } catch (err) {
       toast.error("فشل تأكيد التحصيل");
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -634,7 +619,7 @@ const DriverOrdersView = memo(function DriverOrdersView({
           setIsPanelExpanded(false);
         }}
         isActive={isActive}
-        loading={actionLoading}
+        loading={!!acceptingOrderId || !!pickingUpOrderId || !!deliveringOrderId || !!confirmingPaymentOrderId}
       />
 
       <RatingModal
