@@ -178,6 +178,16 @@ const nativeFetch = async (url: string, options: any = {}) => {
         });
       }
 
+      // Fix: Don't provide body for status codes that don't allow it (204, 205, 304)
+      const noBodyStatuses = [204, 205, 304];
+      if (noBodyStatuses.includes(response.status)) {
+        return new Response(null, {
+          status: response.status,
+          statusText: response.status === 204 ? 'No Content' : `Status ${response.status}`,
+          headers: responseHeaders,
+        });
+      }
+
       return new Response(bodyString, {
         status: response.status,
         statusText: response.status === 200 ? 'OK' : `Status ${response.status}`,
