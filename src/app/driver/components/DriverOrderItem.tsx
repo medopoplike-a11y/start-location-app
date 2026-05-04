@@ -40,12 +40,14 @@ const DriverOrderItem = memo(({
 
   const aiAlert = React.useMemo(() => {
     if (order.status === 'assigned') {
-      const assignedTime = new Date(order.assignedAt || order.updatedAt).getTime();
+      const assignedDate = new Date(order.assignedAt || order.updatedAt);
+      const assignedTime = isNaN(assignedDate.getTime()) ? now : assignedDate.getTime();
       const diffMins = (now - assignedTime) / 60000;
       if (diffMins > 10) return { type: 'delay', message: 'تأخر في الاستلام' };
     }
     if (order.status === 'in_transit') {
-      const pickupTime = new Date(order.pickedUpAt || order.updatedAt).getTime();
+      const pickupDate = new Date(order.pickedUpAt || order.updatedAt);
+      const pickupTime = isNaN(pickupDate.getTime()) ? now : pickupDate.getTime();
       const diffMins = (now - pickupTime) / 60000;
       if (diffMins > 20) return { type: 'critical', message: 'تأخر في التوصيل' };
     }

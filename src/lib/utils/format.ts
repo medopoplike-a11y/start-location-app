@@ -37,10 +37,11 @@ export const getStatusColor = (status: string) => {
   }
 };
 
-export const formatRelativeTime = (timestamp: string | number | Date) => {
+export const formatRelativeTime = (timestamp: string | number | Date | null | undefined) => {
   if (!timestamp) return "غير متوفر";
   const now = Date.now();
-  const ts = new Date(timestamp).getTime();
+  const dateObj = new Date(timestamp);
+  const ts = isNaN(dateObj.getTime()) ? now : dateObj.getTime();
   const diff = now - ts;
   
   const mins = Math.floor(diff / 60000);
@@ -50,9 +51,10 @@ export const formatRelativeTime = (timestamp: string | number | Date) => {
   return `منذ ${Math.floor(mins/1440)} يوم`;
 };
 
-export const formatTimeOnly = (isoString: string | Date) => {
+export const formatTimeOnly = (isoString: string | Date | null | undefined) => {
   if (!isoString) return "";
-  return new Date(isoString).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+  const dateObj = new Date(isoString);
+  return isNaN(dateObj.getTime()) ? "" : dateObj.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
 };
 
 export const getErrorMessage = (error: unknown): string => {

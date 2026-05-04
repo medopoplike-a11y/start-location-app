@@ -28,7 +28,8 @@ export const SyncIndicator = ({ lastSync, isSyncing = false, onReset, networkHea
     const DISCONNECT_THRESHOLD_MS = 8000;
 
     const interval = setInterval(() => {
-      const seconds = Math.floor((new Date().getTime() - lastSync.getTime()) / 1000);
+      const safeLastSync = lastSync instanceof Date && !isNaN(lastSync.getTime()) ? lastSync : new Date();
+      const seconds = Math.floor((new Date().getTime() - safeLastSync.getTime()) / 1000);
       if (seconds < 5) setTimeAgo("الآن");
       else if (seconds < 60) setTimeAgo(`منذ ${seconds} ثانية`);
       else setTimeAgo(`منذ ${Math.floor(seconds / 60)} دقيقة`);
