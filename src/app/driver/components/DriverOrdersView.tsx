@@ -560,7 +560,6 @@ const DriverOrdersView = memo(function DriverOrdersView({
                           key={order.id}
                           order={order}
                           type="completed"
-                          actionLoading={false}
                           onSelectOrder={setSelectedOrder}
                         />
                       ))
@@ -581,7 +580,6 @@ const DriverOrdersView = memo(function DriverOrdersView({
                           key={order.id}
                           order={order}
                           type="cancelled"
-                          actionLoading={false}
                           onSelectOrder={setSelectedOrder}
                         />
                       ))

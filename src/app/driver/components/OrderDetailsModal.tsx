@@ -531,7 +531,6 @@ const OrderDetailsModal = memo(function OrderDetailsModal({
                     {order.status === 'in_transit' && cust.status === 'pending' && (
                       <motion.button
                         whileTap={{ scale: 0.95 }}
-                        disabled={loading}
                         onClick={() => onDeliverCustomer?.(order.id, idx)}
                         className="w-full py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 flex items-center justify-center gap-2"
                       >
