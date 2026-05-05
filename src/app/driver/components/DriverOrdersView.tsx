@@ -248,6 +248,8 @@ const DriverOrdersView = memo(function DriverOrdersView({
         newCustomers[customerIndex] = { ...newCustomers[customerIndex], status: 'delivered' };
         setSelectedOrder({ ...selectedOrder, customers: newCustomers });
       }
+    } catch (err) {
+      console.error("handleDeliverCustomer failed:", err);
     }
   };
 
@@ -606,7 +608,6 @@ const DriverOrdersView = memo(function DriverOrdersView({
       {/* 4. Modals */}
       <OrderDetailsModal
         order={selectedOrder}
-        show={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onAccept={handleAccept}
         onPickup={handlePickup}
@@ -619,7 +620,10 @@ const DriverOrdersView = memo(function DriverOrdersView({
           setIsPanelExpanded(false);
         }}
         isActive={isActive}
-        loading={!!acceptingOrderId || !!pickingUpOrderId || !!deliveringOrderId || !!confirmingPaymentOrderId}
+        acceptingOrderId={acceptingOrderId}
+        pickingUpOrderId={pickingUpOrderId}
+        deliveringOrderId={deliveringOrderId}
+        confirmingPaymentOrderId={confirmingPaymentOrderId}
       />
 
       <RatingModal

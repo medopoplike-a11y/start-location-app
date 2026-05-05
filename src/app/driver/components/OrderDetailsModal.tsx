@@ -30,7 +30,10 @@ interface OrderDetailsModalProps {
   onPreviewImage?: (url: string) => void;
   onNavigate?: () => void;
   isActive?: boolean;
-  loading?: boolean;
+  acceptingOrderId?: string | null;
+  pickingUpOrderId?: string | null;
+  deliveringOrderId?: string | null;
+  confirmingPaymentOrderId?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
@@ -58,7 +61,10 @@ const OrderDetailsModal = memo(function OrderDetailsModal({
   onPreviewImage,
   onNavigate,
   isActive = false,
-  loading = false,
+  acceptingOrderId,
+  pickingUpOrderId,
+  deliveringOrderId,
+  confirmingPaymentOrderId,
 }: OrderDetailsModalProps) {
   useBackButton(onClose, !!order);
   const [showRating, setShowRating] = useState(false);
@@ -135,8 +141,17 @@ const OrderDetailsModal = memo(function OrderDetailsModal({
   const config = statusConfig[order.status] || statusConfig.pending;
   const currentStep = config.step;
 
+  const getCurrentLoadingState = () => {
+    if (!order) return null;
+    if (acceptingOrderId === order.id) return acceptingOrderId;
+    if (pickingUpOrderId === order.id) return pickingUpOrderId;
+    if (deliveringOrderId === order.id) return deliveringOrderId;
+    if (confirmingPaymentOrderId === order.id) return confirmingPaymentOrderId;
+    return null;
+  };
+
   const handleAction = async () => {
-    if (loading) return;
+    if (!order || getCurrentLoadingState()) return;
     console.log("OrderDetailsModal: handleAction triggered", order.status, order.id);
     
     try {
@@ -641,10 +656,10 @@ const OrderDetailsModal = memo(function OrderDetailsModal({
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleAction}
-                disabled={loading || !isActive || (order.status === "in_transit" && order.customers && order.customers.length > 0 && !order.customers.every(c => c.status === 'delivered')) || (order.status === "delivered" && !!order.driverConfirmedAt)}
+                disabled={!!getCurrentLoadingState() || !isActive || (order.status === "in_transit" && order.customers && order.customers.length > 0 && !order.customers.every(c => c.status === 'delivered')) || (order.status === "delivered" && !!order.driverConfirmedAt)}
                 className={`w-full py-5 rounded-2xl text-white font-black text-sm shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${actionColor()}`}
               >
-                {loading ? (
+                {getCurrentLoadingState() ? (
                   <div className="flex items-center justify-center gap-2">
                     <motion.div
                       animate={{ rotate: 360 }}

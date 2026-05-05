@@ -553,11 +553,13 @@ function StoreContent() {
     setLastOrderCount(orders.length);
   }, [orders]);
 
-  // V19.3.0: Driver Acceptance Notification Logic
+  // V19.3.0: Driver Acceptance Notification Logic + Auto switch tab on delivery
   useEffect(() => {
     if (prevOrdersRef.current.length > 0) {
       orders.forEach(order => {
         const prevOrder = prevOrdersRef.current.find(o => o.id === order.id);
+        
+        // Case 1: Driver accepted order
         if (prevOrder && prevOrder.status === 'pending' && (order.status === 'assigned' || order.status === 'in_transit')) {
           console.log("StorePage: Driver accepted order:", order.id);
           
@@ -580,6 +582,12 @@ function StoreContent() {
           setTimeout(() => {
             setDriverNotification(prev => prev?.id === order.id ? null : prev);
           }, 8000);
+        }
+        
+        // Case 2: Order was delivered - switch to active tab
+        if (prevOrder && prevOrder.status !== 'delivered' && order.status === 'delivered') {
+          console.log("StorePage: Order delivered, switching to active tab");
+          setActiveTab("active");
         }
       });
     }
@@ -1174,29 +1182,39 @@ function StoreContent() {
         // V19.5.6: Enhanced Reset Strategy - Force state reset and view switch
         console.log("Order saved successfully, resetting view...");
         
-        // 1. Switch view immediately
-        setActiveView("store");
+        // 1. Clear saved persistence state FIRST to prevent reopening
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.remove({ key: 'pending_order_form_v2' });
+        } else {
+          localStorage.removeItem('pending_order_form_v2');
+        }
         
-        // 2. Clear all form states
+        // 2. Update local list FIRST
+        const ui = mapDBOrderToUI(data as VendorDBOrder);
+        setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
+        
+        // 3. Clear all form states
         setEditingOrder(null);
         setInvoiceUrl(null);
         setFormData({ 
           customer: "", phone: "", address: "", orderValue: "", deliveryFee: "30", notes: "", prepTime: "15", customerCoords: null,
           customers: [{ id: Math.random().toString(36).substring(2, 9), name: "", phone: "", address: "", orderValue: "", deliveryFee: "30", prepTime: "15", invoiceUrl: "" }]
         });
+        setShowOrderForm(false);
 
-        // 3. Update local list
-        const ui = mapDBOrderToUI(data as VendorDBOrder);
-        setOrders(prev => editingOrder ? prev.map(o => o.id === ui.id ? ui : o) : [ui, ...prev]);
+        // 4. Switch view to store immediately with timeout to ensure all state changes are done
+        setTimeout(() => {
+          setActiveView("store");
+        }, 50);
         
-        // 4. Feedback
+        // 5. Feedback
         aiVoice.playSound('success');
         setShowCelebration(true);
         setTimeout(() => setShowCelebration(false), 4000);
         
         success(editingOrder ? "تم تعديل السكة بنجاح" : "تم إنشاء سكة جديدة بنجاح");
         
-        // 5. Scroll to top to ensure user sees the new order
+        // 6. Scroll to top to ensure user sees the new order
         if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
 
         // Auto-assign in background
