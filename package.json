@@ -43,7 +43,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@capacitor/toast": "^8.0.1",
     "@capgo/capacitor-navigation-bar": "^8.0.25",
-    "@capgo/capacitor-updater": "^8.45.10",
+    "@capgo/capacitor-updater": "^8.45.11",
     "@supabase/supabase-js": "^2.103.3",
     "@types/leaflet": "^1.9.21",
     "framer-motion": "^12.38.0",
